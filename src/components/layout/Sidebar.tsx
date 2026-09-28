@@ -126,9 +126,9 @@ export default function Sidebar() {
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between px-5 h-20">
+        <div className="flex items-center justify-between px-5 h-16 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25 flex-shrink-0">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25 flex-shrink-0">
               <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                 <path d="M12 3v18M17 6v12M21 10v4M7 6v12M3 10v4" />
               </svg>
@@ -147,9 +147,9 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1 no-scrollbar">
+        <nav className="flex-1 overflow-y-auto px-3 py-1.5 space-y-0.5 no-scrollbar">
           {!collapsed && (
-            <div className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-white/35">
+            <div className="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/35">
               Navigation
             </div>
           )}
@@ -159,7 +159,7 @@ export default function Sidebar() {
               to={item.path}
               end={item.path === '/'}
               className={({ isActive }) =>
-                `relative flex items-center justify-between gap-2 px-3.5 h-11 rounded-xl transition-colors duration-200 group ${
+                `relative flex items-center justify-between gap-2 px-3.5 h-10 rounded-xl transition-colors duration-200 group ${
                   isActive
                     ? 'text-white font-semibold'
                     : 'text-white/60 hover:text-white hover:bg-white/[0.05]'
@@ -172,9 +172,12 @@ export default function Sidebar() {
                   {isActive && (
                     <motion.div
                       layoutId="sidebar-active-pill"
-                      transition={{ type: 'spring', stiffness: 340, damping: 30 }}
-                      className="absolute inset-0 liquid-glass rounded-xl shadow-md border border-white/15 -z-0"
-                    />
+                      transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                      style={{ position: 'absolute', inset: 0 }}
+                      className="rounded-xl bg-gradient-to-r from-white/[0.14] via-white/[0.08] to-white/[0.04] backdrop-blur-xl border border-white/15 shadow-[0_8px_24px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] pointer-events-none z-0 overflow-hidden"
+                    >
+                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
+                    </motion.div>
                   )}
                   <div
                     className={`relative z-10 flex items-center gap-3.5 min-w-0 transition-transform duration-200 group-hover:translate-x-0.5 ${
