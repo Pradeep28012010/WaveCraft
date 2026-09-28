@@ -288,13 +288,17 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
           ) : (
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
             <div className="relative z-10 flex-1 min-h-0 px-6 sm:px-12 pb-6 flex items-center justify-center overflow-hidden">
-              <div
+              <motion.div
+                layout
+                transition={{ type: 'spring', stiffness: 240, damping: 28 }}
                 className={`w-full max-w-6xl h-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 ${
                   showLyrics ? 'lg:justify-between' : ''
                 }`}
               >
                 {/* Left / Center Player Column */}
-                <div
+                <motion.div
+                  layout
+                  transition={{ type: 'spring', stiffness: 240, damping: 28 }}
                   className={`flex flex-col items-center justify-center w-full ${
                     showLyrics ? 'lg:w-5/12 max-w-md' : 'max-w-lg'
                   }`}
@@ -559,20 +563,24 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                       </button>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Right Column: Synced Lyrics Panel */}
-                {showLyrics && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 24 }}
-                    className="w-full lg:w-7/12 h-[42vh] lg:h-[72vh] flex-shrink-0"
-                  >
-                    <LyricsView artist={currentTrack.artist} title={currentTrack.title} />
-                  </motion.div>
-                )}
-              </div>
+                <AnimatePresence mode="popLayout">
+                  {showLyrics && (
+                    <motion.div
+                      key="lyrics-panel"
+                      initial={{ opacity: 0, x: 36, scale: 0.96, filter: 'blur(8px)' }}
+                      animate={{ opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, x: 36, scale: 0.96, filter: 'blur(8px)' }}
+                      transition={{ type: 'spring', stiffness: 250, damping: 26 }}
+                      className="w-full lg:w-7/12 h-[42vh] lg:h-[72vh] flex-shrink-0"
+                    >
+                      <LyricsView artist={currentTrack.artist} title={currentTrack.title} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             </div>
           )}
 

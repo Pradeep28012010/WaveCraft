@@ -30,9 +30,9 @@ const formatDuration = (seconds: number) => {
 
 const EqualizerIcon = () => (
   <div className="flex items-end gap-[2.5px] h-4 w-4 justify-center">
-    <span className="w-[3px] h-3 bg-[var(--color-accent)] rounded-full animate-pulse" />
-    <span className="w-[3px] h-4 bg-[var(--color-accent)] rounded-full animate-pulse [animation-delay:150ms]" />
-    <span className="w-[3px] h-2.5 bg-[var(--color-accent)] rounded-full animate-pulse [animation-delay:300ms]" />
+    <span className="w-[3px] bg-[var(--color-accent)] rounded-full animate-eq-1" />
+    <span className="w-[3px] bg-[var(--color-accent)] rounded-full animate-eq-2" />
+    <span className="w-[3px] bg-[var(--color-accent)] rounded-full animate-eq-3" />
   </div>
 );
 
@@ -129,12 +129,15 @@ const TrackRow = memo(({
     <div
       onClick={handleTriggerPlay}
       onContextMenu={(e) => onContextMenu?.(e, track)}
-      className={`group relative flex items-center gap-4 px-3.5 py-2.5 rounded-2xl transition-colors duration-150 cursor-pointer select-none border ${
+      className={`group relative flex items-center gap-4 px-3.5 py-2.5 rounded-2xl transition-all duration-200 ease-out hover:translate-x-1 active:scale-[0.992] cursor-pointer select-none border ${
         isCurrentTrack
-          ? 'bg-white/[0.11] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
+          ? 'bg-white/[0.12] border-white/20 shadow-[0_8px_28px_rgba(0,0,0,0.38)]'
           : 'bg-white/[0.02] border-transparent hover:bg-white/[0.07] hover:border-white/10'
       }`}
     >
+      {isCurrentTrack && (
+        <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
+      )}
       {/* Index or Equalizer */}
       {showIndex && (
         <div className="w-7 flex justify-center items-center text-sm text-white/50 font-medium flex-shrink-0">

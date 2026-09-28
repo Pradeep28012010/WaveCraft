@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useJamStore } from '../../stores/jamStore';
 import CreatePlaylist from '../library/CreatePlaylist';
@@ -158,24 +159,45 @@ export default function Sidebar() {
               to={item.path}
               end={item.path === '/'}
               className={({ isActive }) =>
-                `flex items-center justify-between gap-2 px-3.5 h-11 rounded-xl transition-all duration-200 ${
+                `relative flex items-center justify-between gap-2 px-3.5 h-11 rounded-xl transition-colors duration-200 group ${
                   isActive
-                    ? 'liquid-glass text-white font-semibold shadow-md'
-                    : 'text-white/60 hover:text-white hover:bg-white/[0.06]'
+                    ? 'text-white font-semibold'
+                    : 'text-white/60 hover:text-white hover:bg-white/[0.05]'
                 }`
               }
               title={collapsed ? item.name : undefined}
             >
-              <div className={`flex items-center gap-3.5 min-w-0 ${collapsed ? 'mx-auto' : ''}`}>
-                <div className="w-5 h-5 flex-shrink-0">{item.icon}</div>
-                {!collapsed && <span className="text-sm truncate">{item.name}</span>}
-              </div>
-              {!collapsed && item.badge && (
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider flex-shrink-0 ${item.badgeColor}`}
-                >
-                  {item.badge}
-                </span>
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.div
+                      layoutId="sidebar-active-pill"
+                      transition={{ type: 'spring', stiffness: 340, damping: 30 }}
+                      className="absolute inset-0 liquid-glass rounded-xl shadow-md border border-white/15 -z-0"
+                    />
+                  )}
+                  <div
+                    className={`relative z-10 flex items-center gap-3.5 min-w-0 transition-transform duration-200 group-hover:translate-x-0.5 ${
+                      collapsed ? 'mx-auto' : ''
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${
+                        isActive ? 'text-[var(--color-accent)]' : ''
+                      }`}
+                    >
+                      {item.icon}
+                    </div>
+                    {!collapsed && <span className="text-sm truncate">{item.name}</span>}
+                  </div>
+                  {!collapsed && item.badge && (
+                    <span
+                      className={`relative z-10 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider flex-shrink-0 ${item.badgeColor}`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </>
               )}
             </NavLink>
           ))}
