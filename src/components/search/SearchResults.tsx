@@ -1,0 +1,372 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { searchTracks, getCachedSearch } from '../../services/youtube';
+import { searchAlbums, searchArtists } from '../../services/itunes';
+import { usePlayerStore } from '../../stores/playerStore';
+import GlassCard from '../ui/GlassCard';
+import GlassButton from '../ui/GlassButton';
+import TrackRow from '../ui/TrackRow';
+import Skeleton from '../ui/Skeleton';
+import GenreBrowser from './GenreBrowser';
+import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import type { Track, AlbumResult, ArtistResult } from '../../types';
+
+const QUICK_SEARCHES = [
+  'Yeshanagula',
+  'Anirudh Ravichander',
+  'The Weeknd',
+  'Arijit Singh',
+  'Imagine Dragons',
+  'Dua Lipa',
+  'Coldplay',
+  'AR Rahman',
+  'Travis Scott',
+  'Taylor Swift'
+];
+
+export default function SearchResults() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get('q') || '';
+
+  const [activeTab, setActiveTab] = useState<'all' | 'songs' | 'albums' | 'artists'>('all');
+  const [tracks, setTracks] = useState<Track[]>(() => (query ? getCachedSearch(query) || [] : []));
+  const [albums, setAlbums] = useState<AlbumResult[]>([]);
+  const [artists, setArtists] = useState<ArtistResult[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(query && !getCachedSearch(query)));
+
+  const playTrack = usePlayerStore((state) => state.playTrack);
+
+  useEffect(() => {
+    const clean = query.trim();
+    if (!clean) {
+      setTracks([]);
+      setAlbums([]);
+      setArtists([]);
+      setIsLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    const cached = getCachedSearch(clean);
+    if (cached) {
+      setTracks(cached);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
+    // Load playable tracks first and immediately unblock UI
+    searchTracks(clean)
+      .then((tracksData) => {
+        if (isMounted) {
+          setTracks(tracksData);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    // Load secondary albums & artists in parallel without blocking song results
+    searchAlbums(clean)
+      .then((albumsData) => {
+        if (isMounted) setAlbums(albumsData);
+      })
+      .catch(() => {});
+
+    searchArtists(clean)
+      .then((artistsData) => {
+        if (isMounted) setArtists(artistsData);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [query]);
+
+  const handlePlayTrack = useCallback(
+    (track: Track) => {
+      const idx = tracks.findIndex((t) => t.id === track.id);
+      playTrack(track, tracks, idx >= 0 ? idx : 0);
+    },
+    [tracks, playTrack]
+  );
+
+  const handlePlayAll = () => {
+    if (tracks.length > 0) {
+      playTrack(tracks[0], tracks, 0);
+    }
+  };
+
+  const handleShuffleAll = () => {
+    if (tracks.length > 0) {
+      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+      playTrack(shuffled[0], shuffled, 0);
+    }
+  };
+
+  const handleQuickSearch = (term: string) => {
+    setSearchParams({ q: term });
+  };
+
+  if (!query.trim()) {
+    return (
+      <div className="pb-24 pt-2 text-white space-y-10">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight mb-2">Search & Discover</h1>
+          <p className="text-sm text-white/55 mb-5">Trending searches right now</p>
+          <div className="flex flex-wrap gap-2.5">
+            {QUICK_SEARCHES.map((term) => (
+              <button
+                key={term}
+                onClick={() => handleQuickSearch(term)}
+                className="px-4 py-2 rounded-full glass-button text-xs font-semibold text-white/85 hover:text-white"
+              >
+                {term}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <GenreBrowser />
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: 'all', label: 'Top Results' },
+    { id: 'songs', label: `Songs (${tracks.length})` },
+    { id: 'albums', label: `Albums (${albums.length})` },
+    { id: 'artists', label: `Artists (${artists.length})` }
+  ];
+
+  const topTrack = tracks[0];
+
+  return (
+    <div className="flex flex-col gap-6 pb-24 pt-2 text-white">
+      {/* Header & Filter Pills */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-widest text-white/45">
+            Search Results
+          </span>
+          <h1 className="text-2xl font-extrabold text-white mt-0.5">“{query}”</h1>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                activeTab === tab.id
+                  ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/25'
+                  : 'glass text-white/65 hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array(6)
+            .fill(0)
+            .map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-2xl" />
+            ))}
+        </div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-10"
+        >
+          {tracks.length === 0 && albums.length === 0 && artists.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-white/50">
+              <p className="text-lg font-semibold text-white">No results found for "{query}"</p>
+              <p className="text-sm mt-1">Try searching for another song, artist, or movie name.</p>
+            </div>
+          ) : (
+            <>
+              {/* Top Result + Top Songs Split (when on 'all' tab) */}
+              {activeTab === 'all' && topTrack && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Top Result Spotlight Card */}
+                  <div className="lg:col-span-5 flex flex-col">
+                    <h2 className="text-xl font-bold mb-3">Top Result</h2>
+                    <GlassCard
+                      variant="liquid"
+                      padding="lg"
+                      onClick={() => handlePlayTrack(topTrack)}
+                      className="flex-1 flex flex-col justify-between cursor-pointer group relative overflow-hidden"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <img
+                          src={topTrack.thumbnail || DEFAULT_THUMBNAIL}
+                          alt={topTrack.title}
+                          onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
+                          className="w-28 h-28 rounded-2xl object-cover shadow-2xl group-hover:scale-105 transition-transform"
+                        />
+                        <button className="w-14 h-14 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-xl shadow-[var(--color-accent)]/35 group-hover:scale-110 transition-transform">
+                          <svg className="w-7 h-7 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <div className="mt-6">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/15 text-white">
+                            Song
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/20">
+                            {topTrack.quality || '320kbps Studio HD'}
+                          </span>
+                        </div>
+                        <h3 className="text-2xl font-extrabold text-white truncate">{topTrack.title}</h3>
+                        <p className="text-sm text-white/65 truncate mt-1">
+                          {topTrack.artist} • {topTrack.album}
+                        </p>
+                      </div>
+                    </GlassCard>
+                  </div>
+
+                  {/* Top Songs List */}
+                  <div className="lg:col-span-7 flex flex-col">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-xl font-bold">Songs</h2>
+                      <div className="flex gap-2">
+                        <GlassButton size="sm" onClick={handlePlayAll}>
+                          Play All
+                        </GlassButton>
+                        <GlassButton size="sm" onClick={handleShuffleAll}>
+                          Shuffle
+                        </GlassButton>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {tracks.slice(0, 4).map((track, i) => (
+                        <TrackRow
+                          key={track.id}
+                          track={track}
+                          index={i + 1}
+                          onPlay={handlePlayTrack}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Full Songs Section */}
+              {(activeTab === 'songs' || (activeTab === 'all' && tracks.length > 4)) && (
+                <section>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold">
+                      {activeTab === 'all' ? 'More Songs' : 'All Songs'}
+                    </h2>
+                    <div className="flex gap-2">
+                      <GlassButton size="sm" onClick={handlePlayAll}>
+                        Play All
+                      </GlassButton>
+                      <GlassButton size="sm" onClick={handleShuffleAll}>
+                        Shuffle
+                      </GlassButton>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {(activeTab === 'all' ? tracks.slice(4, 16) : tracks).map((track, i) => (
+                      <TrackRow
+                        key={track.id}
+                        track={track}
+                        index={activeTab === 'all' ? i + 5 : i + 1}
+                        onPlay={handlePlayTrack}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Albums Section */}
+              {(activeTab === 'all' || activeTab === 'albums') && albums.length > 0 && (
+                <section>
+                  <h2 className="text-xl font-bold mb-4">Albums</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                    {(activeTab === 'all' ? albums.slice(0, 5) : albums).map((album) => (
+                      <GlassCard
+                        key={album.id}
+                        padding="sm"
+                        hover
+                        onClick={() => handleQuickSearch(`${album.title || album.name} ${album.artist}`)}
+                        className="group cursor-pointer"
+                      >
+                        <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5">
+                          <img
+                            src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
+                            alt={album.title || album.name}
+                            onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="bg-[var(--color-accent)] text-white p-3 rounded-full shadow-lg">
+                              <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                        <h3 className="font-bold text-sm text-white truncate">{album.title || album.name}</h3>
+                        <p className="text-xs text-white/55 truncate mt-0.5">
+                          {album.artist} {album.year ? `• ${album.year}` : ''}
+                        </p>
+                      </GlassCard>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Artists Section */}
+              {(activeTab === 'all' || activeTab === 'artists') && artists.length > 0 && (
+                <section>
+                  <h2 className="text-xl font-bold mb-4">Artists</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                    {(activeTab === 'all' ? artists.slice(0, 5) : artists).map((artist) => (
+                      <GlassCard
+                        key={artist.id}
+                        padding="md"
+                        hover
+                        onClick={() => handleQuickSearch(artist.name)}
+                        className="flex flex-col items-center text-center group cursor-pointer"
+                      >
+                        <div className="w-28 h-28 rounded-full overflow-hidden mb-3 relative shadow-xl border border-white/15">
+                          {artist.imageUrl || artist.thumbnail ? (
+                            <img
+                              src={artist.imageUrl || artist.thumbnail}
+                              alt={artist.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-rose-500 to-purple-600 flex items-center justify-center text-3xl font-bold">
+                              {artist.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <h3 className="font-bold text-sm text-white truncate w-full">{artist.name}</h3>
+                        <p className="text-xs text-white/45 mt-0.5">{artist.genre || 'Artist'}</p>
+                      </GlassCard>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </motion.div>
+      )}
+    </div>
+  );
+}

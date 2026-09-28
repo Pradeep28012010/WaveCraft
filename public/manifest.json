@@ -1,0 +1,24 @@
+{
+  "name": "WaveCraft",
+  "short_name": "WaveCraft",
+  "description": "A liquid glass themed music streaming platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#7c3aed",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%237c3aed'/><stop offset='100%25' style='stop-color:%23a855f7'/></linearGradient></defs><rect width='512' height='512' rx='96' fill='url(%23g)'/><path d='M160 160v192M208 120v272M256 80v352M304 120v272M352 160v192' stroke='white' stroke-width='32' stroke-linecap='round'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%237c3aed'/><stop offset='100%25' style='stop-color:%23a855f7'/></linearGradient></defs><rect width='192' height='192' rx='36' fill='url(%23g)'/><path d='M56 56v80M76 40v112M96 24v144M116 40v112M136 56v80' stroke='white' stroke-width='12' stroke-linecap='round'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

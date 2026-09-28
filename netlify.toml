@@ -1,0 +1,13 @@
+[build]
+  command = "npx vite build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/api/music"
+  to = "/.netlify/functions/music"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
