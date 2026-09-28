@@ -58,6 +58,8 @@ export default function WaveCardModal({
   const [themeId, setThemeId] = useState<string>('crimson');
   const [copiedLink, setCopiedLink] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const activeTheme = CARD_THEMES.find((t) => t.id === themeId) || CARD_THEMES[0];
@@ -292,6 +294,186 @@ export default function WaveCardModal({
     }
   };
 
+  // Record a 6-second 60fps 9:16 Animated Video Story (.webm) with spinning vinyl & live spectrum
+  const handleRecordVideoStory = async () => {
+    if (isRecordingVideo || typeof MediaRecorder === 'undefined') return;
+    setIsRecordingVideo(true);
+    setVideoProgress(0);
+
+    try {
+      const vCanvas = document.createElement('canvas');
+      vCanvas.width = 720;
+      vCanvas.height = 1280;
+      const ctx = vCanvas.getContext('2d');
+      if (!ctx) {
+        setIsRecordingVideo(false);
+        return;
+      }
+
+      const imgUrl = track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL;
+      const artImg = await new Promise<HTMLImageElement | null>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = imgUrl;
+      });
+
+      const stream = vCanvas.captureStream(60);
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm';
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 4_500_000
+      });
+
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      const totalMs = 6000;
+      const startTime = performance.now();
+      let rafId = 0;
+
+      const drawFrame = (now: number) => {
+        const elapsed = now - startTime;
+        const t = elapsed / 1000;
+        const pct = Math.min(100, Math.round((elapsed / totalMs) * 100));
+        setVideoProgress(pct);
+
+        // 1. Background
+        const bgGrad = ctx.createLinearGradient(0, 0, 720, 1280);
+        bgGrad.addColorStop(0, activeTheme.bgStart);
+        bgGrad.addColorStop(0.55, '#090912');
+        bgGrad.addColorStop(1, activeTheme.bgEnd);
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, 720, 1280);
+
+        // 2. Orbiting Glow Orbs
+        const ox1 = 200 + Math.cos(t * 1.2) * 90;
+        const oy1 = 260 + Math.sin(t * 1.2) * 70;
+        const orb1 = ctx.createRadialGradient(ox1, oy1, 20, ox1, oy1, 380);
+        orb1.addColorStop(0, `${activeTheme.primary}66`);
+        orb1.addColorStop(1, 'transparent');
+        ctx.fillStyle = orb1;
+        ctx.fillRect(0, 0, 720, 1280);
+
+        // 3. Spinning Vinyl Platter
+        const vcx = 360;
+        const vcy = 340;
+        ctx.save();
+        ctx.translate(vcx, vcy);
+        ctx.rotate(t * 1.6);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 170, 0, Math.PI * 2);
+        ctx.fillStyle = '#111116';
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = activeTheme.primary;
+        ctx.stroke();
+
+        // Vinyl grooves
+        for (const r of [145, 120, 95]) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Center Album Art
+        ctx.beginPath();
+        ctx.arc(0, 0, 72, 0, Math.PI * 2);
+        ctx.clip();
+        if (artImg) {
+          ctx.drawImage(artImg, -72, -72, 144, 144);
+        } else {
+          ctx.fillStyle = activeTheme.primary;
+          ctx.fillRect(-72, -72, 144, 144);
+        }
+        ctx.restore();
+
+        // 4. Track Title & Artist
+        ctx.textAlign = 'center';
+        ctx.fillStyle = activeTheme.primary;
+        ctx.font = '800 18px Inter, sans-serif';
+        ctx.fillText('WAVECRAFT STUDIO STORY', 360, 565);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 34px Inter, sans-serif';
+        const titleShort = track.title.length > 24 ? track.title.slice(0, 23) + '…' : track.title;
+        ctx.fillText(titleShort, 360, 612);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.68)';
+        ctx.font = '600 22px Inter, sans-serif';
+        const artistShort = track.artist.length > 30 ? track.artist.slice(0, 29) + '…' : track.artist;
+        ctx.fillText(artistShort, 360, 648);
+
+        // 5. Lyric Quote Box
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(64, 695, 592, 260, 32);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 28px Inter, sans-serif';
+        const quoteLines = (selectedQuote || track.title).split('\n').slice(0, 3);
+        quoteLines.forEach((line, idx) => {
+          const clean = line.length > 34 ? line.slice(0, 33) + '…' : line;
+          ctx.fillText(`“${clean}”`, 360, 775 + idx * 48);
+        });
+
+        // 6. Animated Bouncing Audio-Reactive Equalizer Bars
+        const barCount = 36;
+        const startX = 90;
+        const stepX = 540 / barCount;
+        for (let i = 0; i < barCount; i++) {
+          const wave =
+            20 +
+            Math.abs(Math.sin(t * 7 + i * 0.4) * 52 + Math.cos(t * 4.5 - i * 0.3) * 28);
+          ctx.fillStyle = i % 2 === 0 ? activeTheme.primary : activeTheme.secondary;
+          ctx.beginPath();
+          ctx.roundRect(startX + i * stepX, 1060 - wave / 2, 9, wave, 4.5);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = '700 18px Inter, sans-serif';
+        ctx.fillText('WaveCraft • 320kbps Studio Audio', 360, 1190);
+
+        if (elapsed < totalMs) {
+          rafId = requestAnimationFrame(drawFrame);
+        } else {
+          recorder.stop();
+        }
+      };
+
+      recorder.onstop = () => {
+        cancelAnimationFrame(rafId);
+        const videoBlob = new Blob(chunks, { type: mimeType });
+        const url = URL.createObjectURL(videoBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `WaveStory-${track.title.replace(/[^a-z0-9]/gi, '_').slice(0, 22)}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setIsRecordingVideo(false);
+        setVideoProgress(0);
+      };
+
+      recorder.start();
+      rafId = requestAnimationFrame(drawFrame);
+    } catch {
+      setIsRecordingVideo(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -477,7 +659,7 @@ export default function WaveCardModal({
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={handleDownloadCard}
-                    disabled={isExporting}
+                    disabled={isExporting || isRecordingVideo}
                     className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white font-bold text-sm shadow-lg hover:brightness-110 transition-all cursor-pointer disabled:opacity-50"
                   >
                     {isExporting ? 'Rendering HD Card...' : '⬇ Download Story PNG'}
@@ -485,12 +667,25 @@ export default function WaveCardModal({
 
                   <button
                     onClick={handleNativeShare}
-                    disabled={isExporting}
+                    disabled={isExporting || isRecordingVideo}
                     className="py-3 px-5 rounded-2xl liquid-glass text-white font-bold text-sm hover:bg-white/15 transition-all cursor-pointer"
                   >
                     Share Card
                   </button>
                 </div>
+
+                <button
+                  onClick={handleRecordVideoStory}
+                  disabled={isRecordingVideo || isExporting}
+                  className="w-full py-3 px-5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <span>🎬</span>
+                  <span>
+                    {isRecordingVideo
+                      ? `Recording 60fps Video Reel... (${videoProgress}%)`
+                      : 'Export 6s Animated Video Story (.webm)'}
+                  </span>
+                </button>
 
                 <button
                   onClick={handleCopyLink}

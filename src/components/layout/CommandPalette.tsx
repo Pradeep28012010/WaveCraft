@@ -201,6 +201,33 @@ export default function CommandPalette() {
         run: () => navigate('/vibe')
       },
       {
+        id: 'nav-dj',
+        category: 'Navigation',
+        title: 'Open Dual-Deck Live DJ Booth & Automix',
+        subtitle: 'Mix two 320kbps songs live with 3-band isolator EQ, FX pads & Bass-Swap Automix',
+        badge: 'DJ MIX',
+        icon: '🎧',
+        run: () => navigate('/dj')
+      },
+      {
+        id: 'nav-galaxy',
+        category: 'Navigation',
+        title: 'Explore Sonic Galaxy Taste Constellation Map',
+        subtitle: '120fps interactive star map of your Liked Songs, Recent Orbit & AI Taste Predictions',
+        badge: 'GALAXY',
+        icon: '🌌',
+        run: () => navigate('/galaxy')
+      },
+      {
+        id: 'nav-vault',
+        category: 'Navigation',
+        title: 'Open Offline 320kbps Audio Vault',
+        subtitle: 'View and play locally cached zero-internet tracks in Your Library',
+        badge: 'OFFLINE',
+        icon: '⚡',
+        run: () => navigate('/library')
+      },
+      {
         id: 'nav-jam',
         category: 'Navigation',
         title: 'Go to Live Jam Room',

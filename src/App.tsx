@@ -20,6 +20,8 @@ const StatsPage = lazy(() => import('./components/stats/StatsPage'));
 const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
 const VibeDJPage = lazy(() => import('./components/vibe/VibeDJPage'));
 const JamRoomPage = lazy(() => import('./components/jam/JamRoomPage'));
+const DJConsolePage = lazy(() => import('./components/dj/DJConsolePage'));
+const SonicGalaxyPage = lazy(() => import('./components/galaxy/SonicGalaxyPage'));
 
 function RouteFallback() {
   return (
@@ -72,6 +74,8 @@ function AppContent() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/vibe" element={<VibeDJPage />} />
+          <Route path="/dj" element={<DJConsolePage />} />
+          <Route path="/galaxy" element={<SonicGalaxyPage />} />
           <Route path="/jam" element={<JamRoomPage />} />
           <Route path="/search" element={<SearchResults />} />
           <Route path="/genres" element={<GenreBrowser />} />

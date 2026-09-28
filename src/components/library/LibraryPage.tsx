@@ -2,20 +2,24 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useOfflineVault } from '../../services/offlineVault';
 import PlaylistCard from './PlaylistCard';
 import CreatePlaylist from './CreatePlaylist';
 import ImportPlaylistModal from './ImportPlaylistModal';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
+import TrackRow from '../ui/TrackRow';
 
 export default function LibraryPage() {
   const playlists = useLibraryStore((state) => state.playlists);
   const likedSongs = useLibraryStore((state) => state.likedSongs);
   const recentlyPlayed = useLibraryStore((state) => state.recentlyPlayed);
   const playTrack = usePlayerStore((state) => state.playTrack);
+  const { offlineTracks } = useOfflineVault();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [showOfflineVault, setShowOfflineVault] = useState(false);
 
   return (
     <div className="pb-24 pt-2 text-white min-h-screen">
@@ -23,7 +27,7 @@ export default function LibraryPage() {
         <div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Your Library</h1>
           <p className="text-xs text-white/50 mt-1">
-            All your liked songs, listening history, and custom or imported playlists
+            All your liked songs, offline 320kbps vault, listening history, and custom playlists
           </p>
         </div>
         <div className="flex items-center gap-2.5">
@@ -37,7 +41,7 @@ export default function LibraryPage() {
       </div>
 
       {/* Quick Access Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-10">
         <Link to="/liked" className="group">
           <GlassCard variant="liquid" padding="md" hover className="flex items-center gap-5 h-full">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-600 to-purple-700 flex items-center justify-center flex-shrink-0 shadow-xl group-hover:scale-105 transition-transform">
@@ -65,7 +69,80 @@ export default function LibraryPage() {
             </div>
           </GlassCard>
         </Link>
+
+        <div
+          onClick={() => setShowOfflineVault((v) => !v)}
+          className="group cursor-pointer"
+        >
+          <GlassCard
+            variant="liquid"
+            padding="md"
+            hover
+            className={`flex items-center gap-5 h-full border ${
+              showOfflineVault ? 'border-emerald-400/50 bg-emerald-500/10' : ''
+            }`}
+          >
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center flex-shrink-0 shadow-xl group-hover:scale-105 transition-transform">
+              <span className="text-3xl">⚡</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold mb-1">Offline Vault</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                  320k LOCAL
+                </span>
+              </div>
+              <p className="text-sm text-white/60">
+                {offlineTracks.length} zero-internet tracks
+              </p>
+            </div>
+          </GlassCard>
+        </div>
       </div>
+
+      {/* Expandable Offline Vault Section */}
+      {showOfflineVault && (
+        <GlassCard variant="liquid" padding="lg" className="mb-10 border border-emerald-400/30">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+            <div>
+              <h3 className="text-xl font-extrabold text-white flex items-center gap-2">
+                <span>⚡ Offline 320kbps Audio Vault</span>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
+                  {offlineTracks.length} Cached
+                </span>
+              </h3>
+              <p className="text-xs text-white/55 mt-1">
+                Stored directly in your browser CacheStorage for 0ms instant playback—even without Wi-Fi. Click the download icon on any song row across WaveCraft to add it here.
+              </p>
+            </div>
+            {offlineTracks.length > 0 && (
+              <GlassButton
+                variant="primary"
+                size="sm"
+                onClick={() => playTrack(offlineTracks[0], offlineTracks, 0)}
+              >
+                ▶ Play Offline Vault
+              </GlassButton>
+            )}
+          </div>
+          {offlineTracks.length === 0 ? (
+            <div className="py-8 text-center text-sm text-white/50">
+              Your Offline Vault is empty. Hover any song and click the <strong className="text-emerald-300">↓ Download</strong> button to cache 320kbps audio locally!
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {offlineTracks.map((track, idx) => (
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  tracks={offlineTracks}
+                  index={idx + 1}
+                />
+              ))}
+            </div>
+          )}
+        </GlassCard>
+      )}
 
       <h2 className="text-2xl font-bold mb-5 tracking-tight">Playlists</h2>
 

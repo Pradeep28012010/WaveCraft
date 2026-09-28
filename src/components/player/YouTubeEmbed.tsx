@@ -3,7 +3,9 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore, type StudioFXMode } from '../../stores/studioStore';
+import { searchTracks } from '../../services/youtube';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
+import { getOfflineAudioObjectUrl, isTrackOffline } from '../../services/offlineVault';
 import type { Track } from '../../types';
 
 declare global {
@@ -589,6 +591,39 @@ export default function YouTubeEmbed() {
   // Helper to load and start playing a track on the appropriate engine
   const startTrackPlayback = (track: Track, shouldPlay: boolean) => {
     const audio = audioRef.current;
+
+    // 1. Check Offline 320kbps Audio Vault first for zero-latency local playback
+    if (audio && isTrackOffline(track.id)) {
+      getOfflineAudioObjectUrl(track.id)
+        .then((blobUrl) => {
+          const targetUrl = blobUrl || track.audioUrl;
+          if (!targetUrl || usePlayerStore.getState().currentTrack?.id !== track.id) return;
+          if (ytPlayerInstance && window.ytPlayerReady && typeof ytPlayerInstance.stopVideo === 'function') {
+            try {
+              ytPlayerInstance.stopVideo();
+            } catch {}
+          }
+          activeEngine = 'audio';
+          if (audio.src !== targetUrl) {
+            audio.src = targetUrl;
+          }
+          audio.volume = isMuted ? 0 : volume;
+          audio.playbackRate = playbackSpeed || 1;
+          if (shouldPlay) {
+            if (audioCtx && audioCtx.state === 'suspended') {
+              audioCtx.resume().catch(() => {});
+            }
+            audio.play().catch((err) => {
+              setIsLoading(false);
+              if (err?.name === 'NotAllowedError') {
+                usePlayerStore.getState().pause();
+              }
+            });
+          }
+        })
+        .catch(() => {});
+      return;
+    }
 
     if (track.audioUrl && audio) {
       if (ytPlayerInstance && window.ytPlayerReady && typeof ytPlayerInstance.stopVideo === 'function') {
