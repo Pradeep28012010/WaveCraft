@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { searchTracks, getCachedSearch } from '../../services/youtube';
 import { searchAlbums, searchArtists, getAlbumTracks } from '../../services/itunes';
+import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { usePlayerStore } from '../../stores/playerStore';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import GlassCard from '../ui/GlassCard';
@@ -93,13 +94,10 @@ export default function SearchResults() {
     };
   }, [query]);
 
-  const handlePlayTrack = useCallback(
-    (track: Track) => {
-      const idx = tracks.findIndex((t) => t.id === track.id);
-      playTrack(track, tracks, idx >= 0 ? idx : 0);
-    },
-    [tracks, playTrack]
-  );
+  const handlePlayTrack = useCallback((track: Track) => {
+    unlockAudioEngine();
+    playTrackWithSmartQueue(track);
+  }, []);
 
   const handleOpenAlbum = async (album: AlbumResult, autoPlayFirst = false) => {
     if (autoPlayFirst) {

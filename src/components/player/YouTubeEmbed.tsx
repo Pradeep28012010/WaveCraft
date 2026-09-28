@@ -3,7 +3,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore, type StudioFXMode } from '../../stores/studioStore';
-import { searchTracks } from '../../services/youtube';
+import { getSmartRecommendations } from '../../services/recommendationEngine';
 import type { Track } from '../../types';
 
 declare global {
@@ -237,6 +237,9 @@ export default function YouTubeEmbed() {
   const fxMode = useStudioStore((s) => s.fxMode);
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
   const tickPomodoro = useStudioStore((s) => s.tickPomodoro);
+  const sleepActive = useStudioStore((s) => s.sleepActive);
+  const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
+  const tickSleepTimer = useStudioStore((s) => s.tickSleepTimer);
 
   // Sync 10-band Equalizer gains + Studio FX EQ offsets in real time
   useEffect(() => {
@@ -259,7 +262,25 @@ export default function YouTubeEmbed() {
     return () => clearInterval(id);
   }, [pomodoroActive, tickPomodoro]);
 
-  // Preload next track in queue & auto-extend queue when autoplay is on
+  // Unified Sleep Timer 1s ticker with smooth 10-second volume fade-out
+  useEffect(() => {
+    if (!sleepActive || sleepEndAtTrack) return;
+    const id = setInterval(() => {
+      const st = useStudioStore.getState();
+      if (!st.sleepActive || st.sleepEndAtTrack) return;
+      if (st.sleepSeconds <= 1) {
+        st.tickSleepTimer();
+        usePlayerStore.getState().pause();
+        const restoreVol = usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume;
+        if (audioRef.current) audioRef.current.volume = restoreVol;
+      } else {
+        st.tickSleepTimer();
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [sleepActive, sleepEndAtTrack]);
+
+  // Preload next track in queue & intelligently predict next songs when nearing end of queue
   useEffect(() => {
     if (!preloadRef.current) {
       const pre = new Audio();
@@ -282,14 +303,14 @@ export default function YouTubeEmbed() {
       autoplay &&
       currentTrack &&
       queue.length > 0 &&
-      queueIndex >= queue.length - 1 &&
+      queueIndex >= queue.length - 2 &&
       !isFetchingAutoplay.current
     ) {
       isFetchingAutoplay.current = true;
-      searchTracks(`${currentTrack.artist} hits`)
-        .then((similar) => {
+      getSmartRecommendations(currentTrack, queue, 8)
+        .then((recommended) => {
           const existingIds = new Set(usePlayerStore.getState().queue.map((t) => t.id));
-          const fresh = similar.filter((t) => !existingIds.has(t.id)).slice(0, 6);
+          const fresh = recommended.filter((t) => !existingIds.has(t.id));
           fresh.forEach((t) => usePlayerStore.getState().addToQueue(t));
         })
         .catch(() => {})
@@ -337,11 +358,20 @@ export default function YouTubeEmbed() {
 
       const cf = useSettingsStore.getState().crossfadeDuration;
       const userVol = usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume;
+      const studioState = useStudioStore.getState();
+      const sleepScale =
+        studioState.sleepActive && !studioState.sleepEndAtTrack && studioState.sleepSeconds <= 10
+          ? Math.max(0, studioState.sleepSeconds / 10)
+          : 1;
+
       if (cf > 0 && dur > cf * 2 && dur - cur <= cf && dur - cur > 0.2) {
         const remainingRatio = Math.max(0, Math.min(1, (dur - cur) / cf));
-        audio.volume = userVol * remainingRatio;
-      } else if (audio.volume !== userVol) {
-        audio.volume = userVol;
+        audio.volume = userVol * remainingRatio * sleepScale;
+      } else {
+        const targetVol = userVol * sleepScale;
+        if (Math.abs(audio.volume - targetVol) > 0.01) {
+          audio.volume = targetVol;
+        }
       }
     };
 
@@ -349,6 +379,34 @@ export default function YouTubeEmbed() {
       if (activeEngine !== 'audio') return;
       const userVol = usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume;
       audio.volume = userVol;
+
+      // If Sleep Timer is set to "End of Song", stop playback right here
+      const studio = useStudioStore.getState();
+      if (studio.sleepActive && studio.sleepEndAtTrack) {
+        studio.stopSleepTimer();
+        usePlayerStore.getState().pause();
+        return;
+      }
+
+      const pState = usePlayerStore.getState();
+      // If we are at the end of the queue and autoplay is on, ensure a smart recommendation plays next
+      if (
+        pState.repeatMode === 'off' &&
+        pState.queueIndex >= pState.queue.length - 1 &&
+        useSettingsStore.getState().autoplay &&
+        pState.currentTrack
+      ) {
+        getSmartRecommendations(pState.currentTrack, pState.queue, 8)
+          .then((recs) => {
+            if (recs.length > 0) {
+              recs.forEach((t) => usePlayerStore.getState().addToQueue(t));
+              usePlayerStore.getState().nextTrack();
+            }
+          })
+          .catch(() => {});
+        return;
+      }
+
       nextTrack();
     };
 
@@ -472,6 +530,29 @@ export default function YouTubeEmbed() {
             if (activeEngine !== 'youtube') return;
             const state = e.data;
             if (state === window.YT.PlayerState.ENDED) {
+              const studio = useStudioStore.getState();
+              if (studio.sleepActive && studio.sleepEndAtTrack) {
+                studio.stopSleepTimer();
+                usePlayerStore.getState().pause();
+                return;
+              }
+              const pState = usePlayerStore.getState();
+              if (
+                pState.repeatMode === 'off' &&
+                pState.queueIndex >= pState.queue.length - 1 &&
+                useSettingsStore.getState().autoplay &&
+                pState.currentTrack
+              ) {
+                getSmartRecommendations(pState.currentTrack, pState.queue, 8)
+                  .then((recs) => {
+                    if (recs.length > 0) {
+                      recs.forEach((t) => usePlayerStore.getState().addToQueue(t));
+                      usePlayerStore.getState().nextTrack();
+                    }
+                  })
+                  .catch(() => {});
+                return;
+              }
               usePlayerStore.getState().nextTrack();
             } else if (state === window.YT.PlayerState.PLAYING) {
               usePlayerStore.getState().setIsLoading(false);

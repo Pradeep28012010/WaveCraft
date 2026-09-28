@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { usePlayerStore } from './playerStore';
 
 export type StudioFXMode =
   | 'normal'
@@ -141,7 +142,6 @@ function createNoiseBuffer(ctx: AudioContext, type: 'pink' | 'vinyl' | 'brown'):
         out[i] *= 0.18;
       }
     } else {
-      // Vinyl dust & warm crackle
       let last = 0;
       for (let i = 0; i < bufferSize; i++) {
         const white = (Math.random() * 2 - 1) * 0.012;
@@ -218,7 +218,7 @@ function startAmbientLayer(id: AmbientLayerId, volume: number) {
 
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.11; // ~9 second ocean wave cycle
+    lfo.frequency.value = 0.11;
     lfoGain.gain.value = 260;
     lfo.connect(lfoGain);
     lfoGain.connect(lp.frequency);
@@ -240,7 +240,6 @@ function startAmbientLayer(id: AmbientLayerId, volume: number) {
       }
     });
   } else if (id === 'binaural') {
-    // 200Hz Left + 240Hz Right = 40Hz Gamma Focus Binaural Pad
     const oscL = ctx.createOscillator();
     const oscR = ctx.createOscillator();
     const panL = ctx.createStereoPanner();
@@ -283,20 +282,33 @@ interface StudioState {
   ambientVolumes: Record<AmbientLayerId, number>;
   isStudioModalOpen: boolean;
   isCommandPaletteOpen: boolean;
+
   // Focus Pomodoro Timer
   pomodoroActive: boolean;
   pomodoroMode: 'focus' | 'break';
   pomodoroSeconds: number;
   completedSessions: number;
 
+  // Unified Global Sleep Timer
+  sleepActive: boolean;
+  sleepSeconds: number;
+  sleepTotalSeconds: number;
+  sleepEndAtTrack: boolean;
+
   setFxMode: (mode: StudioFXMode) => void;
   setAmbientVolume: (id: AmbientLayerId, volume: number) => void;
   stopAllAmbient: () => void;
   setStudioModalOpen: (open: boolean) => void;
   setCommandPaletteOpen: (open: boolean) => void;
+
   startPomodoro: (mode?: 'focus' | 'break') => void;
   stopPomodoro: () => void;
   tickPomodoro: () => void;
+
+  startSleepTimer: (minutes: number) => void;
+  stopSleepTimer: () => void;
+  setSleepEndAtTrack: (val: boolean) => void;
+  tickSleepTimer: () => void;
 }
 
 export const useStudioStore = create<StudioState>((set, get) => ({
@@ -309,14 +321,18 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   },
   isStudioModalOpen: false,
   isCommandPaletteOpen: false,
+
   pomodoroActive: false,
   pomodoroMode: 'focus',
   pomodoroSeconds: 25 * 60,
   completedSessions: 0,
 
-  setFxMode: (fxMode) => {
-    set({ fxMode });
-  },
+  sleepActive: false,
+  sleepSeconds: 0,
+  sleepTotalSeconds: 0,
+  sleepEndAtTrack: false,
+
+  setFxMode: (fxMode) => set({ fxMode }),
 
   setAmbientVolume: (id, volume) => {
     const clamped = Math.max(0, Math.min(1, volume));
@@ -382,6 +398,53 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         pomodoroMode: nextMode,
         pomodoroSeconds: nextMode === 'focus' ? 25 * 60 : 5 * 60,
         completedSessions: pomodoroMode === 'focus' ? completedSessions + 1 : completedSessions
+      });
+    }
+  },
+
+  startSleepTimer: (minutes) => {
+    const secs = Math.max(1, Math.round(minutes * 60));
+    set({
+      sleepActive: true,
+      sleepSeconds: secs,
+      sleepTotalSeconds: secs,
+      sleepEndAtTrack: false
+    });
+  },
+
+  stopSleepTimer: () => {
+    set({
+      sleepActive: false,
+      sleepSeconds: 0,
+      sleepTotalSeconds: 0,
+      sleepEndAtTrack: false
+    });
+  },
+
+  setSleepEndAtTrack: (val) => {
+    set({
+      sleepEndAtTrack: val,
+      sleepActive: val,
+      sleepSeconds: 0,
+      sleepTotalSeconds: 0
+    });
+  },
+
+  tickSleepTimer: () => {
+    const { sleepActive, sleepEndAtTrack, sleepSeconds } = get();
+    if (!sleepActive || sleepEndAtTrack) return;
+
+    if (sleepSeconds > 1) {
+      set({ sleepSeconds: sleepSeconds - 1 });
+    } else {
+      // Pause music & mute ambient layers when sleep timer finishes
+      usePlayerStore.getState().pause();
+      get().stopAllAmbient();
+      set({
+        sleepActive: false,
+        sleepSeconds: 0,
+        sleepTotalSeconds: 0,
+        sleepEndAtTrack: false
       });
     }
   }

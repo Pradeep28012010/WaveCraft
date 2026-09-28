@@ -28,6 +28,7 @@ export default function StudioFXModal() {
   const {
     isActive: sleepActive,
     timeRemaining: sleepRemaining,
+    endAtTrack: sleepEndAtTrack,
     startTimer: startSleepTimer,
     stopTimer: stopSleepTimer,
     setEndAtTrack
@@ -265,18 +266,18 @@ export default function StudioFXModal() {
                 </div>
               </div>
 
-              {/* Sleep Fade-Out Timer */}
+              {/* Unified Sleep Fade-Out Timer */}
               <div className="p-5 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between gap-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-sm font-extrabold text-white">🌙 Sleep Fade-Out Timer</h4>
                     <p className="text-xs text-white/55 mt-0.5">
-                      Automatically pauses playback when your countdown finishes.
+                      Smoothly fades out volume and pauses playback when your timer completes.
                     </p>
                   </div>
                   {sleepActive && (
-                    <div className="text-xl font-black tabular-nums text-purple-300">
-                      {formatClock(sleepRemaining)}
+                    <div className="text-base sm:text-xl font-black tabular-nums text-purple-300">
+                      {sleepEndAtTrack ? 'End of Song' : formatClock(sleepRemaining)}
                     </div>
                   )}
                 </div>
@@ -284,9 +285,9 @@ export default function StudioFXModal() {
                 {sleepActive ? (
                   <button
                     onClick={stopSleepTimer}
-                    className="w-full py-2.5 rounded-xl bg-purple-500/25 border border-purple-400/40 text-purple-200 text-xs font-extrabold cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-purple-500/25 border border-purple-400/40 text-purple-200 text-xs font-extrabold cursor-pointer hover:bg-purple-500/35"
                   >
-                    Cancel Sleep Timer
+                    Cancel Sleep Timer ({sleepEndAtTrack ? 'End of Song' : formatClock(sleepRemaining)})
                   </button>
                 ) : (
                   <div className="flex flex-wrap items-center gap-2">

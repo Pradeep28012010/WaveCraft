@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Track } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
 interface TrackRowProps {
@@ -94,11 +95,11 @@ const TrackRow = memo(({
       onPlay(track);
     } else if (onClick) {
       onClick(track);
-    } else if (tracks && tracks.length > 0) {
+    } else if (tracks && tracks.length > 1) {
       const idx = tracks.findIndex((t) => t.id === track.id);
       player.playTrack(track, tracks, idx >= 0 ? idx : 0);
     } else {
-      player.playTrack(track);
+      playTrackWithSmartQueue(track);
     }
   };
 

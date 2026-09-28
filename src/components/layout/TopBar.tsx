@@ -5,7 +5,6 @@ import { searchSuggestions } from '../../services/youtube';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useJamStore } from '../../stores/jamStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
-import SleepTimer from '../settings/SleepTimer';
 
 export default function TopBar() {
   const navigate = useNavigate();
@@ -14,7 +13,6 @@ export default function TopBar() {
   const [searchQuery, setSearchQuery] = useState(urlQuery);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
   const debounceTimer = useRef<any>(null);
 
   const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
@@ -25,6 +23,9 @@ export default function TopBar() {
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
   const pomodoroMode = useStudioStore((s) => s.pomodoroMode);
   const pomodoroSeconds = useStudioStore((s) => s.pomodoroSeconds);
+  const sleepActive = useStudioStore((s) => s.sleepActive);
+  const sleepSeconds = useStudioStore((s) => s.sleepSeconds);
+  const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
   const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
 
@@ -36,7 +37,7 @@ export default function TopBar() {
       ? 'Ambient Mix'
       : 'Studio FX';
 
-  const formatPomodoro = (sec: number) => {
+  const formatClock = (sec: number) => {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
@@ -177,8 +178,20 @@ export default function TopBar() {
             >
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
               <span>
-                {pomodoroMode === 'focus' ? 'Focus' : 'Break'} {formatPomodoro(pomodoroSeconds)}
+                {pomodoroMode === 'focus' ? 'Focus' : 'Break'} {formatClock(pomodoroSeconds)}
               </span>
+            </button>
+          )}
+
+          {/* Unified Active Sleep Timer Pill */}
+          {sleepActive && (
+            <button
+              onClick={() => setStudioModalOpen(true)}
+              className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full bg-purple-500/20 border border-purple-400/40 text-xs font-extrabold text-purple-200 hover:bg-purple-500/30 transition-colors cursor-pointer tabular-nums"
+              title="Sleep Timer Active — Click to manage"
+            >
+              <span>🌙</span>
+              <span>{sleepEndAtTrack ? 'End of Track' : formatClock(sleepSeconds)}</span>
             </button>
           )}
 
@@ -194,12 +207,12 @@ export default function TopBar() {
             </button>
           )}
 
-          {/* Studio FX & Ambient Soundscape Hub Button */}
+          {/* Unified Studio FX, Ambient Soundscape & Timers Hub Button */}
           <button
             onClick={() => setStudioModalOpen(true)}
-            title="Studio Audio FX (Slowed + Reverb, 8D Orbit, Nightcore) & Ambient Mixer"
+            title="Studio Audio FX, Ambient Mixer, Focus & Sleep Timer"
             className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer border ${
-              fxMode !== 'normal' || hasActiveAmbient
+              fxMode !== 'normal' || hasActiveAmbient || sleepActive
                 ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-[0_0_20px_rgba(250,45,72,0.45)]'
                 : 'liquid-glass border-white/15 text-white/90 hover:text-white hover:bg-white/15'
             }`}
@@ -224,24 +237,12 @@ export default function TopBar() {
             </button>
           )}
 
-          <button
-            onClick={() => setIsSleepTimerOpen(true)}
-            title="Sleep Timer"
-            className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white cursor-pointer"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          </button>
-
           <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full glass text-xs font-medium text-white/80">
             <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
             <span>Studio 320k</span>
           </div>
         </div>
       </header>
-
-      <SleepTimer isOpen={isSleepTimerOpen} onClose={() => setIsSleepTimerOpen(false)} />
 
       {/* Fallback PWA Install Instructions Modal */}
       {showInstallGuide &&

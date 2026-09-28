@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStudioStore } from '../../stores/studioStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { searchTracks } from '../../services/youtube';
+import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import type { Track } from '../../types';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
@@ -273,7 +274,7 @@ export default function CommandPalette() {
       if (selectedIndex < trackResults.length) {
         const chosenTrack = trackResults[selectedIndex];
         unlockAudioEngine();
-        playTrack(chosenTrack, trackResults, selectedIndex);
+        playTrackWithSmartQueue(chosenTrack);
         setCommandPaletteOpen(false);
       } else {
         const action = filteredActions[selectedIndex - trackResults.length];
@@ -354,7 +355,7 @@ export default function CommandPalette() {
                           onMouseEnter={() => setSelectedIndex(idx)}
                           onClick={() => {
                             unlockAudioEngine();
-                            playTrack(track, trackResults, idx);
+                            playTrackWithSmartQueue(track);
                             setCommandPaletteOpen(false);
                           }}
                           className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl cursor-pointer transition-colors ${
