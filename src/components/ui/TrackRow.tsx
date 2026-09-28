@@ -7,6 +7,7 @@ import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
 interface TrackRowProps {
   track: Track;
+  tracks?: Track[];
   index?: number;
   isPlaying?: boolean;
   isActive?: boolean;
@@ -37,6 +38,7 @@ const EqualizerIcon = () => (
 
 const TrackRow = memo(({
   track,
+  tracks,
   index,
   isPlaying: propIsPlaying,
   isActive: propIsActive,
@@ -92,6 +94,9 @@ const TrackRow = memo(({
       onPlay(track);
     } else if (onClick) {
       onClick(track);
+    } else if (tracks && tracks.length > 0) {
+      const idx = tracks.findIndex((t) => t.id === track.id);
+      player.playTrack(track, tracks, idx >= 0 ? idx : 0);
     } else {
       player.playTrack(track);
     }

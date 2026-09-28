@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { searchTracks, getCachedSearch } from '../../services/youtube';
-import { searchAlbums, searchArtists } from '../../services/itunes';
+import { searchAlbums, searchArtists, getAlbumTracks } from '../../services/itunes';
 import { usePlayerStore } from '../../stores/playerStore';
+import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
 import TrackRow from '../ui/TrackRow';
@@ -35,10 +36,18 @@ export default function SearchResults() {
   const [artists, setArtists] = useState<ArtistResult[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(query && !getCachedSearch(query)));
 
+  // Selected Album View state
+  const [selectedAlbum, setSelectedAlbum] = useState<AlbumResult | null>(null);
+  const [albumTracks, setAlbumTracks] = useState<Track[]>([]);
+  const [isAlbumLoading, setIsAlbumLoading] = useState<boolean>(false);
+
   const playTrack = usePlayerStore((state) => state.playTrack);
 
   useEffect(() => {
     const clean = query.trim();
+    setSelectedAlbum(null);
+    setAlbumTracks([]);
+
     if (!clean) {
       setTracks([]);
       setAlbums([]);
@@ -56,7 +65,6 @@ export default function SearchResults() {
       setIsLoading(true);
     }
 
-    // Load playable tracks first and immediately unblock UI
     searchTracks(clean)
       .then((tracksData) => {
         if (isMounted) {
@@ -68,7 +76,6 @@ export default function SearchResults() {
         if (isMounted) setIsLoading(false);
       });
 
-    // Load secondary albums & artists in parallel without blocking song results
     searchAlbums(clean)
       .then((albumsData) => {
         if (isMounted) setAlbums(albumsData);
@@ -94,6 +101,23 @@ export default function SearchResults() {
     [tracks, playTrack]
   );
 
+  const handleOpenAlbum = async (album: AlbumResult, autoPlayFirst = false) => {
+    if (autoPlayFirst) {
+      unlockAudioEngine();
+    }
+    setSelectedAlbum(album);
+    setIsAlbumLoading(true);
+    try {
+      const loaded = await getAlbumTracks(album);
+      setAlbumTracks(loaded);
+      if (autoPlayFirst && loaded.length > 0) {
+        playTrack(loaded[0], loaded, 0);
+      }
+    } finally {
+      setIsAlbumLoading(false);
+    }
+  };
+
   const handlePlayAll = () => {
     if (tracks.length > 0) {
       playTrack(tracks[0], tracks, 0);
@@ -108,6 +132,8 @@ export default function SearchResults() {
   };
 
   const handleQuickSearch = (term: string) => {
+    setSelectedAlbum(null);
+    setActiveTab('all');
     setSearchParams({ q: term });
   };
 
@@ -122,7 +148,7 @@ export default function SearchResults() {
               <button
                 key={term}
                 onClick={() => handleQuickSearch(term)}
-                className="px-4 py-2 rounded-full glass-button text-xs font-semibold text-white/85 hover:text-white"
+                className="px-4 py-2 rounded-full glass-button text-xs font-semibold text-white/85 hover:text-white cursor-pointer"
               >
                 {term}
               </button>
@@ -150,29 +176,139 @@ export default function SearchResults() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
         <div>
           <span className="text-xs font-semibold uppercase tracking-widest text-white/45">
-            Search Results
+            {selectedAlbum ? 'Album View' : 'Search Results'}
           </span>
-          <h1 className="text-2xl font-extrabold text-white mt-0.5">“{query}”</h1>
+          <h1 className="text-2xl font-extrabold text-white mt-0.5">
+            {selectedAlbum ? selectedAlbum.title || selectedAlbum.name : `“${query}”`}
+          </h1>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {tabs.map((tab) => (
+          {selectedAlbum ? (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                activeTab === tab.id
-                  ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/25'
-                  : 'glass text-white/65 hover:text-white'
-              }`}
+              onClick={() => setSelectedAlbum(null)}
+              className="px-4 py-2 rounded-full liquid-glass border border-white/20 text-xs font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-1.5"
             >
-              {tab.label}
+              <span>← Back to “{query}”</span>
             </button>
-          ))}
+          ) : (
+            tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/25'
+                    : 'glass text-white/65 hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))
+          )}
         </div>
       </div>
 
-      {isLoading ? (
+      {/* INTERACTIVE ALBUM TRACKLIST VIEW */}
+      {selectedAlbum ? (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
+        >
+          <GlassCard variant="liquid" padding="lg" className="border border-white/15">
+            <div className="flex flex-col md:flex-row items-start md:items-end gap-6 pb-6 border-b border-white/10">
+              <img
+                src={selectedAlbum.coverUrl || selectedAlbum.thumbnail || DEFAULT_THUMBNAIL}
+                alt={selectedAlbum.title || selectedAlbum.name}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                }}
+                className="w-40 h-40 sm:w-48 sm:h-48 rounded-2xl object-cover shadow-2xl border border-white/15 flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest text-[var(--color-accent)]">
+                  Studio Album • 320kbps HD
+                </span>
+                <h2 className="text-2xl sm:text-4xl font-extrabold text-white mt-2">
+                  {selectedAlbum.title || selectedAlbum.name}
+                </h2>
+                <p className="text-sm sm:text-base text-white/65 mt-1 font-medium">
+                  {selectedAlbum.artist}{' '}
+                  {selectedAlbum.year ? `• ${selectedAlbum.year}` : ''} •{' '}
+                  {albumTracks.length || selectedAlbum.trackCount || ''} songs
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3 mt-5">
+                  <button
+                    onClick={() => {
+                      if (albumTracks.length > 0) {
+                        unlockAudioEngine();
+                        playTrack(albumTracks[0], albumTracks, 0);
+                      }
+                    }}
+                    disabled={isAlbumLoading || albumTracks.length === 0}
+                    className="px-6 py-2.5 rounded-full bg-[var(--color-accent)] text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-[var(--color-accent)]/30 hover:scale-105 transition-transform cursor-pointer disabled:opacity-50"
+                  >
+                    ▶ Play Album
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (albumTracks.length > 0) {
+                        unlockAudioEngine();
+                        const shuffled = [...albumTracks].sort(() => Math.random() - 0.5);
+                        playTrack(shuffled[0], shuffled, 0);
+                      }
+                    }}
+                    disabled={isAlbumLoading || albumTracks.length === 0}
+                    className="px-5 py-2.5 rounded-full liquid-glass text-white font-bold text-xs sm:text-sm hover:bg-white/15 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    Shuffle Album
+                  </button>
+                  <button
+                    onClick={() => setSelectedAlbum(null)}
+                    className="px-4 py-2.5 rounded-full glass text-white/70 hover:text-white text-xs font-bold cursor-pointer"
+                  >
+                    ← All Results
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Album Songs List */}
+            <div className="mt-5">
+              {isAlbumLoading ? (
+                <div className="space-y-2.5">
+                  {Array(6)
+                    .fill(0)
+                    .map((_, i) => (
+                      <Skeleton key={i} className="h-14 w-full rounded-2xl" />
+                    ))}
+                </div>
+              ) : albumTracks.length === 0 ? (
+                <p className="text-sm text-white/50 py-8 text-center">
+                  No playable tracks found for this album.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {albumTracks.map((track, idx) => (
+                    <TrackRow
+                      key={`${track.id}-${idx}`}
+                      track={track}
+                      tracks={albumTracks}
+                      index={idx + 1}
+                      onPlay={(t) => {
+                        unlockAudioEngine();
+                        playTrack(t, albumTracks, idx);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </GlassCard>
+        </motion.div>
+      ) : isLoading ? (
         <div className="space-y-3">
           {Array(6)
             .fill(0)
@@ -209,7 +345,9 @@ export default function SearchResults() {
                         <img
                           src={topTrack.thumbnail || DEFAULT_THUMBNAIL}
                           alt={topTrack.title}
-                          onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                          }}
                           className="w-28 h-28 rounded-2xl object-cover shadow-2xl group-hover:scale-105 transition-transform"
                         />
                         <button className="w-14 h-14 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-xl shadow-[var(--color-accent)]/35 group-hover:scale-110 transition-transform">
@@ -254,6 +392,7 @@ export default function SearchResults() {
                         <TrackRow
                           key={track.id}
                           track={track}
+                          tracks={tracks}
                           index={i + 1}
                           onPlay={handlePlayTrack}
                         />
@@ -284,6 +423,7 @@ export default function SearchResults() {
                       <TrackRow
                         key={track.id}
                         track={track}
+                        tracks={tracks}
                         index={activeTab === 'all' ? i + 5 : i + 1}
                         onPlay={handlePlayTrack}
                       />
@@ -295,32 +435,47 @@ export default function SearchResults() {
               {/* Albums Section */}
               {(activeTab === 'all' || activeTab === 'albums') && albums.length > 0 && (
                 <section>
-                  <h2 className="text-xl font-bold mb-4">Albums</h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold">Albums</h2>
+                    <span className="text-xs text-white/45">Click any album to view & play tracks</span>
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
                     {(activeTab === 'all' ? albums.slice(0, 5) : albums).map((album) => (
                       <GlassCard
                         key={album.id}
                         padding="sm"
                         hover
-                        onClick={() => handleQuickSearch(`${album.title || album.name} ${album.artist}`)}
+                        onClick={() => handleOpenAlbum(album, false)}
                         className="group cursor-pointer"
                       >
                         <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5">
                           <img
                             src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                             alt={album.title || album.name}
-                            onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                            }}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <div className="bg-[var(--color-accent)] text-white p-3 rounded-full shadow-lg">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenAlbum(album, true);
+                              }}
+                              title="Play Album Now"
+                              className="bg-[var(--color-accent)] text-white p-3 rounded-full shadow-lg hover:scale-110 transition-transform cursor-pointer"
+                            >
                               <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M8 5v14l11-7z" />
                               </svg>
-                            </div>
+                            </button>
                           </div>
                         </div>
-                        <h3 className="font-bold text-sm text-white truncate">{album.title || album.name}</h3>
+                        <h3 className="font-bold text-sm text-white truncate">
+                          {album.title || album.name}
+                        </h3>
                         <p className="text-xs text-white/55 truncate mt-0.5">
                           {album.artist} {album.year ? `• ${album.year}` : ''}
                         </p>
