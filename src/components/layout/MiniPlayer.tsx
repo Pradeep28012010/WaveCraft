@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -6,17 +6,86 @@ import NowPlaying from '../player/NowPlaying';
 import QueuePanel from '../player/QueuePanel';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
+const formatTime = (seconds: number) => {
+  if (!seconds || isNaN(seconds)) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
+/**
+ * Isolated 120fps GPU-Composited Scrubber (`transform: scaleX`)
+ * Prevents the main MiniPlayer tree from re-rendering on `timeupdate`.
+ */
+const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: number }) => {
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverX, setHoverX] = useState<number>(0);
+
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const seekTo = usePlayerStore((s) => s.seekTo);
+
+  const activeDuration = duration || fallbackDuration || 210;
+  const ratio = Math.min(1, Math.max(0, currentTime / activeDuration));
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const targetRatio = Math.max(0, Math.min(1, x / rect.width));
+    seekTo(targetRatio * activeDuration);
+  };
+
+  const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    setHoverX(x);
+    setHoverTime((x / rect.width) * activeDuration);
+  };
+
+  return (
+    <div
+      className="absolute top-0 left-2 right-2 h-1.5 bg-white/10 rounded-full cursor-pointer group hover:h-2.5 transition-all z-20"
+      onClick={handleProgressClick}
+      onMouseMove={handleProgressHover}
+      onMouseLeave={() => setHoverTime(null)}
+    >
+      {hoverTime !== null && (
+        <div
+          style={{ transform: `translate3d(${hoverX}px, 0, 0)` }}
+          className="pointer-events-none absolute -top-7 left-0 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/90 border border-white/20 text-[10px] font-bold tabular-nums text-white shadow-lg will-change-transform"
+        >
+          {formatTime(hoverTime)}
+        </div>
+      )}
+      <div
+        className="h-full w-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 rounded-full origin-left will-change-transform transition-transform duration-150 ease-linear shadow-[0_0_12px_var(--color-accent)]"
+        style={{ transform: `scaleX(${ratio.toFixed(4)})` }}
+      />
+    </div>
+  );
+});
+MiniPlayerScrubber.displayName = 'MiniPlayerScrubber';
+
+const MiniPlayerTimeReadout = memo(({ fallbackDuration }: { fallbackDuration: number }) => {
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const activeDuration = duration || fallbackDuration || 210;
+
+  return (
+    <span className="hidden md:inline tabular-nums font-medium">
+      {formatTime(currentTime)} / {formatTime(activeDuration)}
+    </span>
+  );
+});
+MiniPlayerTimeReadout.displayName = 'MiniPlayerTimeReadout';
+
 export default function MiniPlayer() {
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
-  const [hoverTime, setHoverTime] = useState<number | null>(null);
-  const [hoverX, setHoverX] = useState<number>(0);
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const isLoading = usePlayerStore((s) => s.isLoading);
-  const currentTime = usePlayerStore((s) => s.currentTime);
-  const duration = usePlayerStore((s) => s.duration);
   const volume = usePlayerStore((s) => s.volume);
   const isMuted = usePlayerStore((s) => s.isMuted);
   const repeatMode = usePlayerStore((s) => s.repeatMode);
@@ -28,7 +97,6 @@ export default function MiniPlayer() {
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
   const setVolume = usePlayerStore((s) => s.setVolume);
   const toggleMute = usePlayerStore((s) => s.toggleMute);
-  const seekTo = usePlayerStore((s) => s.seekTo);
 
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) =>
@@ -37,29 +105,6 @@ export default function MiniPlayer() {
 
   if (!currentTrack) return null;
 
-  const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const activeDuration = duration || currentTrack.duration || 210;
-
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, x / rect.width));
-    seekTo(ratio * activeDuration);
-  };
-
-  const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    setHoverX(x);
-    setHoverTime((x / rect.width) * activeDuration);
-  };
-
   const handleVolumeClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -67,52 +112,30 @@ export default function MiniPlayer() {
     setVolume(ratio);
   };
 
-  const pct = Math.min(100, Math.max(0, (currentTime / activeDuration) * 100));
-
   return (
     <>
       <motion.div
-        initial={{ y: 50, opacity: 0 }}
+        initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-        className="px-4 pb-3 pt-1 relative z-30"
+        transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+        className="px-4 pb-3 pt-1 relative z-30 gpu-layer"
       >
         <div className="h-20 liquid-glass rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)]">
-          {/* Interactive Progress Scrubber along top edge with Hover Time Tooltip */}
-          <div
-            className="absolute top-0 left-2 right-2 h-1.5 bg-white/10 rounded-full cursor-pointer group hover:h-2.5 transition-all z-20"
-            onClick={handleProgressClick}
-            onMouseMove={handleProgressHover}
-            onMouseLeave={() => setHoverTime(null)}
-          >
-            {hoverTime !== null && (
-              <div
-                style={{ left: `${hoverX}px` }}
-                className="pointer-events-none absolute -top-7 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/90 border border-white/20 text-[10px] font-bold tabular-nums text-white shadow-lg"
-              >
-                {formatTime(hoverTime)}
-              </div>
-            )}
-            <div
-              className="h-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 rounded-full transition-all duration-150 relative shadow-[0_0_12px_var(--color-accent)]"
-              style={{ width: `${pct}%` }}
-            >
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)] scale-0 group-hover:scale-100 transition-transform" />
-            </div>
-          </div>
+          {/* Isolated 120fps Progress Scrubber */}
+          <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 
-          {/* Left: Track Artwork & Info with smooth track-change transition */}
+          {/* Left: Track Artwork & Info */}
           <div className="w-1/3 flex items-center min-w-0 pr-4 gap-3.5">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentTrack.id}
-                initial={{ opacity: 0, scale: 0.88, rotate: -4 }}
-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                exit={{ opacity: 0, scale: 0.88, rotate: 4 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 360, damping: 26 }}
                 whileHover={{ scale: 1.06, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group shadow-lg border border-white/15"
+                className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group shadow-lg border border-white/15 will-change-transform"
                 onClick={() => setIsNowPlayingOpen(true)}
               >
                 <img
@@ -142,11 +165,11 @@ export default function MiniPlayer() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentTrack.id}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 26 }}
-                className="min-w-0 flex-1"
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                className="min-w-0 flex-1 will-change-transform"
               >
                 <div className="flex items-center gap-2">
                   <h4
@@ -163,8 +186,8 @@ export default function MiniPlayer() {
             <motion.button
               whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 0.75 }}
-              animate={isLiked ? { scale: [1, 1.32, 1] } : { scale: 1 }}
-              transition={{ duration: 0.32 }}
+              animate={isLiked ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+              transition={{ duration: 0.28 }}
               onClick={() => toggleLike(currentTrack)}
               title={isLiked ? 'Unlike' : 'Like'}
               className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors flex-shrink-0 cursor-pointer ${
@@ -185,7 +208,7 @@ export default function MiniPlayer() {
             </motion.button>
           </div>
 
-          {/* Center: Transport Controls with Spring Micro-Interactions */}
+          {/* Center: Transport Controls */}
           <div className="w-1/3 flex flex-col items-center justify-center">
             <div className="flex items-center justify-center gap-5">
               <motion.button
@@ -220,7 +243,7 @@ export default function MiniPlayer() {
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 onClick={togglePlay}
                 title={isPlaying ? 'Pause' : 'Play'}
-                className="w-11 h-11 flex items-center justify-center rounded-full bg-white text-black shadow-[0_0_24px_rgba(255,255,255,0.4)] cursor-pointer"
+                className="w-11 h-11 flex items-center justify-center rounded-full bg-white text-black shadow-[0_0_24px_rgba(255,255,255,0.4)] cursor-pointer will-change-transform"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -280,11 +303,9 @@ export default function MiniPlayer() {
             </div>
           </div>
 
-          {/* Right: Time, Queue, Volume, Expand */}
+          {/* Right: Isolated Time Readout, Queue, Volume, Expand */}
           <div className="w-1/3 flex items-center justify-end gap-3 text-xs text-white/60">
-            <span className="hidden md:inline tabular-nums font-medium">
-              {formatTime(currentTime)} / {formatTime(activeDuration)}
-            </span>
+            <MiniPlayerTimeReadout fallbackDuration={currentTrack.duration || 210} />
 
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -324,12 +345,12 @@ export default function MiniPlayer() {
                 )}
               </button>
               <div
-                className="flex-1 h-1.5 bg-white/20 rounded-full cursor-pointer relative group"
+                className="flex-1 h-1.5 bg-white/20 rounded-full cursor-pointer relative group overflow-hidden"
                 onClick={handleVolumeClick}
               >
                 <div
-                  className="absolute inset-y-0 left-0 bg-white rounded-full group-hover:bg-[var(--color-accent)] transition-colors"
-                  style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
+                  className="h-full w-full bg-white rounded-full group-hover:bg-[var(--color-accent)] transition-colors origin-left"
+                  style={{ transform: `scaleX(${(isMuted ? 0 : volume).toFixed(3)})` }}
                 />
               </div>
             </div>

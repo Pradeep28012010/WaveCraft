@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getLyricsData, type LyricsResult } from '../../services/lyrics';
 import { usePlayerStore } from '../../stores/playerStore';
+import type { LyricLine } from '../../types';
 
 interface LyricsViewProps {
   artist?: string;
@@ -16,6 +17,157 @@ const formatTimestamp = (seconds: number) => {
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
+/**
+ * Isolated 120fps GPU-composited Karaoke Progress Bar (`transform: scaleX`)
+ * Subscribes to `currentTime` independently so the 80-line lyrics list NEVER re-renders between lines!
+ */
+const ActiveLineProgress = memo(
+  ({ startTime, endTime }: { startTime: number; endTime: number }) => {
+    const currentTime = usePlayerStore((s) => s.currentTime);
+    const syncTime = currentTime + 0.22;
+    const duration = Math.max(1.2, endTime - startTime);
+    const progress = Math.min(1, Math.max(0, (syncTime - startTime) / duration));
+
+    return (
+      <div className="mt-2.5 h-1 w-full bg-white/12 rounded-full overflow-hidden">
+        <div
+          className="h-full w-full bg-gradient-to-r from-[var(--color-accent)] via-rose-400 to-white rounded-full shadow-[0_0_12px_var(--color-accent)] origin-left will-change-transform transition-transform duration-150 ease-linear"
+          style={{ transform: `scaleX(${progress.toFixed(3)})` }}
+        />
+      </div>
+    );
+  }
+);
+ActiveLineProgress.displayName = 'ActiveLineProgress';
+
+interface LyricRowProps {
+  line: LyricLine;
+  index: number;
+  activeIndex: number;
+  nextLineTime: number;
+  onSelectLine: (time: number) => void;
+  setRowRef: (index: number, el: HTMLDivElement | null) => void;
+}
+
+/**
+ * Memoized 120fps GPU-accelerated Lyric Row
+ * Only re-renders when its own relative distance category to `activeIndex` changes.
+ */
+const LyricRow = memo(
+  ({ line, index, activeIndex, nextLineTime, onSelectLine, setRowRef }: LyricRowProps) => {
+    const isCurrent = index === activeIndex;
+    const isPast = index < activeIndex;
+    const distance = activeIndex === -1 ? Math.min(index, 4) : Math.min(Math.abs(index - activeIndex), 4);
+
+    const targetOpacity = isCurrent
+      ? 1
+      : distance === 1
+      ? isPast
+        ? 0.45
+        : 0.74
+      : distance === 2
+      ? isPast
+        ? 0.28
+        : 0.48
+      : isPast
+      ? 0.16
+      : 0.26;
+
+    const targetScale = isCurrent ? 1.035 : distance === 1 ? 0.985 : 0.96;
+    const targetX = isCurrent ? 8 : 0;
+
+    // Static lightweight optical depth class instead of per-frame JS blur rasterization
+    const depthBlurClass = isCurrent
+      ? 'blur-none'
+      : distance === 1
+      ? 'blur-[0.3px] hover:blur-none'
+      : distance === 2
+      ? 'blur-[0.8px] hover:blur-none'
+      : 'blur-[1.4px] hover:blur-none';
+
+    const isLongBridge = isCurrent && nextLineTime - line.time > 9;
+
+    return (
+      <div className="flex flex-col">
+        <motion.div
+          ref={(el) => setRowRef(index, el)}
+          onClick={() => onSelectLine(line.time)}
+          initial={false}
+          animate={{
+            scale: targetScale,
+            x: targetX,
+            opacity: targetOpacity
+          }}
+          whileHover={{
+            scale: isCurrent ? 1.045 : 1.01,
+            x: isCurrent ? 10 : 4,
+            opacity: 0.96
+          }}
+          transition={{
+            type: 'spring',
+            stiffness: 340,
+            damping: 30,
+            mass: 0.65
+          }}
+          className={`group relative py-2.5 px-4 rounded-2xl cursor-pointer select-text origin-left will-change-transform ${depthBlurClass} ${
+            isCurrent
+              ? 'bg-white/[0.09] border border-white/15 shadow-[0_12px_32px_rgba(0,0,0,0.35)]'
+              : 'hover:bg-white/[0.04] border border-transparent'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <p
+              className={`text-lg sm:text-2xl md:text-[26px] font-extrabold leading-snug tracking-tight ${
+                isCurrent
+                  ? 'text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]'
+                  : 'text-white/90'
+              }`}
+            >
+              {line.text}
+            </p>
+
+            {line.time >= 0 && (
+              <span
+                className={`text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full flex-shrink-0 transition-opacity duration-150 ${
+                  isCurrent
+                    ? 'opacity-90 bg-[var(--color-accent)]/25 text-[var(--color-accent)] border border-[var(--color-accent)]/40'
+                    : 'opacity-0 group-hover:opacity-80 bg-white/10 text-white/70'
+                }`}
+              >
+                {formatTimestamp(line.time)}
+              </span>
+            )}
+          </div>
+
+          {isCurrent && <ActiveLineProgress startTime={line.time} endTime={nextLineTime} />}
+        </motion.div>
+
+        {isLongBridge && (
+          <div className="flex items-center gap-2.5 pl-6 py-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] animate-pulse [animation-delay:180ms]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] animate-pulse [animation-delay:360ms]" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/45 ml-1">
+              Musical Interlude
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  },
+  (prev, next) => {
+    if (prev.line !== next.line || prev.index !== next.index) return false;
+    if (prev.activeIndex === next.activeIndex) return true;
+    // Only re-render if this row was or is within 3 lines of activeIndex!
+    const prevDist = Math.min(Math.abs(prev.index - prev.activeIndex), 3);
+    const nextDist = Math.min(Math.abs(next.index - next.activeIndex), 3);
+    const prevPast = prev.index < prev.activeIndex;
+    const nextPast = next.index < next.activeIndex;
+    return prevDist === nextDist && prevPast === nextPast;
+  }
+);
+LyricRow.displayName = 'LyricRow';
+
 export default function LyricsView({ artist, title }: LyricsViewProps) {
   const [result, setResult] = useState<LyricsResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,15 +176,15 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const userScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollAnimRef = useRef<number>(0);
   const isProgrammaticScrollRef = useRef(false);
 
-  const currentTrack = usePlayerStore((s) => s.currentTrack);
-  const currentTime = usePlayerStore((s) => s.currentTime);
+  const currentTrackDuration = usePlayerStore((s) => s.currentTrack?.duration);
   const duration = usePlayerStore((s) => s.duration);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const seekTo = usePlayerStore((s) => s.seekTo);
 
-  const activeDuration = duration || currentTrack?.duration || 210;
+  const activeDuration = duration || currentTrackDuration || 210;
 
   useEffect(() => {
     let isMounted = true;
@@ -61,7 +213,6 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
     };
   }, [artist, title]);
 
-  // Dynamically scale plain lyrics across actual track duration so even unsynced lyrics auto-scroll smoothly
   const lines = useMemo(() => {
     const rawLines = result?.lines || [];
     if (rawLines.length === 0) return [];
@@ -76,84 +227,99 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
     }));
   }, [result, activeDuration]);
 
-  // Compute active line index from currentTime (with slight 0.22s anticipation for snappy visual sync)
-  const syncTime = currentTime + 0.22;
-  let activeIndex = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].time >= 0 && syncTime >= lines[i].time) {
-      activeIndex = i;
-    }
-  }
-
-  // Compute progress (0 -> 1) within the current active line for the karaoke glow bar
-  const currentLineTime = activeIndex >= 0 ? lines[activeIndex]?.time ?? 0 : 0;
-  const nextLineTime =
-    activeIndex >= 0 && activeIndex + 1 < lines.length
-      ? lines[activeIndex + 1].time
-      : Math.max(currentLineTime + 5, activeDuration);
-  const lineDuration = Math.max(1.2, nextLineTime - currentLineTime);
-  const lineProgress =
-    activeIndex >= 0
-      ? Math.min(1, Math.max(0, (syncTime - currentLineTime) / lineDuration))
-      : 0;
-
-  // Detect instrumental intro or long instrumental bridge (> 8.5s gap)
-  const isIntroInterlude = lines.length > 0 && lines[0].time > 3.5 && syncTime < lines[0].time;
-  const isBridgeInterlude =
-    activeIndex >= 0 &&
-    lineDuration > 8.5 &&
-    syncTime - currentLineTime > 4.2 &&
-    nextLineTime - syncTime > 1.2;
-
-  // Precision container-centered smooth scroll
-  const scrollToActiveLine = useCallback(
-    (behavior: ScrollBehavior = 'smooth') => {
-      const container = containerRef.current;
-      const targetIndex = activeIndex >= 0 ? activeIndex : 0;
-      const activeEl = lineRefs.current.get(targetIndex);
-      if (!container || !activeEl) return;
-
-      const containerRect = container.getBoundingClientRect();
-      const lineRect = activeEl.getBoundingClientRect();
-      const relativeTop = lineRect.top - containerRect.top;
-
-      // Position active line at 38% from the top of the viewport for optimal reading flow
-      const desiredScrollTop =
-        container.scrollTop +
-        relativeTop -
-        container.clientHeight * 0.38 +
-        activeEl.clientHeight / 2;
-
-      isProgrammaticScrollRef.current = true;
-      container.scrollTo({
-        top: Math.max(0, desiredScrollTop),
-        behavior
-      });
-
-      setTimeout(() => {
-        isProgrammaticScrollRef.current = false;
-      }, 650);
-    },
-    [activeIndex]
+  // Subscribe ONLY to the computed `activeIndex` integer so LyricsView never re-renders between lyric lines!
+  const activeIndex = usePlayerStore(
+    useCallback(
+      (s) => {
+        if (lines.length === 0) return -1;
+        const syncTime = s.currentTime + 0.22;
+        let idx = -1;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].time >= 0 && syncTime >= lines[i].time) {
+            idx = i;
+          } else {
+            break;
+          }
+        }
+        return idx;
+      },
+      [lines]
+    )
   );
 
-  // Auto-scroll whenever activeIndex changes (unless user is manually inspecting lyrics)
+  const setRowRef = useCallback((index: number, el: HTMLDivElement | null) => {
+    if (el) lineRefs.current.set(index, el);
+    else lineRefs.current.delete(index);
+  }, []);
+
+  const handleSelectLine = useCallback(
+    (time: number) => {
+      if (time >= 0) {
+        setUserScrolling(false);
+        seekTo(time);
+      }
+    },
+    [seekTo]
+  );
+
+  // Native 120Hz/144Hz/240Hz requestAnimationFrame Spring Scroll Interpolator
+  const animateScrollToActive = useCallback(() => {
+    const container = containerRef.current;
+    const targetIndex = activeIndex >= 0 ? activeIndex : 0;
+    const activeEl = lineRefs.current.get(targetIndex);
+    if (!container || !activeEl) return;
+
+    cancelAnimationFrame(scrollAnimRef.current);
+
+    const containerRect = container.getBoundingClientRect();
+    const lineRect = activeEl.getBoundingClientRect();
+    const relativeTop = lineRect.top - containerRect.top;
+    const targetScrollTop = Math.max(
+      0,
+      container.scrollTop + relativeTop - container.clientHeight * 0.38 + activeEl.clientHeight / 2
+    );
+
+    isProgrammaticScrollRef.current = true;
+    let lastTime = performance.now();
+
+    const step = (now: number) => {
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+
+      const current = container.scrollTop;
+      const diff = targetScrollTop - current;
+
+      if (Math.abs(diff) < 0.8) {
+        container.scrollTop = targetScrollTop;
+        isProgrammaticScrollRef.current = false;
+        return;
+      }
+
+      // Exponential decay spring (frame-rate independent for 60Hz, 120Hz, 144Hz, 240Hz)
+      const factor = 1 - Math.exp(-11.5 * dt);
+      container.scrollTop = current + diff * factor;
+      scrollAnimRef.current = requestAnimationFrame(step);
+    };
+
+    scrollAnimRef.current = requestAnimationFrame(step);
+  }, [activeIndex]);
+
   useEffect(() => {
     if (userScrolling || lines.length === 0) return;
-    scrollToActiveLine('smooth');
-  }, [activeIndex, lines.length, userScrolling, scrollToActiveLine]);
+    animateScrollToActive();
+    return () => cancelAnimationFrame(scrollAnimRef.current);
+  }, [activeIndex, lines.length, userScrolling, animateScrollToActive]);
 
-  // Also center immediately when lyrics first load
   useEffect(() => {
     if (lines.length > 0) {
-      const timer = setTimeout(() => scrollToActiveLine('smooth'), 120);
+      const timer = setTimeout(() => animateScrollToActive(), 90);
       return () => clearTimeout(timer);
     }
-  }, [result, lines.length, scrollToActiveLine]);
+  }, [result, lines.length, animateScrollToActive]);
 
-  // Pause auto-scroll briefly when user manually wheels or drags
-  const handleUserScrollInteraction = () => {
+  const handleUserScrollInteraction = useCallback(() => {
     if (isProgrammaticScrollRef.current) return;
+    cancelAnimationFrame(scrollAnimRef.current);
     setUserScrolling(true);
     if (userScrollTimeoutRef.current) {
       clearTimeout(userScrollTimeoutRef.current);
@@ -161,18 +327,19 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
     userScrollTimeoutRef.current = setTimeout(() => {
       setUserScrolling(false);
     }, 4500);
-  };
+  }, []);
 
   useEffect(() => {
     return () => {
+      cancelAnimationFrame(scrollAnimRef.current);
       if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
     };
   }, []);
 
   return (
-    <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
+    <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
       {/* Header Pill */}
-      <div className="flex items-center justify-between px-6 py-3.5 border-b border-white/10 bg-black/25 backdrop-blur-xl flex-shrink-0 z-20">
+      <div className="flex items-center justify-between px-6 py-3.5 border-b border-white/10 bg-black/25 flex-shrink-0 z-20">
         <div className="flex items-center gap-2.5">
           <span className="relative flex h-2.5 w-2.5">
             <span
@@ -183,13 +350,11 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--color-accent)]" />
           </span>
           <span className="text-xs font-bold uppercase tracking-widest text-white/85">
-            {result?.synced ? 'WaveSync • Live Time-Synced' : 'WaveSync • Auto-Flow Lyrics'}
+            {result?.synced ? 'WaveSync • 120Hz Live Lyrics' : 'WaveSync • Auto-Flow Lyrics'}
           </span>
         </div>
         {lines.length > 0 && (
-          <span className="text-[11px] font-medium text-white/45">
-            Tap any line to jump
-          </span>
+          <span className="text-[11px] font-medium text-white/45">Tap any line to jump</span>
         )}
       </div>
 
@@ -202,7 +367,7 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
         ref={containerRef}
         onWheel={handleUserScrollInteraction}
         onTouchMove={handleUserScrollInteraction}
-        className="flex-1 overflow-y-auto px-6 sm:px-10 py-14 no-scrollbar relative"
+        className="flex-1 overflow-y-auto px-6 sm:px-10 py-14 no-scrollbar relative will-change-scroll"
       >
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-white/60">
@@ -216,174 +381,32 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
           </div>
         ) : lines.length > 0 ? (
           <div className="flex flex-col gap-3.5 pb-40 pt-8">
-            {/* Instrumental Intro Interlude Dots */}
-            <AnimatePresence>
-              {isIntroInterlude && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.85, y: 8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.8, y: -8 }}
-                  className="flex items-center gap-2.5 py-3 px-4"
-                >
-                  {[0, 1, 2].map((dot) => (
-                    <motion.span
-                      key={dot}
-                      animate={{
-                        scale: [1, 1.45, 1],
-                        opacity: [0.4, 1, 0.4]
-                      }}
-                      transition={{
-                        duration: 1.2,
-                        repeat: Infinity,
-                        delay: dot * 0.2,
-                        ease: 'easeInOut'
-                      }}
-                      className="w-3 h-3 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)]"
-                    />
-                  ))}
-                  <span className="text-xs font-bold uppercase tracking-widest text-white/50 ml-2">
-                    Instrumental Intro
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {activeIndex === -1 && lines[0]?.time > 3.5 && (
+              <div className="flex items-center gap-2.5 py-3 px-4">
+                <span className="w-3 h-3 rounded-full bg-white animate-pulse" />
+                <span className="w-3 h-3 rounded-full bg-white animate-pulse [animation-delay:200ms]" />
+                <span className="w-3 h-3 rounded-full bg-white animate-pulse [animation-delay:400ms]" />
+                <span className="text-xs font-bold uppercase tracking-widest text-white/50 ml-2">
+                  Instrumental Intro
+                </span>
+              </div>
+            )}
 
             {lines.map((line, index) => {
-              const isCurrent = index === activeIndex;
-              const isPast = index < activeIndex;
-              const distance = activeIndex === -1 ? index : Math.abs(index - activeIndex);
-
-              // Progressive spatial depth-of-field blur & opacity falloff
-              const blurPx = isCurrent
-                ? 0
-                : distance === 1
-                ? 0.4
-                : distance === 2
-                ? 1.1
-                : Math.min(2.4, 1.1 + (distance - 2) * 0.35);
-
-              const targetOpacity = isCurrent
-                ? 1
-                : distance === 1
-                ? isPast
-                  ? 0.42
-                  : 0.72
-                : distance === 2
-                ? isPast
-                  ? 0.28
-                  : 0.48
-                : isPast
-                ? 0.18
-                : 0.3;
-
-              const targetScale = isCurrent ? 1.04 : distance === 1 ? 0.985 : 0.96;
-              const targetX = isCurrent ? 8 : 0;
-
+              const nextLineTime =
+                index + 1 < lines.length
+                  ? lines[index + 1].time
+                  : Math.max(line.time + 5, activeDuration);
               return (
-                <div key={index} className="flex flex-col">
-                  <motion.div
-                    ref={(el) => {
-                      if (el) lineRefs.current.set(index, el);
-                      else lineRefs.current.delete(index);
-                    }}
-                    onClick={() => {
-                      if (line.time >= 0) {
-                        setUserScrolling(false);
-                        seekTo(line.time);
-                      }
-                    }}
-                    animate={{
-                      scale: targetScale,
-                      x: targetX,
-                      opacity: targetOpacity,
-                      filter: `blur(${blurPx}px)`
-                    }}
-                    whileHover={{
-                      scale: isCurrent ? 1.05 : 1.01,
-                      x: isCurrent ? 10 : 4,
-                      opacity: 0.95,
-                      filter: 'blur(0px)'
-                    }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 270,
-                      damping: 28,
-                      mass: 0.75
-                    }}
-                    className={`group relative py-2.5 px-4 rounded-2xl cursor-pointer select-text origin-left transition-colors duration-200 ${
-                      isCurrent
-                        ? 'bg-white/[0.08] border border-white/15 shadow-[0_12px_32px_rgba(0,0,0,0.35)]'
-                        : 'hover:bg-white/[0.04] border border-transparent'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <p
-                        className={`text-lg sm:text-2xl md:text-[26px] font-extrabold leading-snug tracking-tight transition-colors duration-300 ${
-                          isCurrent
-                            ? 'text-white drop-shadow-[0_0_24px_rgba(255,255,255,0.55)]'
-                            : 'text-white/90'
-                        }`}
-                      >
-                        {line.text}
-                      </p>
-
-                      {line.time >= 0 && (
-                        <span
-                          className={`text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full flex-shrink-0 transition-opacity ${
-                            isCurrent
-                              ? 'opacity-90 bg-[var(--color-accent)]/25 text-[var(--color-accent)] border border-[var(--color-accent)]/40'
-                              : 'opacity-0 group-hover:opacity-80 bg-white/10 text-white/70'
-                          }`}
-                        >
-                          {formatTimestamp(line.time)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Smooth Karaoke Line Progress Glow Bar under the Active Line */}
-                    {isCurrent && (
-                      <div className="mt-2.5 h-1 w-full bg-white/12 rounded-full overflow-hidden">
-                        <motion.div
-                          className="h-full bg-gradient-to-r from-[var(--color-accent)] via-rose-400 to-white rounded-full shadow-[0_0_12px_var(--color-accent)]"
-                          style={{ width: `${Math.round(lineProgress * 100)}%` }}
-                          transition={{ duration: 0.12, ease: 'linear' }}
-                        />
-                      </div>
-                    )}
-                  </motion.div>
-
-                  {/* Musical Interlude Bouncing Dots during long instrumental bridges */}
-                  <AnimatePresence>
-                    {isCurrent && isBridgeInterlude && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="flex items-center gap-2.5 pl-6 py-3"
-                      >
-                        {[0, 1, 2].map((dot) => (
-                          <motion.span
-                            key={dot}
-                            animate={{
-                              scale: [1, 1.45, 1],
-                              opacity: [0.35, 1, 0.35]
-                            }}
-                            transition={{
-                              duration: 1.1,
-                              repeat: Infinity,
-                              delay: dot * 0.18,
-                              ease: 'easeInOut'
-                            }}
-                            className="w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]"
-                          />
-                        ))}
-                        <span className="text-[11px] font-bold uppercase tracking-widest text-white/45 ml-1">
-                          Musical Interlude
-                        </span>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                <LyricRow
+                  key={index}
+                  line={line}
+                  index={index}
+                  activeIndex={activeIndex}
+                  nextLineTime={nextLineTime}
+                  onSelectLine={handleSelectLine}
+                  setRowRef={setRowRef}
+                />
               );
             })}
           </div>
@@ -398,17 +421,17 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
         )}
       </div>
 
-      {/* Floating "Resume Auto-Scroll" Pill when user scrolls manually */}
+      {/* Floating "Resume Live Sync" Pill when user scrolls manually */}
       <AnimatePresence>
         {userScrolling && activeIndex >= 0 && (
           <motion.button
             initial={{ opacity: 0, y: 16, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.9 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 26 }}
             onClick={() => {
               setUserScrolling(false);
-              scrollToActiveLine('smooth');
+              animateScrollToActive();
             }}
             className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-[var(--color-accent)] text-white text-xs font-extrabold tracking-wide shadow-[0_8px_28px_rgba(250,45,72,0.55)] flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
           >

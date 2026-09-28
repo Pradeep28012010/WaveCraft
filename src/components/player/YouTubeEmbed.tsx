@@ -218,20 +218,18 @@ export default function YouTubeEmbed() {
   const isFetchingAutoplay = useRef<boolean>(false);
   const resolvingTrackIdRef = useRef<string | null>(null);
 
-  const {
-    currentTrack,
-    queue,
-    queueIndex,
-    repeatMode,
-    isPlaying,
-    volume,
-    isMuted,
-    playbackSpeed,
-    nextTrack,
-    setProgress,
-    setDuration,
-    setIsLoading
-  } = usePlayerStore();
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const queue = usePlayerStore((s) => s.queue);
+  const queueIndex = usePlayerStore((s) => s.queueIndex);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const volume = usePlayerStore((s) => s.volume);
+  const isMuted = usePlayerStore((s) => s.isMuted);
+  const playbackSpeed = usePlayerStore((s) => s.playbackSpeed);
+  const nextTrack = usePlayerStore((s) => s.nextTrack);
+  const setProgress = usePlayerStore((s) => s.setProgress);
+  const setDuration = usePlayerStore((s) => s.setDuration);
+  const setIsLoading = usePlayerStore((s) => s.setIsLoading);
 
   const eqBands = useSettingsStore((s) => s.equalizerBands);
   const crossfadeDuration = useSettingsStore((s) => s.crossfadeDuration);
@@ -328,7 +326,7 @@ export default function YouTubeEmbed() {
       const cur = audio.currentTime || 0;
       const dur = audio.duration || currentTrack?.duration || 1;
 
-      if (Math.abs(cur - lastReportedTime) >= 0.25 || cur < 0.3) {
+      if (Math.abs(cur - lastReportedTime) >= 0.12 || cur < 0.2) {
         lastReportedTime = cur;
         const pct = dur > 0 ? (cur / dur) * 100 : 0;
         setProgress(pct, cur);

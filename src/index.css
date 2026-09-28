@@ -29,6 +29,7 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 }
 
@@ -58,57 +59,70 @@
   scrollbar-width: none;
 }
 
-/* WaveCraft Spatial Glass Utility System */
+/* 120fps Hardware-Accelerated Spatial Glass System */
+.gpu-layer {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}
+
 .glass {
   background: linear-gradient(
     145deg,
     rgba(255, 255, 255, 0.085) 0%,
     rgba(255, 255, 255, 0.03) 100%
   );
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow:
     0 12px 32px -8px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
     inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .glass-heavy {
   background: linear-gradient(
     160deg,
-    rgba(28, 28, 38, 0.72) 0%,
-    rgba(14, 14, 22, 0.82) 100%
+    rgba(28, 28, 38, 0.78) 0%,
+    rgba(14, 14, 22, 0.88) 100%
   );
-  backdrop-filter: blur(48px) saturate(210%);
-  -webkit-backdrop-filter: blur(48px) saturate(210%);
+  backdrop-filter: blur(26px) saturate(190%);
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow:
     0 20px 50px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .glass-light {
   background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  transform: translateZ(0);
 }
 
 .liquid-glass {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.13) 0%,
-    rgba(255, 255, 255, 0.04) 55%,
+    rgba(255, 255, 255, 0.045) 55%,
     rgba(255, 255, 255, 0.08) 100%
   );
-  backdrop-filter: blur(44px) saturate(200%);
-  -webkit-backdrop-filter: blur(44px) saturate(200%);
+  backdrop-filter: blur(24px) saturate(185%);
+  -webkit-backdrop-filter: blur(24px) saturate(185%);
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow:
     0 16px 40px -8px rgba(0, 0, 0, 0.5),
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.28),
     inset 0 -1px 1px 0 rgba(255, 255, 255, 0.06);
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .glass-button {
@@ -117,14 +131,19 @@
     rgba(255, 255, 255, 0.11) 0%,
     rgba(255, 255, 255, 0.05) 100%
   );
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(170%);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
   color: var(--color-text-primary);
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateZ(0);
   cursor: pointer;
 }
 
@@ -141,19 +160,20 @@
 }
 
 .glass-button:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: scale3d(0.96, 0.96, 1);
 }
 
 .glass-input {
   background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
   border-radius: var(--radius-md);
   color: var(--color-text-primary);
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+  transform: translateZ(0);
 }
 
 .glass-input:focus {
@@ -168,11 +188,11 @@
   inset: 0;
   z-index: 0;
   background:
-    radial-gradient(circle at 15% 20%, var(--gradient-color-1, rgba(250, 45, 72, 0.22)) 0%, transparent 48%),
-    radial-gradient(circle at 85% 25%, var(--gradient-color-2, rgba(124, 58, 237, 0.22)) 0%, transparent 52%),
-    radial-gradient(circle at 50% 85%, var(--gradient-color-3, rgba(14, 165, 233, 0.16)) 0%, transparent 55%),
+    radial-gradient(circle at 15% 20%, var(--gradient-color-1, rgba(250, 45, 72, 0.2)) 0%, transparent 48%),
+    radial-gradient(circle at 85% 25%, var(--gradient-color-2, rgba(124, 58, 237, 0.2)) 0%, transparent 52%),
+    radial-gradient(circle at 50% 85%, var(--gradient-color-3, rgba(14, 165, 233, 0.15)) 0%, transparent 55%),
     #06060b;
-  transition: background 1.8s ease;
+  transform: translateZ(0);
 }
 
 /* Shimmer loading effect */
@@ -199,16 +219,16 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  0%, 100% { transform: translate3d(0, 0px, 0); }
+  50% { transform: translate3d(0, -12px, 0); }
 }
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
 
 @keyframes pulse-ring {
-  0% { transform: scale(1); opacity: 0.35; }
-  100% { transform: scale(1.35); opacity: 0; }
+  0% { transform: scale3d(1, 1, 1); opacity: 0.35; }
+  100% { transform: scale3d(1.35, 1.35, 1); opacity: 0; }
 }
 .animate-pulse-ring {
   animation: pulse-ring 2.2s ease-out infinite;
@@ -239,10 +259,10 @@ input[type='range']::-webkit-slider-thumb {
   background: #ffffff;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  transition: transform 0.15s ease;
+  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
 }
 input[type='range']::-webkit-slider-thumb:hover {
-  transform: scale(1.25);
+  transform: scale3d(1.25, 1.25, 1);
 }
 input[type='range']::-moz-range-thumb {
   width: 13px;
@@ -252,31 +272,39 @@ input[type='range']::-moz-range-thumb {
   background: #ffffff;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  transition: transform 0.15s ease;
+  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Rhythmic Studio Equalizer Bars */
+/* Rhythmic Studio Equalizer Bars (GPU scaleY instead of layout height reflow!) */
 @keyframes eq-bar-1 {
-  0%, 100% { height: 4px; }
-  50% { height: 15px; }
+  0%, 100% { transform: scaleY(0.28); }
+  50% { transform: scaleY(0.95); }
 }
 @keyframes eq-bar-2 {
-  0%, 100% { height: 14px; }
-  35% { height: 5px; }
-  70% { height: 16px; }
+  0%, 100% { transform: scaleY(0.9); }
+  35% { transform: scaleY(0.32); }
+  70% { transform: scaleY(1); }
 }
 @keyframes eq-bar-3 {
-  0%, 100% { height: 7px; }
-  45% { height: 15px; }
-  80% { height: 4px; }
+  0%, 100% { transform: scaleY(0.45); }
+  45% { transform: scaleY(0.95); }
+  80% { transform: scaleY(0.25); }
 }
 .animate-eq-1 {
+  height: 15px;
+  transform-origin: bottom;
   animation: eq-bar-1 0.85s ease-in-out infinite;
+  will-change: transform;
 }
 .animate-eq-2 {
+  height: 15px;
+  transform-origin: bottom;
   animation: eq-bar-2 0.75s ease-in-out infinite;
+  will-change: transform;
 }
 .animate-eq-3 {
+  height: 15px;
+  transform-origin: bottom;
   animation: eq-bar-3 0.92s ease-in-out infinite;
+  will-change: transform;
 }
-

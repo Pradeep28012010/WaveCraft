@@ -12,12 +12,13 @@ import { useColorExtract } from '../../hooks/useColorExtract';
 
 export default function MainLayout() {
   const location = useLocation();
-  const currentTrack = usePlayerStore((state) => state.currentTrack);
-  const { colors } = useColorExtract(currentTrack?.thumbnail);
+  const hasCurrentTrack = usePlayerStore((s) => Boolean(s.currentTrack));
+  const currentThumbnail = usePlayerStore((s) => s.currentTrack?.thumbnail);
+  const { colors } = useColorExtract(currentThumbnail);
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden text-white bg-black">
-      {/* Background layer */}
+      {/* GPU-composited Ambient Background layer */}
       <AnimatedBackground colors={colors} />
 
       {/* Hidden YouTube & Web Audio DSP Player */}
@@ -33,20 +34,21 @@ export default function MainLayout() {
         <div className="flex-1 flex flex-col overflow-hidden relative">
           <TopBar />
 
-          <main className="flex-1 overflow-y-auto p-6 scroll-smooth">
+          <main className="flex-1 overflow-y-auto p-6 scroll-smooth will-change-scroll">
             <div className="max-w-7xl mx-auto pb-24">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={location.pathname}
-                  initial={{ opacity: 0, y: 14, scale: 0.992, filter: 'blur(4px)' }}
-                  animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, y: -8, scale: 0.996, filter: 'blur(2px)' }}
+                  initial={{ opacity: 0, y: 10, scale: 0.994 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.997 }}
                   transition={{
                     type: 'spring',
-                    stiffness: 310,
-                    damping: 30,
-                    mass: 0.7
+                    stiffness: 380,
+                    damping: 32,
+                    mass: 0.6
                   }}
+                  className="will-change-transform"
                 >
                   <Outlet />
                 </motion.div>
@@ -56,7 +58,7 @@ export default function MainLayout() {
         </div>
       </div>
 
-      {currentTrack && <MiniPlayer />}
+      {hasCurrentTrack && <MiniPlayer />}
     </div>
   );
 }

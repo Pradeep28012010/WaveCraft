@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
 import { useEffect, useRef, lazy, Suspense } from 'react';
+import { MotionConfig } from 'framer-motion';
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './components/discover/HomePage';
 import GenreBrowser from './components/search/GenreBrowser';
@@ -88,8 +89,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
+    <MotionConfig reducedMotion="never">
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </MotionConfig>
   );
 }

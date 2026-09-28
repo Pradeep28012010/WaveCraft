@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -25,6 +25,52 @@ const VISUALIZER_MODES: Array<{ id: VisualizerStyle; label: string }> = [
   { id: 'wave', label: 'Harmonic Wave' }
 ];
 
+const formatTime = (seconds: number) => {
+  if (!seconds || isNaN(seconds)) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
+/**
+ * Isolated 120fps GPU-Composited Scrubber (`transform: scaleX`)
+ * Subscribes to `currentTime` independently so NowPlaying NEVER re-renders during song playback.
+ */
+const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: number }) => {
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const seekTo = usePlayerStore((s) => s.seekTo);
+
+  const activeDuration = duration || fallbackDuration || 210;
+  const ratio = Math.min(1, Math.max(0, currentTime / activeDuration));
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const targetRatio = Math.max(0, Math.min(1, x / rect.width));
+    seekTo(targetRatio * activeDuration);
+  };
+
+  return (
+    <div className="w-full mt-4">
+      <div
+        className="h-2 bg-white/15 rounded-full cursor-pointer relative group overflow-hidden"
+        onClick={handleProgressClick}
+      >
+        <div
+          className="h-full w-full bg-white rounded-full origin-left will-change-transform transition-transform duration-150 ease-linear"
+          style={{ transform: `scaleX(${ratio.toFixed(4)})` }}
+        />
+      </div>
+      <div className="flex justify-between mt-1.5 text-[11px] text-white/50 font-semibold tabular-nums">
+        <span>{formatTime(currentTime)}</span>
+        <span>-{formatTime(Math.max(0, activeDuration - currentTime))}</span>
+      </div>
+    </div>
+  );
+});
+NowPlayingScrubber.displayName = 'NowPlayingScrubber';
+
 export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const [showQueue, setShowQueue] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
@@ -32,28 +78,24 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const [zenMode, setZenMode] = useState(false);
   const [showWaveCard, setShowWaveCard] = useState(false);
 
-  const {
-    currentTrack,
-    queue,
-    queueIndex,
-    isPlaying,
-    currentTime,
-    duration,
-    volume,
-    isMuted,
-    repeatMode,
-    isShuffled,
-    playbackSpeed,
-    togglePlay,
-    nextTrack,
-    prevTrack,
-    toggleShuffle,
-    cycleRepeat,
-    setVolume,
-    seekTo,
-    toggleMute,
-    setPlaybackSpeed
-  } = usePlayerStore();
+  // Atomic Zustand selectors (prevents re-rendering on currentTime / progress ticks!)
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const queue = usePlayerStore((s) => s.queue);
+  const queueIndex = usePlayerStore((s) => s.queueIndex);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const volume = usePlayerStore((s) => s.volume);
+  const isMuted = usePlayerStore((s) => s.isMuted);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const isShuffled = usePlayerStore((s) => s.isShuffled);
+  const playbackSpeed = usePlayerStore((s) => s.playbackSpeed);
+  const togglePlay = usePlayerStore((s) => s.togglePlay);
+  const nextTrack = usePlayerStore((s) => s.nextTrack);
+  const prevTrack = usePlayerStore((s) => s.prevTrack);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
+  const setVolume = usePlayerStore((s) => s.setVolume);
+  const toggleMute = usePlayerStore((s) => s.toggleMute);
+  const setPlaybackSpeed = usePlayerStore((s) => s.setPlaybackSpeed);
 
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) => (currentTrack ? s.isLiked(currentTrack.id) : false));
@@ -67,24 +109,8 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
 
   if (!currentTrack) return null;
 
-  const activeDuration = duration || currentTrack.duration || 1;
-  const pct = Math.min(100, Math.max(0, (currentTime / activeDuration) * 100));
   const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
   const artSrc = currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL;
-
-  const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, x / rect.width));
-    seekTo(ratio * activeDuration);
-  };
 
   return (
     <AnimatePresence>
@@ -93,19 +119,19 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-          className="fixed inset-0 z-50 flex flex-col bg-[#06060b] overflow-hidden select-none"
+          transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.75 }}
+          className="fixed inset-0 z-50 flex flex-col bg-[#06060b] overflow-hidden select-none gpu-layer"
         >
-          {/* Ambient Blurred Album Art Backdrop */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {/* GPU-Cached Ambient Album Art Backdrop */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ contain: 'strict' }}>
             <img
               src={artSrc}
               alt=""
-              className={`w-full h-full object-cover blur-[110px] scale-125 transition-opacity duration-500 ${
-                zenMode ? 'opacity-20' : 'opacity-45'
+              className={`w-full h-full object-cover blur-[64px] scale-125 transition-opacity duration-500 gpu-layer ${
+                zenMode ? 'opacity-20' : 'opacity-42'
               }`}
             />
-            <div className="absolute inset-0 bg-black/55 backdrop-blur-3xl" />
+            <div className="absolute inset-0 bg-black/55" />
           </div>
 
           {/* Background or Fullscreen 3D Zen Visualizer Layer */}
@@ -240,7 +266,6 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
           {/* ZEN MODE FLOATING 3D VISUALIZER HUD */}
           {zenMode ? (
             <div className="relative z-10 flex-1 flex flex-col justify-between p-6 sm:p-10">
-              {/* Top Floating 3D Mode Switcher */}
               <div className="flex flex-wrap items-center justify-center gap-2 mx-auto p-1.5 rounded-full liquid-glass border border-white/15 shadow-2xl">
                 {VISUALIZER_MODES.map((m) => (
                   <button
@@ -257,14 +282,13 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                 ))}
               </div>
 
-              {/* Bottom Floating Minimal Transport Dock */}
               <div className="w-full max-w-2xl mx-auto rounded-3xl liquid-glass border border-white/15 p-5 shadow-2xl">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <img
                       src={artSrc}
                       alt={currentTrack.title}
-                      className={`w-12 h-12 rounded-full object-cover border border-white/20 ${
+                      className={`w-12 h-12 rounded-full object-cover border border-white/20 will-change-transform ${
                         isPlaying ? 'animate-spin' : ''
                       }`}
                       style={{ animationDuration: '8s' }}
@@ -311,16 +335,16 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
             <div className="relative z-10 flex-1 min-h-0 px-6 sm:px-12 pb-6 flex items-center justify-center overflow-hidden">
               <motion.div
                 layout
-                transition={{ type: 'spring', stiffness: 240, damping: 28 }}
-                className={`w-full max-w-6xl h-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 ${
+                transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.7 }}
+                className={`w-full max-w-6xl h-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 will-change-transform ${
                   showLyrics ? 'lg:justify-between' : ''
                 }`}
               >
                 {/* Left / Center Player Column */}
                 <motion.div
                   layout
-                  transition={{ type: 'spring', stiffness: 240, damping: 28 }}
-                  className={`flex flex-col items-center justify-center w-full ${
+                  transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.7 }}
+                  className={`flex flex-col items-center justify-center w-full will-change-transform ${
                     showLyrics ? 'lg:w-5/12 max-w-md' : 'max-w-lg'
                   }`}
                 >
@@ -337,7 +361,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                     >
                       {/* Outer Vinyl Platter */}
                       <div
-                        className="relative w-full h-full rounded-full shadow-[0_25px_70px_rgba(0,0,0,0.85)] border-4 border-white/10 flex items-center justify-center overflow-hidden"
+                        className="relative w-full h-full rounded-full shadow-[0_25px_70px_rgba(0,0,0,0.85)] border-4 border-white/10 flex items-center justify-center overflow-hidden will-change-transform"
                         style={{
                           background:
                             'repeating-radial-gradient(circle at center, #111116 0px, #111116 3px, #1d1d26 4px, #0d0d12 6px)',
@@ -345,7 +369,6 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                           animationPlayState: isPlaying ? 'running' : 'paused'
                         }}
                       >
-                        {/* Anisotropic Vinyl Light Sheen */}
                         <div
                           className="absolute inset-0 pointer-events-none opacity-30"
                           style={{
@@ -354,7 +377,6 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                           }}
                         />
 
-                        {/* Inner Groove Ring */}
                         <div className="w-[46%] h-[46%] rounded-full overflow-hidden border-4 border-black/80 shadow-inner relative">
                           <img
                             src={artSrc}
@@ -364,23 +386,20 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                             }}
                             className="w-full h-full object-cover"
                           />
-                          {/* Center Metallic Spindle Hole */}
                           <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#09090e] border-2 border-white/60 shadow-md" />
                         </div>
                       </div>
 
                       {/* Animated Studio Tonearm */}
                       <div
-                        className="absolute -top-2 -right-3 w-20 h-44 pointer-events-none transition-transform duration-700 origin-[75%_16%]"
+                        className="absolute -top-2 -right-3 w-20 h-44 pointer-events-none transition-transform duration-500 origin-[75%_16%] will-change-transform"
                         style={{
                           transform: isPlaying ? 'rotate(24deg)' : 'rotate(0deg)'
                         }}
                       >
-                        {/* Tonearm Pivot Base */}
                         <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-700 border border-white/40 shadow-lg flex items-center justify-center">
                           <div className="w-3 h-3 rounded-full bg-zinc-900" />
                         </div>
-                        {/* Tonearm Rod & Stylus Cartridge */}
                         <svg viewBox="0 0 80 180" className="w-full h-full drop-shadow-xl">
                           <path
                             d="M 56 24 L 56 115 L 34 152"
@@ -407,8 +426,8 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                       onClick={() => setDeckMode('vinyl')}
                       title="Click to switch to Spinning Vinyl Turntable"
                       animate={{ scale: isPlaying ? 1 : 0.95 }}
-                      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                      className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border border-white/15 flex-shrink-0 cursor-pointer ${
+                      transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+                      className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border border-white/15 flex-shrink-0 cursor-pointer will-change-transform ${
                         showLyrics
                           ? 'w-[min(26vh,220px)] h-[min(26vh,220px)] sm:w-[min(32vh,260px)] sm:h-[min(32vh,260px)]'
                           : 'w-[min(36vh,290px)] h-[min(36vh,290px)] sm:w-[min(40vh,320px)] sm:h-[min(40vh,320px)]'
@@ -454,24 +473,8 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                     </button>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="w-full mt-4">
-                    <div
-                      className="h-2 bg-white/15 rounded-full cursor-pointer relative group"
-                      onClick={handleProgressClick}
-                    >
-                      <div
-                        className="absolute inset-y-0 left-0 bg-white rounded-full transition-all"
-                        style={{ width: `${pct}%` }}
-                      >
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2" />
-                      </div>
-                    </div>
-                    <div className="flex justify-between mt-1.5 text-[11px] text-white/50 font-semibold tabular-nums">
-                      <span>{formatTime(currentTime)}</span>
-                      <span>-{formatTime(Math.max(0, activeDuration - currentTime))}</span>
-                    </div>
-                  </div>
+                  {/* Isolated 120fps Progress Bar */}
+                  <NowPlayingScrubber fallbackDuration={currentTrack.duration || 210} />
 
                   {/* Transport Buttons */}
                   <div className="flex items-center justify-center gap-6 sm:gap-8 mt-3">
@@ -586,16 +589,16 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                   </div>
                 </motion.div>
 
-                {/* Right Column: Synced Lyrics Panel */}
+                {/* Right Column: Synced Lyrics Panel (Pure GPU transform/opacity entrance) */}
                 <AnimatePresence mode="popLayout">
                   {showLyrics && (
                     <motion.div
                       key="lyrics-panel"
-                      initial={{ opacity: 0, x: 36, scale: 0.96, filter: 'blur(8px)' }}
-                      animate={{ opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' }}
-                      exit={{ opacity: 0, x: 36, scale: 0.96, filter: 'blur(8px)' }}
-                      transition={{ type: 'spring', stiffness: 250, damping: 26 }}
-                      className="w-full lg:w-7/12 h-[42vh] lg:h-[72vh] flex-shrink-0"
+                      initial={{ opacity: 0, x: 32, scale: 0.96 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 32, scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.65 }}
+                      className="w-full lg:w-7/12 h-[42vh] lg:h-[72vh] flex-shrink-0 will-change-transform"
                     >
                       <LyricsView artist={currentTrack.artist} title={currentTrack.title} />
                     </motion.div>
@@ -610,7 +613,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
             isOpen={showWaveCard}
             onClose={() => setShowWaveCard(false)}
             track={currentTrack}
-            currentTime={currentTime}
+            currentTime={usePlayerStore.getState().currentTime}
           />
         </motion.div>
       )}
