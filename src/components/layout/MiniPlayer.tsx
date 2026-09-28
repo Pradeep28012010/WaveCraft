@@ -44,7 +44,7 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
 
   return (
     <div
-      className="absolute top-0 left-2 right-2 h-1.5 bg-white/10 rounded-full cursor-pointer group hover:h-2.5 transition-all z-20"
+      className="absolute top-0 left-4 right-4 h-1.5 bg-white/10 rounded-full cursor-pointer group hover:h-2 transition-all z-20"
       onClick={handleProgressClick}
       onMouseMove={handleProgressHover}
       onMouseLeave={() => setHoverTime(null)}
@@ -57,10 +57,23 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
           {formatTime(hoverTime)}
         </div>
       )}
+      {/* Soft diffused ambient glow layer underneath (never clipped or horizontally squashed) */}
       <div
-        className="h-full w-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 rounded-full origin-left will-change-transform transition-transform duration-150 ease-linear shadow-[0_0_12px_var(--color-accent)]"
-        style={{ transform: `scaleX(${ratio.toFixed(4)})` }}
+        className="pointer-events-none absolute top-1/2 -translate-y-1/2 left-0 h-3 rounded-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 opacity-55 blur-md transition-[width] duration-150 ease-linear"
+        style={{ width: `${(ratio * 100).toFixed(2)}%` }}
       />
+      {/* Crisp rounded progress fill with glowing playhead tip */}
+      <div
+        className="relative h-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 rounded-full transition-[width] duration-150 ease-linear"
+        style={{
+          width: `${(ratio * 100).toFixed(2)}%`,
+          boxShadow: '0 0 10px 1px var(--color-accent)'
+        }}
+      >
+        <div
+          className=" -right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all shadow-[0_0_10px_2px_var(--color-accent)] absolute"
+        />
+      </div>
     </div>
   );
 });
@@ -349,8 +362,8 @@ export default function MiniPlayer() {
                 onClick={handleVolumeClick}
               >
                 <div
-                  className="h-full w-full bg-white rounded-full group-hover:bg-[var(--color-accent)] transition-colors origin-left"
-                  style={{ transform: `scaleX(${(isMuted ? 0 : volume).toFixed(3)})` }}
+                  className="h-full bg-white rounded-full group-hover:bg-[var(--color-accent)] transition-all"
+                  style={{ width: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
                 />
               </div>
             </div>

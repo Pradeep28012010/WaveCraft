@@ -54,13 +54,23 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   return (
     <div className="w-full mt-4">
       <div
-        className="h-2 bg-white/15 rounded-full cursor-pointer relative group overflow-hidden"
+        className="h-2 bg-white/15 rounded-full cursor-pointer relative group"
         onClick={handleProgressClick}
       >
+        {/* Soft diffused ambient glow underneath */}
         <div
-          className="h-full w-full bg-white rounded-full origin-left will-change-transform transition-transform duration-150 ease-linear"
-          style={{ transform: `scaleX(${ratio.toFixed(4)})` }}
+          className="pointer-events-none absolute top-1/2 -translate-y-1/2 left-0 h-3.5 rounded-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 opacity-50 blur-md transition-[width] duration-150 ease-linear"
+          style={{ width: `${(ratio * 100).toFixed(2)}%` }}
         />
+        <div
+          className="relative h-full bg-gradient-to-r from-[var(--color-accent)] via-rose-400 to-white rounded-full transition-[width] duration-150 ease-linear"
+          style={{
+            width: `${(ratio * 100).toFixed(2)}%`,
+            boxShadow: '0 0 12px 1px var(--color-accent)'
+          }}
+        >
+          <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_12px_2px_var(--color-accent)] scale-90 group-hover:scale-110 transition-transform" />
+        </div>
       </div>
       <div className="flex justify-between mt-1.5 text-[11px] text-white/50 font-semibold tabular-nums">
         <span>{formatTime(currentTime)}</span>
