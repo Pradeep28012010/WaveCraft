@@ -14,7 +14,7 @@ interface SettingsStore extends SettingsState {
   setAudioQuality: (quality: 'auto' | 'high' | 'medium' | 'low') => void;
   toggleVisualizer: () => void;
   setShowVisualizer: (show: boolean) => void;
-  setVisualizerStyle: (style: 'bars' | 'wave' | 'blob' | 'circular' | 'particles') => void;
+  setVisualizerStyle: (style: 'bars' | 'wave' | 'blob' | 'circular' | 'particles' | 'nebula' | 'starfield') => void;
   setEqualizerPreset: (preset: string) => void;
   setEqPreset: (preset: string) => void;
   setEqualizerBands: (bands: number[]) => void;

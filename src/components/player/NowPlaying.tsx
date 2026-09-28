@@ -5,7 +5,8 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import QueuePanel from './QueuePanel';
 import LyricsView from '../lyrics/LyricsView';
-import Visualizer from '../visualizer/Visualizer';
+import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
+import WaveCardModal from './WaveCardModal';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
 interface NowPlayingProps {
@@ -13,9 +14,22 @@ interface NowPlayingProps {
   onClose: () => void;
 }
 
+const VISUALIZER_MODES: Array<{ id: VisualizerStyle; label: string }> = [
+  { id: 'nebula', label: '3D Nebula' },
+  { id: 'starfield', label: '3D Starfield' },
+  { id: 'particles', label: 'Bio Orbs' },
+  { id: 'circular', label: 'Radial Halo' },
+  { id: 'blob', label: 'Liquid Blob' },
+  { id: 'bars', label: 'Studio Bars' },
+  { id: 'wave', label: 'Harmonic Wave' }
+];
+
 export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const [showQueue, setShowQueue] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [deckMode, setDeckMode] = useState<'cover' | 'vinyl'>('vinyl');
+  const [zenMode, setZenMode] = useState(false);
+  const [showWaveCard, setShowWaveCard] = useState(false);
 
   const {
     currentTrack,
@@ -45,13 +59,15 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
 
   const showVisualizer = useSettingsStore((s) => s.showVisualizer);
   const visualizerStyle = useSettingsStore((s) => s.visualizerStyle);
-  const toggleVisualizer = useSettingsStore((s) => s.toggleVisualizer);
+  const setVisualizerStyle = useSettingsStore((s) => s.setVisualizerStyle);
+  const setShowVisualizer = useSettingsStore((s) => s.setShowVisualizer);
 
   if (!currentTrack) return null;
 
   const activeDuration = duration || currentTrack.duration || 1;
   const pct = Math.min(100, Math.max(0, (currentTime / activeDuration) * 100));
   const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
+  const artSrc = currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL;
 
   const formatTime = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -80,35 +96,65 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
           {/* Ambient Blurred Album Art Backdrop */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <img
-              src={currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL}
+              src={artSrc}
               alt=""
-              className="w-full h-full object-cover opacity-45 blur-[110px] scale-125"
+              className={`w-full h-full object-cover blur-[110px] scale-125 transition-opacity duration-500 ${
+                zenMode ? 'opacity-20' : 'opacity-45'
+              }`}
             />
             <div className="absolute inset-0 bg-black/55 backdrop-blur-3xl" />
           </div>
 
-          {/* Background Visualizer Layer */}
-          {showVisualizer && (
-            <div className="absolute inset-0 pointer-events-none opacity-35 z-0">
+          {/* Background or Fullscreen 3D Zen Visualizer Layer */}
+          {(showVisualizer || zenMode) && (
+            <div
+              className={`absolute inset-0 pointer-events-none transition-opacity duration-500 z-0 ${
+                zenMode ? 'opacity-95' : 'opacity-45'
+              }`}
+            >
               <Visualizer
                 isActive={isPlaying}
-                style={(visualizerStyle === 'particles' ? 'blob' : visualizerStyle) as any}
+                style={(visualizerStyle || 'nebula') as VisualizerStyle}
                 fullScreen
               />
             </div>
           )}
 
-          {/* Top Bar (Compact 64px) */}
+          {/* Top Bar */}
           <div className="relative z-10 h-16 px-6 sm:px-10 flex items-center justify-between flex-shrink-0">
-            <button
-              onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center rounded-full liquid-glass text-white hover:scale-105 transition-transform cursor-pointer"
-              title="Minimize Player"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={onClose}
+                className="w-10 h-10 flex items-center justify-center rounded-full liquid-glass text-white hover:scale-105 transition-transform cursor-pointer"
+                title="Minimize Player"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {/* Cover vs Vinyl Turntable Switcher */}
+              {!zenMode && (
+                <div className="hidden sm:flex items-center p-1 rounded-full liquid-glass border border-white/10">
+                  <button
+                    onClick={() => setDeckMode('cover')}
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                      deckMode === 'cover' ? 'bg-white text-black shadow' : 'text-white/65 hover:text-white'
+                    }`}
+                  >
+                    Cover
+                  </button>
+                  <button
+                    onClick={() => setDeckMode('vinyl')}
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                      deckMode === 'vinyl' ? 'bg-white text-black shadow' : 'text-white/65 hover:text-white'
+                    }`}
+                  >
+                    Vinyl Deck
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-2">
@@ -124,224 +170,419 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
               )}
             </div>
 
-            <button
-              onClick={() => {
-                const speeds = [0.75, 1, 1.25, 1.5];
-                const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
-                setPlaybackSpeed(next);
-              }}
-              className="px-3.5 h-9 rounded-full liquid-glass text-xs font-bold text-white/90 hover:text-white cursor-pointer"
-              title="Playback Speed"
-            >
-              {playbackSpeed}x
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Share WaveCard Button */}
+              <button
+                onClick={() => setShowWaveCard(true)}
+                className="px-3.5 h-9 rounded-full liquid-glass text-xs font-bold text-white/90 hover:text-white flex items-center gap-1.5 cursor-pointer border border-white/15"
+                title="Generate Shareable Lyric WaveCard"
+              >
+                <svg className="w-3.5 h-3.5 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                <span className="hidden sm:inline">WaveCard</span>
+              </button>
+
+              {/* 3D Zen Mode Toggle */}
+              <button
+                onClick={() => {
+                  const nextZen = !zenMode;
+                  setZenMode(nextZen);
+                  if (nextZen) setShowVisualizer(true);
+                }}
+                className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  zenMode
+                    ? 'bg-[var(--color-accent)] text-white shadow-[0_0_20px_var(--color-accent)]'
+                    : 'liquid-glass text-white/85 hover:text-white'
+                }`}
+                title="Toggle Fullscreen 3D Visualizer Zen Mode"
+              >
+                {zenMode ? 'Exit Zen' : '3D Zen'}
+              </button>
+
+              <button
+                onClick={() => {
+                  const speeds = [0.75, 1, 1.25, 1.5];
+                  const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
+                  setPlaybackSpeed(next);
+                }}
+                className="px-3 h-9 rounded-full liquid-glass text-xs font-bold text-white/90 hover:text-white cursor-pointer"
+                title="Playback Speed"
+              >
+                {playbackSpeed}x
+              </button>
+            </div>
           </div>
 
-          {/* Main Body — Fits 100% inside remaining viewport height with zero overflow */}
-          <div className="relative z-10 flex-1 min-h-0 px-6 sm:px-12 pb-6 flex items-center justify-center overflow-hidden">
-            <div
-              className={`w-full max-w-6xl h-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 ${
-                showLyrics ? 'lg:justify-between' : ''
-              }`}
-            >
-              {/* Left / Center Player Column */}
-              <div
-                className={`flex flex-col items-center justify-center w-full ${
-                  showLyrics ? 'lg:w-5/12 max-w-md' : 'max-w-lg'
-                }`}
-              >
-                {/* Viewport-aware Album Art */}
-                <motion.div
-                  animate={{ scale: isPlaying ? 1 : 0.95 }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                  className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border border-white/15 flex-shrink-0 ${
-                    showLyrics
-                      ? 'w-[min(26vh,220px)] h-[min(26vh,220px)] sm:w-[min(32vh,260px)] sm:h-[min(32vh,260px)]'
-                      : 'w-[min(36vh,290px)] h-[min(36vh,290px)] sm:w-[min(40vh,320px)] sm:h-[min(40vh,320px)]'
-                  }`}
-                >
-                  <img
-                    src={currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL}
-                    alt={currentTrack.title}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                    }}
-                    className="w-full h-full object-cover"
-                  />
-                </motion.div>
-
-                {/* Track Title & Artist */}
-                <div className="mt-5 w-full flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1 text-left">
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-white truncate">
-                      {currentTrack.title}
-                    </h2>
-                    <p className="text-sm sm:text-base text-white/60 mt-0.5 font-medium truncate">
-                      {currentTrack.artist}
-                    </p>
-                  </div>
-
+          {/* ZEN MODE FLOATING 3D VISUALIZER HUD */}
+          {zenMode ? (
+            <div className="relative z-10 flex-1 flex flex-col justify-between p-6 sm:p-10">
+              {/* Top Floating 3D Mode Switcher */}
+              <div className="flex flex-wrap items-center justify-center gap-2 mx-auto p-1.5 rounded-full liquid-glass border border-white/15 shadow-2xl">
+                {VISUALIZER_MODES.map((m) => (
                   <button
-                    onClick={() => toggleLike(currentTrack)}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full liquid-glass flex-shrink-0 transition-transform cursor-pointer ${
-                      isLiked ? 'text-[var(--color-accent)] scale-105' : 'text-white/60 hover:text-white'
+                    key={m.id}
+                    onClick={() => setVisualizerStyle(m.id)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      visualizerStyle === m.id
+                        ? 'bg-[var(--color-accent)] text-white shadow-lg'
+                        : 'text-white/65 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    <svg
-                      className="w-5 h-5"
-                      viewBox="0 0 24 24"
-                      fill={isLiked ? 'currentColor' : 'none'}
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
+                    {m.label}
                   </button>
-                </div>
+                ))}
+              </div>
 
-                {/* Progress Bar */}
-                <div className="w-full mt-4">
-                  <div
-                    className="h-2 bg-white/15 rounded-full cursor-pointer relative group"
-                    onClick={handleProgressClick}
-                  >
-                    <div
-                      className="absolute inset-y-0 left-0 bg-white rounded-full transition-all"
-                      style={{ width: `${pct}%` }}
-                    >
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2" />
+              {/* Bottom Floating Minimal Transport Dock */}
+              <div className="w-full max-w-2xl mx-auto rounded-3xl liquid-glass border border-white/15 p-5 shadow-2xl">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <img
+                      src={artSrc}
+                      alt={currentTrack.title}
+                      className={`w-12 h-12 rounded-full object-cover border border-white/20 ${
+                        isPlaying ? 'animate-spin' : ''
+                      }`}
+                      style={{ animationDuration: '8s' }}
+                    />
+                    <div className="min-w-0">
+                      <h3 className="text-base font-extrabold text-white truncate">
+                        {currentTrack.title}
+                      </h3>
+                      <p className="text-xs text-white/60 truncate">{currentTrack.artist}</p>
                     </div>
                   </div>
-                  <div className="flex justify-between mt-1.5 text-[11px] text-white/50 font-semibold tabular-nums">
-                    <span>{formatTime(currentTime)}</span>
-                    <span>-{formatTime(Math.max(0, activeDuration - currentTime))}</span>
-                  </div>
-                </div>
 
-                {/* Transport Buttons */}
-                <div className="flex items-center justify-center gap-6 sm:gap-8 mt-3">
-                  <button
-                    onClick={toggleShuffle}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer ${
-                      isShuffled ? 'liquid-glass text-[var(--color-accent)]' : 'text-white/50 hover:text-white'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-                    </svg>
-                  </button>
-
-                  <button
-                    onClick={prevTrack}
-                    className="w-11 h-11 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors cursor-pointer"
-                  >
-                    <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-                    </svg>
-                  </button>
-
-                  <button
-                    onClick={togglePlay}
-                    className="w-15 h-15 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-transform shadow-[0_0_35px_rgba(255,255,255,0.4)] cursor-pointer"
-                  >
-                    {isPlaying ? (
-                      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-7 h-7 ml-1" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={nextTrack}
-                    className="w-11 h-11 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors cursor-pointer"
-                  >
-                    <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                    </svg>
-                  </button>
-
-                  <button
-                    onClick={cycleRepeat}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer ${
-                      repeatMode !== 'off' ? 'liquid-glass text-[var(--color-accent)]' : 'text-white/50 hover:text-white'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="17 1 21 5 17 9" />
-                      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                      <polyline points="7 23 3 19 7 15" />
-                      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Volume & Feature Toggles Row */}
-                <div className="w-full flex items-center justify-between gap-4 mt-5 pt-3 border-t border-white/10">
-                  <div className="flex items-center gap-2.5">
-                    <button onClick={toggleMute} className="text-white/60 hover:text-white cursor-pointer">
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <div className="flex items-center gap-4">
+                    <button onClick={prevTrack} className="text-white/75 hover:text-white cursor-pointer">
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                       </svg>
                     </button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={isMuted ? 0 : volume}
-                      onChange={(e) => setVolume(Number(e.target.value))}
-                      className="w-24"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
                     <button
-                      onClick={toggleVisualizer}
-                      className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
-                        showVisualizer ? 'liquid-glass text-white' : 'text-white/50 hover:text-white'
-                      }`}
+                      onClick={togglePlay}
+                      className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
                     >
-                      Visualizer
+                      {isPlaying ? (
+                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-6 h-6 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
                     </button>
-                    <button
-                      onClick={() => setShowLyrics(!showLyrics)}
-                      className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
-                        showLyrics ? 'bg-[var(--color-accent)] text-white shadow-lg' : 'text-white/50 hover:text-white'
-                      }`}
-                    >
-                      Lyrics
-                    </button>
-                    <button
-                      onClick={() => setShowQueue(!showQueue)}
-                      className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
-                        showQueue ? 'liquid-glass text-white' : 'text-white/50 hover:text-white'
-                      }`}
-                    >
-                      Queue
+                    <button onClick={nextTrack} className="text-white/75 hover:text-white cursor-pointer">
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                      </svg>
                     </button>
                   </div>
                 </div>
               </div>
-
-              {/* Right Column: Synced Lyrics Panel */}
-              {showLyrics && (
-                <motion.div
-                  initial={{ opacity: 0, x: 24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 24 }}
-                  className="w-full lg:w-7/12 h-[42vh] lg:h-[72vh] flex-shrink-0"
-                >
-                  <LyricsView artist={currentTrack.artist} title={currentTrack.title} />
-                </motion.div>
-              )}
             </div>
-          </div>
+          ) : (
+            /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
+            <div className="relative z-10 flex-1 min-h-0 px-6 sm:px-12 pb-6 flex items-center justify-center overflow-hidden">
+              <div
+                className={`w-full max-w-6xl h-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 ${
+                  showLyrics ? 'lg:justify-between' : ''
+                }`}
+              >
+                {/* Left / Center Player Column */}
+                <div
+                  className={`flex flex-col items-center justify-center w-full ${
+                    showLyrics ? 'lg:w-5/12 max-w-md' : 'max-w-lg'
+                  }`}
+                >
+                  {/* Album Cover OR Realistic Vinyl Turntable Deck */}
+                  {deckMode === 'vinyl' ? (
+                    <div
+                      onClick={() => setDeckMode('cover')}
+                      title="Click to switch between Vinyl Turntable & Album Cover"
+                      className={`relative flex items-center justify-center cursor-pointer flex-shrink-0 ${
+                        showLyrics
+                          ? 'w-[min(26vh,230px)] h-[min(26vh,230px)] sm:w-[min(32vh,265px)] sm:h-[min(32vh,265px)]'
+                          : 'w-[min(36vh,295px)] h-[min(36vh,295px)] sm:w-[min(40vh,325px)] sm:h-[min(40vh,325px)]'
+                      }`}
+                    >
+                      {/* Outer Vinyl Platter */}
+                      <div
+                        className="relative w-full h-full rounded-full shadow-[0_25px_70px_rgba(0,0,0,0.85)] border-4 border-white/10 flex items-center justify-center overflow-hidden"
+                        style={{
+                          background:
+                            'repeating-radial-gradient(circle at center, #111116 0px, #111116 3px, #1d1d26 4px, #0d0d12 6px)',
+                          animation: 'spin 7s linear infinite',
+                          animationPlayState: isPlaying ? 'running' : 'paused'
+                        }}
+                      >
+                        {/* Anisotropic Vinyl Light Sheen */}
+                        <div
+                          className="absolute inset-0 pointer-events-none opacity-30"
+                          style={{
+                            background:
+                              'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.35) 35deg, transparent 70deg, transparent 180deg, rgba(255,255,255,0.35) 215deg, transparent 250deg)'
+                          }}
+                        />
+
+                        {/* Inner Groove Ring */}
+                        <div className="w-[46%] h-[46%] rounded-full overflow-hidden border-4 border-black/80 shadow-inner relative">
+                          <img
+                            src={artSrc}
+                            alt={currentTrack.title}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                            }}
+                            className="w-full h-full object-cover"
+                          />
+                          {/* Center Metallic Spindle Hole */}
+                          <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#09090e] border-2 border-white/60 shadow-md" />
+                        </div>
+                      </div>
+
+                      {/* Animated Studio Tonearm */}
+                      <div
+                        className="absolute -top-2 -right-3 w-20 h-44 pointer-events-none transition-transform duration-700 origin-[75%_16%]"
+                        style={{
+                          transform: isPlaying ? 'rotate(24deg)' : 'rotate(0deg)'
+                        }}
+                      >
+                        {/* Tonearm Pivot Base */}
+                        <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-700 border border-white/40 shadow-lg flex items-center justify-center">
+                          <div className="w-3 h-3 rounded-full bg-zinc-900" />
+                        </div>
+                        {/* Tonearm Rod & Stylus Cartridge */}
+                        <svg viewBox="0 0 80 180" className="w-full h-full drop-shadow-xl">
+                          <path
+                            d="M 56 24 L 56 115 L 34 152"
+                            fill="none"
+                            stroke="#d4d4d8"
+                            strokeWidth="4.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <rect
+                            x="25"
+                            y="146"
+                            width="14"
+                            height="20"
+                            rx="3"
+                            transform="rotate(28 32 156)"
+                            fill="#fa2d48"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <motion.div
+                      onClick={() => setDeckMode('vinyl')}
+                      title="Click to switch to Spinning Vinyl Turntable"
+                      animate={{ scale: isPlaying ? 1 : 0.95 }}
+                      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                      className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border border-white/15 flex-shrink-0 cursor-pointer ${
+                        showLyrics
+                          ? 'w-[min(26vh,220px)] h-[min(26vh,220px)] sm:w-[min(32vh,260px)] sm:h-[min(32vh,260px)]'
+                          : 'w-[min(36vh,290px)] h-[min(36vh,290px)] sm:w-[min(40vh,320px)] sm:h-[min(40vh,320px)]'
+                      }`}
+                    >
+                      <img
+                        src={artSrc}
+                        alt={currentTrack.title}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                        }}
+                        className="w-full h-full object-cover"
+                      />
+                    </motion.div>
+                  )}
+
+                  {/* Track Title & Artist */}
+                  <div className="mt-5 w-full flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1 text-left">
+                      <h2 className="text-xl sm:text-2xl font-extrabold text-white truncate">
+                        {currentTrack.title}
+                      </h2>
+                      <p className="text-sm sm:text-base text-white/60 mt-0.5 font-medium truncate">
+                        {currentTrack.artist}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => toggleLike(currentTrack)}
+                      className={`w-10 h-10 flex items-center justify-center rounded-full liquid-glass flex-shrink-0 transition-transform cursor-pointer ${
+                        isLiked ? 'text-[var(--color-accent)] scale-105' : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        viewBox="0 0 24 24"
+                        fill={isLiked ? 'currentColor' : 'none'}
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full mt-4">
+                    <div
+                      className="h-2 bg-white/15 rounded-full cursor-pointer relative group"
+                      onClick={handleProgressClick}
+                    >
+                      <div
+                        className="absolute inset-y-0 left-0 bg-white rounded-full transition-all"
+                        style={{ width: `${pct}%` }}
+                      >
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2" />
+                      </div>
+                    </div>
+                    <div className="flex justify-between mt-1.5 text-[11px] text-white/50 font-semibold tabular-nums">
+                      <span>{formatTime(currentTime)}</span>
+                      <span>-{formatTime(Math.max(0, activeDuration - currentTime))}</span>
+                    </div>
+                  </div>
+
+                  {/* Transport Buttons */}
+                  <div className="flex items-center justify-center gap-6 sm:gap-8 mt-3">
+                    <button
+                      onClick={toggleShuffle}
+                      className={`w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer ${
+                        isShuffled ? 'liquid-glass text-[var(--color-accent)]' : 'text-white/50 hover:text-white'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={prevTrack}
+                      className="w-11 h-11 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={togglePlay}
+                      className="w-15 h-15 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-transform shadow-[0_0_35px_rgba(255,255,255,0.4)] cursor-pointer"
+                    >
+                      {isPlaying ? (
+                        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-7 h-7 ml-1" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={nextTrack}
+                      className="w-11 h-11 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={cycleRepeat}
+                      className={`w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer ${
+                        repeatMode !== 'off' ? 'liquid-glass text-[var(--color-accent)]' : 'text-white/50 hover:text-white'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="17 1 21 5 17 9" />
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                        <polyline points="7 23 3 19 7 15" />
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Volume & Feature Toggles Row */}
+                  <div className="w-full flex items-center justify-between gap-3 mt-5 pt-3 border-t border-white/10">
+                    <div className="flex items-center gap-2">
+                      <button onClick={toggleMute} className="text-white/60 hover:text-white cursor-pointer">
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                        </svg>
+                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={isMuted ? 0 : volume}
+                        onChange={(e) => setVolume(Number(e.target.value))}
+                        className="w-20 sm:w-24"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <button
+                        onClick={() => {
+                          const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
+                          const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
+                          setShowVisualizer(true);
+                          setVisualizerStyle(next.id);
+                        }}
+                        className="px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase liquid-glass text-white/85 hover:text-white cursor-pointer"
+                        title="Cycle 3D Visualizer Style"
+                      >
+                        {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula'}
+                      </button>
+                      <button
+                        onClick={() => setShowLyrics(!showLyrics)}
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
+                          showLyrics ? 'bg-[var(--color-accent)] text-white shadow-lg' : 'text-white/50 hover:text-white'
+                        }`}
+                      >
+                        Lyrics
+                      </button>
+                      <button
+                        onClick={() => setShowQueue(!showQueue)}
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
+                          showQueue ? 'liquid-glass text-white' : 'text-white/50 hover:text-white'
+                        }`}
+                      >
+                        Queue
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Synced Lyrics Panel */}
+                {showLyrics && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 24 }}
+                    className="w-full lg:w-7/12 h-[42vh] lg:h-[72vh] flex-shrink-0"
+                  >
+                    <LyricsView artist={currentTrack.artist} title={currentTrack.title} />
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          )}
 
           <QueuePanel isOpen={showQueue} onClose={() => setShowQueue(false)} />
+          <WaveCardModal
+            isOpen={showWaveCard}
+            onClose={() => setShowWaveCard(false)}
+            track={currentTrack}
+            currentTime={currentTime}
+          />
         </motion.div>
       )}
     </AnimatePresence>

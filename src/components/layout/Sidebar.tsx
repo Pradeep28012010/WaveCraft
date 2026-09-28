@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useJamStore } from '../../stores/jamStore';
 import CreatePlaylist from '../library/CreatePlaylist';
 import ImportPlaylistModal from '../library/ImportPlaylistModal';
 
@@ -9,14 +10,48 @@ export default function Sidebar() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const playlists = useLibraryStore((state) => state.playlists) || [];
+  const activeJamRoom = useJamStore((state) => state.roomCode);
 
-  const navItems = [
+  const navItems: Array<{
+    name: string;
+    path: string;
+    badge?: string;
+    badgeColor?: string;
+    icon: React.ReactNode;
+  }> = [
     {
       name: 'Listen Now',
       path: '/',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+      )
+    },
+    {
+      name: 'AI Vibe DJ',
+      path: '/vibe',
+      badge: 'AI',
+      badgeColor: 'bg-[var(--color-accent)] text-white',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" />
+        </svg>
+      )
+    },
+    {
+      name: 'Live Jam Room',
+      path: '/jam',
+      badge: activeJamRoom ? 'LIVE' : 'SYNC',
+      badgeColor: activeJamRoom
+        ? 'bg-emerald-500 text-black animate-pulse'
+        : 'bg-emerald-500/20 text-emerald-300',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       )
     },
@@ -76,7 +111,7 @@ export default function Sidebar() {
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       )
     }
@@ -123,7 +158,7 @@ export default function Sidebar() {
               to={item.path}
               end={item.path === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-3.5 px-3.5 h-11 rounded-xl transition-all duration-200 ${
+                `flex items-center justify-between gap-2 px-3.5 h-11 rounded-xl transition-all duration-200 ${
                   isActive
                     ? 'liquid-glass text-white font-semibold shadow-md'
                     : 'text-white/60 hover:text-white hover:bg-white/[0.06]'
@@ -131,10 +166,17 @@ export default function Sidebar() {
               }
               title={collapsed ? item.name : undefined}
             >
-              <div className={`w-5 h-5 flex-shrink-0 ${collapsed ? 'mx-auto' : ''}`}>
-                {item.icon}
+              <div className={`flex items-center gap-3.5 min-w-0 ${collapsed ? 'mx-auto' : ''}`}>
+                <div className="w-5 h-5 flex-shrink-0">{item.icon}</div>
+                {!collapsed && <span className="text-sm truncate">{item.name}</span>}
               </div>
-              {!collapsed && <span className="text-sm truncate">{item.name}</span>}
+              {!collapsed && item.badge && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider flex-shrink-0 ${item.badgeColor}`}
+                >
+                  {item.badge}
+                </span>
+              )}
             </NavLink>
           ))}
 

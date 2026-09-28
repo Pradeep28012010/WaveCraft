@@ -19,11 +19,12 @@ let htmlAudioElement: HTMLAudioElement | null = null;
 let preloadAudioElement: HTMLAudioElement | null = null;
 let activeEngine: 'audio' | 'youtube' = 'audio';
 
-// Web Audio API Equalizer nodes
+// Web Audio API Equalizer & Real-time Visualizer Analyser nodes
 let audioCtx: AudioContext | null = null;
 let sourceNode: MediaElementAudioSourceNode | null = null;
 let eqFilters: BiquadFilterNode[] = [];
 let gainNode: GainNode | null = null;
+let analyserNode: AnalyserNode | null = null;
 
 function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
   if (audioCtx || !window.AudioContext) return;
@@ -32,6 +33,9 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
     audioCtx = new Ctx();
     sourceNode = audioCtx.createMediaElementSource(audio);
     gainNode = audioCtx.createGain();
+    analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = 128;
+    analyserNode.smoothingTimeConstant = 0.78;
 
     eqFilters = EQ_FREQUENCIES.map((freq, idx) => {
       const filter = audioCtx!.createBiquadFilter();
@@ -44,18 +48,33 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
       return filter;
     });
 
-    // Connect source -> 10 EQ filters -> gainNode -> destination
+    // Connect source -> 10 EQ filters -> gainNode -> analyserNode -> destination
     let prev: AudioNode = sourceNode;
     for (const f of eqFilters) {
       prev.connect(f);
       prev = f;
     }
     prev.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+    gainNode.connect(analyserNode);
+    analyserNode.connect(audioCtx.destination);
   } catch (err) {
     console.warn('Web Audio EQ initialization skipped:', err);
   }
 }
+
+export const getAudioFrequencyData = (out: Uint8Array): boolean => {
+  if (!analyserNode || activeEngine !== 'audio' || !audioCtx || audioCtx.state !== 'running') {
+    return false;
+  }
+  try {
+    analyserNode.getByteFrequencyData(out as any);
+    let sum = 0;
+    for (let i = 0; i < out.length; i++) sum += out[i];
+    return sum > 0;
+  } catch {
+    return false;
+  }
+};
 
 export const getPlayer = () => ytPlayerInstance;
 

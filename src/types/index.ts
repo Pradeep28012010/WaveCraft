@@ -60,7 +60,7 @@ export interface SettingsState {
   crossfadeDuration: number;
   audioQuality: 'auto' | 'high' | 'medium' | 'low';
   showVisualizer: boolean;
-  visualizerStyle: 'bars' | 'wave' | 'blob' | 'circular' | 'particles';
+  visualizerStyle: 'bars' | 'wave' | 'blob' | 'circular' | 'particles' | 'nebula' | 'starfield';
   equalizerPreset: string;
   equalizerBands: number[];
   autoplay: boolean;

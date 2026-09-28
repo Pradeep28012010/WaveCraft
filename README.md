@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🌊 WaveCraft — Spatial Glass Audio Player
+# 🌊 WaveCraft — Spatial Glass Music Studio
 
-**Next-generation 320kbps HD music streaming web application with a Spatial Liquid Glass UI, 10-band Web Audio DSP Equalizer, time-synced karaoke lyrics, gapless track preloading, and universal playlist importing.**
+**Next-generation 320kbps HD music streaming studio with AI Vibe DJ, Live Synced Jam Rooms, 3D Audio Visualizers & Vinyl Turntable Deck, Shareable Lyric WaveCards, 10-Band Web Audio DSP Equalizer, and Installable PWA support.**
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-wavecraft--alpha.vercel.app-fa2d48?style=for-the-badge&logo=vercel&logoColor=white)](https://wavecraft-alpha.vercel.app)
 [![React 18](https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
@@ -18,15 +18,15 @@
 
 ---
 
-## ✨ Why WaveCraft?
+## ✨ Flagship Features
 
-- **🎧 320kbps Studio HD Audio Engine** — Full-length, ad-free audio streaming powered by a dual-source HTML5 `<audio>` + fallback streaming engine.
-- **⚡ Gapless Preloader & Smooth Crossfade** — Automatically pre-buffers the next track in your queue ahead of time so transitions never break your flow state.
-- **🎛️ Live 10-Band Web Audio Equalizer** — Real `BiquadFilterNode` DSP chain (`32Hz` to `16kHz`) with interactive vertical sliders and studio presets (*Flat, Bass Boost, Treble Boost, Vocal, Rock, Electronic, Late Night*).
-- **🎤 WaveSync Time-Synced Lyrics** — Real-time auto-scrolling karaoke lyrics with tap-to-seek on any lyric line.
-- **📥 Universal Playlist Importer** — Import public playlists via URL or paste any song list (`Song - Artist`) to automatically match tracks in 320kbps HD.
-- **🌈 Spatial Liquid Glass UI & Reactive Visualizers** — Dynamic ambient color extraction from album artwork, portaled glass dropdowns, and 4 real-time canvas visualizer modes (*Liquid Blob, Spectrum Bars, Harmonic Wave, Radial Halo*).
-- **💾 Offline-First Local Library** — Liked songs, custom playlists, play history, and listening analytics persisted locally in IndexedDB (`idb-keyval`) with 1-click JSON backup & restore.
+- **✨ AI Vibe DJ (`/vibe`)** — Type any natural-language mood, scenario, or artist fusion (e.g., *"2AM coding in Tokyo rain"*, *"Telugu mass gym PR"*, *"90s AR Rahman nostalgia"*). WaveCraft generates a continuous 320kbps flow and automatically tunes your **10-Band Equalizer**, **3D Visualizer**, and **Ambient Glow** to match the vibe.
+- **🎧 Live Jam Rooms (`/jam`)** — Host a real-time listening party with a 6-character room code (`WAVE-XXXX`) or share a 1-click invite link. Playback, seeks, shared queue additions, and floating live emoji reactions (`🔥 💜 🎧 ⚡`) stay synchronized across listeners.
+- **💿 Spinning Vinyl Turntable & 3D Zen Visualizers** — Switch between Album Cover and a realistic **Spinning 12" Vinyl Turntable Deck** with an animated studio tonearm, or enter **Fullscreen 3D Zen Mode** with 7 real-time Web Audio FFT visualizers (*3D Cosmic Nebula, 3D Starfield Warp, Bioluminescent Orbs, Radial Halo, Liquid Blob, Studio Bars, Harmonic Wave*).
+- **🖼️ Shareable Lyric "WaveCards"** — Export high-resolution `1080×1350` Instagram/WhatsApp Story cards featuring album artwork, custom or tapped song lyrics, studio waveform graphics, and direct deep-links (`?play=...`).
+- **📲 Installable Desktop & Mobile App (PWA) + Hardware Media Keys** — Install WaveCraft as a standalone native-feel app with full OS Lock Screen controls, multi-size artwork, and AirPods / Bluetooth / Keyboard media key support.
+- **🎛️ Live 10-Band Web Audio Equalizer & Gapless Preloader** — Real `BiquadFilterNode` DSP chain (`32Hz` to `16kHz`) with interactive vertical sliders, pre-buffered next-track loading, and smooth crossfade.
+- **🎤 WaveSync Time-Synced Lyrics & Universal Playlist Importer** — Real-time auto-scrolling karaoke lyrics with tap-to-seek, plus 1-click playlist importing via URL or song list.
 
 ---
 
@@ -36,8 +36,8 @@
 | :--- | :--- |
 | **Frontend Framework** | React 18, TypeScript, Vite |
 | **Styling & Motion** | Tailwind CSS v4, Framer Motion, Spatial Liquid Glass CSS |
-| **Audio & DSP** | Web Audio API (`AudioContext`, 10-band `BiquadFilterNode`, `AnalyserNode`), Media Session API |
-| **State & Persistence** | Zustand, IndexedDB (`idb-keyval`) |
+| **Audio & DSP** | Web Audio API (`AudioContext`, 10-band `BiquadFilterNode`, `AnalyserNode` FFT), Media Session API |
+| **State & Sync** | Zustand, IndexedDB (`idb-keyval`), BroadcastChannel + Edge Room Sync |
 | **Serverless API** | Vercel / Netlify Serverless Functions (`/api/music`) with TTL Edge Caching |
 
 ---

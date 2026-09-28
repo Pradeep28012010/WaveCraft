@@ -122,11 +122,124 @@ export default async function handler(req, res) {
       return res.status(200).json(imported);
     }
 
+    if (action === 'jam') {
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      const roomCode = (url.searchParams.get('room') || '').trim().toUpperCase();
+      if (!roomCode) {
+        return res.status(400).json({ error: 'Room code required' });
+      }
+      const result = await handleJamRoomRequest(req, url, roomCode);
+      return res.status(200).json(result);
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('API error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
+}
+
+const jamRooms = new Map();
+
+async function readJsonBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string' && req.body.trim()) {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+  return new Promise((resolve) => {
+    let raw = '';
+    req.on?.('data', (chunk) => {
+      raw += chunk;
+      if (raw.length > 250_000) req.destroy?.();
+    });
+    req.on?.('end', () => {
+      if (!raw) return resolve({});
+      try {
+        resolve(JSON.parse(raw));
+      } catch {
+        resolve({});
+      }
+    });
+    req.on?.('error', () => resolve({}));
+  });
+}
+
+async function handleJamRoomRequest(req, url, roomCode) {
+  const now = Date.now();
+  // Clean up expired rooms (> 2 hours idle)
+  for (const [key, rm] of jamRooms.entries()) {
+    if (now - rm.updatedAt > 7_200_000) jamRooms.delete(key);
+  }
+
+  const op = url.searchParams.get('op') || (req.method === 'POST' ? 'sync' : 'get');
+  const body = req.method === 'POST' ? await readJsonBody(req) : {};
+
+  let room = jamRooms.get(roomCode);
+  if (!room) {
+    room = {
+      roomCode,
+      hostId: body.userId || url.searchParams.get('userId') || 'host',
+      hostName: body.userName || url.searchParams.get('userName') || 'DJ Host',
+      currentTrack: null,
+      isPlaying: false,
+      currentTime: 0,
+      updatedAt: now,
+      queue: [],
+      members: [],
+      reactions: []
+    };
+    jamRooms.set(roomCode, room);
+  }
+
+  const userId = body.userId || url.searchParams.get('userId');
+  const userName = body.userName || url.searchParams.get('userName');
+  if (userId && userName) {
+    const existing = room.members.find((m) => m.id === userId);
+    if (existing) {
+      existing.name = userName;
+      existing.lastSeen = now;
+    } else {
+      room.members.push({ id: userId, name: userName, lastSeen: now });
+    }
+  }
+  // Prune members inactive for > 25s
+  room.members = room.members.filter((m) => now - m.lastSeen < 25_000);
+  // Keep reactions from last 20s
+  room.reactions = room.reactions.filter((r) => now - r.createdAt < 20_000).slice(-20);
+
+  if (op === 'sync') {
+    if (body.currentTrack !== undefined) room.currentTrack = body.currentTrack;
+    if (typeof body.isPlaying === 'boolean') room.isPlaying = body.isPlaying;
+    if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
+    if (Array.isArray(body.queue)) room.queue = body.queue.slice(0, 30);
+    room.updatedAt = now;
+  } else if (op === 'react') {
+    const emoji = body.emoji || url.searchParams.get('emoji') || '🔥';
+    const sender = userName || 'Listener';
+    room.reactions.push({
+      id: `${now}-${Math.random().toString(36).slice(2, 6)}`,
+      emoji,
+      sender,
+      createdAt: now
+    });
+  } else if (op === 'add-track' && body.track) {
+    const exists = room.queue.some((t) => t.id === body.track.id);
+    if (!exists) {
+      room.queue.push(body.track);
+    }
+    if (!room.currentTrack) {
+      room.currentTrack = body.track;
+      room.isPlaying = true;
+      room.currentTime = 0;
+    }
+    room.updatedAt = now;
+  }
+
+  return room;
 }
 
 async function fetchSaavnSearch(query, count = 20) {

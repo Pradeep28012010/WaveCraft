@@ -1,49 +1,115 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
+import { DEFAULT_THUMBNAIL } from '../utils/constants';
 
 export function useMediaSession() {
-  const store = usePlayerStore();
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const playbackSpeed = usePlayerStore((s) => s.playbackSpeed);
 
+  // Register hardware media key & lock-screen action handlers once
   useEffect(() => {
-    if ('mediaSession' in navigator && store.currentTrack) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: store.currentTrack.title,
-        artist: store.currentTrack.artist,
-        album: store.currentTrack.album || '',
-        artwork: [
-          { src: store.currentTrack.thumbnail, sizes: '512x512', type: 'image/jpeg' }
-        ]
-      });
+    if (!('mediaSession' in navigator)) return;
 
-      navigator.mediaSession.setActionHandler('play', () => store.resume());
-      navigator.mediaSession.setActionHandler('pause', () => store.pause());
-      navigator.mediaSession.setActionHandler('previoustrack', () => store.prevTrack());
-      navigator.mediaSession.setActionHandler('nexttrack', () => store.nextTrack());
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime !== undefined) {
-          store.seekTo(details.seekTime);
+    const actions: Array<[MediaSessionAction, MediaSessionActionHandler]> = [
+      ['play', () => usePlayerStore.getState().resume()],
+      ['pause', () => usePlayerStore.getState().pause()],
+      ['previoustrack', () => usePlayerStore.getState().prevTrack()],
+      ['nexttrack', () => usePlayerStore.getState().nextTrack()],
+      [
+        'stop',
+        () => {
+          usePlayerStore.getState().pause();
         }
-      });
-      navigator.mediaSession.setActionHandler('seekforward', () => {
-        store.seekTo(store.currentTime + 10);
-      });
-      navigator.mediaSession.setActionHandler('seekbackward', () => {
-        store.seekTo(Math.max(0, store.currentTime - 10));
-      });
-    }
-  }, [store.currentTrack]);
+      ],
+      [
+        'seekto',
+        (details) => {
+          if (details.seekTime !== undefined) {
+            usePlayerStore.getState().seekTo(details.seekTime);
+          }
+        }
+      ],
+      [
+        'seekforward',
+        (details) => {
+          const offset = details.seekOffset || 10;
+          const st = usePlayerStore.getState();
+          st.seekTo(Math.min(st.duration || 300, st.currentTime + offset));
+        }
+      ],
+      [
+        'seekbackward',
+        (details) => {
+          const offset = details.seekOffset || 10;
+          const st = usePlayerStore.getState();
+          st.seekTo(Math.max(0, st.currentTime - offset));
+        }
+      ]
+    ];
 
-  useEffect(() => {
-    if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && store.duration > 0) {
+    for (const [action, handler] of actions) {
       try {
-        navigator.mediaSession.setPositionState({
-          duration: store.duration,
-          playbackRate: store.playbackSpeed,
-          position: store.currentTime
-        });
-      } catch (e) {
-        // Ignore errors from invalid state
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch {
+        // Ignore unsupported actions on older browsers
       }
     }
-  }, [store.currentTime, store.duration, store.playbackSpeed]);
+  }, []);
+
+  // Update lock-screen / OS media overlay metadata when track changes
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !currentTrack) return;
+
+    const artSmall = currentTrack.thumbnail || DEFAULT_THUMBNAIL;
+    const artLarge = currentTrack.thumbnailLarge || artSmall;
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: currentTrack.album || 'WaveCraft Studio',
+        artwork: [
+          { src: artSmall, sizes: '96x96', type: 'image/jpeg' },
+          { src: artSmall, sizes: '192x192', type: 'image/jpeg' },
+          { src: artLarge, sizes: '512x512', type: 'image/jpeg' }
+        ]
+      });
+    } catch {
+      // Ignore metadata errors
+    }
+  }, [currentTrack]);
+
+  // Keep OS playbackState synced so AirPods / Keyboard / Lock Screen buttons toggle properly
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.playbackState = currentTrack
+      ? isPlaying
+        ? 'playing'
+        : 'paused'
+      : 'none';
+  }, [isPlaying, currentTrack]);
+
+  // Sync lock-screen scrub bar position state safely
+  useEffect(() => {
+    if (
+      'mediaSession' in navigator &&
+      typeof navigator.mediaSession.setPositionState === 'function' &&
+      duration > 0 &&
+      isFinite(duration)
+    ) {
+      try {
+        const safePosition = Math.max(0, Math.min(duration, currentTime || 0));
+        navigator.mediaSession.setPositionState({
+          duration,
+          playbackRate: playbackSpeed || 1,
+          position: safePosition
+        });
+      } catch {
+        // Ignore transient position errors
+      }
+    }
+  }, [currentTime, duration, playbackSpeed]);
 }
