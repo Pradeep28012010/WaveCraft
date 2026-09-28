@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import QueuePanel from './QueuePanel';
 import LyricsView from '../lyrics/LyricsView';
 import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
@@ -61,6 +62,8 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const visualizerStyle = useSettingsStore((s) => s.visualizerStyle);
   const setVisualizerStyle = useSettingsStore((s) => s.setVisualizerStyle);
   const setShowVisualizer = useSettingsStore((s) => s.setShowVisualizer);
+  const fxMode = useStudioStore((s) => s.fxMode);
+  const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
 
   if (!currentTrack) return null;
 
@@ -171,6 +174,24 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Studio Audio FX & Ambient Mixer Button */}
+              <button
+                onClick={() => setStudioModalOpen(true)}
+                className={`px-3.5 h-9 rounded-full text-xs font-extrabold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                  fxMode !== 'normal'
+                    ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-[0_0_20px_rgba(250,45,72,0.45)]'
+                    : 'liquid-glass text-white/90 hover:text-white border-white/15'
+                }`}
+                title="Open Studio Audio FX (Slowed + Reverb, 8D Orbit, Nightcore) & Ambient Mixer"
+              >
+                <span>🎛️</span>
+                <span className="hidden sm:inline">
+                  {fxMode !== 'normal'
+                    ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
+                    : 'Studio FX'}
+                </span>
+              </button>
+
               {/* Share WaveCard Button */}
               <button
                 onClick={() => setShowWaveCard(true)}

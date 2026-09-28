@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import MiniPlayer from './MiniPlayer';
+import CommandPalette from './CommandPalette';
+import StudioFXModal from '../player/StudioFXModal';
 import { usePlayerStore } from '../../stores/playerStore';
 import AnimatedBackground from '../ui/AnimatedBackground';
 import YouTubeEmbed from '../player/YouTubeEmbed';
@@ -18,8 +20,12 @@ export default function MainLayout() {
       {/* Background layer */}
       <AnimatedBackground colors={colors} />
 
-      {/* Hidden YouTube Player */}
+      {/* Hidden YouTube & Web Audio DSP Player */}
       <YouTubeEmbed />
+
+      {/* Global Ctrl+K Command Palette & Studio FX / Focus Hub */}
+      <CommandPalette />
+      <StudioFXModal />
 
       <div className="flex flex-1 overflow-hidden relative z-10">
         <Sidebar />

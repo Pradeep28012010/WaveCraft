@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useStudioStore, type StudioFXMode } from '../../stores/studioStore';
 import { searchTracks } from '../../services/youtube';
 import type { Track } from '../../types';
 
@@ -15,15 +16,27 @@ declare global {
 
 const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
+const FX_EQ_OFFSETS: Record<StudioFXMode, number[]> = {
+  normal: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  'slowed-reverb': [4, 3.5, 2, 0, -1, -1.5, -2, -2.5, -3, -4],
+  nightcore: [1, 1.5, 0, 0, 0.5, 1.5, 2.5, 3.5, 4, 4.5],
+  '8d-orbit': [3, 2.5, 1, 0, -1, 0, 1.5, 2.5, 3, 3],
+  'bass-cinema': [8, 6.5, 4, 1, -1, -0.5, 1, 2.5, 3.5, 4],
+  'vocal-stage': [2, 1.5, 0, -2, -5.5, -6.5, -5, 1, 2.5, 3]
+};
+
 let ytPlayerInstance: any = null;
 let htmlAudioElement: HTMLAudioElement | null = null;
 let preloadAudioElement: HTMLAudioElement | null = null;
 let activeEngine: 'audio' | 'youtube' = 'audio';
 
-// Web Audio API Equalizer & Real-time Visualizer Analyser nodes
+// Web Audio API Equalizer, Studio FX & Real-time Visualizer Analyser nodes
 let audioCtx: AudioContext | null = null;
 let sourceNode: MediaElementAudioSourceNode | null = null;
 let eqFilters: BiquadFilterNode[] = [];
+let stereoPanner: StereoPannerNode | null = null;
+let panLfoGain: GainNode | null = null;
+let reverbWetGain: GainNode | null = null;
 let gainNode: GainNode | null = null;
 let analyserNode: AnalyserNode | null = null;
 
@@ -34,9 +47,33 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
     audioCtx = new Ctx();
     sourceNode = audioCtx.createMediaElementSource(audio);
     gainNode = audioCtx.createGain();
+    stereoPanner = audioCtx.createStereoPanner();
     analyserNode = audioCtx.createAnalyser();
     analyserNode.fftSize = 128;
     analyserNode.smoothingTimeConstant = 0.78;
+
+    // 8D Spatial Orbit LFO (0.125 Hz = 8s full circle)
+    const panLfo = audioCtx.createOscillator();
+    panLfo.type = 'sine';
+    panLfo.frequency.value = 0.125;
+    panLfoGain = audioCtx.createGain();
+    panLfoGain.gain.value = 0; // 0 by default, 0.88 when 8d-orbit is active
+    panLfo.connect(panLfoGain);
+    panLfoGain.connect(stereoPanner.pan);
+    panLfo.start();
+
+    // Lush Stereo Hall Delay/Reverb Network for Slowed + Reverb & 8D Orbit
+    const delayL = audioCtx.createDelay(1.0);
+    const delayR = audioCtx.createDelay(1.0);
+    delayL.delayTime.value = 0.11;
+    delayR.delayTime.value = 0.17;
+    const feedback = audioCtx.createGain();
+    feedback.gain.value = 0.42;
+    const reverbTone = audioCtx.createBiquadFilter();
+    reverbTone.type = 'lowpass';
+    reverbTone.frequency.value = 2600;
+    reverbWetGain = audioCtx.createGain();
+    reverbWetGain.gain.value = 0;
 
     eqFilters = EQ_FREQUENCIES.map((freq, idx) => {
       const filter = audioCtx!.createBiquadFilter();
@@ -54,11 +91,69 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
       prev.connect(f);
       prev = f;
     }
-    prev.connect(gainNode);
+
+    // Dry signal path
+    prev.connect(stereoPanner);
+
+    // Wet reverb loop path
+    prev.connect(delayL);
+    delayL.connect(delayR);
+    delayR.connect(reverbTone);
+    reverbTone.connect(feedback);
+    feedback.connect(delayL);
+    reverbTone.connect(reverbWetGain);
+    reverbWetGain.connect(stereoPanner);
+
+    stereoPanner.connect(gainNode);
     gainNode.connect(analyserNode);
     analyserNode.connect(audioCtx.destination);
   } catch (err) {
     console.warn('Web Audio EQ initialization skipped:', err);
+  }
+}
+
+function applyStudioFXToAudio(audio: HTMLAudioElement | null, fxMode: StudioFXMode, baseSpeed: number) {
+  const effectiveSpeed =
+    fxMode === 'slowed-reverb'
+      ? 0.86
+      : fxMode === 'nightcore'
+      ? 1.22
+      : baseSpeed || 1;
+
+  const preservePitch = fxMode !== 'slowed-reverb' && fxMode !== 'nightcore';
+
+  if (audio) {
+    try {
+      (audio as any).preservesPitch = preservePitch;
+      (audio as any).mozPreservesPitch = preservePitch;
+      (audio as any).webkitPreservesPitch = preservePitch;
+      audio.playbackRate = effectiveSpeed;
+    } catch {}
+  }
+
+  if (ytPlayerInstance && window.ytPlayerReady && typeof ytPlayerInstance.setPlaybackRate === 'function') {
+    try {
+      ytPlayerInstance.setPlaybackRate(effectiveSpeed);
+    } catch {}
+  }
+
+  if (audioCtx && panLfoGain && reverbWetGain && stereoPanner) {
+    const now = audioCtx.currentTime;
+    const is8D = fxMode === '8d-orbit';
+    panLfoGain.gain.setTargetAtTime(is8D ? 0.88 : 0, now, 0.08);
+    if (!is8D) {
+      stereoPanner.pan.setTargetAtTime(0, now, 0.08);
+    }
+
+    const wetAmount =
+      fxMode === 'slowed-reverb'
+        ? 0.48
+        : fxMode === '8d-orbit'
+        ? 0.24
+        : fxMode === 'vocal-stage'
+        ? 0.28
+        : 0;
+    reverbWetGain.gain.setTargetAtTime(wetAmount, now, 0.08);
   }
 }
 
@@ -141,17 +236,30 @@ export default function YouTubeEmbed() {
   const eqBands = useSettingsStore((s) => s.equalizerBands);
   const crossfadeDuration = useSettingsStore((s) => s.crossfadeDuration);
   const autoplay = useSettingsStore((s) => s.autoplay);
+  const fxMode = useStudioStore((s) => s.fxMode);
+  const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
+  const tickPomodoro = useStudioStore((s) => s.tickPomodoro);
 
-  // Sync 10-band Equalizer gains in real time
+  // Sync 10-band Equalizer gains + Studio FX EQ offsets in real time
   useEffect(() => {
     if (eqFilters.length > 0 && audioCtx) {
+      const offsets = FX_EQ_OFFSETS[fxMode] || FX_EQ_OFFSETS.normal;
       eqBands.forEach((db, idx) => {
         if (eqFilters[idx]) {
-          eqFilters[idx].gain.setTargetAtTime(db || 0, audioCtx!.currentTime, 0.03);
+          const combined = Math.max(-12, Math.min(12, (db || 0) + (offsets[idx] || 0)));
+          eqFilters[idx].gain.setTargetAtTime(combined, audioCtx!.currentTime, 0.04);
         }
       });
     }
-  }, [eqBands]);
+    applyStudioFXToAudio(audioRef.current, fxMode, playbackSpeed || 1);
+  }, [eqBands, fxMode, playbackSpeed]);
+
+  // Global Focus Pomodoro Timer 1s ticker
+  useEffect(() => {
+    if (!pomodoroActive) return;
+    const id = setInterval(() => tickPomodoro(), 1000);
+    return () => clearInterval(id);
+  }, [pomodoroActive, tickPomodoro]);
 
   // Preload next track in queue & auto-extend queue when autoplay is on
   useEffect(() => {
@@ -254,6 +362,11 @@ export default function YouTubeEmbed() {
       if (activeEngine === 'audio') {
         setIsLoading(false);
         ensureAudioGraph(audio, useSettingsStore.getState().equalizerBands);
+        applyStudioFXToAudio(
+          audio,
+          useStudioStore.getState().fxMode,
+          usePlayerStore.getState().playbackSpeed || 1
+        );
         if (audioCtx && audioCtx.state === 'suspended') {
           audioCtx.resume().catch(() => {});
         }

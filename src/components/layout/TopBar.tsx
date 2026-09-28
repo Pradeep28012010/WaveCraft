@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { searchSuggestions } from '../../services/youtube';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useJamStore } from '../../stores/jamStore';
+import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import SleepTimer from '../settings/SleepTimer';
 
 export default function TopBar() {
@@ -18,6 +19,28 @@ export default function TopBar() {
 
   const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
   const roomCode = useJamStore((s) => s.roomCode);
+
+  const fxMode = useStudioStore((s) => s.fxMode);
+  const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
+  const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
+  const pomodoroMode = useStudioStore((s) => s.pomodoroMode);
+  const pomodoroSeconds = useStudioStore((s) => s.pomodoroSeconds);
+  const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
+  const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
+
+  const hasActiveAmbient = Object.values(ambientVolumes).some((v) => v > 0.01);
+  const activeFxLabel =
+    fxMode !== 'normal'
+      ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
+      : hasActiveAmbient
+      ? 'Ambient Mix'
+      : 'Studio FX';
+
+  const formatPomodoro = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     setSearchQuery(urlQuery);
@@ -79,7 +102,7 @@ export default function TopBar() {
           </button>
         </div>
 
-        {/* Liquid Glass Search Pill */}
+        {/* Liquid Glass Search Pill + Ctrl+K Spotlight Trigger */}
         <div className="flex-1 max-w-xl mx-4 sm:mx-6 relative">
           <div className="relative flex items-center">
             <div className="absolute left-4 pointer-events-none text-white/45">
@@ -96,19 +119,26 @@ export default function TopBar() {
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
               placeholder="Search songs, artists, albums, or moods..."
-              className="w-full liquid-glass rounded-full py-2.5 pl-11 pr-10 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/30 transition-all duration-300"
+              className="w-full liquid-glass rounded-full py-2.5 pl-11 pr-20 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/30 transition-all duration-300"
             />
-            {searchQuery && (
+            {searchQuery ? (
               <button
                 onClick={handleClear}
-                className="absolute right-3.5 p-1 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="absolute right-14 p-1 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
-            )}
+            ) : null}
+            <button
+              onClick={() => setCommandPaletteOpen(true)}
+              title="Open Spotlight Command Palette (Ctrl+K)"
+              className="absolute right-3 px-2 py-0.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-[10px] font-extrabold text-white/70 hover:text-white transition-colors cursor-pointer"
+            >
+              ⌘K
+            </button>
           </div>
 
           {/* Search Suggestions Dropdown */}
@@ -137,12 +167,26 @@ export default function TopBar() {
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          {/* Active Focus Pomodoro Pill */}
+          {pomodoroActive && (
+            <button
+              onClick={() => setStudioModalOpen(true)}
+              className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-extrabold text-amber-300 hover:bg-amber-500/30 transition-colors cursor-pointer tabular-nums"
+              title="Focus Pomodoro Timer Active"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span>
+                {pomodoroMode === 'focus' ? 'Focus' : 'Break'} {formatPomodoro(pomodoroSeconds)}
+              </span>
+            </button>
+          )}
+
           {/* Active Jam Room Pill */}
           {roomCode && (
             <button
               onClick={() => navigate('/jam')}
-              className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-xs font-extrabold text-emerald-300 hover:bg-emerald-500/30 transition-colors cursor-pointer"
+              className="hidden md:flex items-center gap-2 px-3.5 h-9 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-xs font-extrabold text-emerald-300 hover:bg-emerald-500/30 transition-colors cursor-pointer"
               title="Open Active Jam Room"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -150,12 +194,26 @@ export default function TopBar() {
             </button>
           )}
 
+          {/* Studio FX & Ambient Soundscape Hub Button */}
+          <button
+            onClick={() => setStudioModalOpen(true)}
+            title="Studio Audio FX (Slowed + Reverb, 8D Orbit, Nightcore) & Ambient Mixer"
+            className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer border ${
+              fxMode !== 'normal' || hasActiveAmbient
+                ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-[0_0_20px_rgba(250,45,72,0.45)]'
+                : 'liquid-glass border-white/15 text-white/90 hover:text-white hover:bg-white/15'
+            }`}
+          >
+            <span>🎛️</span>
+            <span className="hidden sm:inline">{activeFxLabel}</span>
+          </button>
+
           {/* Install App (PWA) Button */}
           {!isInstalled && (
             <button
               onClick={triggerInstall}
               title="Install WaveCraft as Desktop / Mobile App"
-              className="hidden sm:flex items-center gap-1.5 px-3.5 h-9 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/90 hover:text-white hover:bg-white/15 transition-all cursor-pointer"
+              className="hidden xl:flex items-center gap-1.5 px-3.5 h-9 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/90 hover:text-white hover:bg-white/15 transition-all cursor-pointer"
             >
               <svg className="w-3.5 h-3.5 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useStudioStore } from '../../stores/studioStore';
 import { getTrending, getCachedTrending, searchTracks } from '../../services/youtube';
 import { getNewReleases, getCachedNewReleases } from '../../services/itunes';
 import GlassCard from '../ui/GlassCard';
@@ -184,6 +185,13 @@ export default function HomePage() {
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                 <span>Live Jam Room</span>
+              </button>
+
+              <button
+                onClick={() => useStudioStore.getState().setStudioModalOpen(true)}
+                className="px-5 py-3 rounded-full bg-purple-500/15 hover:bg-purple-500/25 border border-purple-400/30 text-sm font-bold text-purple-200 transition-all cursor-pointer flex items-center gap-2"
+              >
+                <span>🎛️ Studio FX & Ambient Focus</span>
               </button>
             </div>
           </div>
