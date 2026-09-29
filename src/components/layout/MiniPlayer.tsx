@@ -6,13 +6,7 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 import NowPlaying from '../player/NowPlaying';
 import QueuePanel from '../player/QueuePanel';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
-
-const formatTime = (seconds: number) => {
-  if (!seconds || isNaN(seconds)) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-};
+import { formatTime } from '../../utils/formatTime';
 
 /**
  * Isolated 120fps GPU-Composited Scrubber (`transform: scaleX`)

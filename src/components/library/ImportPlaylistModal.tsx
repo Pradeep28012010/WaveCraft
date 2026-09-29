@@ -36,7 +36,7 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
 
     const newPlaylist = createPlaylist(
       playlistName,
-      `Imported via WaveCraft • 320kbps Studio HD`,
+      `Imported from ${platform} via WaveCraft • 320kbps Studio HD`,
       coverUrl
     );
 

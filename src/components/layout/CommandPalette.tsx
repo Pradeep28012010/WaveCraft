@@ -40,7 +40,6 @@ export default function CommandPalette() {
     startPomodoro
   } = useStudioStore();
 
-  const playTrack = usePlayerStore((s) => s.playTrack);
   const togglePlay = usePlayerStore((s) => s.togglePlay);
   const nextTrack = usePlayerStore((s) => s.nextTrack);
 

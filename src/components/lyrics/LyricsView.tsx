@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getLyricsData, type LyricsResult } from '../../services/lyrics';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useStudioStore } from '../../stores/studioStore';
+import { formatTime } from '../../utils/formatTime';
 import type { LyricLine } from '../../types';
 
 interface LyricsViewProps {
@@ -12,12 +13,7 @@ interface LyricsViewProps {
   onShareLyric?: (quote: string) => void;
 }
 
-const formatTimestamp = (seconds: number) => {
-  if (seconds < 0 || isNaN(seconds)) return '';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-};
+const formatTimestamp = (seconds: number) => (seconds < 0 || isNaN(seconds) ? '' : formatTime(seconds));
 
 /**
  * Isolated 120fps GPU-composited Karaoke Progress Bar (`transform: scaleX`)

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Playlist } from '../../types';
 import GlassCard from '../ui/GlassCard';

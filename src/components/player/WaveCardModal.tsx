@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Track, LyricLine } from '../../types';
-import { getLyrics } from '../../services/lyrics';
+import { getLyricsData } from '../../services/lyrics';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
 interface WaveCardModalProps {
@@ -76,8 +76,9 @@ export default function WaveCardModal({
       setSelectedQuote(initialQuote.trim());
     }
 
-    getLyrics(track.artist, track.title).then((lines) => {
+    getLyricsData(track.artist, track.title, track.duration).then((data) => {
       if (cancelled) return;
+      const lines = data?.lines || [];
       const valid = lines.filter(
         (l) =>
           l.text &&

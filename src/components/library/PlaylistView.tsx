@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -15,7 +15,6 @@ export default function PlaylistView() {
   const removeFromPlaylist = useLibraryStore(state => state.removeFromPlaylist);
   const deletePlaylist = useLibraryStore(state => state.deletePlaylist);
   const playTrack = usePlayerStore(state => state.playTrack);
-  const setQueue = usePlayerStore(state => state.setQueue);
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 

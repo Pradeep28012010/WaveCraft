@@ -55,7 +55,7 @@ export function stopChorusPreview(resumeMain = true) {
 
   if (hadActive && resumeMain && wasMainPlayerPlaying) {
     wasMainPlayerPlaying = false;
-    usePlayerStore.getState().play();
+    usePlayerStore.getState().resume();
   } else {
     wasMainPlayerPlaying = false;
   }

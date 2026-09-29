@@ -1,4 +1,4 @@
-import type { Track, SearchResult, ArtistResult, AlbumResult, LyricLine } from '../types';
+import type { Track } from '../types';
 import { get, set, del, keys } from 'idb-keyval';
 
 // Extend local interfaces assuming these would normally come from types but are required here

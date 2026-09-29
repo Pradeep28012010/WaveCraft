@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import type { Track } from '../../types';
 import GlassCard from '../ui/GlassCard';
 import Skeleton from '../ui/Skeleton';

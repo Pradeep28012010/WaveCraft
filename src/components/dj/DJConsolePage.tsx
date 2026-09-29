@@ -9,14 +9,8 @@ import { getSmartRecommendations } from '../../services/recommendationEngine';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import GlassCard from '../ui/GlassCard';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { formatTime } from '../../utils/formatTime';
 import type { Track } from '../../types';
-
-const formatTime = (sec: number) => {
-  if (!sec || isNaN(sec)) return '0:00';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-};
 
 // Deterministic musical BPM & Camelot Key generator per track ID
 function getTrackMeta(track?: Track | null): { bpm: number; key: string } {
@@ -385,8 +379,6 @@ export default function DJConsolePage() {
         canvas.height = Math.floor(rect.height * dpr);
       }
 
-      const W = canvas.width;
-      const H = canvas.height;
       ctx.save();
       ctx.scale(dpr, dpr);
       const w = rect.width;

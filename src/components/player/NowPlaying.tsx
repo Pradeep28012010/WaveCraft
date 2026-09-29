@@ -9,6 +9,7 @@ import LyricsView from '../lyrics/LyricsView';
 import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
 import WaveCardModal from './WaveCardModal';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { formatTime } from '../../utils/formatTime';
 
 interface NowPlayingProps {
   isOpen: boolean;
@@ -24,13 +25,6 @@ const VISUALIZER_MODES: Array<{ id: VisualizerStyle; label: string }> = [
   { id: 'bars', label: 'Studio Bars' },
   { id: 'wave', label: 'Harmonic Wave' }
 ];
-
-const formatTime = (seconds: number) => {
-  if (!seconds || isNaN(seconds)) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-};
 
 /**
  * Isolated 120fps GPU-Composited Scrubber (`transform: scaleX`)
