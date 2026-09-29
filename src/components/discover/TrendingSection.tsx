@@ -56,7 +56,7 @@ export default function TrendingSection({ tracks, isLoading, onPlayTrack }: Tren
 
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 pt-2 px-1"
+        className="flex gap-5 overflow-x-auto snap-x snap-mandatory no-scrollbar pt-3.5 pb-5 px-2.5 -mx-2.5 -mt-2"
       >
         {isLoading
           ? Array(6)
