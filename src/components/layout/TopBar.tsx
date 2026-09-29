@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { searchSuggestions } from '../../services/youtube';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useJamStore } from '../../stores/jamStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 
@@ -16,6 +17,7 @@ export default function TopBar() {
   const debounceTimer = useRef<any>(null);
 
   const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
+  const { isPhone, toggleMobileDrawer } = useDevicePreset();
   const roomCode = useJamStore((s) => s.roomCode);
 
   const fxMode = useStudioStore((s) => s.fxMode);
@@ -77,6 +79,90 @@ export default function TopBar() {
     setSuggestions([]);
     navigate('/search');
   };
+
+  // Phone UI Preset Header (clean, thumb-friendly, zero horizontal crowding)
+  if (isPhone) {
+    return (
+      <header className="h-14 flex items-center justify-between gap-2.5 px-3.5 sticky top-0 z-40 bg-black/65 backdrop-blur-2xl border-b border-white/[0.08]">
+        {/* Left: Drawer Trigger + WaveCraft Icon */}
+        <button
+          onClick={toggleMobileDrawer}
+          aria-label="Open Navigation Menu"
+          className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg flex-shrink-0 active:scale-95 transition-transform"
+        >
+          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="4" y1="7" x2="20" y2="7" />
+            <line x1="4" y1="12" x2="16" y2="12" />
+            <line x1="4" y1="17" x2="20" y2="17" />
+          </svg>
+        </button>
+
+        {/* Center: Full-Width Mobile Search Bar */}
+        <div className="flex-1 relative min-w-0">
+          <div className="relative flex items-center">
+            <div className="absolute left-3.5 pointer-events-none text-white/45">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
+              placeholder="Search songs, artists, moods..."
+              className="w-full liquid-glass rounded-full py-2 pl-9 pr-8 text-xs text-white placeholder-white/45 focus:outline-none focus:border-white/30"
+            />
+            {searchQuery && (
+              <button
+                onClick={handleClear}
+                className="absolute right-2.5 p-1 rounded-full text-white/60 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-11 glass-heavy rounded-2xl p-1.5 shadow-2xl border border-white/15 z-50">
+              {suggestions.map((sug, i) => (
+                <button
+                  key={i}
+                  onMouseDown={() => {
+                    const clean = sug.split(' - ')[0];
+                    setSearchQuery(clean);
+                    navigate(`/search?q=${encodeURIComponent(clean)}`);
+                    setShowSuggestions(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs text-white/85 hover:bg-white/10"
+                >
+                  <span className="truncate">{sug}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Studio FX & Sleep Timer Hub Button */}
+        <button
+          onClick={() => setStudioModalOpen(true)}
+          className={`h-10 px-3 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 flex-shrink-0 border ${
+            fxMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
+              ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-lg'
+              : 'liquid-glass border-white/15 text-white/90'
+          }`}
+        >
+          <span>{sleepActive ? '🌙' : '🎛️'}</span>
+          {sleepActive && !sleepEndAtTrack ? (
+            <span className="text-[10px] tabular-nums">{formatClock(sleepSeconds)}</span>
+          ) : null}
+        </button>
+      </header>
+    );
+  }
 
   return (
     <>

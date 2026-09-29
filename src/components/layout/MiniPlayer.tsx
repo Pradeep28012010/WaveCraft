@@ -2,6 +2,7 @@ import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useDevicePreset } from '../../hooks/useDevicePreset';
 import NowPlaying from '../player/NowPlaying';
 import QueuePanel from '../player/QueuePanel';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
@@ -95,6 +96,7 @@ MiniPlayerTimeReadout.displayName = 'MiniPlayerTimeReadout';
 export default function MiniPlayer() {
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const { isPhone } = useDevicePreset();
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -124,6 +126,92 @@ export default function MiniPlayer() {
     const ratio = Math.max(0, Math.min(1, x / rect.width));
     setVolume(ratio);
   };
+
+  // Phone UI Preset: Compact Native-Style Floating MiniPlayer Pill
+  if (isPhone) {
+    return (
+      <>
+        <div className="px-2.5 pb-1.5 pt-0.5 relative z-30 gpu-layer select-none">
+          <div
+            onClick={() => setIsNowPlayingOpen(true)}
+            className="h-15 liquid-glass rounded-2xl flex items-center justify-between px-3 relative overflow-visible shadow-[0_14px_40px_rgba(0,0,0,0.85)] border border-white/15 cursor-pointer"
+          >
+            <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
+
+            {/* Left: Artwork & Track Info */}
+            <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+              <img
+                src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
+                alt={currentTrack.title}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                }}
+                className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-white/15 shadow-md"
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs font-extrabold text-white truncate">
+                  {currentTrack.title}
+                </h4>
+                <p className="text-[11px] text-white/60 truncate">{currentTrack.artist}</p>
+              </div>
+            </div>
+
+            {/* Right: Thumb-friendly Like, Play/Pause, Next */}
+            <div
+              className="flex items-center gap-1 flex-shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => toggleLike(currentTrack)}
+                className={`w-9 h-9 flex items-center justify-center rounded-full ${
+                  isLiked ? 'text-[var(--color-accent)]' : 'text-white/55'
+                }`}
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill={isLiked ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                >
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </button>
+
+              <button
+                onClick={togglePlay}
+                className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center shadow-md active:scale-90 transition-transform"
+              >
+                {isLoading ? (
+                  <div className="w-4 h-4 border-2 border-black/25 border-t-black rounded-full animate-spin" />
+                ) : isPlaying ? (
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+
+              <button
+                onClick={nextTrack}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-white/85 active:scale-90"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
+        <NowPlaying isOpen={isNowPlayingOpen} onClose={() => setIsNowPlayingOpen(false)} />
+      </>
+    );
+  }
 
   return (
     <>

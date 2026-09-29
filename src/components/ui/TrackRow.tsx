@@ -6,6 +6,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { useOfflineVault } from '../../services/offlineVault';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { useDevicePreset } from '../../hooks/useDevicePreset';
 
 interface TrackRowProps {
   track: Track;
@@ -53,6 +54,7 @@ const TrackRow = memo(({
   isLiked: propIsLiked,
   onContextMenu
 }: TrackRowProps) => {
+  const { isPhone } = useDevicePreset();
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [menuCoords, setMenuCoords] = useState({ top: 0, left: 0 });
   const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -226,7 +228,9 @@ const TrackRow = memo(({
               ? 'text-emerald-400 opacity-100 bg-emerald-500/15'
               : isSavingOffline
                 ? 'text-amber-300 opacity-100 animate-pulse'
-                : 'text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10'
+                : isPhone
+                  ? 'text-white/45 opacity-100 active:bg-white/10'
+                  : 'text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10'
           }`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -248,7 +252,9 @@ const TrackRow = memo(({
           className={`p-2 rounded-full transition-all ${
             liked
               ? 'text-[var(--color-accent)] opacity-100 scale-105'
-              : 'text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10'
+              : isPhone
+                ? 'text-white/45 opacity-100 active:bg-white/10'
+                : 'text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10'
           }`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -256,16 +262,18 @@ const TrackRow = memo(({
           </svg>
         </button>
 
-        <button
-          onClick={handleQueue}
-          title="Add to Queue"
-          className="p-2 rounded-full text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10 transition-all"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
+        {!isPhone && (
+          <button
+            onClick={handleQueue}
+            title="Add to Queue"
+            className="p-2 rounded-full text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10 transition-all"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        )}
 
         {playlists.length > 0 && (
           <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -273,7 +281,9 @@ const TrackRow = memo(({
               ref={menuBtnRef}
               onClick={handleToggleMenu}
               title="Add to Playlist"
-              className="p-2 rounded-full text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10 transition-all"
+              className={`p-2 rounded-full text-white/40 ${
+                isPhone ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              } hover:text-white hover:bg-white/10 transition-all`}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="1" />
