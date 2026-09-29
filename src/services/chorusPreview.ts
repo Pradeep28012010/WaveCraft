@@ -144,10 +144,15 @@ export async function toggleChorusPreview(track: Track) {
             previewAudio.volume = baseVol;
           }
 
-          updateState({
-            progress: ratio,
-            remainingSec: rem
-          });
+          if (
+            rem !== previewState.remainingSec ||
+            Math.abs(ratio - previewState.progress) >= 0.025
+          ) {
+            updateState({
+              progress: ratio,
+              remainingSec: rem
+            });
+          }
 
           if (elapsed >= PREVIEW_DURATION_SEC || previewAudio.ended) {
             stopChorusPreview(true);

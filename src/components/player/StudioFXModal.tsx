@@ -40,7 +40,7 @@ const VOCAL_STEM_MODES: Array<{
   }
 ];
 
-export default function StudioFXModal() {
+function StudioFXModalContent() {
   const {
     fxMode,
     vocalMode,
@@ -49,7 +49,6 @@ export default function StudioFXModal() {
     spatialRoomSize,
     spatialManualPos,
     ambientVolumes,
-    isStudioModalOpen,
     pomodoroActive,
     pomodoroMode,
     pomodoroSeconds,
@@ -82,7 +81,7 @@ export default function StudioFXModal() {
 
   // Animate the live 360° orbit indicator on the radar pad when Auto-Orbit is active
   useEffect(() => {
-    if (!isStudioModalOpen || !spatialOrbitAuto) return;
+    if (!spatialOrbitAuto) return;
     let raf = 0;
     let last = performance.now();
     const loop = (now: number) => {
@@ -93,9 +92,7 @@ export default function StudioFXModal() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [isStudioModalOpen, spatialOrbitAuto, spatialOrbitSpeed]);
-
-  if (typeof document === 'undefined') return null;
+  }, [spatialOrbitAuto, spatialOrbitSpeed]);
 
   const formatClock = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -131,24 +128,22 @@ export default function StudioFXModal() {
 
   const hasAnyAmbient = Object.values(ambientVolumes).some((v) => v > 0.01);
 
-  return createPortal(
-    <AnimatePresence>
-      {isStudioModalOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => setStudioModalOpen(false)}
-          className="fixed inset-0 z-[9990] flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-2xl select-none"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.94, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: 20 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl max-h-[88vh] overflow-y-auto no-scrollbar rounded-3xl liquid-glass border border-white/20 p-6 sm:p-8 shadow-[0_30px_100px_rgba(0,0,0,0.85)] text-white space-y-8"
-          >
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={() => setStudioModalOpen(false)}
+      className="fixed inset-0 z-[9990] flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-2xl select-none"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 20 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-4xl max-h-[88vh] overflow-y-auto no-scrollbar rounded-3xl liquid-glass border border-white/20 p-6 sm:p-8 shadow-[0_30px_100px_rgba(0,0,0,0.85)] text-white space-y-8"
+      >
             {/* Header */}
             <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
               <div>
@@ -652,8 +647,15 @@ export default function StudioFXModal() {
             </div>
           </motion.div>
         </motion.div>
-      )}
-    </AnimatePresence>,
+  );
+}
+
+export default function StudioFXModal() {
+  const isStudioModalOpen = useStudioStore((s) => s.isStudioModalOpen);
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <AnimatePresence>{isStudioModalOpen && <StudioFXModalContent />}</AnimatePresence>,
     document.body
   );
 }

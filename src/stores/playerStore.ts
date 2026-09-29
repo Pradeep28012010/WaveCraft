@@ -61,7 +61,17 @@ function loadPlayerSessionSync(): PersistedPlayerSession {
   }
 }
 
-function savePlayerSessionSync(state: PlayerState): void {
+let pendingPlayerState: PlayerState | null = null;
+let playerSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushPlayerSession(): void {
+  if (!pendingPlayerState) return;
+  const state = pendingPlayerState;
+  pendingPlayerState = null;
+  if (playerSaveTimer) {
+    clearTimeout(playerSaveTimer);
+    playerSaveTimer = null;
+  }
   try {
     const payload: PersistedPlayerSession = {
       currentTrack: state.currentTrack,
@@ -77,6 +87,16 @@ function savePlayerSessionSync(state: PlayerState): void {
     };
     localStorage.setItem(PLAYER_SESSION_KEY, JSON.stringify(payload));
   } catch {}
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushPlayerSession);
+}
+
+function savePlayerSessionSync(state: PlayerState): void {
+  pendingPlayerState = state;
+  if (playerSaveTimer) clearTimeout(playerSaveTimer);
+  playerSaveTimer = setTimeout(flushPlayerSession, 120);
 }
 
 interface PlayerStore extends PlayerState {

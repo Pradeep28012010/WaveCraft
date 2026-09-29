@@ -14,7 +14,7 @@ interface QueuePanelProps {
   onClose: () => void;
 }
 
-export default function QueuePanel({ isOpen, onClose }: QueuePanelProps) {
+function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const queue = usePlayerStore((s) => s.queue);
   const queueIndex = usePlayerStore((s) => s.queueIndex);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -31,7 +31,7 @@ export default function QueuePanel({ isOpen, onClose }: QueuePanelProps) {
   const addToPlaylist = useLibraryStore((s) => s.addToPlaylist);
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isCurrentLiked = useLibraryStore((s) =>
-    currentTrack ? s.isLiked(currentTrack.id) : false
+    currentTrack ? s.likedSongs.some((t) => t.id === currentTrack.id) : false
   );
 
   const [activeTab, setActiveTab] = useState<'upnext' | 'history'>('upnext');
@@ -163,11 +163,9 @@ export default function QueuePanel({ isOpen, onClose }: QueuePanelProps) {
 
   const artSrc = currentTrack?.thumbnailLarge || currentTrack?.thumbnail || DEFAULT_THUMBNAIL;
 
-  return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Translucent Spatial Backdrop */}
+  return (
+    <>
+      {/* Translucent Spatial Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -639,9 +637,15 @@ export default function QueuePanel({ isOpen, onClose }: QueuePanelProps) {
               )}
             </div>
           </motion.aside>
-        </>
-      )}
-    </AnimatePresence>,
+    </>
+  );
+}
+
+export default function QueuePanel({ isOpen, onClose }: QueuePanelProps) {
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <AnimatePresence>{isOpen && <QueuePanelContent onClose={onClose} />}</AnimatePresence>,
     document.body
   );
 }

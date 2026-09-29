@@ -28,17 +28,15 @@ export default function CommandPalette() {
   const [trackResults, setTrackResults] = useState<Track[]>([]);
   const [isSearchingTracks, setIsSearchingTracks] = useState(false);
 
-  const {
-    isCommandPaletteOpen,
-    fxMode,
-    ambientVolumes,
-    setCommandPaletteOpen,
-    setStudioModalOpen,
-    setFxMode,
-    setAmbientVolume,
-    stopAllAmbient,
-    startPomodoro
-  } = useStudioStore();
+  const isCommandPaletteOpen = useStudioStore((s) => s.isCommandPaletteOpen);
+  const fxMode = useStudioStore((s) => s.fxMode);
+  const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
+  const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
+  const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
+  const setFxMode = useStudioStore((s) => s.setFxMode);
+  const setAmbientVolume = useStudioStore((s) => s.setAmbientVolume);
+  const stopAllAmbient = useStudioStore((s) => s.stopAllAmbient);
+  const startPomodoro = useStudioStore((s) => s.startPomodoro);
 
   const togglePlay = usePlayerStore((s) => s.togglePlay);
   const nextTrack = usePlayerStore((s) => s.nextTrack);

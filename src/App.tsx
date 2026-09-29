@@ -1,26 +1,27 @@
 import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, lazy } from 'react';
 import { MotionConfig } from 'framer-motion';
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './components/discover/HomePage';
 import GenreBrowser from './components/search/GenreBrowser';
-import SearchResults from './components/search/SearchResults';
-import LibraryPage from './components/library/LibraryPage';
-import LikedSongs from './components/library/LikedSongs';
-import RecentlyPlayed from './components/library/RecentlyPlayed';
-import PlaylistView from './components/library/PlaylistView';
-import StatsPage from './components/stats/StatsPage';
-import SettingsPage from './components/settings/SettingsPage';
-import VibeDJPage from './components/vibe/VibeDJPage';
-import JamRoomPage from './components/jam/JamRoomPage';
-import DJConsolePage from './components/dj/DJConsolePage';
-import SonicGalaxyPage from './components/galaxy/SonicGalaxyPage';
 import { useLibraryStore } from './stores/libraryStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { usePlayerStore } from './stores/playerStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useMediaSession } from './hooks/useMediaSession';
 import { searchTracks } from './services/youtube';
+
+const SearchResults = lazy(() => import('./components/search/SearchResults'));
+const LibraryPage = lazy(() => import('./components/library/LibraryPage'));
+const LikedSongs = lazy(() => import('./components/library/LikedSongs'));
+const RecentlyPlayed = lazy(() => import('./components/library/RecentlyPlayed'));
+const PlaylistView = lazy(() => import('./components/library/PlaylistView'));
+const StatsPage = lazy(() => import('./components/stats/StatsPage'));
+const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
+const VibeDJPage = lazy(() => import('./components/vibe/VibeDJPage'));
+const JamRoomPage = lazy(() => import('./components/jam/JamRoomPage'));
+const DJConsolePage = lazy(() => import('./components/dj/DJConsolePage'));
+const SonicGalaxyPage = lazy(() => import('./components/galaxy/SonicGalaxyPage'));
 
 function AppContent() {
   const loadLibrary = useLibraryStore((s) => s.loadFromStorage);

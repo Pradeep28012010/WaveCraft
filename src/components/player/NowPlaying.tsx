@@ -78,7 +78,7 @@ NowPlayingScrubber.displayName = 'NowPlayingScrubber';
 
 const DECK_MODE_KEY = 'wavecraft_deck_mode_v1';
 
-export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
+function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const [showQueue, setShowQueue] = useState(false);
   const [deckMode, setDeckModeState] = useState<'cover' | 'vinyl'>(() => {
     try {
@@ -99,7 +99,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
     } catch {}
   };
 
-  // Atomic Zustand selectors (prevents re-rendering on currentTime / progress ticks!)
+  // Atomic Zustand selectors (only active when full-screen NowPlaying is open)
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const queue = usePlayerStore((s) => s.queue);
   const queueIndex = usePlayerStore((s) => s.queueIndex);
@@ -119,7 +119,9 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const setPlaybackSpeed = usePlayerStore((s) => s.setPlaybackSpeed);
 
   const toggleLike = useLibraryStore((s) => s.toggleLike);
-  const isLiked = useLibraryStore((s) => (currentTrack ? s.isLiked(currentTrack.id) : false));
+  const isLiked = useLibraryStore((s) =>
+    currentTrack ? s.likedSongs.some((t) => t.id === currentTrack.id) : false
+  );
 
   const showVisualizer = useSettingsStore((s) => s.showVisualizer);
   const visualizerStyle = useSettingsStore((s) => s.visualizerStyle);
@@ -137,16 +139,14 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
   const artSrc = currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL;
 
-  return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ y: '100%', opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.75 }}
-          className="fixed inset-0 z-[90] flex flex-col bg-[#06060b] overflow-hidden select-none"
-        >
+  return (
+    <motion.div
+      initial={{ y: '100%', opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: '100%', opacity: 0 }}
+      transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.75 }}
+      className="fixed inset-0 z-[90] flex flex-col bg-[#06060b] overflow-hidden select-none"
+    >
           {/* Seamless Full-Bleed Ambient Album Art Backdrop */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <img
@@ -732,9 +732,15 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
             currentTime={usePlayerStore.getState().currentTime}
             initialQuote={waveCardQuote}
           />
-        </motion.div>
-      )}
-    </AnimatePresence>,
+    </motion.div>
+  );
+}
+
+export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <AnimatePresence>{isOpen && <NowPlayingContent onClose={onClose} />}</AnimatePresence>,
     document.body
   );
 }

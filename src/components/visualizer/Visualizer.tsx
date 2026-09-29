@@ -86,6 +86,12 @@ const Visualizer = memo(
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        if (typeof document !== 'undefined' && document.hidden) {
+          lastTimeRef.current = now;
+          requestRef.current = requestAnimationFrame(draw);
+          return;
+        }
+
         const width = canvas.width;
         const height = canvas.height;
         if (width === 0 || height === 0) {
@@ -143,10 +149,14 @@ const Visualizer = memo(
         const c1 = colors[1] || '#8b5cf6';
         const c2 = colors[2] || '#06b6d4';
 
-        const gradient = ctx.createLinearGradient(0, 0, width, height);
-        gradient.addColorStop(0, c0);
-        gradient.addColorStop(0.5, c1);
-        gradient.addColorStop(1, c2);
+        let gradient: string | CanvasGradient = c0;
+        if (style === 'bars' || style === 'wave' || style === 'blob' || style === 'circular') {
+          const lin = ctx.createLinearGradient(0, 0, width, height);
+          lin.addColorStop(0, c0);
+          lin.addColorStop(0.5, c1);
+          lin.addColorStop(1, c2);
+          gradient = lin;
+        }
 
         if (style === 'starfield') {
           const cx = width / 2;

@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode, useEffect, useRef } from 'react';
+import { Component, Suspense, type ErrorInfo, type ReactNode, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
@@ -93,7 +93,15 @@ export default function MainLayout() {
           >
             <div className="max-w-7xl mx-auto pb-24">
               <RouteErrorBoundary resetKey={location.pathname}>
-                <Outlet />
+                <Suspense
+                  fallback={
+                    <div className="min-h-[55vh] flex items-center justify-center">
+                      <div className="w-8 h-8 border-2 border-white/15 border-t-[var(--color-accent)] rounded-full animate-spin" />
+                    </div>
+                  }
+                >
+                  <Outlet />
+                </Suspense>
               </RouteErrorBoundary>
             </div>
           </main>

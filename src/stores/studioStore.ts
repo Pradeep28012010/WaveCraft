@@ -194,7 +194,17 @@ function loadStudioPrefsSync(): PersistedStudioPrefs {
   }
 }
 
-function saveStudioPrefsSync(state: StudioState): void {
+let pendingStudioState: StudioState | null = null;
+let studioSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushStudioPrefs(): void {
+  if (!pendingStudioState) return;
+  const state = pendingStudioState;
+  pendingStudioState = null;
+  if (studioSaveTimer) {
+    clearTimeout(studioSaveTimer);
+    studioSaveTimer = null;
+  }
   try {
     const payload: PersistedStudioPrefs = {
       fxMode: state.fxMode,
@@ -206,6 +216,16 @@ function saveStudioPrefsSync(state: StudioState): void {
     };
     localStorage.setItem(STUDIO_PREFS_KEY, JSON.stringify(payload));
   } catch {}
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushStudioPrefs);
+}
+
+function saveStudioPrefsSync(state: StudioState): void {
+  pendingStudioState = state;
+  if (studioSaveTimer) clearTimeout(studioSaveTimer);
+  studioSaveTimer = setTimeout(flushStudioPrefs, 120);
 }
 
 const initialStudioPrefs = loadStudioPrefsSync();

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useJamStore } from '../../stores/jamStore';
@@ -37,6 +37,36 @@ function getAvatarGradient(name: string) {
   return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
 }
 
+const JamStageProgress = memo(() => {
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const seekTo = usePlayerStore((s) => s.seekTo);
+  const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
+
+  return (
+    <div className="mt-3 max-w-xl">
+      <div
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const r = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+          seekTo(r * (duration || 210));
+        }}
+        className="h-2 bg-white/15 rounded-full cursor-pointer overflow-hidden border border-white/10"
+      >
+        <div
+          className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-rose-500 rounded-full transition-all duration-150"
+          style={{ width: `${(progressRatio * 100).toFixed(1)}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-[11px] font-bold tabular-nums text-white/50 mt-1">
+        <span>{formatTime(currentTime)}</span>
+        <span>{formatTime(duration)}</span>
+      </div>
+    </div>
+  );
+});
+JamStageProgress.displayName = 'JamStageProgress';
+
 export default function JamRoomPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlRoom = searchParams.get('room') || '';
@@ -63,7 +93,9 @@ export default function JamRoomPage() {
     syncNow
   } = useJamStore();
 
-  const { currentTrack, isPlaying, currentTime, duration, seekTo, queue } = usePlayerStore();
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const queue = usePlayerStore((s) => s.queue);
 
   const [joinInput, setJoinInput] = useState(urlRoom);
   const [nameInput, setNameInput] = useState(userName);
@@ -210,7 +242,6 @@ export default function JamRoomPage() {
     await sendMessage(text);
   };
 
-  const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
   const activeMembers =
     members.length > 0 ? members : [{ id: 'self', name: userName || 'Listener', lastSeen: Date.now() }];
 
@@ -560,25 +591,7 @@ export default function JamRoomPage() {
                     </p>
 
                     {/* Live Room Progress Bar */}
-                    <div className="mt-3 max-w-xl">
-                      <div
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const r = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                          seekTo(r * (duration || 210));
-                        }}
-                        className="h-2 bg-white/15 rounded-full cursor-pointer overflow-hidden border border-white/10"
-                      >
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-rose-500 rounded-full transition-all duration-150"
-                          style={{ width: `${(progressRatio * 100).toFixed(1)}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[11px] font-bold tabular-nums text-white/50 mt-1">
-                        <span>{formatTime(currentTime)}</span>
-                        <span>{formatTime(duration)}</span>
-                      </div>
-                    </div>
+                    <JamStageProgress />
                   </div>
 
                   {/* Shared Stage Transport Controls */}

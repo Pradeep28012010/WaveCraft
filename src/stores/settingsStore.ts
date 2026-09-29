@@ -95,12 +95,31 @@ function readInitialSettingsSync(): SettingsState {
   }
 }
 
-function persistSettings(state: SettingsState): void {
-  const clean = extractSerializableSettings(state);
+let pendingSettingsState: SettingsState | null = null;
+let settingsSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushSettings(): void {
+  if (!pendingSettingsState) return;
+  const clean = extractSerializableSettings(pendingSettingsState);
+  pendingSettingsState = null;
+  if (settingsSaveTimer) {
+    clearTimeout(settingsSaveTimer);
+    settingsSaveTimer = null;
+  }
   try {
     localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(clean));
   } catch {}
   saveSettings(clean);
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushSettings);
+}
+
+function persistSettings(state: SettingsState): void {
+  pendingSettingsState = state;
+  if (settingsSaveTimer) clearTimeout(settingsSaveTimer);
+  settingsSaveTimer = setTimeout(flushSettings, 120);
 }
 
 const initialSyncSettings = readInitialSettingsSync();

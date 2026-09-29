@@ -8,25 +8,43 @@ const VAULT_META_KEY = 'wavecraft_offline_tracks_meta_v1';
 type VaultListener = () => void;
 const listeners = new Set<VaultListener>();
 
+let cachedOfflineTracks: Track[] | null = null;
+let cachedOfflineIds = new Set<string>();
+
+function syncMemoryCache(tracks: Track[]) {
+  cachedOfflineTracks = tracks;
+  cachedOfflineIds = new Set(tracks.map((t) => t.id));
+}
+
 function notifyListeners() {
   listeners.forEach((fn) => fn());
 }
 
 /**
- * Reads the list of offline-saved tracks from localStorage metadata.
+ * Reads the list of offline-saved tracks from in-memory cache (backed by localStorage).
  */
 export function getOfflineTracks(): Track[] {
+  if (cachedOfflineTracks !== null) {
+    return cachedOfflineTracks;
+  }
   try {
     const raw = localStorage.getItem(VAULT_META_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      syncMemoryCache([]);
+      return [];
+    }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((t) => t && t.id && t.title) : [];
+    const valid = Array.isArray(parsed) ? parsed.filter((t) => t && t.id && t.title) : [];
+    syncMemoryCache(valid);
+    return valid;
   } catch {
+    syncMemoryCache([]);
     return [];
   }
 }
 
 function saveOfflineTracksMeta(tracks: Track[]) {
+  syncMemoryCache(tracks);
   try {
     localStorage.setItem(VAULT_META_KEY, JSON.stringify(tracks));
     notifyListeners();
@@ -36,11 +54,14 @@ function saveOfflineTracksMeta(tracks: Track[]) {
 }
 
 /**
- * Checks synchronously whether a track ID is stored in the Offline Vault.
+ * Checks synchronously in O(1) time whether a track ID is stored in the Offline Vault.
  */
 export function isTrackOffline(trackId?: string): boolean {
   if (!trackId) return false;
-  return getOfflineTracks().some((t) => t.id === trackId);
+  if (cachedOfflineTracks === null) {
+    getOfflineTracks();
+  }
+  return cachedOfflineIds.has(trackId);
 }
 
 /**
@@ -173,7 +194,7 @@ export function useOfflineVault() {
   return {
     offlineTracks,
     savingIds,
-    isOffline: (id?: string) => Boolean(id && offlineTracks.some((t) => t.id === id)),
+    isOffline: (id?: string) => Boolean(id && cachedOfflineIds.has(id)),
     toggleOfflineTrack,
     removeTrackOffline
   };
