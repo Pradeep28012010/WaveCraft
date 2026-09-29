@@ -33,13 +33,20 @@ let htmlAudioElement: HTMLAudioElement | null = null;
 let preloadAudioElement: HTMLAudioElement | null = null;
 let activeEngine: 'audio' | 'youtube' = 'audio';
 
-// Web Audio API Studio Mastering Graph, Lossless 3D Spatial Stage & Real-time Visualizer Analyser
+// Web Audio API Studio Mastering Graph, True 360° HRTF 3D Spatial Stage & Real-time Visualizer Analyser
 let audioCtx: AudioContext | null = null;
 let sourceNode: MediaElementAudioSourceNode | null = null;
 let preGainNode: GainNode | null = null;
 let eqFilters: BiquadFilterNode[] = [];
 let stereoPanner: StereoPannerNode | null = null;
+let dryPathGain: GainNode | null = null;
+let hrtfPanner: PannerNode | null = null;
+let spatialOrbitBusGain: GainNode | null = null;
+let subAnchorGain: GainNode | null = null;
 let panLfoGain: GainNode | null = null;
+let hrtfXGain: GainNode | null = null;
+let hrtfYGain: GainNode | null = null;
+let hrtfZGain: GainNode | null = null;
 let spatialWidthGain: GainNode | null = null;
 let reverbWetGain: GainNode | null = null;
 let masterLimiter: DynamicsCompressorNode | null = null;
@@ -50,7 +57,7 @@ let analyserNode: AnalyserNode | null = null;
  * Generates a high-definition 32-bit float stereo Hall Impulse Response
  * with decorrelated L/R reflections so reverb is lush and phase-pure (zero slapback comb filtering).
  */
-function createStudioImpulseResponse(ctx: AudioContext, durationSec = 2.1, decayRate = 2.6): AudioBuffer {
+function createStudioImpulseResponse(ctx: AudioContext, durationSec = 2.3, decayRate = 2.4): AudioBuffer {
   const length = Math.floor(ctx.sampleRate * durationSec);
   const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
 
@@ -61,7 +68,7 @@ function createStudioImpulseResponse(ctx: AudioContext, durationSec = 2.1, decay
       // Smooth pre-delay fade-in (first 12ms) + exponential hall decay
       const preDelayEnv = Math.min(1, i / (ctx.sampleRate * 0.012));
       const envelope = preDelayEnv * Math.pow(1 - t, decayRate);
-      channelData[i] = (Math.random() * 2 - 1) * envelope * 0.38;
+      channelData[i] = (Math.random() * 2 - 1) * envelope * 0.4;
     }
   }
   return impulse;
@@ -97,16 +104,16 @@ function syncHeadroomAndEQ(eqBands: number[], fxMode: StudioFXMode) {
     fxMode === 'slowed-reverb'
       ? 1.5
       : fxMode === '8d-orbit'
-      ? 1.2
+      ? 1.0
       : fxMode === 'vocal-stage'
       ? 0.8
       : 0;
 
   // Attenuate pre-gain proportionally to positive boosts to preserve 100% clean dynamic range
-  const totalCompensationDb = maxPositiveBoostDb * 0.55 + wetExtraDb;
+  const totalCompensationDb = maxPositiveBoostDb * 0.52 + wetExtraDb;
   const headroomLinear = Math.pow(10, -totalCompensationDb / 20);
   if (preGainNode) {
-    preGainNode.gain.setTargetAtTime(Math.max(0.45, Math.min(1.0, headroomLinear)), now, 0.04);
+    preGainNode.gain.setTargetAtTime(Math.max(0.48, Math.min(1.0, headroomLinear)), now, 0.04);
   }
 }
 
@@ -125,6 +132,9 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
     audio.volume = 1.0;
 
     stereoPanner = audioCtx.createStereoPanner();
+    dryPathGain = audioCtx.createGain();
+    dryPathGain.gain.value = 1.0;
+
     analyserNode = audioCtx.createAnalyser();
     analyserNode.fftSize = 128;
     analyserNode.smoothingTimeConstant = 0.78;
@@ -137,53 +147,115 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
     masterLimiter.attack.value = 0.002;
     masterLimiter.release.value = 0.06;
 
-    // 1. Lossless 3D Spatial Binaural Orbit LFO (0.11 Hz smooth 360° rotation without collapsing stereo)
-    const panLfo = audioCtx.createOscillator();
-    panLfo.type = 'sine';
-    panLfo.frequency.value = 0.11;
-    panLfoGain = audioCtx.createGain();
-    panLfoGain.gain.value = 0; // 0 by default, 0.42 in 3D Spatial Audio so neither ear ever drops out
-    panLfo.connect(panLfoGain);
-    panLfoGain.connect(stereoPanner.pan);
-    panLfo.start();
+    // 1. TRUE 360° HRTF 3D SPATIAL ORBIT ENGINE (X/Y/Z Head-Related Transfer Function + Wide Binaural Sweep)
+    hrtfPanner = audioCtx.createPanner();
+    hrtfPanner.panningModel = 'HRTF';
+    hrtfPanner.distanceModel = 'inverse';
+    hrtfPanner.refDistance = 1.2;
+    hrtfPanner.maxDistance = 10;
+    hrtfPanner.rolloffFactor = 0.85;
 
-    // 2. Binaural Micro-Haas 3D Stereo Widener (keeps lows centered, widens stereo field above 220Hz)
+    spatialOrbitBusGain = audioCtx.createGain();
+    spatialOrbitBusGain.gain.value = 0;
+
+    // Quadrature Sine (Left <-> Right X-axis) & Cosine (Front <-> Back Z-axis) Oscillators at 0.145 Hz (~6.9s full 360° orbit)
+    const orbitFreq = 0.145;
+    const sinLfo = audioCtx.createOscillator();
+    sinLfo.type = 'sine';
+    sinLfo.frequency.value = orbitFreq;
+
+    // Exact 90°-shifted Cosine PeriodicWave for circular Z-axis (Front-to-Back depth around head)
+    const cosWave = audioCtx.createPeriodicWave(
+      new Float32Array([0, 1]),
+      new Float32Array([0, 0]),
+      { disableNormalization: true }
+    );
+    const cosLfo = audioCtx.createOscillator();
+    cosLfo.setPeriodicWave(cosWave);
+    cosLfo.frequency.value = orbitFreq;
+
+    // 2nd-Harmonic Vertical Halo LFO (Y-axis elevation)
+    const elevLfo = audioCtx.createOscillator();
+    elevLfo.type = 'sine';
+    elevLfo.frequency.value = orbitFreq * 2;
+
+    panLfoGain = audioCtx.createGain();
+    panLfoGain.gain.value = 0; // 0.90 in 3D Spatial Audio for unmistakable Left-to-Right ear travel
+
+    hrtfXGain = audioCtx.createGain();
+    hrtfXGain.gain.value = 2.3; // ±2.3m Left <-> Right 3D HRTF orbit radius
+
+    hrtfZGain = audioCtx.createGain();
+    hrtfZGain.gain.value = 1.85; // ±1.85m Front <-> Behind-Head 3D HRTF depth radius
+
+    hrtfYGain = audioCtx.createGain();
+    hrtfYGain.gain.value = 0.45; // ±0.45m vertical halo elevation
+
+    sinLfo.connect(panLfoGain);
+    panLfoGain.connect(stereoPanner.pan);
+
+    if (hrtfPanner.positionX && hrtfPanner.positionZ && hrtfPanner.positionY) {
+      sinLfo.connect(hrtfXGain);
+      hrtfXGain.connect(hrtfPanner.positionX);
+
+      cosLfo.connect(hrtfZGain);
+      hrtfZGain.connect(hrtfPanner.positionZ);
+
+      elevLfo.connect(hrtfYGain);
+      hrtfYGain.connect(hrtfPanner.positionY);
+    }
+
+    const startTime = audioCtx.currentTime;
+    sinLfo.start(startTime);
+    cosLfo.start(startTime);
+    elevLfo.start(startTime);
+
+    // Dedicated Center Sub-Bass Crossover Anchor (< 95Hz stays warm & punchy in both ears while mids/highs orbit 360°)
+    const subAnchorLP = audioCtx.createBiquadFilter();
+    subAnchorLP.type = 'lowpass';
+    subAnchorLP.frequency.value = 95;
+    subAnchorLP.Q.value = 0.707;
+
+    subAnchorGain = audioCtx.createGain();
+    subAnchorGain.gain.value = 0;
+    subAnchorLP.connect(subAnchorGain);
+
+    // 2. Binaural Micro-Haas 3D Stereo Widener (keeps lows centered, widens stereo field above 200Hz)
     const widenerHP = audioCtx.createBiquadFilter();
     widenerHP.type = 'highpass';
-    widenerHP.frequency.value = 220;
+    widenerHP.frequency.value = 200;
     widenerHP.Q.value = 0.707;
 
     const splitter = audioCtx.createChannelSplitter(2);
     const merger = audioCtx.createChannelMerger(2);
     const haasDelayL = audioCtx.createDelay(0.05);
     const haasDelayR = audioCtx.createDelay(0.05);
-    haasDelayL.delayTime.value = 0.0005; // 0.5ms L
-    haasDelayR.delayTime.value = 0.0075; // 7.5ms R decorrelation for wide 3D stage
+    haasDelayL.delayTime.value = 0.0006; // 0.6ms L
+    haasDelayR.delayTime.value = 0.011; // 11ms R decorrelation for expansive 3D externalization
 
     spatialWidthGain = audioCtx.createGain();
     spatialWidthGain.gain.value = 0;
 
     widenerHP.connect(splitter);
-    // Cross-feed inverted/decorrelated high-passed stereo difference for wide 3D stage
     splitter.connect(haasDelayL, 0);
     splitter.connect(haasDelayR, 1);
     haasDelayL.connect(merger, 0, 1);
     haasDelayR.connect(merger, 0, 0);
     merger.connect(spatialWidthGain);
 
-    // 3. True Stereo Convolution Hall Reverb (high-passed at 220Hz, airy up to 9.5kHz — zero mud!)
+    // 3. True Stereo Convolution Hall Reverb (high-passed at 210Hz, airy up to 10.5kHz — zero mud!)
     const reverbHP = audioCtx.createBiquadFilter();
     reverbHP.type = 'highpass';
-    reverbHP.frequency.value = 220;
+    reverbHP.frequency.value = 210;
     reverbHP.Q.value = 0.707;
 
     const reverbAirLP = audioCtx.createBiquadFilter();
     reverbAirLP.type = 'lowpass';
-    reverbAirLP.frequency.value = 9500;
+    reverbAirLP.frequency.value = 10500;
     reverbAirLP.Q.value = 0.707;
 
     const convolver = audioCtx.createConvolver();
-    convolver.buffer = createStudioImpulseResponse(audioCtx, 2.1, 2.6);
+    convolver.buffer = createStudioImpulseResponse(audioCtx, 2.3, 2.4);
 
     reverbWetGain = audioCtx.createGain();
     reverbWetGain.gain.value = 0;
@@ -208,16 +280,27 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
       prev = f;
     }
 
-    // Dry high-resolution path -> stereoPanner -> masterLimiter
+    // Path A: Primary Stereo Panner Path -> dryPathGain -> masterLimiter
     prev.connect(stereoPanner);
-    stereoPanner.connect(masterLimiter);
+    stereoPanner.connect(dryPathGain);
+    dryPathGain.connect(masterLimiter);
 
-    // 3D Binaural Stereo Widener path -> masterLimiter
+    // Path B: True 3D HRTF 360° Orbit Bus -> spatialOrbitBusGain -> masterLimiter
+    prev.connect(hrtfPanner);
+    hrtfPanner.connect(spatialOrbitBusGain);
+    spatialOrbitBusGain.connect(masterLimiter);
+
+    // Path C: Center Sub-Bass Foundation Anchor (< 95Hz) -> masterLimiter
+    prev.connect(subAnchorLP);
+    subAnchorGain.connect(masterLimiter);
+
+    // Path D: 3D Binaural Stereo Widener -> masterLimiter
     prev.connect(widenerHP);
     spatialWidthGain.connect(masterLimiter);
 
-    // Studio Convolution Hall Reverb path -> masterLimiter
-    prev.connect(reverbHP);
+    // Path E: 3D Acoustic Concert Dome Reverb -> masterLimiter
+    // Feed both the orbiting signal and EQ output into the stereo hall so reflections move in 3D!
+    stereoPanner.connect(reverbHP);
     reverbHP.connect(reverbAirLP);
     reverbAirLP.connect(convolver);
     convolver.connect(reverbWetGain);
@@ -228,7 +311,9 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
     gainNode.connect(analyserNode);
     analyserNode.connect(audioCtx.destination);
 
-    syncHeadroomAndEQ(initialBands, useStudioStore.getState().fxMode);
+    const initialFx = useStudioStore.getState().fxMode;
+    syncHeadroomAndEQ(initialBands, initialFx);
+    applyStudioFXToAudio(audio, initialFx, usePlayerStore.getState().playbackSpeed || 1);
   } catch (err) {
     console.warn('Web Audio EQ initialization skipped:', err);
   }
@@ -261,35 +346,49 @@ function applyStudioFXToAudio(audio: HTMLAudioElement | null, fxMode: StudioFXMo
     } catch {}
   }
 
-  if (audioCtx && panLfoGain && reverbWetGain && stereoPanner && spatialWidthGain) {
+  if (
+    audioCtx &&
+    panLfoGain &&
+    reverbWetGain &&
+    stereoPanner &&
+    spatialWidthGain &&
+    dryPathGain &&
+    spatialOrbitBusGain &&
+    subAnchorGain
+  ) {
     const now = audioCtx.currentTime;
     const isSpatial3D = fxMode === '8d-orbit';
 
-    // Gentle 360° binaural pan depth (0.42 keeps both ears full and preserves stereo imaging)
-    panLfoGain.gain.setTargetAtTime(isSpatial3D ? 0.42 : 0, now, 0.08);
+    // 1. Deep 360° Binaural Pan Sweep (±0.90) + True 3D HRTF Orbit Bus (X/Y/Z circular rotation around head)
+    panLfoGain.gain.setTargetAtTime(isSpatial3D ? 0.9 : 0, now, 0.08);
     if (!isSpatial3D) {
       stereoPanner.pan.setTargetAtTime(0, now, 0.08);
     }
 
-    // 3D Stereo Widener intensity (widens the soundstage in 3D Spatial Audio & Vocal Stage)
+    // Balance between sweeping stereo path + true 3D HRTF pinna orbit + centered <95Hz sub-bass anchor
+    dryPathGain.gain.setTargetAtTime(isSpatial3D ? 0.78 : 1.0, now, 0.08);
+    spatialOrbitBusGain.gain.setTargetAtTime(isSpatial3D ? 0.95 : 0, now, 0.08);
+    subAnchorGain.gain.setTargetAtTime(isSpatial3D ? 0.45 : 0, now, 0.08);
+
+    // 2. Binaural Haas 3D Stereo Widener (projects soundstage outside the headphones)
     const widthAmount =
       fxMode === '8d-orbit'
-        ? 0.26
+        ? 0.34
         : fxMode === 'vocal-stage'
-        ? 0.14
+        ? 0.16
         : fxMode === 'bass-cinema'
-        ? 0.12
+        ? 0.14
         : 0;
     spatialWidthGain.gain.setTargetAtTime(widthAmount, now, 0.08);
 
-    // Convolution Hall Reverb wet mix (minimal 0.06 room air in 3D Spatial so clarity is 100% preserved)
+    // 3. 3D Acoustic Concert Dome Reverb (gives the revolving sound source real spatial room depth!)
     const wetAmount =
       fxMode === 'slowed-reverb'
-        ? 0.32
-        : fxMode === 'vocal-stage'
-        ? 0.14
+        ? 0.34
         : fxMode === '8d-orbit'
-        ? 0.06
+        ? 0.25
+        : fxMode === 'vocal-stage'
+        ? 0.15
         : 0;
     reverbWetGain.gain.setTargetAtTime(wetAmount, now, 0.08);
   }

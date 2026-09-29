@@ -30,8 +30,8 @@ export const STUDIO_FX_MODES: StudioFXInfo[] = [
   {
     id: '8d-orbit',
     name: '3D Spatial Audio',
-    badge: '360° HD',
-    description: 'Lossless 360° binaural spatial stage with stereo widening and smooth distortion-free orbit.',
+    badge: '360° HRTF',
+    description: 'True 360° HRTF binaural soundstage revolving around your head with a centered sub-bass anchor and concert dome acoustics.',
     accent: 'from-cyan-500 to-blue-600'
   },
   {
