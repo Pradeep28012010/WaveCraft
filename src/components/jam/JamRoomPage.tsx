@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useJamStore } from '../../stores/jamStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { searchTracks } from '../../services/youtube';
+import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import type { Track } from '../../types';
 import GlassCard from '../ui/GlassCard';
 import TrackRow from '../ui/TrackRow';
@@ -22,22 +23,32 @@ export default function JamRoomPage() {
     hostName,
     members,
     reactions,
+    messages,
+    isConnected,
     setUserName,
     createRoom,
     joinRoom,
     leaveRoom,
     sendReaction,
-    addTrackToJam
+    sendMessage,
+    addTrackToJam,
+    playTrackInJam,
+    togglePlayInJam,
+    skipTrackInJam,
+    syncNow
   } = useJamStore();
 
-  const { currentTrack, isPlaying, queue, togglePlay, nextTrack } = usePlayerStore();
+  const { currentTrack, isPlaying, queue } = usePlayerStore();
 
   const [joinInput, setJoinInput] = useState(urlRoom);
   const [nameInput, setNameInput] = useState(userName);
   const [copiedInvite, setCopiedInvite] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [songQuery, setSongQuery] = useState('');
   const [songResults, setSongResults] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-join if ?room=WAVE-XXXX is in the URL
   useEffect(() => {
@@ -46,7 +57,15 @@ export default function JamRoomPage() {
     }
   }, [urlRoom]);
 
+  // Auto-scroll live chat feed when new messages arrive
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [messages.length]);
+
   const handleStartRoom = async () => {
+    unlockAudioEngine();
     const code = await createRoom(nameInput);
     setSearchParams({ room: code });
   };
@@ -54,6 +73,7 @@ export default function JamRoomPage() {
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!joinInput.trim()) return;
+    unlockAudioEngine();
     const clean = joinInput.trim().toUpperCase();
     await joinRoom(clean, nameInput);
     setSearchParams({ room: clean });
@@ -77,6 +97,15 @@ export default function JamRoomPage() {
     } catch {}
   };
 
+  const handleCopyCode = async () => {
+    if (!roomCode) return;
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch {}
+  };
+
   const handleSearchSongs = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!songQuery.trim()) return;
@@ -89,10 +118,18 @@ export default function JamRoomPage() {
     }
   };
 
+  const handleSendChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    const text = chatInput;
+    setChatInput('');
+    await sendMessage(text);
+  };
+
   return (
-    <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-8 pb-28 relative">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-8 pb-28 relative">
       {/* Floating Live Emoji Reactions Overlay */}
-      <div className="fixed bottom-28 right-8 z-40 pointer-events-none flex flex-col-reverse items-end gap-2">
+      <div className="fixed bottom-28 right-6 sm:right-8 z-40 pointer-events-none flex flex-col-reverse items-end gap-2">
         <AnimatePresence>
           {reactions.slice(-6).map((r) => (
             <motion.div
@@ -112,7 +149,7 @@ export default function JamRoomPage() {
       {!roomCode ? (
         /* LOBBY: CREATE OR JOIN A JAM ROOM */
         <div className="space-y-8">
-          <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-8 sm:p-10 shadow-2xl">
+          <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-6 sm:p-10 shadow-2xl">
             <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-emerald-500/20 blur-[100px] pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-[var(--color-accent)]/25 blur-[100px] pointer-events-none" />
 
@@ -125,7 +162,7 @@ export default function JamRoomPage() {
                 WaveCraft Live Jam Rooms
               </h1>
               <p className="text-sm sm:text-base text-white/65 mt-3">
-                Host a live session or join a friend’s room code. Everyone hears the exact same song at the exact same timestamp, with a shared queue and live floating reactions.
+                Host a live session or join a friend’s room code across any phone or laptop. Everyone hears the exact same song at the exact same timestamp, with a collaborative queue, live chat, and floating reactions.
               </p>
 
               {/* Display Name Input */}
@@ -156,13 +193,13 @@ export default function JamRoomPage() {
                 </div>
                 <h2 className="text-2xl font-extrabold text-white">Start a Jam Session</h2>
                 <p className="text-sm text-white/60 mt-2">
-                  Generate an instant room code and invite link. Your playback, seeks, and queue will automatically sync to everyone who joins.
+                  Generate an instant room code and invite link. Your playback, seeks, and collaborative queue sync live across all connected phones and laptops.
                 </p>
               </div>
 
               <button
                 onClick={handleStartRoom}
-                className="mt-6 w-full h-13 rounded-2xl bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white font-extrabold text-sm shadow-xl hover:brightness-110 transition-all cursor-pointer"
+                className="mt-6 w-full h-12 rounded-2xl bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white font-extrabold text-sm shadow-xl hover:brightness-110 transition-all cursor-pointer"
               >
                 + Create Live Jam Room
               </button>
@@ -186,11 +223,11 @@ export default function JamRoomPage() {
                   value={joinInput}
                   onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
                   placeholder="WAVE-XXXX"
-                  className="flex-1 h-13 px-4 rounded-2xl bg-black/40 border border-white/20 text-white font-mono uppercase tracking-widest text-sm focus:outline-none focus:border-emerald-400"
+                  className="flex-1 h-12 px-4 rounded-2xl bg-black/40 border border-white/20 text-white font-mono uppercase tracking-widest text-sm focus:outline-none focus:border-emerald-400"
                 />
                 <button
                   type="submit"
-                  className="px-6 h-13 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm transition-colors cursor-pointer"
+                  className="px-6 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm transition-colors cursor-pointer"
                 >
                   Join Jam
                 </button>
@@ -206,26 +243,43 @@ export default function JamRoomPage() {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div>
                 <div className="flex flex-wrap items-center gap-2.5 mb-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-xs font-extrabold text-emerald-300">
+                  <button
+                    onClick={handleCopyCode}
+                    title="Click to copy Room Code"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-xs font-extrabold text-emerald-300 cursor-pointer hover:bg-emerald-500/30 transition-colors"
+                  >
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    LIVE JAM • {roomCode}
-                  </span>
+                    {copiedCode ? '✓ CODE COPIED' : `LIVE JAM • ${roomCode}`}
+                  </button>
                   <span className="px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-white/80">
                     {isHost ? '👑 You are Hosting' : `🎧 Synced to ${hostName}`}
                   </span>
                   <span className="px-3 py-1 rounded-full bg-white/10 text-xs font-bold text-white/70">
                     👥 {Math.max(1, members.length)} Listening
                   </span>
+                  {isConnected && (
+                    <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-[10px] font-extrabold text-cyan-300 uppercase tracking-wider">
+                      ⚡ Real-Time Relay Active
+                    </span>
+                  )}
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
                   {isHost ? `${userName}’s Live Jam Room` : `${hostName}’s Listening Party`}
                 </h1>
                 <p className="text-xs text-white/55 mt-1">
-                  Share the invite link or room code so friends can tune in from any browser or phone.
+                  Share the invite link or room code <span className="text-emerald-300 font-mono font-bold">{roomCode}</span> so friends can tune in from any phone or laptop.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {!isHost && (
+                  <button
+                    onClick={syncNow}
+                    className="px-4 py-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-200 font-extrabold text-xs transition-all cursor-pointer"
+                  >
+                    🔊 Resync Audio
+                  </button>
+                )}
                 <button
                   onClick={handleCopyInvite}
                   className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition-all cursor-pointer shadow-lg"
@@ -248,44 +302,45 @@ export default function JamRoomPage() {
                   <img
                     src={currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL}
                     alt={currentTrack.title}
-                    className={`w-16 h-16 rounded-2xl object-cover shadow-lg border border-white/15 ${
-                      isPlaying ? ' ring-2 ring-emerald-400' : ''
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                    }}
+                    className={`w-16 h-16 rounded-2xl object-cover shadow-lg border border-white/15 flex-shrink-0 ${
+                      isPlaying ? 'ring-2 ring-emerald-400' : ''
                     }`}
                   />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
-                      {isPlaying ? 'Now Syncing Live' : 'Paused in Room'}
+                      {isPlaying ? 'Now Syncing Live (320kbps)' : 'Paused in Room'}
                     </span>
                     <h3 className="text-lg font-extrabold text-white truncate">
                       {currentTrack.title}
                     </h3>
                     <p className="text-xs text-white/60 truncate">{currentTrack.artist}</p>
                   </div>
-                  {isHost && (
-                    <div className="flex items-center gap-2 ml-2">
-                      <button
-                        onClick={togglePlay}
-                        className="px-3.5 py-2 rounded-xl bg-white text-black font-bold text-xs cursor-pointer"
-                      >
-                        {isPlaying ? 'Pause' : 'Play'}
-                      </button>
-                      <button
-                        onClick={nextTrack}
-                        className="px-3 py-2 rounded-xl liquid-glass text-white font-bold text-xs cursor-pointer"
-                      >
-                        Skip ⏭
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                    <button
+                      onClick={() => togglePlayInJam()}
+                      className="px-3.5 py-2 rounded-xl bg-white text-black font-bold text-xs cursor-pointer"
+                    >
+                      {isPlaying ? 'Pause' : 'Play'}
+                    </button>
+                    <button
+                      onClick={() => skipTrackInJam()}
+                      className="px-3 py-2 rounded-xl liquid-glass text-white font-bold text-xs cursor-pointer"
+                    >
+                      Skip ⏭
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="text-sm text-white/55">
-                  No song playing yet — search below or pick any track to start the Jam!
+                  No song playing yet — search below and click <strong className="text-emerald-300">▶ Play</strong> or <strong className="text-white">+ Queue</strong> to start the Jam!
                 </div>
               )}
 
               {/* Live Emoji Reaction Bar */}
-              <div className="flex items-center gap-2 p-2 rounded-2xl bg-black/40 border border-white/10">
+              <div className="flex items-center gap-1.5 sm:gap-2 p-2 rounded-2xl bg-black/40 border border-white/10 overflow-x-auto max-w-full">
                 <span className="text-[11px] font-bold text-white/50 px-2 hidden sm:inline">
                   React:
                 </span>
@@ -295,7 +350,7 @@ export default function JamRoomPage() {
                     whileHover={{ scale: 1.2 }}
                     whileTap={{ scale: 0.85 }}
                     onClick={() => sendReaction(emoji)}
-                    className="w-9 h-9 rounded-xl hover:bg-white/10 flex items-center justify-center text-lg cursor-pointer"
+                    className="w-9 h-9 rounded-xl hover:bg-white/10 flex items-center justify-center text-lg cursor-pointer flex-shrink-0"
                     title={`Send ${emoji} to room`}
                   >
                     {emoji}
@@ -305,19 +360,20 @@ export default function JamRoomPage() {
             </div>
           </GlassCard>
 
-          {/* Add Songs to Shared Jam Queue */}
+          {/* Main 12-Column Grid: Search + Listeners + Chat (Left) | Shared Room Queue (Right) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-5 space-y-4">
+              {/* Search & Drop Tracks into Jam */}
               <GlassCard variant="liquid" padding="md">
                 <h3 className="text-base font-extrabold text-white mb-3">
-                  Add Songs to Shared Queue
+                  Add Songs to Jam Room
                 </h3>
                 <form onSubmit={handleSearchSongs} className="flex gap-2">
                   <input
                     type="text"
                     value={songQuery}
                     onChange={(e) => setSongQuery(e.target.value)}
-                    placeholder="Search any song to drop into the Jam..."
+                    placeholder="Search any song to play or queue..."
                     className="flex-1 h-10 px-3.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white focus:outline-none focus:border-emerald-400"
                   />
                   <button
@@ -334,12 +390,15 @@ export default function JamRoomPage() {
                     {songResults.map((track) => (
                       <div
                         key={track.id}
-                        className="flex items-center justify-between gap-3 p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
+                        className="flex items-center justify-between gap-2.5 p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <img
                             src={track.thumbnail || DEFAULT_THUMBNAIL}
                             alt={track.title}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                            }}
                             className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                           />
                           <div className="min-w-0">
@@ -347,12 +406,22 @@ export default function JamRoomPage() {
                             <p className="text-[11px] text-white/55 truncate">{track.artist}</p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => addTrackToJam(track)}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/30 text-emerald-300 text-xs font-bold flex-shrink-0 cursor-pointer"
-                        >
-                          + Add
-                        </button>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => addTrackToJam(track, true)}
+                            title="Play immediately for everyone in the room"
+                            className="px-2.5 py-1.5 rounded-lg bg-[var(--color-accent)] hover:brightness-110 text-white text-[11px] font-extrabold cursor-pointer"
+                          >
+                            ▶ Play
+                          </button>
+                          <button
+                            onClick={() => addTrackToJam(track, false)}
+                            title="Add to Shared Room Queue"
+                            className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/30 text-emerald-300 text-[11px] font-bold cursor-pointer"
+                          >
+                            + Queue
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -373,11 +442,61 @@ export default function JamRoomPage() {
                       key={m.id}
                       className="px-3 py-1.5 rounded-full bg-white/[0.07] border border-white/10 flex items-center gap-2 text-xs font-semibold text-white"
                     >
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                       <span>{m.name}</span>
                     </div>
                   ))}
                 </div>
+              </GlassCard>
+
+              {/* Live Room Chat & Activity Feed */}
+              <GlassCard variant="liquid" padding="md" className="flex flex-col">
+                <h3 className="text-sm font-extrabold uppercase tracking-wider text-white/60 mb-3">
+                  💬 Live Room Chat & Activity
+                </h3>
+                <div
+                  ref={chatScrollRef}
+                  className="space-y-2 max-h-48 overflow-y-auto pr-1 mb-3 text-xs"
+                >
+                  {messages.length === 0 ? (
+                    <p className="text-white/40 py-4 text-center">
+                      Say hi to everyone in the Jam Room!
+                    </p>
+                  ) : (
+                    messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`px-3 py-2 rounded-xl ${
+                          msg.isSystem
+                            ? 'bg-emerald-500/10 border border-emerald-400/20 text-emerald-200 font-semibold'
+                            : 'bg-white/[0.05] border border-white/10 text-white/90'
+                        }`}
+                      >
+                        {!msg.isSystem && (
+                          <span className="font-extrabold text-[var(--color-accent)] mr-1.5">
+                            {msg.sender}:
+                          </span>
+                        )}
+                        <span>{msg.text}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <form onSubmit={handleSendChat} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Send a message to the room..."
+                    className="flex-1 h-9 px-3 rounded-xl bg-black/40 border border-white/15 text-xs text-white focus:outline-none focus:border-emerald-400"
+                  />
+                  <button
+                    type="submit"
+                    className="px-3.5 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs cursor-pointer"
+                  >
+                    Send
+                  </button>
+                </form>
               </GlassCard>
             </div>
 
@@ -388,16 +507,24 @@ export default function JamRoomPage() {
                   <h3 className="text-base font-extrabold text-white">
                     Shared Room Queue ({queue.length} tracks)
                   </h3>
-                  <span className="text-xs text-white/45">Auto-syncs across all listeners</span>
+                  <span className="text-xs text-emerald-300/80 font-semibold">
+                    Click any track to play for everyone
+                  </span>
                 </div>
                 {queue.length === 0 ? (
                   <p className="text-xs text-white/50 py-8 text-center">
-                    Queue is empty. Search on the left to add tracks to the party!
+                    Queue is empty. Search on the left to play or queue tracks for the party!
                   </p>
                 ) : (
-                  <div className="space-y-1 max-h-[460px] overflow-y-auto pr-1">
+                  <div className="space-y-1 max-h-[540px] overflow-y-auto pr-1">
                     {queue.map((t, idx) => (
-                      <TrackRow key={`${t.id}-${idx}`} track={t} index={idx} tracks={queue} />
+                      <TrackRow
+                        key={`${t.id}-${idx}`}
+                        track={t}
+                        index={idx}
+                        tracks={queue}
+                        onPlay={(selectedTrack) => playTrackInJam(selectedTrack)}
+                      />
                     ))}
                   </div>
                 )}
