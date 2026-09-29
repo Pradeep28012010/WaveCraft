@@ -448,7 +448,7 @@ const Visualizer = memo(
     }, [draw]);
 
     const containerClasses = fullScreen
-      ? 'fixed inset-0 z-40 bg-black/80 flex items-center justify-center gpu-layer'
+      ? 'absolute inset-0 w-full h-full pointer-events-none'
       : 'relative w-full h-full min-h-[200px] bg-white/5 dark:bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden gpu-layer';
 
     return (

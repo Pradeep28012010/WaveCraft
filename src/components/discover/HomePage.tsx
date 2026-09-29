@@ -63,7 +63,7 @@ const HorizontalScroll = ({
       </div>
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto snap-x snap-mandatory no-scrollbar pt-3.5 pb-5 px-2.5 -mx-2.5 -mt-2"
+        className="flex gap-5 overflow-x-auto no-scrollbar pt-4 pb-6 px-5 -mx-5 -mt-2"
       >
         {children}
       </div>

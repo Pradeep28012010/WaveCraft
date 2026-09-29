@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -119,7 +120,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
   const artSrc = currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -127,18 +128,21 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.75 }}
-          className="fixed inset-0 z-50 flex flex-col bg-[#06060b] overflow-hidden select-none gpu-layer"
+          className="fixed inset-0 z-[90] flex flex-col bg-[#06060b] overflow-hidden select-none"
         >
-          {/* GPU-Cached Ambient Album Art Backdrop */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ contain: 'strict' }}>
+          {/* Seamless Full-Bleed Ambient Album Art Backdrop */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <img
               src={artSrc}
               alt=""
-              className={`w-full h-full object-cover blur-[64px] scale-125 transition-opacity duration-500 gpu-layer ${
-                zenMode ? 'opacity-20' : 'opacity-42'
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+              }}
+              className={`w-full h-full object-cover blur-3xl scale-150 transition-opacity duration-500 ${
+                zenMode ? 'opacity-20' : 'opacity-40'
               }`}
             />
-            <div className="absolute inset-0 bg-black/55" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/55 to-black/75" />
           </div>
 
           {/* Background or Fullscreen 3D Zen Visualizer Layer */}
@@ -386,11 +390,11 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
             </div>
           ) : (
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
-            <div className="relative z-10 flex-1 min-h-0 px-6 sm:px-12 pb-6 flex items-center justify-center overflow-hidden">
+            <div className="relative z-10 flex-1 min-h-0 px-6 sm:px-12 pb-6 flex items-center justify-center">
               <motion.div
                 layout
                 transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.7 }}
-                className={`w-full max-w-6xl h-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 will-change-transform ${
+                className={`w-full max-w-6xl h-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 ${
                   showLyrics ? 'lg:justify-between' : ''
                 }`}
               >
@@ -398,7 +402,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                 <motion.div
                   layout
                   transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.7 }}
-                  className={`flex flex-col items-center justify-center w-full will-change-transform ${
+                  className={`flex flex-col items-center justify-center w-full ${
                     showLyrics ? 'lg:w-5/12 max-w-md' : 'max-w-lg'
                   }`}
                 >
@@ -413,9 +417,18 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                           : 'w-[min(36vh,295px)] h-[min(36vh,295px)] sm:w-[min(40vh,325px)] sm:h-[min(40vh,325px)]'
                       }`}
                     >
+                      {/* Pure circular radial-gradient aura (zero CSS box-shadow quad / zero tile seam) */}
+                      <div
+                        className="absolute -inset-6 rounded-full pointer-events-none"
+                        style={{
+                          background:
+                            'radial-gradient(circle, rgba(0,0,0,0.7) 52%, rgba(0,0,0,0.28) 64%, rgba(0,0,0,0) 72%)'
+                        }}
+                      />
+
                       {/* Outer Vinyl Platter */}
                       <div
-                        className="relative w-full h-full rounded-full shadow-[0_25px_70px_rgba(0,0,0,0.85)] border-4 border-white/10 flex items-center justify-center overflow-hidden will-change-transform"
+                        className="relative w-full h-full rounded-full border-4 border-white/10 flex items-center justify-center overflow-hidden"
                         style={{
                           background:
                             'repeating-radial-gradient(circle at center, #111116 0px, #111116 3px, #1d1d26 4px, #0d0d12 6px)',
@@ -446,7 +459,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
 
                       {/* Animated Studio Tonearm */}
                       <div
-                        className="absolute -top-2 -right-3 w-20 h-44 pointer-events-none transition-transform duration-500 origin-[75%_16%] will-change-transform"
+                        className="absolute -top-2 -right-3 w-20 h-44 pointer-events-none transition-transform duration-500 origin-[75%_16%]"
                         style={{
                           transform: isPlaying ? 'rotate(24deg)' : 'rotate(0deg)'
                         }}
@@ -682,6 +695,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
           />
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

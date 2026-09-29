@@ -56,7 +56,7 @@ export default function TrendingSection({ tracks, isLoading, onPlayTrack }: Tren
 
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto snap-x snap-mandatory no-scrollbar pt-3.5 pb-5 px-2.5 -mx-2.5 -mt-2"
+        className="flex gap-5 overflow-x-auto no-scrollbar pt-4 pb-6 px-5 -mx-5 -mt-2"
       >
         {isLoading
           ? Array(6)
@@ -75,8 +75,10 @@ export default function TrendingSection({ tracks, isLoading, onPlayTrack }: Tren
                   key={track.id}
                   padding="sm"
                   hover
-                  className={`min-w-[190px] max-w-[190px] flex-shrink-0 snap-start group cursor-pointer relative transition-colors duration-300 ${
-                    isActive ? 'ring-2 ring-[var(--color-accent)] bg-white/15' : 'hover:bg-white/[0.11] hover:border-white/25'
+                  className={`min-w-[190px] max-w-[190px] flex-shrink-0 group cursor-pointer relative transition-colors duration-300 ${
+                    isActive
+                      ? '!border-2 !border-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent)]/60 bg-white/15 shadow-[0_14px_34px_rgba(0,0,0,0.5)]'
+                      : 'hover:bg-white/[0.11] hover:border-white/25'
                   }`}
                   onClick={() => onPlayTrack(track, tracks)}
                 >
