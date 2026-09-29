@@ -1,5 +1,13 @@
+import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useLibraryStore } from '../../stores/libraryStore';
+import { getSmartRecommendations } from '../../services/recommendationEngine';
+import { shuffleArray } from '../../utils/shuffle';
+import { formatTime } from '../../utils/formatTime';
+import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import type { Track } from '../../types';
 
 interface QueuePanelProps {
   isOpen: boolean;
@@ -7,86 +15,633 @@ interface QueuePanelProps {
 }
 
 export default function QueuePanel({ isOpen, onClose }: QueuePanelProps) {
-  const { queue, currentTrack, removeFromQueue } = usePlayerStore();
+  const queue = usePlayerStore((s) => s.queue);
+  const queueIndex = usePlayerStore((s) => s.queueIndex);
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const togglePlay = usePlayerStore((s) => s.togglePlay);
+  const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
+  const playTrack = usePlayerStore((s) => s.playTrack);
+  const removeFromQueue = usePlayerStore((s) => s.removeFromQueue);
+  const reorderQueue = usePlayerStore((s) => s.reorderQueue);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
 
-  return (
+  const createPlaylist = useLibraryStore((s) => s.createPlaylist);
+  const addToPlaylist = useLibraryStore((s) => s.addToPlaylist);
+  const toggleLike = useLibraryStore((s) => s.toggleLike);
+  const isCurrentLiked = useLibraryStore((s) =>
+    currentTrack ? s.isLiked(currentTrack.id) : false
+  );
+
+  const [activeTab, setActiveTab] = useState<'upnext' | 'history'>('upnext');
+  const [isAiFilling, setIsAiFilling] = useState(false);
+  const [savedToast, setSavedToast] = useState(false);
+  const [draggedActualIndex, setDraggedActualIndex] = useState<number | null>(null);
+  const [dragOverActualIndex, setDragOverActualIndex] = useState<number | null>(null);
+  const dragNodeRef = useRef<number | null>(null);
+
+  // Split queue into Previous (History in current queue) and Upcoming (after queueIndex)
+  const effectiveIndex =
+    queueIndex >= 0
+      ? queueIndex
+      : currentTrack
+      ? Math.max(0, queue.findIndex((t) => t.id === currentTrack.id))
+      : -1;
+
+  const upcomingItems =
+    effectiveIndex >= 0
+      ? queue.slice(effectiveIndex + 1).map((track, idx) => ({
+          track,
+          actualIndex: effectiveIndex + 1 + idx
+        }))
+      : queue.map((track, idx) => ({ track, actualIndex: idx }));
+
+  const historyItems =
+    effectiveIndex > 0
+      ? queue.slice(0, effectiveIndex).map((track, idx) => ({
+          track,
+          actualIndex: idx
+        }))
+      : [];
+
+  const totalUpcomingSeconds = upcomingItems.reduce(
+    (acc, item) => acc + (item.track.duration || 210),
+    0
+  );
+  const totalUpcomingMins = Math.max(1, Math.round(totalUpcomingSeconds / 60));
+
+  const handleJumpToTrack = (track: Track, actualIndex: number) => {
+    playTrack(track, queue, actualIndex);
+  };
+
+  const handleMoveToTop = (fromActualIndex: number) => {
+    const targetTopIndex = effectiveIndex >= 0 ? effectiveIndex + 1 : 0;
+    if (fromActualIndex > targetTopIndex) {
+      reorderQueue(fromActualIndex, targetTopIndex);
+    }
+  };
+
+  const handleShuffleUpcoming = () => {
+    if (upcomingItems.length <= 1) return;
+    const beforeAndCurrent = effectiveIndex >= 0 ? queue.slice(0, effectiveIndex + 1) : [];
+    const upcomingTracks = upcomingItems.map((i) => i.track);
+    const shuffledUpcoming = shuffleArray(upcomingTracks);
+    const nextQueue = [...beforeAndCurrent, ...shuffledUpcoming];
+    usePlayerStore.setState({
+      queue: nextQueue,
+      isShuffled: true
+    });
+  };
+
+  const handleClearUpcoming = () => {
+    if (upcomingItems.length === 0) return;
+    const keepCurrent = effectiveIndex >= 0 ? queue.slice(0, effectiveIndex + 1) : [];
+    usePlayerStore.setState({
+      queue: keepCurrent,
+      originalQueue: keepCurrent
+    });
+  };
+
+  const handleAiAutoFill = async () => {
+    if (!currentTrack || isAiFilling) return;
+    setIsAiFilling(true);
+    try {
+      const recs = await getSmartRecommendations(currentTrack, queue, 6);
+      const existingIds = new Set(usePlayerStore.getState().queue.map((t) => t.id));
+      const fresh = recs.filter((t) => !existingIds.has(t.id)).slice(0, 5);
+      fresh.forEach((t) => addToQueue(t));
+    } catch {
+      // ignore
+    } finally {
+      setIsAiFilling(false);
+    }
+  };
+
+  const handleSaveQueueAsPlaylist = () => {
+    if (queue.length === 0) return;
+    const label = currentTrack
+      ? `${currentTrack.title.slice(0, 18)} Queue Mix`
+      : `Studio Queue Mix`;
+    const pl = createPlaylist(
+      label,
+      `Saved from WaveCraft Queue Studio • ${queue.length} tracks in 320kbps`,
+      currentTrack?.thumbnail || queue[0]?.thumbnail || ''
+    );
+    queue.forEach((t) => addToPlaylist(pl.id, t));
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 2400);
+  };
+
+  const handleDragStart = (actualIndex: number) => {
+    dragNodeRef.current = actualIndex;
+    setDraggedActualIndex(actualIndex);
+  };
+
+  const handleDragOver = (e: React.DragEvent, actualIndex: number) => {
+    e.preventDefault();
+    if (dragOverActualIndex !== actualIndex) {
+      setDragOverActualIndex(actualIndex);
+    }
+  };
+
+  const handleDrop = (targetActualIndex: number) => {
+    const fromIndex = dragNodeRef.current;
+    if (fromIndex !== null && fromIndex !== targetActualIndex) {
+      reorderQueue(fromIndex, targetActualIndex);
+    }
+    dragNodeRef.current = null;
+    setDraggedActualIndex(null);
+    setDragOverActualIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    dragNodeRef.current = null;
+    setDraggedActualIndex(null);
+    setDragOverActualIndex(null);
+  };
+
+  const artSrc = currentTrack?.thumbnailLarge || currentTrack?.thumbnail || DEFAULT_THUMBNAIL;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
+          {/* Translucent Spatial Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/20"
+            className="fixed inset-0 z-[105] bg-black/50 backdrop-blur-sm"
           />
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-black/80 backdrop-blur-3xl border-l border-white/10 shadow-2xl flex flex-col"
+
+          {/* Floating Liquid Glass Queue Studio Drawer */}
+          <motion.aside
+            initial={{ x: '104%', opacity: 0.5 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '104%', opacity: 0.5 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.7 }}
+            className="fixed top-2.5 bottom-2.5 right-2.5 z-[110] w-[calc(100vw-20px)] max-w-[435px] rounded-3xl liquid-glass border border-white/15 shadow-[0_30px_90px_rgba(0,0,0,0.88)] flex flex-col overflow-hidden text-white select-none"
           >
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
-              <h2 className="text-xl font-bold text-white">Queue</h2>
-              <button 
-                onClick={onClose}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
+            {/* Subtle Ambient Album Art Tint inside Drawer */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
+              <img
+                src={artSrc}
+                alt=""
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                }}
+                className="w-full h-64 object-cover blur-3xl scale-125"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-[#080810]/90 to-[#06060b]" />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-8">
-              {/* Now Playing */}
+            {/* Top Header & Segmented Control Dock */}
+            <div className="relative z-10 px-5 pt-5 pb-3.5 border-b border-white/[0.08] space-y-3.5 flex-shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)] animate-pulse flex-shrink-0" />
+                  <div>
+                    <h2 className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
+                      <span>Queue Studio</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/[0.08] border border-white/10 text-white/70">
+                        {upcomingItems.length} Up Next
+                      </span>
+                    </h2>
+                    <p className="text-[11px] text-white/50 font-medium">
+                      {upcomingItems.length > 0
+                        ? `~${totalUpcomingMins} min remaining • Drag or tap arrows to reorder`
+                        : 'Add songs or use AI Smart Fill below'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-full bg-white/[0.07] hover:bg-white/[0.15] border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer flex-shrink-0"
+                  title="Close Queue"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Segmented Tab Pill + Repeat Mode Badge */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="inline-flex items-center p-1 rounded-full bg-black/45 border border-white/[0.1] shadow-inner">
+                  <button
+                    onClick={() => setActiveTab('upnext')}
+                    className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      activeTab === 'upnext'
+                        ? 'bg-[var(--color-accent)] text-white shadow-[0_2px_12px_rgba(250,45,72,0.45)]'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    <span>Up Next</span>
+                    <span className="text-[10px] opacity-80">({upcomingItems.length})</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('history')}
+                    className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      activeTab === 'history'
+                        ? 'bg-white/20 text-white shadow-sm'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    <span>Played</span>
+                    <span className="text-[10px] opacity-80">({historyItems.length})</span>
+                  </button>
+                </div>
+
+                {/* Quick Action Toolbar Pills */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={handleAiAutoFill}
+                    disabled={!currentTrack || isAiFilling}
+                    title="AI Smart Fill: Add 5 matching 320kbps tracks"
+                    className="h-7 px-2.5 rounded-full bg-gradient-to-r from-[var(--color-accent)]/25 to-purple-500/25 hover:from-[var(--color-accent)]/40 hover:to-purple-500/40 border border-[var(--color-accent)]/35 text-[11px] font-bold text-white flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40"
+                  >
+                    {isAiFilling ? (
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-3 h-3 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
+                        <path d="M12 3v18M3 12h18" />
+                      </svg>
+                    )}
+                    <span>AI +5</span>
+                  </button>
+
+                  <button
+                    onClick={handleShuffleUpcoming}
+                    disabled={upcomingItems.length <= 1}
+                    title="Shuffle Upcoming Tracks"
+                    className="w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer disabled:opacity-35"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
+                      <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+                    </svg>
+                  </button>
+
+                  <button
+                    onClick={cycleRepeat}
+                    title={`Repeat Mode: ${repeatMode.toUpperCase()}`}
+                    className={`w-7 h-7 rounded-full border flex items-center justify-center transition-all cursor-pointer relative ${
+                      repeatMode !== 'off'
+                        ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)]/50 text-[var(--color-accent)]'
+                        : 'bg-white/[0.06] hover:bg-white/[0.14] border-white/10 text-white/70 hover:text-white'
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
+                      <polyline points="17 1 21 5 17 9" />
+                      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                      <polyline points="7 23 3 19 7 15" />
+                      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                    </svg>
+                    {repeatMode === 'one' && (
+                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center">
+                        1
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleSaveQueueAsPlaylist}
+                    disabled={queue.length === 0}
+                    title="Save Queue as Playlist in Library"
+                    className={`h-7 px-2.5 rounded-full border text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      savedToast
+                        ? 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
+                        : 'bg-white/[0.06] hover:bg-white/[0.14] border-white/10 text-white/75 hover:text-white'
+                    }`}
+                  >
+                    {savedToast ? '✓ Saved' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Scrollable Queue Body */}
+            <div className="relative z-10 flex-1 overflow-y-auto no-scrollbar px-4 py-4 space-y-5">
+              {/* NOW PLAYING HERO CARD */}
               {currentTrack && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-400 mb-4 px-2 uppercase tracking-wider">Now Playing</h3>
-                  <div className="flex items-center p-2 rounded-xl bg-white/10 border border-white/5">
-                    <img src={currentTrack.thumbnail} alt={currentTrack.title} className="w-12 h-12 rounded-lg object-cover" />
-                    <div className="ml-3 flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{currentTrack.title}</p>
-                      <p className="text-xs text-gray-400 truncate">{currentTrack.artist}</p>
+                  <div className="flex items-center justify-between px-1 mb-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/45">
+                      Now Playing
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      320K MASTER
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-gradient-to-r from-white/[0.12] via-white/[0.07] to-white/[0.04] border border-white/20 shadow-[0_12px_30px_rgba(0,0,0,0.45)] flex items-center gap-3.5">
+                    <div
+                      onClick={togglePlay}
+                      className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group border border-white/15 shadow-md"
+                    >
+                      <img
+                        src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
+                        alt={currentTrack.title}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                        }}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        {isPlaying ? (
+                          <div className="flex items-end gap-0.5 h-3.5">
+                            <span className="w-1 bg-[var(--color-accent)] rounded-full animate-eq-1" />
+                            <span className="w-1 bg-[var(--color-accent)] rounded-full animate-eq-2" />
+                            <span className="w-1 bg-[var(--color-accent)] rounded-full animate-eq-3" />
+                          </div>
+                        ) : (
+                          <svg className="w-5 h-5 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        )}
+                      </div>
                     </div>
-                    <div className="px-3">
-                      <svg className="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-extrabold text-white truncate">
+                        {currentTrack.title}
+                      </p>
+                      <p className="text-xs text-white/60 truncate mt-0.5">
+                        {currentTrack.artist}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => toggleLike(currentTrack)}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                          isCurrentLiked
+                            ? 'text-[var(--color-accent)]'
+                            : 'text-white/45 hover:text-white hover:bg-white/10'
+                        }`}
+                        title={isCurrentLiked ? 'Liked' : 'Like Track'}
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          viewBox="0 0 24 24"
+                          fill={isCurrentLiked ? 'currentColor' : 'none'}
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                        >
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                      </button>
+
+                      <button
+                        onClick={togglePlay}
+                        className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shadow hover:scale-105 transition-transform cursor-pointer"
+                        title={isPlaying ? 'Pause' : 'Play'}
+                      >
+                        {isPlaying ? (
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Next Up */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-400 mb-4 px-2 uppercase tracking-wider">Next Up</h3>
-                {queue.length === 0 ? (
-                  <p className="text-sm text-gray-500 px-2">Queue is empty</p>
-                ) : (
-                  <div className="space-y-1">
-                    {queue.map((track: any, index: number) => (
-                      <div key={`${track.id}-${index}`} className="flex items-center p-2 rounded-xl hover:bg-white/5 transition-colors group">
-                        <div className="w-6 h-6 flex items-center justify-center cursor-grab text-gray-500 hover:text-white mr-2">
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
-                        </div>
-                        <img src={track.thumbnail} alt={track.title} className="w-10 h-10 rounded-lg object-cover" />
-                        <div className="ml-3 flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-200 truncate group-hover:text-white transition-colors">{track.title}</p>
-                          <p className="text-xs text-gray-400 truncate">{track.artist}</p>
-                        </div>
-                        <button 
-                          onClick={() => removeFromQueue(index)}
-                          className="p-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all"
-                        >
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                      </div>
-                    ))}
+              {/* UP NEXT / PLAYED LIST */}
+              {activeTab === 'upnext' ? (
+                <div>
+                  <div className="flex items-center justify-between px-1 mb-2.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/45">
+                      Next Up in Queue ({upcomingItems.length})
+                    </span>
+                    {upcomingItems.length > 0 && (
+                      <button
+                        onClick={handleClearUpcoming}
+                        className="text-[11px] font-bold text-white/45 hover:text-rose-400 transition-colors cursor-pointer"
+                      >
+                        Clear Upcoming
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
+
+                  {upcomingItems.length === 0 ? (
+                    <div className="py-12 px-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] text-center space-y-3">
+                      <p className="text-xs text-white/55 font-medium">
+                        No upcoming tracks in queue.
+                      </p>
+                      {currentTrack && (
+                        <button
+                          onClick={handleAiAutoFill}
+                          disabled={isAiFilling}
+                          className="px-4 py-2 rounded-full bg-[var(--color-accent)] text-white text-xs font-extrabold shadow-[0_4px_16px_rgba(250,45,72,0.4)] hover:scale-105 transition-transform cursor-pointer"
+                        >
+                          {isAiFilling ? 'Curating 320kbps Mix...' : '✨ Auto-Fill 5 Similar Songs'}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {upcomingItems.map(({ track, actualIndex }, idx) => {
+                        const isBeingDragged = draggedActualIndex === actualIndex;
+                        const isDragTarget =
+                          dragOverActualIndex === actualIndex &&
+                          draggedActualIndex !== actualIndex;
+                        const canMoveUp = idx > 0;
+                        const canMoveDown = idx < upcomingItems.length - 1;
+
+                        return (
+                          <div
+                            key={`${track.id}-${actualIndex}`}
+                            draggable
+                            onDragStart={() => handleDragStart(actualIndex)}
+                            onDragOver={(e) => handleDragOver(e, actualIndex)}
+                            onDrop={() => handleDrop(actualIndex)}
+                            onDragEnd={handleDragEnd}
+                            className={`group flex items-center gap-2.5 p-2 rounded-2xl border transition-all duration-150 ${
+                              isDragTarget
+                                ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)] scale-[1.01]'
+                                : isBeingDragged
+                                ? 'opacity-40 bg-white/5 border-white/20'
+                                : 'bg-white/[0.035] hover:bg-white/[0.09] border-white/[0.06] hover:border-white/15'
+                            }`}
+                          >
+                            {/* Drag Grip Handle + Queue Order Number */}
+                            <div
+                              className="w-6 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing text-white/35 group-hover:text-white/75 flex-shrink-0"
+                              title="Drag to reorder"
+                            >
+                              <span className="text-[10px] font-bold group-hover:hidden tabular-nums">
+                                {idx + 1}
+                              </span>
+                              <svg
+                                className="w-3.5 h-3.5 hidden group-hover:block"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                              >
+                                <line x1="4" y1="9" x2="20" y2="9" />
+                                <line x1="4" y1="15" x2="20" y2="15" />
+                              </svg>
+                            </div>
+
+                            {/* Track Artwork with Play Overlay */}
+                            <div
+                              onClick={() => handleJumpToTrack(track, actualIndex)}
+                              className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer border border-white/10"
+                            >
+                              <img
+                                src={track.thumbnail || DEFAULT_THUMBNAIL}
+                                alt={track.title}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                                }}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M8 5v14l11-7z" />
+                                </svg>
+                              </div>
+                            </div>
+
+                            {/* Title & Artist (Click to Play Immediately) */}
+                            <div
+                              onClick={() => handleJumpToTrack(track, actualIndex)}
+                              className="min-w-0 flex-1 cursor-pointer"
+                            >
+                              <p className="text-xs font-bold text-white/90 group-hover:text-white truncate transition-colors">
+                                {track.title}
+                              </p>
+                              <p className="text-[11px] text-white/50 truncate mt-0.5">
+                                {track.artist}
+                              </p>
+                            </div>
+
+                            {/* Duration Readout (hidden on hover to reveal reorder controls) */}
+                            <span className="text-[11px] font-medium text-white/40 tabular-nums group-hover:hidden pr-1">
+                              {formatTime(track.duration || 210)}
+                            </span>
+
+                            {/* Hover Action Dock: Play Next (Top), Up, Down, Remove */}
+                            <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+                              {idx > 0 && (
+                                <button
+                                  onClick={() => handleMoveToTop(actualIndex)}
+                                  title="Play Next (Move to Top)"
+                                  className="w-6 h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-[var(--color-accent)] flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="17 11 12 6 7 11" />
+                                    <line x1="12" y1="6" x2="12" y2="18" />
+                                    <line x1="6" y1="3" x2="18" y2="3" />
+                                  </svg>
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => canMoveUp && reorderQueue(actualIndex, actualIndex - 1)}
+                                disabled={!canMoveUp}
+                                title="Move Up"
+                                className="w-6 h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="18 15 12 9 6 15" />
+                                </svg>
+                              </button>
+
+                              <button
+                                onClick={() => canMoveDown && reorderQueue(actualIndex, actualIndex + 1)}
+                                disabled={!canMoveDown}
+                                title="Move Down"
+                                className="w-6 h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                              </button>
+
+                              <button
+                                onClick={() => removeFromQueue(actualIndex)}
+                                title="Remove from Queue"
+                                className="w-6 h-6 rounded-lg hover:bg-rose-500/20 text-white/55 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
+                                  <line x1="18" y1="6" x2="6" y2="18" />
+                                  <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* PLAYED / SESSION HISTORY TAB */
+                <div>
+                  <div className="flex items-center justify-between px-1 mb-2.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/45">
+                      Previously Played in Queue ({historyItems.length})
+                    </span>
+                  </div>
+
+                  {historyItems.length === 0 ? (
+                    <div className="py-12 px-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] text-center">
+                      <p className="text-xs text-white/50 font-medium">
+                        Tracks you finish playing in this session will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {historyItems.map(({ track, actualIndex }) => (
+                        <div
+                          key={`${track.id}-${actualIndex}`}
+                          onClick={() => handleJumpToTrack(track, actualIndex)}
+                          className="group flex items-center gap-3 p-2 rounded-2xl bg-white/[0.025] hover:bg-white/[0.08] border border-white/[0.05] hover:border-white/15 transition-all cursor-pointer"
+                        >
+                          <img
+                            src={track.thumbnail || DEFAULT_THUMBNAIL}
+                            alt={track.title}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                            }}
+                            className="w-10 h-10 rounded-xl object-cover opacity-75 group-hover:opacity-100 transition-opacity"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-white/75 group-hover:text-white truncate">
+                              {track.title}
+                            </p>
+                            <p className="text-[11px] text-white/45 truncate mt-0.5">
+                              {track.artist}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-bold text-[var(--color-accent)] opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+                            Replay ↺
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </motion.div>
+          </motion.aside>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
