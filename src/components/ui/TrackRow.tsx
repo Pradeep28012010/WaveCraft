@@ -136,54 +136,62 @@ const TrackRow = memo(({
     <div
       onClick={handleTriggerPlay}
       onContextMenu={(e) => onContextMenu?.(e, track)}
-      className={`group relative flex items-center gap-4 px-3.5 py-2.5 rounded-2xl transition-all duration-200 ease-out hover:translate-x-1 active:scale-[0.992] cursor-pointer select-none border ${
+      className={`group relative flex items-center gap-4 px-3.5 py-2.5 rounded-2xl transition-[transform,background-color,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform hover:translate-x-1.5 hover:-translate-y-[1px] active:scale-[0.99] cursor-pointer select-none border ${
         isCurrentTrack
           ? 'bg-white/[0.12] border-white/20 shadow-[0_8px_28px_rgba(0,0,0,0.38)]'
-          : 'bg-white/[0.02] border-transparent hover:bg-white/[0.07] hover:border-white/10'
+          : 'bg-white/[0.02] border-transparent hover:bg-white/[0.08] hover:border-white/15 hover:shadow-[0_12px_28px_rgba(0,0,0,0.35)]'
       }`}
     >
-      {isCurrentTrack && (
-        <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
-      )}
+      <span
+        className={`absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isCurrentTrack ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-0 group-hover:opacity-80 group-hover:scale-y-75'
+        }`}
+      />
       {/* Index or Equalizer */}
       {showIndex && (
         <div className="w-7 flex justify-center items-center text-sm text-white/50 font-medium flex-shrink-0">
           {isTrackPlaying ? (
             <EqualizerIcon />
           ) : (
-            <>
-              <span className={`group-hover:hidden ${isCurrentTrack ? 'text-[var(--color-accent)] font-bold' : ''}`}>
+            <div className="relative w-5 h-5 flex items-center justify-center">
+              <span
+                className={`transition-all duration-200 ease-out group-hover:opacity-0 group-hover:scale-75 ${
+                  isCurrentTrack ? 'text-[var(--color-accent)] font-bold' : ''
+                }`}
+              >
                 {index !== undefined ? index : '•'}
               </span>
-              <span className="hidden group-hover:flex items-center justify-center text-white">
+              <span className="absolute inset-0 flex items-center justify-center text-white opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]">
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </span>
-            </>
+            </div>
           )}
         </div>
       )}
 
       {/* Album Art */}
       {showAlbumArt && (
-        <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-white/10 shadow-md">
+        <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-white/10 shadow-md group-hover:shadow-[0_6px_18px_rgba(0,0,0,0.45)] transition-shadow duration-300">
           <img
             src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
             alt={track.title}
             loading="lazy"
             decoding="async"
             onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
           />
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex justify-center items-center transition-opacity">
-            <svg className="w-5 h-5 text-white fill-current drop-shadow" viewBox="0 0 24 24">
-              {isTrackPlaying ? (
-                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-              ) : (
-                <path d="M8 5v14l11-7z" />
-              )}
-            </svg>
+          <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 flex justify-center items-center transition-opacity duration-200 ease-out">
+            <div className="w-7 h-7 rounded-full bg-[var(--color-accent)]/90 text-white flex items-center justify-center shadow-md scale-75 group-hover:scale-100 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
+              <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24">
+                {isTrackPlaying ? (
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                ) : (
+                  <path d="M8 5v14l11-7z" />
+                )}
+              </svg>
+            </div>
           </div>
         </div>
       )}
@@ -192,8 +200,8 @@ const TrackRow = memo(({
       <div className="flex-grow flex flex-col min-w-0 pr-2">
         <div className="flex items-center gap-2">
           <span
-            className={`text-sm font-semibold truncate ${
-              isCurrentTrack ? 'text-[var(--color-accent)]' : 'text-white'
+            className={`text-sm font-semibold truncate transition-colors duration-200 ${
+              isCurrentTrack ? 'text-[var(--color-accent)]' : 'text-white group-hover:text-[var(--color-accent)]'
             }`}
           >
             {track.title}

@@ -342,7 +342,24 @@ export default function SonicGalaxyPage() {
       .map((item) => item.star);
   }, [selectedStar, stars]);
 
-  // 120fps 3D Audio-Reactive Canvas Universe Renderer
+  // Live state refs so the 120fps canvas loop NEVER restarts or resets when hovering/selecting/zooming!
+  const starsRef = useRef<StarNode3D[]>(stars);
+  const selectedStarRef = useRef<StarNode3D | null>(selectedStar);
+  const hoveredStarIdRef = useRef<string | null>(hoveredStarId);
+  const activeClusterFilterRef = useRef<number | null>(activeClusterFilter);
+  const zoomRef = useRef<number>(zoom);
+  const autoOrbitRef = useRef<boolean>(autoOrbit);
+  const currentTrackIdRef = useRef<string | undefined>(currentTrack?.id);
+
+  starsRef.current = stars;
+  selectedStarRef.current = selectedStar;
+  hoveredStarIdRef.current = hoveredStarId;
+  activeClusterFilterRef.current = activeClusterFilter;
+  zoomRef.current = zoom;
+  autoOrbitRef.current = autoOrbit;
+  currentTrackIdRef.current = currentTrack?.id;
+
+  // 120fps 3D Audio-Reactive Canvas Universe Renderer (Runs continuously without ever resetting on hover!)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -352,10 +369,15 @@ export default function SonicGalaxyPage() {
     let rafId = 0;
     let time = 0;
     let lastNow = performance.now();
+    let smoothZoom = zoomRef.current;
     const projectedMap = new Map<string, ProjectedStar>();
+    const hoverMixMap = new Map<string, number>(); // 0 -> 1 smooth spring-lerp per star
+    const selectMixMap = new Map<string, number>(); // 0 -> 1 smooth spring-lerp per star
+    let pointerX = -9999;
+    let pointerY = -9999;
     const freqBins = new Uint8Array(64);
 
-    // 140 Deep-Space 3D Starfield Dust Particles
+    // 140 Deep-Space 3D Starfield Dust Particles (created once, never reset on hover!)
     const bgParticles: BackgroundParticle[] = Array.from({ length: 140 }, (_, i) => {
       const palette = ['#ffffff', '#f43f5e', '#a855f7', '#06b6d4', '#f59e0b'];
       return {
@@ -391,6 +413,8 @@ export default function SonicGalaxyPage() {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
+      pointerX = mx;
+      pointerY = my;
 
       if (cameraRef.current.isDragging) {
         const dx = e.clientX - cameraRef.current.dragStartX;
@@ -410,25 +434,39 @@ export default function SonicGalaxyPage() {
         return;
       }
 
-      // Hit-test front-to-back
+      // Hit-test front-to-back with generous magnetic hover radius
       let found: string | null = null;
-      const sorted = Array.from(projectedMap.values()).sort((a, b) => a.depthZ - b.depthZ);
-      for (const p of sorted) {
+      let minDist = Infinity;
+      for (const p of projectedMap.values()) {
         const dx = mx - p.sx;
         const dy = my - p.sy;
-        if (dx * dx + dy * dy <= (p.drawR + 8) * (p.drawR + 8)) {
+        const dist = Math.hypot(dx, dy);
+        const hitR = p.drawR + 14;
+        if (dist <= hitR && dist < minDist) {
+          minDist = dist;
           found = p.node.id;
-          break;
         }
       }
       canvas.style.cursor = found ? 'pointer' : 'grab';
-      setHoveredStarId(found);
+      if (hoveredStarIdRef.current !== found) {
+        hoveredStarIdRef.current = found;
+        setHoveredStarId(found);
+      }
+    };
+
+    const onPointerLeave = () => {
+      pointerX = -9999;
+      pointerY = -9999;
+      if (hoveredStarIdRef.current !== null) {
+        hoveredStarIdRef.current = null;
+        setHoveredStarId(null);
+      }
     };
 
     const onPointerUp = (e: PointerEvent) => {
       const wasDragging = cameraRef.current.pointerMoved;
       cameraRef.current.isDragging = false;
-      canvas.style.cursor = 'grab';
+      canvas.style.cursor = hoveredStarIdRef.current ? 'pointer' : 'grab';
 
       if (wasDragging) return;
 
@@ -440,7 +478,7 @@ export default function SonicGalaxyPage() {
       for (const p of sorted) {
         const dx = mx - p.sx;
         const dy = my - p.sy;
-        if (dx * dx + dy * dy <= (p.drawR + 10) * (p.drawR + 10)) {
+        if (dx * dx + dy * dy <= (p.drawR + 14) * (p.drawR + 14)) {
           // Spawn a visual supernova shockwave on the clicked star!
           shockwavesRef.current.push({
             x: p.sx,
@@ -451,11 +489,12 @@ export default function SonicGalaxyPage() {
             alpha: 0.95
           });
 
-          // If clicking the already-selected star, or double-tapping, immediately play it!
-          if (selectedStar?.id === p.node.id) {
+          // If clicking the already-selected star, immediately play it!
+          if (selectedStarRef.current?.id === p.node.id) {
             unlockAudioEngine();
             playTrackWithSmartQueue(p.node.track);
           } else {
+            selectedStarRef.current = p.node;
             setSelectedStar(p.node);
           }
           return;
@@ -470,6 +509,7 @@ export default function SonicGalaxyPage() {
     };
 
     canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointerleave', onPointerLeave);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('wheel', onWheel, { passive: false });
@@ -511,11 +551,20 @@ export default function SonicGalaxyPage() {
       lastNow = now;
       time += dt;
 
+      // Smoothly interpolate zoom level
+      smoothZoom += (zoomRef.current - smoothZoom) * Math.min(1, dt * 12);
+
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       const cx = width / 2;
       const cy = height / 2;
-      const baseScale = Math.min(width, height) * 0.54 * zoom;
+      const baseScale = Math.min(width, height) * 0.54 * smoothZoom;
+
+      const currentStars = starsRef.current;
+      const currentSelected = selectedStarRef.current;
+      const currentHoveredId = hoveredStarIdRef.current;
+      const clusterFilter = activeClusterFilterRef.current;
+      const playingTrackId = currentTrackIdRef.current;
 
       // Read real-time Web Audio FFT energy for live audio-reactive galaxy pulse!
       let bassEnergy = 0;
@@ -530,15 +579,15 @@ export default function SonicGalaxyPage() {
         for (let i = 10; i < 32; i++) mSum += freqBins[i];
         midEnergy = mSum / (22 * 255);
       } else if (usePlayerStore.getState().isPlaying) {
-        // Smooth synthesized pulse fallback when playing YouTube stream
         bassEnergy = 0.28 + Math.pow(Math.sin(time * 3.8) * 0.5 + 0.5, 2) * 0.35;
         midEnergy = 0.22 + Math.sin(time * 5.2) * 0.15;
       }
 
-      // Smooth camera inertia & auto-orbit
+      // Smooth camera inertia & auto-orbit (slows down smoothly when hovering a song so it stays under your cursor!)
       if (!cameraRef.current.isDragging) {
-        if (autoOrbit) {
-          cameraRef.current.yaw += dt * (0.11 + bassEnergy * 0.08);
+        if (autoOrbitRef.current) {
+          const hoverBrake = currentHoveredId ? 0.12 : 1.0;
+          cameraRef.current.yaw += dt * (0.09 + bassEnergy * 0.06) * hoverBrake;
         } else {
           cameraRef.current.yaw += cameraRef.current.velYaw;
           cameraRef.current.pitch = Math.max(
@@ -596,7 +645,6 @@ export default function SonicGalaxyPage() {
         const r = pt.size * proj.scale * (1 + bassEnergy * 0.45);
 
         if (warp > 0.05) {
-          // Draw hyperspace warp streak
           const dirX = proj.sx - cx;
           const dirY = proj.sy - cy;
           ctx.strokeStyle = pt.color;
@@ -618,9 +666,9 @@ export default function SonicGalaxyPage() {
 
       // 3. Draw Volumetric 3D Nebula Clouds & Titles
       CLUSTERS.forEach((cluster, idx) => {
-        if (activeClusterFilter !== null && activeClusterFilter !== idx) return;
+        if (clusterFilter !== null && clusterFilter !== idx) return;
         const proj = project3D(cluster.cx, cluster.cy, cluster.cz, cx, cy, baseScale);
-        const nebulaR = (155 + bassEnergy * 45) * proj.scale * zoom;
+        const nebulaR = (155 + bassEnergy * 45) * proj.scale * smoothZoom;
 
         const grad = ctx.createRadialGradient(proj.sx, proj.sy, 4, proj.sx, proj.sy, nebulaR);
         grad.addColorStop(0, `${cluster.color}38`);
@@ -632,7 +680,6 @@ export default function SonicGalaxyPage() {
         ctx.arc(proj.sx, proj.sy, nebulaR, 0, Math.PI * 2);
         ctx.fill();
 
-        // Subtle glowing Nebula title badge in 3D space
         ctx.fillStyle = `${cluster.secondary}cc`;
         ctx.font = '800 10px Inter, sans-serif';
         ctx.textAlign = 'center';
@@ -643,37 +690,55 @@ export default function SonicGalaxyPage() {
         );
       });
 
-      // 4. Project all visible 3D StarNodes
+      // 4. Project all visible 3D StarNodes with smooth per-star hover & selection spring interpolation
       projectedMap.clear();
-      const visibleNodes = stars.filter(
-        (s) => activeClusterFilter === null || s.clusterIndex === activeClusterFilter
+      const visibleNodes = currentStars.filter(
+        (s) => clusterFilter === null || s.clusterIndex === clusterFilter
       );
 
+      const lerpSpeed = Math.min(1, dt * 14);
       for (const node of visibleNodes) {
+        const targetHover = currentHoveredId === node.id ? 1 : 0;
+        const prevHover = hoverMixMap.get(node.id) ?? 0;
+        const nextHover = prevHover + (targetHover - prevHover) * lerpSpeed;
+        hoverMixMap.set(node.id, nextHover);
+
+        const targetSelect = currentSelected?.id === node.id ? 1 : 0;
+        const prevSelect = selectMixMap.get(node.id) ?? 0;
+        const nextSelect = prevSelect + (targetSelect - prevSelect) * lerpSpeed;
+        selectMixMap.set(node.id, nextSelect);
+
         const orbitAngle = time * node.orbitSpeed + node.phase;
-        const ox = node.x + Math.cos(orbitAngle) * 0.022;
-        const oy = node.y + Math.sin(orbitAngle * 1.3) * 0.022;
-        const oz = node.z + Math.sin(orbitAngle) * 0.022;
+        // Dampen individual wobble when hovered so the planet locks steadily under the cursor
+        const wobbleScale = 1 - nextHover * 0.85;
+        const ox = node.x + Math.cos(orbitAngle) * 0.02 * wobbleScale;
+        const oy = node.y + Math.sin(orbitAngle * 1.3) * 0.02 * wobbleScale;
+        const oz = node.z + Math.sin(orbitAngle) * 0.02 * wobbleScale;
 
         const proj = project3D(ox, oy, oz, cx, cy, baseScale);
-        const drawR = node.baseRadius * proj.scale * Math.sqrt(zoom);
+
+        // Subtle magnetic pull toward cursor when hovered
+        const magX = nextHover > 0.01 && pointerX > 0 ? (pointerX - proj.sx) * 0.18 * nextHover : 0;
+        const magY = nextHover > 0.01 && pointerY > 0 ? (pointerY - proj.sy) * 0.18 * nextHover : 0;
+
+        const drawR = node.baseRadius * proj.scale * Math.sqrt(smoothZoom);
         projectedMap.set(node.id, {
           node,
-          sx: proj.sx,
-          sy: proj.sy,
+          sx: proj.sx + magX,
+          sy: proj.sy + magY,
           scale: proj.scale,
           depthZ: proj.depthZ,
           drawR
         });
       }
 
-      // Sort back-to-front (painter's algorithm) so closer 3D planets render in front of distant ones
+      // Sort back-to-front (painter's algorithm)
       const backToFront = Array.from(projectedMap.values()).sort(
         (a, b) => b.depthZ - a.depthZ
       );
 
       // 5. Draw Ambient Cluster Constellation Web + Active Harmonic Energy Filaments
-      const focusId = hoveredStarId || selectedStar?.id;
+      const focusId = currentHoveredId || currentSelected?.id;
       const focusProj = focusId ? projectedMap.get(focusId) : null;
 
       for (let i = 0; i < backToFront.length; i++) {
@@ -682,8 +747,8 @@ export default function SonicGalaxyPage() {
           const b = backToFront[j];
           const dist = Math.hypot(a.sx - b.sx, a.sy - b.sy);
 
-          if (a.node.clusterIndex === b.node.clusterIndex && dist < 130 * zoom) {
-            const alpha = Math.max(0.04, 0.22 * (1 - dist / (130 * zoom)));
+          if (a.node.clusterIndex === b.node.clusterIndex && dist < 130 * smoothZoom) {
+            const alpha = Math.max(0.04, 0.22 * (1 - dist / (130 * smoothZoom)));
             ctx.strokeStyle = `${a.node.color}${Math.round(alpha * 255)
               .toString(16)
               .padStart(2, '0')}`;
@@ -751,53 +816,73 @@ export default function SonicGalaxyPage() {
       }
       ctx.globalAlpha = 1;
 
-      // 7. Draw 3D Planetary Star Nodes with Album Art Cores & Audio-Reactive Coronas
+      // 7. Draw 3D Planetary Star Nodes with Smooth Hover Bloom & Audio-Reactive Coronas
       for (const { sx, sy, scale, depthZ, drawR, node } of backToFront) {
-        const isSelected = selectedStar?.id === node.id;
-        const isHovered = hoveredStarId === node.id;
-        const isPlayingNow = currentTrack?.id === node.id;
+        const hoverMix = hoverMixMap.get(node.id) ?? 0;
+        const selectMix = selectMixMap.get(node.id) ?? 0;
+        const activeMix = Math.max(hoverMix, selectMix);
+        const isPlayingNow = playingTrackId === node.id;
 
-        const depthAlpha = Math.max(0.35, Math.min(1, 1.15 - (depthZ + 0.6) * 0.45));
+        const depthAlpha = Math.max(
+          0.38,
+          Math.min(1, 1.15 - (depthZ + 0.6) * 0.45 + activeMix * 0.4)
+        );
         ctx.save();
         ctx.globalAlpha = depthAlpha;
 
-        const reactiveScale =
-          isPlayingNow
-            ? 1.38 + bassEnergy * 0.42
-            : isSelected || isHovered
-            ? 1.32 + midEnergy * 0.15
-            : 1 + Math.sin(time * 2.6 + node.phase) * 0.06;
+        // Smoothly interpolated scale (no 1-frame snapping!)
+        const idlePulse = Math.sin(time * 2.6 + node.phase) * 0.05;
+        const smoothScale =
+          1 +
+          idlePulse +
+          activeMix * (0.42 + midEnergy * 0.12) +
+          (isPlayingNow ? 0.25 + bassEnergy * 0.38 : 0);
 
-        const r = drawR * reactiveScale;
+        const r = drawR * smoothScale;
 
-        // Outer Volumetric Corona Glow
-        const corona = ctx.createRadialGradient(sx, sy, r * 0.3, sx, sy, r * 3.1);
-        corona.addColorStop(0, isPlayingNow ? '#10b98188' : `${node.color}77`);
-        corona.addColorStop(0.5, `${node.secondaryColor}22`);
+        // Outer Volumetric Corona Glow (expands smoothly with hoverMix)
+        const coronaRadius = r * (2.8 + hoverMix * 1.4);
+        const corona = ctx.createRadialGradient(sx, sy, r * 0.25, sx, sy, coronaRadius);
+        corona.addColorStop(0, isPlayingNow ? '#10b981aa' : `${node.color}99`);
+        corona.addColorStop(0.5, `${node.secondaryColor}33`);
         corona.addColorStop(1, 'transparent');
         ctx.fillStyle = corona;
         ctx.beginPath();
-        ctx.arc(sx, sy, r * 3.1, 0, Math.PI * 2);
+        ctx.arc(sx, sy, coronaRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // If this star is currently playing or selected, draw 3D Audio-Reactive Spectrum Rays!
-        if (isPlayingNow || isSelected) {
+        // Smoothly fading 3D Audio-Reactive Spectrum Rays & Orbital Ring on hover/select/play
+        if (activeMix > 0.02 || isPlayingNow) {
+          const rayAlpha = isPlayingNow ? 1 : activeMix;
           const rayCount = 24;
           ctx.save();
+          ctx.globalAlpha = depthAlpha * rayAlpha;
           ctx.translate(sx, sy);
-          ctx.rotate(time * 0.45);
+          ctx.rotate(time * 0.55);
           for (let k = 0; k < rayCount; k++) {
             const ang = (k / rayCount) * Math.PI * 2;
             const binVal = hasLiveAudio
               ? freqBins[(k * 2) % 32] / 255
-              : 0.3 + 0.3 * Math.sin(time * 6 + k);
-            const innerR = r + 4;
-            const outerR = r + 8 + binVal * (isPlayingNow ? 26 : 14) * scale;
+              : 0.32 + 0.32 * Math.sin(time * 6 + k);
+            const innerR = r + 3;
+            const outerR =
+              r + 6 + binVal * (isPlayingNow ? 26 : 16 * activeMix) * scale;
             ctx.strokeStyle = isPlayingNow ? '#34d399' : node.secondaryColor;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(Math.cos(ang) * innerR, Math.sin(ang) * innerR);
             ctx.lineTo(Math.cos(ang) * outerR, Math.sin(ang) * outerR);
+            ctx.stroke();
+          }
+
+          // Outer spinning dashed halo ring on hover
+          if (hoverMix > 0.05) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.globalAlpha = depthAlpha * hoverMix * 0.75;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(0, 0, r + 9, 0, Math.PI * 2);
             ctx.stroke();
           }
           ctx.restore();
@@ -835,57 +920,66 @@ export default function SonicGalaxyPage() {
         // Crisp Neon Planetary Rim Ring
         ctx.strokeStyle = isPlayingNow
           ? '#10b981'
-          : isSelected || isHovered
+          : activeMix > 0.3
           ? '#ffffff'
           : node.secondaryColor;
-        ctx.lineWidth = isSelected || isHovered || isPlayingNow ? 2.5 : 1.5;
+        ctx.lineWidth = 1.5 + activeMix * 1.5;
         ctx.beginPath();
         ctx.arc(sx, sy, r, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Floating Title Pill below prominent / selected / hovered stars
+        // Floating Title & Artist Pill below prominent / selected / hovered stars
         if (
-          isSelected ||
-          isHovered ||
+          activeMix > 0.05 ||
           isPlayingNow ||
           scale > 1.04 ||
           node.sourceLabel === 'Liked Core'
         ) {
           const shortTitle =
-            node.track.title.length > 20
-              ? node.track.title.slice(0, 18) + '…'
+            node.track.title.length > 22
+              ? node.track.title.slice(0, 20) + '…'
               : node.track.title;
 
           ctx.font =
-            isSelected || isHovered || isPlayingNow
+            activeMix > 0.3 || isPlayingNow
               ? '800 11px Inter, sans-serif'
               : '600 10px Inter, sans-serif';
           const textWidth = ctx.measureText(shortTitle).width;
-          const pillW = textWidth + 14;
-          const pillH = 18;
+          const pillW = textWidth + 16;
+          const pillH = hoverMix > 0.25 ? 30 : 18;
           const pillX = sx - pillW / 2;
           const pillY = sy + r + 7;
 
           ctx.fillStyle =
-            isSelected || isPlayingNow
-              ? 'rgba(15, 23, 42, 0.92)'
+            activeMix > 0.25 || isPlayingNow
+              ? 'rgba(15, 23, 42, 0.94)'
               : 'rgba(10, 10, 20, 0.72)';
           ctx.beginPath();
           ctx.roundRect(pillX, pillY, pillW, pillH, 9);
           ctx.fill();
 
-          if (isSelected || isPlayingNow) {
+          if (activeMix > 0.25 || isPlayingNow) {
             ctx.strokeStyle = isPlayingNow ? '#10b981' : node.color;
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1.2;
             ctx.stroke();
           }
 
           ctx.fillStyle =
-            isSelected || isHovered || isPlayingNow
+            activeMix > 0.25 || isPlayingNow
               ? '#ffffff'
               : 'rgba(255,255,255,0.85)';
           ctx.textAlign = 'center';
           ctx.fillText(shortTitle, sx, pillY + 12.5);
+
+          if (hoverMix > 0.25) {
+            ctx.fillStyle = node.secondaryColor;
+            ctx.font = '700 9px Inter, sans-serif';
+            ctx.fillText(
+              currentSelected?.id === node.id ? '▶ Click to Play Now' : '✦ Click to Inspect',
+              sx,
+              pillY + 24
+            );
+          }
         }
 
         ctx.restore();
@@ -899,11 +993,12 @@ export default function SonicGalaxyPage() {
       cancelAnimationFrame(rafId);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('wheel', onWheel);
     };
-  }, [stars, selectedStar, hoveredStarId, activeClusterFilter, zoom, autoOrbit, currentTrack?.id]);
+  }, []);
 
   const handleLaunchConstellation = (clusterIdx: number) => {
     const clusterTracks = stars

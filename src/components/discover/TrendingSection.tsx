@@ -75,8 +75,8 @@ export default function TrendingSection({ tracks, isLoading, onPlayTrack }: Tren
                   key={track.id}
                   padding="sm"
                   hover
-                  className={`min-w-[190px] max-w-[190px] flex-shrink-0 snap-start group cursor-pointer relative transition-all ${
-                    isActive ? 'ring-2 ring-[var(--color-accent)] bg-white/15' : 'hover:bg-white/10'
+                  className={`min-w-[190px] max-w-[190px] flex-shrink-0 snap-start group cursor-pointer relative transition-colors duration-300 ${
+                    isActive ? 'ring-2 ring-[var(--color-accent)] bg-white/15' : 'hover:bg-white/[0.11] hover:border-white/25'
                   }`}
                   onClick={() => onPlayTrack(track, tracks)}
                 >
@@ -90,14 +90,20 @@ export default function TrendingSection({ tracks, isLoading, onPlayTrack }: Tren
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                       alt={track.title}
                       onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
                     />
                     <div
-                      className={`absolute inset-0 bg-black/35 flex items-center justify-center transition-opacity ${
+                      className={`absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent flex items-center justify-center transition-opacity duration-300 ${
                         isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                       }`}
                     >
-                      <div className="w-12 h-12 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-xl transform group-hover:scale-105 transition-transform">
+                      <div
+                        className={`w-12 h-12 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(250,45,72,0.55)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                          isActive
+                            ? 'scale-100 translate-y-0'
+                            : 'scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0'
+                        }`}
+                      >
                         {isActive && isPlaying ? (
                           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
@@ -111,7 +117,7 @@ export default function TrendingSection({ tracks, isLoading, onPlayTrack }: Tren
                     </div>
                   </div>
 
-                  <h3 className="font-bold text-sm truncate text-white">{track.title}</h3>
+                  <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{track.title}</h3>
                   <p className="text-xs text-white/60 truncate mt-1">{track.artist}</p>
                 </GlassCard>
               );
