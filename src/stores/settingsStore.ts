@@ -3,6 +3,17 @@ import type { SettingsState } from '../types';
 import { loadSettings, saveSettings } from '../services/storage';
 import { EQ_PRESETS } from '../utils/constants';
 
+const SETTINGS_LOCAL_KEY = 'wavecraft_settings_v1';
+
+export type VisualizerStyleOption =
+  | 'bars'
+  | 'wave'
+  | 'blob'
+  | 'circular'
+  | 'particles'
+  | 'nebula'
+  | 'starfield';
+
 interface SettingsStore extends SettingsState {
   crossfade: number;
   eqPreset: string;
@@ -14,13 +25,14 @@ interface SettingsStore extends SettingsState {
   setAudioQuality: (quality: 'auto' | 'high' | 'medium' | 'low') => void;
   toggleVisualizer: () => void;
   setShowVisualizer: (show: boolean) => void;
-  setVisualizerStyle: (style: 'bars' | 'wave' | 'blob' | 'circular' | 'particles' | 'nebula' | 'starfield') => void;
+  setVisualizerStyle: (style: VisualizerStyleOption) => void;
   setEqualizerPreset: (preset: string) => void;
   setEqPreset: (preset: string) => void;
   setEqualizerBands: (bands: number[]) => void;
   toggleAutoplay: () => void;
   setAutoplay: (val: boolean) => void;
   toggleLyrics: () => void;
+  setShowLyrics: (show: boolean) => void;
   setLanguage: (lang: string) => void;
   resetSettings: () => void;
 }
@@ -31,7 +43,7 @@ const defaultSettings: SettingsState = {
   crossfadeDuration: 0,
   audioQuality: 'high',
   showVisualizer: true,
-  visualizerStyle: 'blob',
+  visualizerStyle: 'nebula',
   equalizerPreset: 'Flat',
   equalizerBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   autoplay: true,
@@ -39,98 +51,175 @@ const defaultSettings: SettingsState = {
   language: 'en'
 };
 
+/**
+ * Extracts only plain JSON-serializable settings properties (stripping store functions)
+ * so IndexedDB's structured clone algorithm never throws DataCloneError.
+ */
+function extractSerializableSettings(state: SettingsState): SettingsState {
+  return {
+    theme: state.theme,
+    accentColor: state.accentColor,
+    crossfadeDuration: state.crossfadeDuration,
+    audioQuality: state.audioQuality,
+    showVisualizer: state.showVisualizer,
+    visualizerStyle: state.visualizerStyle,
+    equalizerPreset: state.equalizerPreset,
+    equalizerBands: Array.isArray(state.equalizerBands)
+      ? [...state.equalizerBands]
+      : [...defaultSettings.equalizerBands],
+    autoplay: state.autoplay,
+    showLyrics: state.showLyrics,
+    language: state.language
+  };
+}
+
+function readInitialSettingsSync(): SettingsState {
+  try {
+    const raw = localStorage.getItem(SETTINGS_LOCAL_KEY);
+    if (!raw) return defaultSettings;
+    const parsed = JSON.parse(raw) as Partial<SettingsState>;
+    const merged: SettingsState = {
+      ...defaultSettings,
+      ...parsed,
+      equalizerBands:
+        Array.isArray(parsed.equalizerBands) && parsed.equalizerBands.length === 10
+          ? parsed.equalizerBands
+          : [...defaultSettings.equalizerBands]
+    };
+    if (merged.accentColor && typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--color-accent', merged.accentColor);
+    }
+    return merged;
+  } catch {
+    return defaultSettings;
+  }
+}
+
+function persistSettings(state: SettingsState): void {
+  const clean = extractSerializableSettings(state);
+  try {
+    localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(clean));
+  } catch {}
+  saveSettings(clean);
+}
+
+const initialSyncSettings = readInitialSettingsSync();
+
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
-  ...defaultSettings,
-  crossfade: 0,
-  eqPreset: 'Flat',
-  eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  ...initialSyncSettings,
+  crossfade: initialSyncSettings.crossfadeDuration ?? 0,
+  eqPreset: initialSyncSettings.equalizerPreset ?? 'Flat',
+  eqBands: initialSyncSettings.equalizerBands ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 
   loadFromStorage: async () => {
+    // Prefer localStorage if already present; fallback to IndexedDB if localStorage was empty
+    const hasLocal = Boolean(localStorage.getItem(SETTINGS_LOCAL_KEY));
     const stored = await loadSettings();
-    if (stored) {
-      if (stored.accentColor) {
-        document.documentElement.style.setProperty('--color-accent', stored.accentColor);
+    if (stored && !hasLocal) {
+      const merged: SettingsState = {
+        ...defaultSettings,
+        ...(stored as Partial<SettingsState>),
+        equalizerBands:
+          Array.isArray(stored.equalizerBands) && stored.equalizerBands.length === 10
+            ? stored.equalizerBands
+            : [...defaultSettings.equalizerBands]
+      };
+      if (merged.accentColor) {
+        document.documentElement.style.setProperty('--color-accent', merged.accentColor);
       }
       set({
-        ...(stored as SettingsState),
-        crossfade: stored.crossfadeDuration ?? 0,
-        eqPreset: stored.equalizerPreset ?? 'Flat',
-        eqBands: stored.equalizerBands ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ...merged,
+        crossfade: merged.crossfadeDuration ?? 0,
+        eqPreset: merged.equalizerPreset ?? 'Flat',
+        eqBands: merged.equalizerBands
       });
+      try {
+        localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(extractSerializableSettings(merged)));
+      } catch {}
+    } else {
+      const currentAccent = get().accentColor;
+      if (currentAccent) {
+        document.documentElement.style.setProperty('--color-accent', currentAccent);
+      }
     }
   },
 
   setTheme: (theme) => {
     set({ theme });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   setAccentColor: (color) => {
     document.documentElement.style.setProperty('--color-accent', color);
     set({ accentColor: color });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   setCrossfade: (duration) => {
     set({ crossfadeDuration: duration, crossfade: duration });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   setAudioQuality: (quality) => {
     set({ audioQuality: quality });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   toggleVisualizer: () => {
     set((state) => ({ showVisualizer: !state.showVisualizer }));
-    saveSettings(get());
+    persistSettings(get());
   },
 
   setShowVisualizer: (show) => {
     set({ showVisualizer: show });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   setVisualizerStyle: (style) => {
     set({ visualizerStyle: style });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   setEqualizerPreset: (preset) => {
     const bands = EQ_PRESETS[preset] || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     set({ equalizerPreset: preset, eqPreset: preset, equalizerBands: bands, eqBands: bands });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   setEqPreset: (preset) => {
     const bands = EQ_PRESETS[preset] || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     set({ equalizerPreset: preset, eqPreset: preset, equalizerBands: bands, eqBands: bands });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   setEqualizerBands: (bands) => {
-    set({ equalizerBands: bands, eqBands: bands });
-    saveSettings(get());
+    set({ equalizerBands: bands, eqBands: bands, equalizerPreset: 'Custom', eqPreset: 'Custom' });
+    persistSettings(get());
   },
 
   toggleAutoplay: () => {
     set((state) => ({ autoplay: !state.autoplay }));
-    saveSettings(get());
+    persistSettings(get());
   },
 
   setAutoplay: (val) => {
     set({ autoplay: val });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   toggleLyrics: () => {
     set((state) => ({ showLyrics: !state.showLyrics }));
-    saveSettings(get());
+    persistSettings(get());
+  },
+
+  setShowLyrics: (show) => {
+    set({ showLyrics: show });
+    persistSettings(get());
   },
 
   setLanguage: (lang) => {
     set({ language: lang });
-    saveSettings(get());
+    persistSettings(get());
   },
 
   resetSettings: () => {
@@ -141,6 +230,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       eqPreset: 'Flat',
       eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     });
-    saveSettings(defaultSettings);
+    persistSettings(defaultSettings);
   }
 }));

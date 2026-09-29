@@ -143,13 +143,80 @@ interface StudioState {
   tickSleepTimer: () => void;
 }
 
+const STUDIO_PREFS_KEY = 'wavecraft_studio_prefs_v1';
+
+interface PersistedStudioPrefs {
+  fxMode: StudioFXMode;
+  vocalMode: VocalStemMode;
+  spatialOrbitAuto: boolean;
+  spatialOrbitSpeed: number;
+  spatialRoomSize: number;
+  spatialManualPos: { x: number; z: number };
+}
+
+function loadStudioPrefsSync(): PersistedStudioPrefs {
+  const defaults: PersistedStudioPrefs = {
+    fxMode: 'normal',
+    vocalMode: 'normal',
+    spatialOrbitAuto: true,
+    spatialOrbitSpeed: 0.145,
+    spatialRoomSize: 0.26,
+    spatialManualPos: { x: 0.65, z: -0.55 }
+  };
+  try {
+    const raw = localStorage.getItem(STUDIO_PREFS_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Partial<PersistedStudioPrefs>;
+    return {
+      fxMode: parsed.fxMode || defaults.fxMode,
+      vocalMode: parsed.vocalMode || defaults.vocalMode,
+      spatialOrbitAuto:
+        typeof parsed.spatialOrbitAuto === 'boolean'
+          ? parsed.spatialOrbitAuto
+          : defaults.spatialOrbitAuto,
+      spatialOrbitSpeed:
+        typeof parsed.spatialOrbitSpeed === 'number'
+          ? parsed.spatialOrbitSpeed
+          : defaults.spatialOrbitSpeed,
+      spatialRoomSize:
+        typeof parsed.spatialRoomSize === 'number'
+          ? parsed.spatialRoomSize
+          : defaults.spatialRoomSize,
+      spatialManualPos:
+        parsed.spatialManualPos &&
+        typeof parsed.spatialManualPos.x === 'number' &&
+        typeof parsed.spatialManualPos.z === 'number'
+          ? parsed.spatialManualPos
+          : defaults.spatialManualPos
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveStudioPrefsSync(state: StudioState): void {
+  try {
+    const payload: PersistedStudioPrefs = {
+      fxMode: state.fxMode,
+      vocalMode: state.vocalMode,
+      spatialOrbitAuto: state.spatialOrbitAuto,
+      spatialOrbitSpeed: state.spatialOrbitSpeed,
+      spatialRoomSize: state.spatialRoomSize,
+      spatialManualPos: state.spatialManualPos
+    };
+    localStorage.setItem(STUDIO_PREFS_KEY, JSON.stringify(payload));
+  } catch {}
+}
+
+const initialStudioPrefs = loadStudioPrefsSync();
+
 export const useStudioStore = create<StudioState>((set, get) => ({
-  fxMode: 'normal',
-  vocalMode: 'normal',
-  spatialOrbitAuto: true,
-  spatialOrbitSpeed: 0.145,
-  spatialRoomSize: 0.26,
-  spatialManualPos: { x: 0.65, z: -0.55 },
+  fxMode: initialStudioPrefs.fxMode,
+  vocalMode: initialStudioPrefs.vocalMode,
+  spatialOrbitAuto: initialStudioPrefs.spatialOrbitAuto,
+  spatialOrbitSpeed: initialStudioPrefs.spatialOrbitSpeed,
+  spatialRoomSize: initialStudioPrefs.spatialRoomSize,
+  spatialManualPos: initialStudioPrefs.spatialManualPos,
   ambientVolumes: {
     rain: 0,
     vinyl: 0,
@@ -169,20 +236,35 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   sleepTotalSeconds: 0,
   sleepEndAtTrack: false,
 
-  setFxMode: (fxMode) => set({ fxMode }),
-  setVocalMode: (vocalMode) => set({ vocalMode }),
-  setSpatialOrbitAuto: (spatialOrbitAuto) => set({ spatialOrbitAuto }),
-  setSpatialOrbitSpeed: (spatialOrbitSpeed) =>
-    set({ spatialOrbitSpeed: Math.max(0.04, Math.min(0.4, spatialOrbitSpeed)) }),
-  setSpatialRoomSize: (spatialRoomSize) =>
-    set({ spatialRoomSize: Math.max(0, Math.min(0.65, spatialRoomSize)) }),
-  setSpatialManualPos: (spatialManualPos) =>
+  setFxMode: (fxMode) => {
+    set({ fxMode });
+    saveStudioPrefsSync(get());
+  },
+  setVocalMode: (vocalMode) => {
+    set({ vocalMode });
+    saveStudioPrefsSync(get());
+  },
+  setSpatialOrbitAuto: (spatialOrbitAuto) => {
+    set({ spatialOrbitAuto });
+    saveStudioPrefsSync(get());
+  },
+  setSpatialOrbitSpeed: (spatialOrbitSpeed) => {
+    set({ spatialOrbitSpeed: Math.max(0.04, Math.min(0.4, spatialOrbitSpeed)) });
+    saveStudioPrefsSync(get());
+  },
+  setSpatialRoomSize: (spatialRoomSize) => {
+    set({ spatialRoomSize: Math.max(0, Math.min(0.65, spatialRoomSize)) });
+    saveStudioPrefsSync(get());
+  },
+  setSpatialManualPos: (spatialManualPos) => {
     set({
       spatialManualPos: {
         x: Math.max(-1, Math.min(1, spatialManualPos.x)),
         z: Math.max(-1, Math.min(1, spatialManualPos.z))
       }
-    }),
+    });
+    saveStudioPrefsSync(get());
+  },
 
   setAmbientVolume: (id, volume) => {
     const appliedVolume = setAmbientLayerVolume(id, volume);

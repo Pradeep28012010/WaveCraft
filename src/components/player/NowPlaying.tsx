@@ -76,13 +76,28 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
 });
 NowPlayingScrubber.displayName = 'NowPlayingScrubber';
 
+const DECK_MODE_KEY = 'wavecraft_deck_mode_v1';
+
 export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const [showQueue, setShowQueue] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [deckMode, setDeckMode] = useState<'cover' | 'vinyl'>('vinyl');
+  const [deckMode, setDeckModeState] = useState<'cover' | 'vinyl'>(() => {
+    try {
+      const saved = localStorage.getItem(DECK_MODE_KEY);
+      return saved === 'cover' ? 'cover' : 'vinyl';
+    } catch {
+      return 'vinyl';
+    }
+  });
   const [zenMode, setZenMode] = useState(false);
   const [showWaveCard, setShowWaveCard] = useState(false);
   const [waveCardQuote, setWaveCardQuote] = useState<string>('');
+
+  const setDeckMode = (mode: 'cover' | 'vinyl') => {
+    setDeckModeState(mode);
+    try {
+      localStorage.setItem(DECK_MODE_KEY, mode);
+    } catch {}
+  };
 
   // Atomic Zustand selectors (prevents re-rendering on currentTime / progress ticks!)
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -110,6 +125,8 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const visualizerStyle = useSettingsStore((s) => s.visualizerStyle);
   const setVisualizerStyle = useSettingsStore((s) => s.setVisualizerStyle);
   const setShowVisualizer = useSettingsStore((s) => s.setShowVisualizer);
+  const showLyrics = useSettingsStore((s) => s.showLyrics);
+  const setShowLyrics = useSettingsStore((s) => s.setShowLyrics);
   const fxMode = useStudioStore((s) => s.fxMode);
   const vocalMode = useStudioStore((s) => s.vocalMode);
   const setVocalMode = useStudioStore((s) => s.setVocalMode);
@@ -288,6 +305,28 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
                 <span className="hidden sm:inline">Poster</span>
+              </button>
+
+              {/* Background Visualizer Style Switcher (Persisted across refreshes) */}
+              <button
+                onClick={() => {
+                  if (!showVisualizer) {
+                    setShowVisualizer(true);
+                    return;
+                  }
+                  const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
+                  const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
+                  if (next) setVisualizerStyle(next.id);
+                }}
+                className="hidden md:flex px-3.5 h-9 rounded-full liquid-glass text-xs font-bold text-white/85 hover:text-white items-center gap-1.5 cursor-pointer border border-white/15 hover:border-white/25 transition-all"
+                title="Cycle Player Background Visualizer (Saved Automatically)"
+              >
+                <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 9v6M22 12h-2" />
+                </svg>
+                <span>
+                  {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula'}
+                </span>
               </button>
 
               {/* 3D Zen Mode Toggle */}
