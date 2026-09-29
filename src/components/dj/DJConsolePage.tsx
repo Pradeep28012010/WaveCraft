@@ -140,7 +140,7 @@ export default function DJConsolePage() {
   const ensureDeckBGraph = () => {
     if (ctxBRef.current || !audioBRef.current || !window.AudioContext) return;
     try {
-      const ctx = new window.AudioContext();
+      const ctx = new window.AudioContext({ latencyHint: 'playback' });
       const src = ctx.createMediaElementSource(audioBRef.current);
 
       const low = ctx.createBiquadFilter();
@@ -150,11 +150,18 @@ export default function DJConsolePage() {
       const mid = ctx.createBiquadFilter();
       mid.type = 'peaking';
       mid.frequency.value = 1200;
-      mid.Q.value = 1.0;
+      mid.Q.value = 0.95;
 
       const high = ctx.createBiquadFilter();
       high.type = 'highshelf';
       high.frequency.value = 4000;
+
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -0.8;
+      limiter.knee.value = 4.0;
+      limiter.ratio.value = 20.0;
+      limiter.attack.value = 0.002;
+      limiter.release.value = 0.06;
 
       const gain = ctx.createGain();
       gain.gain.value = 0.7;
@@ -162,7 +169,8 @@ export default function DJConsolePage() {
       src.connect(low);
       low.connect(mid);
       mid.connect(high);
-      high.connect(gain);
+      high.connect(limiter);
+      limiter.connect(gain);
       gain.connect(ctx.destination);
 
       ctxBRef.current = ctx;
@@ -173,20 +181,21 @@ export default function DJConsolePage() {
     } catch {}
   };
 
-  // Sync Crossfader between Deck A and Deck B
+  // Sync Crossfader between Deck A and Deck B only when Deck B is active or crossfader moved
   useEffect(() => {
-    // Equal-power crossfade law
     const norm = (crossfader + 1) / 2; // 0 (Deck A) to 1 (Deck B)
-    const volA = Math.cos(norm * 0.5 * Math.PI) * 0.9;
-    const volB = Math.sin(norm * 0.5 * Math.PI) * 0.9;
+    const volA = Math.cos(norm * 0.5 * Math.PI);
+    const volB = Math.sin(norm * 0.5 * Math.PI);
 
-    setVolumeA(Math.max(0.02, Math.min(1, volA)));
+    if (isPlayingB || isAutomixing) {
+      setVolumeA(Math.max(0.02, Math.min(1, volA)));
+    }
     if (gainBRef.current && ctxBRef.current) {
       gainBRef.current.gain.setTargetAtTime(volB, ctxBRef.current.currentTime, 0.04);
     } else if (audioBRef.current) {
       audioBRef.current.volume = Math.max(0, Math.min(1, volB));
     }
-  }, [crossfader, setVolumeA]);
+  }, [crossfader, isPlayingB, isAutomixing, setVolumeA]);
 
   // Sync Deck B EQ & Speed
   useEffect(() => {

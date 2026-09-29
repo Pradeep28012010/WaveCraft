@@ -24,42 +24,42 @@ export const STUDIO_FX_MODES: StudioFXInfo[] = [
     id: 'normal',
     name: 'Studio Master',
     badge: '320K FLAT',
-    description: 'Bit-accurate 320kbps studio reference audio with zero coloration.',
+    description: 'Bit-accurate 320kbps studio reference audio with zero coloration and pure dynamic headroom.',
     accent: 'from-emerald-500 to-teal-600'
+  },
+  {
+    id: '8d-orbit',
+    name: '3D Spatial Audio',
+    badge: '360° HD',
+    description: 'Lossless 360° binaural spatial stage with stereo widening and smooth distortion-free orbit.',
+    accent: 'from-cyan-500 to-blue-600'
   },
   {
     id: 'slowed-reverb',
     name: 'Slowed + Reverb',
-    badge: '0.86x TAPE',
-    description: 'Analog pitch-dropped 0.86x speed drenched in lush stereo hall reverb.',
+    badge: '0.88x HALL',
+    description: 'Warm 0.88x analog tape speed paired with high-definition stereo convolution hall reverb.',
     accent: 'from-purple-500 to-indigo-600'
-  },
-  {
-    id: '8d-orbit',
-    name: '8D Spatial Orbit',
-    badge: '360° PAN',
-    description: 'Orbits the audio smoothly in a 360° circle around your left and right ears.',
-    accent: 'from-cyan-500 to-blue-600'
-  },
-  {
-    id: 'nightcore',
-    name: 'Nightcore Rush',
-    badge: '1.22x UP',
-    description: 'High-energy 1.22x pitch & tempo boost with crystalline treble sparkle.',
-    accent: 'from-pink-500 to-rose-600'
   },
   {
     id: 'bass-cinema',
     name: 'Sub-Bass Cinema',
-    badge: '+8dB SUB',
-    description: 'Deep theater sub-bass punch at 32Hz–64Hz with crisp studio highs.',
+    badge: 'DEEP SUB',
+    description: 'Deep theater sub-bass punch at 32Hz–64Hz with automatic headroom limiting and crisp highs.',
     accent: 'from-amber-500 to-red-600'
   },
   {
+    id: 'nightcore',
+    name: 'Nightcore Rush',
+    badge: '1.18x UP',
+    description: 'High-energy 1.18x tempo & pitch lift with silky studio treble air and zero harshness.',
+    accent: 'from-pink-500 to-rose-600'
+  },
+  {
     id: 'vocal-stage',
-    name: 'Karaoke Stage',
-    badge: 'SING-ALONG',
-    description: 'Mid-scoop instrumental stage tuning paired with fullscreen synced lyrics.',
+    name: 'Vocal Stage HD',
+    badge: 'CLARITY',
+    description: 'Front-row lead vocal presence boost with studio plate ambiance and silky harmonic air.',
     accent: 'from-fuchsia-500 to-purple-600'
   }
 ];

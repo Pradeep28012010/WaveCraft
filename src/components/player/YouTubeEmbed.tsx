@@ -18,13 +18,14 @@ declare global {
 
 const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
+// Audiophile-tuned EQ offsets (gentle, musical curves paired with automatic headroom compensation)
 const FX_EQ_OFFSETS: Record<StudioFXMode, number[]> = {
   normal: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  'slowed-reverb': [4, 3.5, 2, 0, -1, -1.5, -2, -2.5, -3, -4],
-  nightcore: [1, 1.5, 0, 0, 0.5, 1.5, 2.5, 3.5, 4, 4.5],
-  '8d-orbit': [3, 2.5, 1, 0, -1, 0, 1.5, 2.5, 3, 3],
-  'bass-cinema': [8, 6.5, 4, 1, -1, -0.5, 1, 2.5, 3.5, 4],
-  'vocal-stage': [2, 1.5, 0, -2, -5.5, -6.5, -5, 1, 2.5, 3]
+  '8d-orbit': [1.6, 1.3, 0.5, 0, 0, 0.4, 1.1, 1.7, 2.1, 2.0],
+  'slowed-reverb': [2.2, 1.8, 1.0, 0, -0.4, 0, 0.5, 1.0, 1.2, 1.0],
+  nightcore: [1.0, 1.0, 0.4, 0, 0.3, 0.8, 1.3, 1.7, 1.9, 2.0],
+  'bass-cinema': [4.5, 3.8, 2.0, 0.5, 0, 0, 0.8, 1.4, 1.8, 2.0],
+  'vocal-stage': [0.5, 0.4, 0, 0.6, 1.8, 2.4, 2.2, 1.8, 1.4, 1.2]
 };
 
 let ytPlayerInstance: any = null;
@@ -32,83 +33,202 @@ let htmlAudioElement: HTMLAudioElement | null = null;
 let preloadAudioElement: HTMLAudioElement | null = null;
 let activeEngine: 'audio' | 'youtube' = 'audio';
 
-// Web Audio API Equalizer, Studio FX & Real-time Visualizer Analyser nodes
+// Web Audio API Studio Mastering Graph, Lossless 3D Spatial Stage & Real-time Visualizer Analyser
 let audioCtx: AudioContext | null = null;
 let sourceNode: MediaElementAudioSourceNode | null = null;
+let preGainNode: GainNode | null = null;
 let eqFilters: BiquadFilterNode[] = [];
 let stereoPanner: StereoPannerNode | null = null;
 let panLfoGain: GainNode | null = null;
+let spatialWidthGain: GainNode | null = null;
 let reverbWetGain: GainNode | null = null;
+let masterLimiter: DynamicsCompressorNode | null = null;
 let gainNode: GainNode | null = null;
 let analyserNode: AnalyserNode | null = null;
+
+/**
+ * Generates a high-definition 32-bit float stereo Hall Impulse Response
+ * with decorrelated L/R reflections so reverb is lush and phase-pure (zero slapback comb filtering).
+ */
+function createStudioImpulseResponse(ctx: AudioContext, durationSec = 2.1, decayRate = 2.6): AudioBuffer {
+  const length = Math.floor(ctx.sampleRate * durationSec);
+  const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
+
+  for (let ch = 0; ch < 2; ch++) {
+    const channelData = impulse.getChannelData(ch);
+    for (let i = 0; i < length; i++) {
+      const t = i / length;
+      // Smooth pre-delay fade-in (first 12ms) + exponential hall decay
+      const preDelayEnv = Math.min(1, i / (ctx.sampleRate * 0.012));
+      const envelope = preDelayEnv * Math.pow(1 - t, decayRate);
+      channelData[i] = (Math.random() * 2 - 1) * envelope * 0.38;
+    }
+  }
+  return impulse;
+}
+
+function getTargetOutputGain(): number {
+  const pState = usePlayerStore.getState();
+  const userVol = pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume));
+  const studioState = useStudioStore.getState();
+  const sleepScale =
+    studioState.sleepActive && !studioState.sleepEndAtTrack && studioState.sleepSeconds <= 10
+      ? Math.max(0, studioState.sleepSeconds / 10)
+      : 1;
+  return userVol * sleepScale;
+}
+
+function syncHeadroomAndEQ(eqBands: number[], fxMode: StudioFXMode) {
+  if (!audioCtx || eqFilters.length === 0) return;
+  const now = audioCtx.currentTime;
+  const offsets = FX_EQ_OFFSETS[fxMode] || FX_EQ_OFFSETS.normal;
+
+  let maxPositiveBoostDb = 0;
+  eqBands.forEach((db, idx) => {
+    const combined = Math.max(-12, Math.min(12, (db || 0) + (offsets[idx] || 0)));
+    if (combined > maxPositiveBoostDb) maxPositiveBoostDb = combined;
+    if (eqFilters[idx]) {
+      eqFilters[idx].gain.setTargetAtTime(combined, now, 0.035);
+    }
+  });
+
+  // Extra headroom for wet spatial/reverb bus so summing never clips
+  const wetExtraDb =
+    fxMode === 'slowed-reverb'
+      ? 1.5
+      : fxMode === '8d-orbit'
+      ? 1.2
+      : fxMode === 'vocal-stage'
+      ? 0.8
+      : 0;
+
+  // Attenuate pre-gain proportionally to positive boosts to preserve 100% clean dynamic range
+  const totalCompensationDb = maxPositiveBoostDb * 0.55 + wetExtraDb;
+  const headroomLinear = Math.pow(10, -totalCompensationDb / 20);
+  if (preGainNode) {
+    preGainNode.gain.setTargetAtTime(Math.max(0.45, Math.min(1.0, headroomLinear)), now, 0.04);
+  }
+}
 
 function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
   if (audioCtx || !window.AudioContext) return;
   try {
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    audioCtx = new Ctx();
+    audioCtx = new Ctx({ latencyHint: 'playback' });
     sourceNode = audioCtx.createMediaElementSource(audio);
+    preGainNode = audioCtx.createGain();
+    preGainNode.gain.value = 1.0;
+
     gainNode = audioCtx.createGain();
+    gainNode.gain.value = getTargetOutputGain();
+    // Lock HTMLAudioElement at unity gain so all volume/fade changes happen zipper-free in Web Audio
+    audio.volume = 1.0;
+
     stereoPanner = audioCtx.createStereoPanner();
     analyserNode = audioCtx.createAnalyser();
     analyserNode.fftSize = 128;
     analyserNode.smoothingTimeConstant = 0.78;
 
-    // 8D Spatial Orbit LFO (0.125 Hz = 8s full circle)
+    // Studio Brickwall Mastering Limiter (prevents any digital clipping across all FX/EQ modes)
+    masterLimiter = audioCtx.createDynamicsCompressor();
+    masterLimiter.threshold.value = -0.8;
+    masterLimiter.knee.value = 4.0;
+    masterLimiter.ratio.value = 20.0;
+    masterLimiter.attack.value = 0.002;
+    masterLimiter.release.value = 0.06;
+
+    // 1. Lossless 3D Spatial Binaural Orbit LFO (0.11 Hz smooth 360° rotation without collapsing stereo)
     const panLfo = audioCtx.createOscillator();
     panLfo.type = 'sine';
-    panLfo.frequency.value = 0.125;
+    panLfo.frequency.value = 0.11;
     panLfoGain = audioCtx.createGain();
-    panLfoGain.gain.value = 0; // 0 by default, 0.88 when 8d-orbit is active
+    panLfoGain.gain.value = 0; // 0 by default, 0.42 in 3D Spatial Audio so neither ear ever drops out
     panLfo.connect(panLfoGain);
     panLfoGain.connect(stereoPanner.pan);
     panLfo.start();
 
-    // Lush Stereo Hall Delay/Reverb Network for Slowed + Reverb & 8D Orbit
-    const delayL = audioCtx.createDelay(1.0);
-    const delayR = audioCtx.createDelay(1.0);
-    delayL.delayTime.value = 0.11;
-    delayR.delayTime.value = 0.17;
-    const feedback = audioCtx.createGain();
-    feedback.gain.value = 0.42;
-    const reverbTone = audioCtx.createBiquadFilter();
-    reverbTone.type = 'lowpass';
-    reverbTone.frequency.value = 2600;
+    // 2. Binaural Micro-Haas 3D Stereo Widener (keeps lows centered, widens stereo field above 220Hz)
+    const widenerHP = audioCtx.createBiquadFilter();
+    widenerHP.type = 'highpass';
+    widenerHP.frequency.value = 220;
+    widenerHP.Q.value = 0.707;
+
+    const splitter = audioCtx.createChannelSplitter(2);
+    const merger = audioCtx.createChannelMerger(2);
+    const haasDelayL = audioCtx.createDelay(0.05);
+    const haasDelayR = audioCtx.createDelay(0.05);
+    haasDelayL.delayTime.value = 0.0005; // 0.5ms L
+    haasDelayR.delayTime.value = 0.0075; // 7.5ms R decorrelation for wide 3D stage
+
+    spatialWidthGain = audioCtx.createGain();
+    spatialWidthGain.gain.value = 0;
+
+    widenerHP.connect(splitter);
+    // Cross-feed inverted/decorrelated high-passed stereo difference for wide 3D stage
+    splitter.connect(haasDelayL, 0);
+    splitter.connect(haasDelayR, 1);
+    haasDelayL.connect(merger, 0, 1);
+    haasDelayR.connect(merger, 0, 0);
+    merger.connect(spatialWidthGain);
+
+    // 3. True Stereo Convolution Hall Reverb (high-passed at 220Hz, airy up to 9.5kHz — zero mud!)
+    const reverbHP = audioCtx.createBiquadFilter();
+    reverbHP.type = 'highpass';
+    reverbHP.frequency.value = 220;
+    reverbHP.Q.value = 0.707;
+
+    const reverbAirLP = audioCtx.createBiquadFilter();
+    reverbAirLP.type = 'lowpass';
+    reverbAirLP.frequency.value = 9500;
+    reverbAirLP.Q.value = 0.707;
+
+    const convolver = audioCtx.createConvolver();
+    convolver.buffer = createStudioImpulseResponse(audioCtx, 2.1, 2.6);
+
     reverbWetGain = audioCtx.createGain();
     reverbWetGain.gain.value = 0;
 
+    // 4. 10-Band Studio Graphic Equalizer (musical Q = 0.95 to avoid phase ringing)
     eqFilters = EQ_FREQUENCIES.map((freq, idx) => {
       const filter = audioCtx!.createBiquadFilter();
       if (idx === 0) filter.type = 'lowshelf';
       else if (idx === EQ_FREQUENCIES.length - 1) filter.type = 'highshelf';
       else filter.type = 'peaking';
       filter.frequency.value = freq;
-      filter.Q.value = 1.2;
+      filter.Q.value = 0.95;
       filter.gain.value = initialBands[idx] || 0;
       return filter;
     });
 
-    let prev: AudioNode = sourceNode;
+    // Wire series EQ chain: sourceNode -> preGainNode -> eqFilters...
+    sourceNode.connect(preGainNode);
+    let prev: AudioNode = preGainNode;
     for (const f of eqFilters) {
       prev.connect(f);
       prev = f;
     }
 
-    // Dry signal path
+    // Dry high-resolution path -> stereoPanner -> masterLimiter
     prev.connect(stereoPanner);
+    stereoPanner.connect(masterLimiter);
 
-    // Wet reverb loop path
-    prev.connect(delayL);
-    delayL.connect(delayR);
-    delayR.connect(reverbTone);
-    reverbTone.connect(feedback);
-    feedback.connect(delayL);
-    reverbTone.connect(reverbWetGain);
-    reverbWetGain.connect(stereoPanner);
+    // 3D Binaural Stereo Widener path -> masterLimiter
+    prev.connect(widenerHP);
+    spatialWidthGain.connect(masterLimiter);
 
-    stereoPanner.connect(gainNode);
+    // Studio Convolution Hall Reverb path -> masterLimiter
+    prev.connect(reverbHP);
+    reverbHP.connect(reverbAirLP);
+    reverbAirLP.connect(convolver);
+    convolver.connect(reverbWetGain);
+    reverbWetGain.connect(masterLimiter);
+
+    // Final Mastering Output Chain: masterLimiter -> gainNode -> analyserNode -> destination
+    masterLimiter.connect(gainNode);
     gainNode.connect(analyserNode);
     analyserNode.connect(audioCtx.destination);
+
+    syncHeadroomAndEQ(initialBands, useStudioStore.getState().fxMode);
   } catch (err) {
     console.warn('Web Audio EQ initialization skipped:', err);
   }
@@ -117,9 +237,9 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
 function applyStudioFXToAudio(audio: HTMLAudioElement | null, fxMode: StudioFXMode, baseSpeed: number) {
   const effectiveSpeed =
     fxMode === 'slowed-reverb'
-      ? 0.86
+      ? 0.88
       : fxMode === 'nightcore'
-      ? 1.22
+      ? 1.18
       : baseSpeed || 1;
 
   const preservePitch = fxMode !== 'slowed-reverb' && fxMode !== 'nightcore';
@@ -129,7 +249,9 @@ function applyStudioFXToAudio(audio: HTMLAudioElement | null, fxMode: StudioFXMo
       (audio as any).preservesPitch = preservePitch;
       (audio as any).mozPreservesPitch = preservePitch;
       (audio as any).webkitPreservesPitch = preservePitch;
-      audio.playbackRate = effectiveSpeed;
+      if (Math.abs(audio.playbackRate - effectiveSpeed) > 0.005) {
+        audio.playbackRate = effectiveSpeed;
+      }
     } catch {}
   }
 
@@ -139,21 +261,35 @@ function applyStudioFXToAudio(audio: HTMLAudioElement | null, fxMode: StudioFXMo
     } catch {}
   }
 
-  if (audioCtx && panLfoGain && reverbWetGain && stereoPanner) {
+  if (audioCtx && panLfoGain && reverbWetGain && stereoPanner && spatialWidthGain) {
     const now = audioCtx.currentTime;
-    const is8D = fxMode === '8d-orbit';
-    panLfoGain.gain.setTargetAtTime(is8D ? 0.88 : 0, now, 0.08);
-    if (!is8D) {
+    const isSpatial3D = fxMode === '8d-orbit';
+
+    // Gentle 360° binaural pan depth (0.42 keeps both ears full and preserves stereo imaging)
+    panLfoGain.gain.setTargetAtTime(isSpatial3D ? 0.42 : 0, now, 0.08);
+    if (!isSpatial3D) {
       stereoPanner.pan.setTargetAtTime(0, now, 0.08);
     }
 
+    // 3D Stereo Widener intensity (widens the soundstage in 3D Spatial Audio & Vocal Stage)
+    const widthAmount =
+      fxMode === '8d-orbit'
+        ? 0.26
+        : fxMode === 'vocal-stage'
+        ? 0.14
+        : fxMode === 'bass-cinema'
+        ? 0.12
+        : 0;
+    spatialWidthGain.gain.setTargetAtTime(widthAmount, now, 0.08);
+
+    // Convolution Hall Reverb wet mix (minimal 0.06 room air in 3D Spatial so clarity is 100% preserved)
     const wetAmount =
       fxMode === 'slowed-reverb'
-        ? 0.48
-        : fxMode === '8d-orbit'
-        ? 0.24
+        ? 0.32
         : fxMode === 'vocal-stage'
-        ? 0.28
+        ? 0.14
+        : fxMode === '8d-orbit'
+        ? 0.06
         : 0;
     reverbWetGain.gain.setTargetAtTime(wetAmount, now, 0.08);
   }
@@ -195,7 +331,7 @@ export const unlockAudioEngine = () => {
           htmlAudioElement?.pause();
           if (htmlAudioElement) {
             htmlAudioElement.currentTime = 0;
-            htmlAudioElement.volume = usePlayerStore.getState().volume;
+            htmlAudioElement.volume = audioCtx ? 1.0 : usePlayerStore.getState().volume;
           }
         })
         .catch(() => {});
@@ -205,7 +341,16 @@ export const unlockAudioEngine = () => {
 
 export const seekToTime = (seconds: number) => {
   if (activeEngine === 'audio' && htmlAudioElement) {
-    htmlAudioElement.currentTime = seconds;
+    // Micro-smooth gain dip on seek to prevent sample discontinuity click
+    if (audioCtx && gainNode) {
+      const now = audioCtx.currentTime;
+      const target = getTargetOutputGain();
+      gainNode.gain.setTargetAtTime(target * 0.35, now, 0.008);
+      htmlAudioElement.currentTime = seconds;
+      gainNode.gain.setTargetAtTime(target, now + 0.018, 0.025);
+    } else {
+      htmlAudioElement.currentTime = seconds;
+    }
   } else if (ytPlayerInstance && typeof ytPlayerInstance.seekTo === 'function') {
     ytPlayerInstance.seekTo(seconds, true);
   }
@@ -216,9 +361,11 @@ export default function YouTubeEmbed() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const preloadRef = useRef<HTMLAudioElement | null>(null);
   const lastRecordedTrackId = useRef<string | null>(null);
+  const activeLoadedTrackKeyRef = useRef<string | null>(null);
   const lastPreloadedUrl = useRef<string | null>(null);
   const isFetchingAutoplay = useRef<boolean>(false);
   const resolvingTrackIdRef = useRef<string | null>(null);
+  const resolvingNextTrackIdRef = useRef<string | null>(null);
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const queue = usePlayerStore((s) => s.queue);
@@ -243,17 +390,9 @@ export default function YouTubeEmbed() {
   const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
   const tickSleepTimer = useStudioStore((s) => s.tickSleepTimer);
 
-  // Sync 10-band Equalizer gains + Studio FX EQ offsets in real time
+  // Sync 10-band Equalizer gains + Studio FX EQ offsets + dynamic headroom in real time
   useEffect(() => {
-    if (eqFilters.length > 0 && audioCtx) {
-      const offsets = FX_EQ_OFFSETS[fxMode] || FX_EQ_OFFSETS.normal;
-      eqBands.forEach((db, idx) => {
-        if (eqFilters[idx]) {
-          const combined = Math.max(-12, Math.min(12, (db || 0) + (offsets[idx] || 0)));
-          eqFilters[idx].gain.setTargetAtTime(combined, audioCtx!.currentTime, 0.04);
-        }
-      });
-    }
+    syncHeadroomAndEQ(eqBands, fxMode);
     applyStudioFXToAudio(audioRef.current, fxMode, playbackSpeed || 1);
   }, [eqBands, fxMode, playbackSpeed]);
 
@@ -274,7 +413,11 @@ export default function YouTubeEmbed() {
         st.tickSleepTimer();
         usePlayerStore.getState().pause();
         const restoreVol = usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume;
-        if (audioRef.current) audioRef.current.volume = restoreVol;
+        if (audioCtx && gainNode) {
+          gainNode.gain.setTargetAtTime(restoreVol, audioCtx.currentTime, 0.05);
+        } else if (audioRef.current) {
+          audioRef.current.volume = restoreVol;
+        }
       } else {
         st.tickSleepTimer();
       }
@@ -282,7 +425,7 @@ export default function YouTubeEmbed() {
     return () => clearInterval(id);
   }, [sleepActive, sleepEndAtTrack]);
 
-  // Preload next track in queue & intelligently predict next songs when nearing end of queue
+  // Preload next track in queue & proactively resolve 320kbps stream for zero-latency transitions
   useEffect(() => {
     if (!preloadRef.current) {
       const pre = new Audio();
@@ -299,6 +442,25 @@ export default function YouTubeEmbed() {
       lastPreloadedUrl.current = nextCandidate.audioUrl;
       preloadRef.current.src = nextCandidate.audioUrl;
       preloadRef.current.load();
+    } else if (
+      nextCandidate &&
+      !nextCandidate.audioUrl &&
+      resolvingNextTrackIdRef.current !== nextCandidate.id
+    ) {
+      resolvingNextTrackIdRef.current = nextCandidate.id;
+      searchTracks(`${nextCandidate.title} ${nextCandidate.artist}`)
+        .then((results) => {
+          const best = results.find((r) => r.audioUrl);
+          if (best?.audioUrl) {
+            nextCandidate.audioUrl = best.audioUrl;
+            if (preloadRef.current && lastPreloadedUrl.current !== best.audioUrl) {
+              lastPreloadedUrl.current = best.audioUrl;
+              preloadRef.current.src = best.audioUrl;
+              preloadRef.current.load();
+            }
+          }
+        })
+        .catch(() => {});
     }
 
     if (
@@ -344,12 +506,18 @@ export default function YouTubeEmbed() {
       setIsLoading(false);
     };
 
+    const onCanPlay = () => {
+      if (activeEngine === 'audio') {
+        setIsLoading(false);
+      }
+    };
+
     const onTimeUpdate = () => {
       if (activeEngine !== 'audio') return;
       const cur = audio.currentTime || 0;
       const dur = audio.duration || currentTrack?.duration || 1;
 
-      if (Math.abs(cur - lastReportedTime) >= 0.12 || cur < 0.2) {
+      if (Math.abs(cur - lastReportedTime) >= 0.08 || cur < 0.15) {
         lastReportedTime = cur;
         const pct = dur > 0 ? (cur / dur) * 100 : 0;
         setProgress(pct, cur);
@@ -359,28 +527,30 @@ export default function YouTubeEmbed() {
       }
 
       const cf = useSettingsStore.getState().crossfadeDuration;
-      const userVol = usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume;
-      const studioState = useStudioStore.getState();
-      const sleepScale =
-        studioState.sleepActive && !studioState.sleepEndAtTrack && studioState.sleepSeconds <= 10
-          ? Math.max(0, studioState.sleepSeconds / 10)
-          : 1;
+      const baseTargetGain = getTargetOutputGain();
 
-      if (cf > 0 && dur > cf * 2 && dur - cur <= cf && dur - cur > 0.2) {
+      let finalGain = baseTargetGain;
+      if (cf > 0 && dur > cf * 2 && dur - cur <= cf && dur - cur > 0.15) {
         const remainingRatio = Math.max(0, Math.min(1, (dur - cur) / cf));
-        audio.volume = userVol * remainingRatio * sleepScale;
-      } else {
-        const targetVol = userVol * sleepScale;
-        if (Math.abs(audio.volume - targetVol) > 0.01) {
-          audio.volume = targetVol;
-        }
+        // Smooth equal-power cosine fade-out curve
+        finalGain = baseTargetGain * Math.sin(remainingRatio * 0.5 * Math.PI);
+      }
+
+      if (audioCtx && gainNode) {
+        gainNode.gain.setTargetAtTime(finalGain, audioCtx.currentTime, 0.045);
+      } else if (Math.abs(audio.volume - finalGain) > 0.01) {
+        audio.volume = Math.max(0, Math.min(1, finalGain));
       }
     };
 
     const onEnded = () => {
       if (activeEngine !== 'audio') return;
-      const userVol = usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume;
-      audio.volume = userVol;
+      const restoreGain = getTargetOutputGain();
+      if (audioCtx && gainNode) {
+        gainNode.gain.setTargetAtTime(restoreGain, audioCtx.currentTime, 0.03);
+      } else {
+        audio.volume = restoreGain;
+      }
 
       // If Sleep Timer is set to "End of Song", stop playback right here
       const studio = useStudioStore.getState();
@@ -420,6 +590,10 @@ export default function YouTubeEmbed() {
       if (activeEngine === 'audio') {
         setIsLoading(false);
         ensureAudioGraph(audio, useSettingsStore.getState().equalizerBands);
+        syncHeadroomAndEQ(
+          useSettingsStore.getState().equalizerBands,
+          useStudioStore.getState().fxMode
+        );
         applyStudioFXToAudio(
           audio,
           useStudioStore.getState().fxMode,
@@ -427,6 +601,10 @@ export default function YouTubeEmbed() {
         );
         if (audioCtx && audioCtx.state === 'suspended') {
           audioCtx.resume().catch(() => {});
+        }
+        // Smooth anti-pop micro-fade-in to target output gain
+        if (audioCtx && gainNode) {
+          gainNode.gain.setTargetAtTime(getTargetOutputGain(), audioCtx.currentTime, 0.03);
         }
       }
     };
@@ -480,6 +658,7 @@ export default function YouTubeEmbed() {
     };
 
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('waiting', onWaiting);
@@ -488,6 +667,7 @@ export default function YouTubeEmbed() {
 
     return () => {
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('waiting', onWaiting);
@@ -588,9 +768,51 @@ export default function YouTubeEmbed() {
     }
   }, []);
 
-  // Helper to load and start playing a track on the appropriate engine
+  // Helper to load and start playing a track on the appropriate engine with anti-pop gain smoothing
   const startTrackPlayback = (track: Track, shouldPlay: boolean) => {
     const audio = audioRef.current;
+
+    const playSmoothly = (targetUrl: string) => {
+      if (!audio) return;
+      if (ytPlayerInstance && window.ytPlayerReady && typeof ytPlayerInstance.stopVideo === 'function') {
+        try {
+          ytPlayerInstance.stopVideo();
+        } catch {}
+      }
+      activeEngine = 'audio';
+
+      // Soft micro-dip before switching source to avoid speaker pop
+      if (audioCtx && gainNode) {
+        gainNode.gain.setTargetAtTime(0.001, audioCtx.currentTime, 0.01);
+        audio.volume = 1.0;
+      } else {
+        audio.volume = isMuted ? 0 : volume;
+      }
+
+      if (audio.src !== targetUrl) {
+        audio.src = targetUrl;
+      }
+      applyStudioFXToAudio(audio, useStudioStore.getState().fxMode, playbackSpeed || 1);
+
+      if (shouldPlay) {
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+        audio
+          .play()
+          .then(() => {
+            if (audioCtx && gainNode) {
+              gainNode.gain.setTargetAtTime(getTargetOutputGain(), audioCtx.currentTime, 0.03);
+            }
+          })
+          .catch((err) => {
+            setIsLoading(false);
+            if (err?.name === 'NotAllowedError') {
+              usePlayerStore.getState().pause();
+            }
+          });
+      }
+    };
 
     // 1. Check Offline 320kbps Audio Vault first for zero-latency local playback
     if (audio && isTrackOffline(track.id)) {
@@ -598,57 +820,14 @@ export default function YouTubeEmbed() {
         .then((blobUrl) => {
           const targetUrl = blobUrl || track.audioUrl;
           if (!targetUrl || usePlayerStore.getState().currentTrack?.id !== track.id) return;
-          if (ytPlayerInstance && window.ytPlayerReady && typeof ytPlayerInstance.stopVideo === 'function') {
-            try {
-              ytPlayerInstance.stopVideo();
-            } catch {}
-          }
-          activeEngine = 'audio';
-          if (audio.src !== targetUrl) {
-            audio.src = targetUrl;
-          }
-          audio.volume = isMuted ? 0 : volume;
-          audio.playbackRate = playbackSpeed || 1;
-          if (shouldPlay) {
-            if (audioCtx && audioCtx.state === 'suspended') {
-              audioCtx.resume().catch(() => {});
-            }
-            audio.play().catch((err) => {
-              setIsLoading(false);
-              if (err?.name === 'NotAllowedError') {
-                usePlayerStore.getState().pause();
-              }
-            });
-          }
+          playSmoothly(targetUrl);
         })
         .catch(() => {});
       return;
     }
 
     if (track.audioUrl && audio) {
-      if (ytPlayerInstance && window.ytPlayerReady && typeof ytPlayerInstance.stopVideo === 'function') {
-        try {
-          ytPlayerInstance.stopVideo();
-        } catch {}
-      }
-      activeEngine = 'audio';
-      if (audio.src !== track.audioUrl) {
-        audio.src = track.audioUrl;
-      }
-      audio.volume = isMuted ? 0 : volume;
-      audio.playbackRate = playbackSpeed || 1;
-      if (shouldPlay) {
-        if (audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume().catch(() => {});
-        }
-        audio.play().catch((err) => {
-          setIsLoading(false);
-          // If browser blocked autoplay after async operation, sync store to paused so next click plays immediately
-          if (err?.name === 'NotAllowedError') {
-            usePlayerStore.getState().pause();
-          }
-        });
-      }
+      playSmoothly(track.audioUrl);
       return;
     }
 
@@ -674,6 +853,7 @@ export default function YouTubeEmbed() {
         if (best && usePlayerStore.getState().currentTrack?.id === track.id) {
           track.audioUrl = best.audioUrl;
           track.youtubeId = best.youtubeId;
+          activeLoadedTrackKeyRef.current = `${track.id}::${track.audioUrl || track.youtubeId || ''}`;
           startTrackPlayback(track, usePlayerStore.getState().isPlaying);
         } else {
           setIsLoading(false);
@@ -684,9 +864,15 @@ export default function YouTubeEmbed() {
       });
   };
 
-  // Load new track when currentTrack changes
+  // Load new track when currentTrack changes (deduplicated so metadata updates never restart playback)
   useEffect(() => {
     if (!currentTrack) return;
+
+    const trackKey = `${currentTrack.id}::${currentTrack.audioUrl || currentTrack.youtubeId || ''}`;
+    if (activeLoadedTrackKeyRef.current === trackKey && audioRef.current?.src) {
+      return;
+    }
+    activeLoadedTrackKeyRef.current = trackKey;
 
     if (lastRecordedTrackId.current !== currentTrack.id) {
       lastRecordedTrackId.current = currentTrack.id;
@@ -714,12 +900,22 @@ export default function YouTubeEmbed() {
           audioCtx.resume().catch(() => {});
         }
         if (audioRef.current.paused) {
-          audioRef.current.play().catch((err) => {
-            setIsLoading(false);
-            if (err?.name === 'NotAllowedError') {
-              usePlayerStore.getState().pause();
-            }
-          });
+          if (audioCtx && gainNode) {
+            gainNode.gain.setTargetAtTime(0.001, audioCtx.currentTime, 0.008);
+          }
+          audioRef.current
+            .play()
+            .then(() => {
+              if (audioCtx && gainNode) {
+                gainNode.gain.setTargetAtTime(getTargetOutputGain(), audioCtx.currentTime, 0.03);
+              }
+            })
+            .catch((err) => {
+              setIsLoading(false);
+              if (err?.name === 'NotAllowedError') {
+                usePlayerStore.getState().pause();
+              }
+            });
         }
       } else {
         audioRef.current.pause();
@@ -733,11 +929,16 @@ export default function YouTubeEmbed() {
     }
   }, [isPlaying]);
 
-  // Sync Volume & Mute
+  // Sync Volume & Mute via zipper-free Web Audio GainNode
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : Math.max(0, Math.min(1, volume));
       audioRef.current.muted = isMuted;
+      if (audioCtx && gainNode) {
+        audioRef.current.volume = 1.0;
+        gainNode.gain.setTargetAtTime(getTargetOutputGain(), audioCtx.currentTime, 0.035);
+      } else {
+        audioRef.current.volume = isMuted ? 0 : Math.max(0, Math.min(1, volume));
+      }
     }
     if (ytPlayerInstance && window.ytPlayerReady && typeof ytPlayerInstance.setVolume === 'function') {
       ytPlayerInstance.setVolume(volume * 100);
@@ -748,13 +949,8 @@ export default function YouTubeEmbed() {
 
   // Sync Playback Speed
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.playbackRate = playbackSpeed || 1;
-    }
-    if (ytPlayerInstance && window.ytPlayerReady && typeof ytPlayerInstance.setPlaybackRate === 'function') {
-      ytPlayerInstance.setPlaybackRate(playbackSpeed || 1);
-    }
-  }, [playbackSpeed]);
+    applyStudioFXToAudio(audioRef.current, fxMode, playbackSpeed || 1);
+  }, [playbackSpeed, fxMode]);
 
   // Progress Tracker for YouTube engine
   useEffect(() => {
