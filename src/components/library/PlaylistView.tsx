@@ -111,7 +111,7 @@ export default function PlaylistView() {
       </div>
 
       {/* Tracks */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-2">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1.5">
         {playlist.tracks.length === 0 ? (
           <div className="text-center py-12 text-white/50 border border-dashed border-white/20 rounded-xl">
             <p className="text-lg">This playlist is empty.</p>
@@ -120,23 +120,14 @@ export default function PlaylistView() {
           </div>
         ) : (
           playlist.tracks.map((track, index) => (
-            <div key={`${track.id}-${index}`} className="flex items-center group">
-              <div className="flex-grow">
-                <TrackRow 
-                  track={track} 
-                  tracks={playlist.tracks}
-                  index={index + 1} 
-                  onPlay={() => playTrack(track, playlist.tracks, index)} 
-                />
-              </div>
-              <button 
-                onClick={() => removeFromPlaylist(playlist.id, track.id)}
-                className="p-3 text-white/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                title="Remove from playlist"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
+            <TrackRow
+              key={`${track.id}-${index}`}
+              track={track}
+              tracks={playlist.tracks}
+              index={index + 1}
+              onPlay={() => playTrack(track, playlist.tracks, index)}
+              onRemove={() => removeFromPlaylist(playlist.id, track.id)}
+            />
           ))
         )}
       </motion.div>

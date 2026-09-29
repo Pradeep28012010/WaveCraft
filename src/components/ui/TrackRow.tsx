@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, memo } from 'react';
+import { useState, useRef, useEffect, useId, memo } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import type { Track } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -7,6 +8,62 @@ import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { useOfflineVault } from '../../services/offlineVault';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
+
+// Shared module-level hover coordinator so moving the cursor from one TrackRow
+// to another TrackRow bridges the 6px row gap and smoothly glides a single
+// 120fps spring highlight pill from track to track.
+let activeHoveredRowId: string | null = null;
+let hoverLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+const hoverListeners = new Set<() => void>();
+
+function setSharedHoveredRow(id: string | null) {
+  if (activeHoveredRowId === id) return;
+  activeHoveredRowId = id;
+  hoverListeners.forEach((fn) => fn());
+}
+
+function useSharedTrackHover(rowId: string): {
+  isHovered: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+} {
+  const [isHovered, setIsHovered] = useState(() => activeHoveredRowId === rowId);
+
+  useEffect(() => {
+    const sync = () => {
+      const next = activeHoveredRowId === rowId;
+      setIsHovered((prev) => (prev !== next ? next : prev));
+    };
+    hoverListeners.add(sync);
+    return () => {
+      hoverListeners.delete(sync);
+      if (activeHoveredRowId === rowId) {
+        activeHoveredRowId = null;
+      }
+    };
+  }, [rowId]);
+
+  const onMouseEnter = () => {
+    if (hoverLeaveTimer) {
+      clearTimeout(hoverLeaveTimer);
+      hoverLeaveTimer = null;
+    }
+    setSharedHoveredRow(rowId);
+  };
+
+  const onMouseLeave = () => {
+    if (hoverLeaveTimer) clearTimeout(hoverLeaveTimer);
+    // 70ms bridge across the 6px gap between adjacent track rows so the
+    // shared layoutId pill glides directly from row A -> row B without blinking
+    hoverLeaveTimer = setTimeout(() => {
+      if (activeHoveredRowId === rowId) {
+        setSharedHoveredRow(null);
+      }
+    }, 70);
+  };
+
+  return { isHovered, onMouseEnter, onMouseLeave };
+}
 
 interface TrackRowProps {
   track: Track;
@@ -20,6 +77,7 @@ interface TrackRowProps {
   onClick?: (track: Track) => void;
   onAddToQueue?: (track: Track) => void;
   onToggleLike?: (track: Track) => void;
+  onRemove?: (track: Track) => void;
   isLiked?: boolean;
   onContextMenu?: (e: React.MouseEvent, track: Track) => void;
 }
@@ -51,10 +109,14 @@ const TrackRow = memo(({
   onClick,
   onAddToQueue,
   onToggleLike,
+  onRemove,
   isLiked: propIsLiked,
   onContextMenu
 }: TrackRowProps) => {
+  const rowId = useId();
   const { isPhone } = useDevicePreset();
+  const { isHovered, onMouseEnter, onMouseLeave } = useSharedTrackHover(rowId);
+
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [menuCoords, setMenuCoords] = useState({ top: 0, left: 0 });
   const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -132,36 +194,60 @@ const TrackRow = memo(({
     setShowPlaylistMenu((prev) => !prev);
   };
 
+  const activeVisual = isHovered && !isPhone;
+
   return (
     <div
       onClick={handleTriggerPlay}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       onContextMenu={(e) => onContextMenu?.(e, track)}
-      className={`group relative flex items-center gap-4 px-3.5 py-2.5 rounded-2xl transition-[transform,background-color,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform hover:translate-x-1.5 hover:-translate-y-[1px] active:scale-[0.99] cursor-pointer select-none border ${
+      className={`relative flex items-center gap-4 px-4 py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 ${
         isCurrentTrack
-          ? 'bg-white/[0.12] border-white/20 shadow-[0_8px_28px_rgba(0,0,0,0.38)]'
-          : 'bg-white/[0.02] border-transparent hover:bg-white/[0.08] hover:border-white/15 hover:shadow-[0_12px_28px_rgba(0,0,0,0.35)]'
+          ? 'bg-white/[0.10] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
+          : 'bg-white/[0.015] border-transparent'
       }`}
     >
-      <span
-        className={`absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isCurrentTrack ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-0 group-hover:opacity-80 group-hover:scale-y-75'
-        }`}
-      />
+      {/* Shared 120fps Spring-Gliding Hover Backdrop Pill */}
+      {activeVisual && (
+        <motion.div
+          layoutId="wavecraft-track-row-hover-pill"
+          transition={{
+            type: 'spring',
+            stiffness: 460,
+            damping: 36,
+            mass: 0.48
+          }}
+          className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.09] via-white/[0.06] to-white/[0.03] border border-white/[0.15] pointer-events-none z-0"
+        >
+          <span className="absolute left-1.5 top-3 bottom-3 w-1 rounded-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
+        </motion.div>
+      )}
+
+      {/* Persistent Left Accent Pill for Currently Playing Track (when not hovered) */}
+      {isCurrentTrack && !activeVisual && (
+        <span className="absolute left-1.5 top-3 bottom-3 w-1 rounded-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)] pointer-events-none z-10" />
+      )}
+
       {/* Index or Equalizer */}
       {showIndex && (
-        <div className="w-7 flex justify-center items-center text-sm text-white/50 font-medium flex-shrink-0">
+        <div className="relative z-10 w-7 flex justify-center items-center text-sm text-white/50 font-medium flex-shrink-0">
           {isTrackPlaying ? (
             <EqualizerIcon />
           ) : (
             <div className="relative w-5 h-5 flex items-center justify-center">
               <span
-                className={`transition-all duration-200 ease-out group-hover:opacity-0 group-hover:scale-75 ${
-                  isCurrentTrack ? 'text-[var(--color-accent)] font-bold' : ''
-                }`}
+                className={`transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  activeVisual ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
+                } ${isCurrentTrack ? 'text-[var(--color-accent)] font-bold' : ''}`}
               >
                 {index !== undefined ? index : '•'}
               </span>
-              <span className="absolute inset-0 flex items-center justify-center text-white opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]">
+              <span
+                className={`absolute inset-0 flex items-center justify-center text-white transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  activeVisual ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+                }`}
+              >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
                 </svg>
@@ -173,18 +259,30 @@ const TrackRow = memo(({
 
       {/* Album Art */}
       {showAlbumArt && (
-        <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-white/10 shadow-md group-hover:shadow-[0_6px_18px_rgba(0,0,0,0.45)] transition-shadow duration-300">
+        <div className="relative z-10 w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-white/10 shadow-md">
           <img
             src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
             alt={track.title}
             loading="lazy"
             decoding="async"
-            onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+            }}
+            className={`w-full h-full object-cover transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              activeVisual ? 'scale-[1.06]' : 'scale-100'
+            }`}
           />
-          <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 flex justify-center items-center transition-opacity duration-200 ease-out">
-            <div className="w-7 h-7 rounded-full bg-[var(--color-accent)]/90 text-white flex items-center justify-center shadow-md scale-75 group-hover:scale-100 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
-              <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24">
+          <div
+            className={`absolute inset-0 bg-black/40 flex justify-center items-center transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              activeVisual ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <div
+              className={`w-7 h-7 rounded-full bg-[var(--color-accent)]/95 text-white flex items-center justify-center shadow-md transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                activeVisual ? 'scale-100' : 'scale-75'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
                 {isTrackPlaying ? (
                   <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                 ) : (
@@ -197,11 +295,15 @@ const TrackRow = memo(({
       )}
 
       {/* Track Info */}
-      <div className="flex-grow flex flex-col min-w-0 pr-2">
+      <div
+        className={`relative z-10 flex-grow flex flex-col min-w-0 pr-2 transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          activeVisual ? 'translate-x-1' : 'translate-x-0'
+        }`}
+      >
         <div className="flex items-center gap-2">
           <span
             className={`text-sm font-semibold truncate transition-colors duration-200 ${
-              isCurrentTrack ? 'text-[var(--color-accent)]' : 'text-white group-hover:text-[var(--color-accent)]'
+              isCurrentTrack || activeVisual ? 'text-[var(--color-accent)]' : 'text-white'
             }`}
           >
             {track.title}
@@ -224,21 +326,23 @@ const TrackRow = memo(({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="relative z-10 flex items-center gap-1 sm:gap-1.5">
         <button
           onClick={(e) => {
             e.stopPropagation();
             toggleOfflineTrack(track);
           }}
           title={trackIsOffline ? 'Saved in Offline Vault (Click to Remove)' : 'Save 320kbps Audio to Offline Vault'}
-          className={`p-2 rounded-full transition-all cursor-pointer ${
+          className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
             trackIsOffline
               ? 'text-emerald-400 opacity-100 bg-emerald-500/15'
               : isSavingOffline
-                ? 'text-amber-300 opacity-100 animate-pulse'
-                : isPhone
-                  ? 'text-white/45 opacity-100 active:bg-white/10'
-                  : 'text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10'
+              ? 'text-amber-300 opacity-100 animate-pulse'
+              : isPhone
+              ? 'text-white/45 opacity-100 active:bg-white/10'
+              : activeVisual
+              ? 'text-white/55 opacity-100 translate-x-0 hover:text-white hover:bg-white/12'
+              : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
           }`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -257,12 +361,14 @@ const TrackRow = memo(({
         <button
           onClick={handleLike}
           title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
-          className={`p-2 rounded-full transition-all ${
+          className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
             liked
               ? 'text-[var(--color-accent)] opacity-100 scale-105'
               : isPhone
-                ? 'text-white/45 opacity-100 active:bg-white/10'
-                : 'text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10'
+              ? 'text-white/45 opacity-100 active:bg-white/10'
+              : activeVisual
+              ? 'text-white/55 opacity-100 translate-x-0 hover:text-white hover:bg-white/12'
+              : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
           }`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -274,7 +380,11 @@ const TrackRow = memo(({
           <button
             onClick={handleQueue}
             title="Add to Queue"
-            className="p-2 rounded-full text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10 transition-all"
+            className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+              activeVisual
+                ? 'text-white/55 opacity-100 translate-x-0 hover:text-white hover:bg-white/12'
+                : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+            }`}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -289,9 +399,13 @@ const TrackRow = memo(({
               ref={menuBtnRef}
               onClick={handleToggleMenu}
               title="Add to Playlist"
-              className={`p-2 rounded-full text-white/40 ${
-                isPhone ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-              } hover:text-white hover:bg-white/10 transition-all`}
+              className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+                isPhone
+                  ? 'text-white/45 opacity-100'
+                  : activeVisual || showPlaylistMenu
+                  ? 'text-white/55 opacity-100 translate-x-0 hover:text-white hover:bg-white/12'
+                  : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+              }`}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="1" />
@@ -316,11 +430,11 @@ const TrackRow = memo(({
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-white/45 px-2.5 py-1">
                     Add to Playlist
                   </div>
-                  {playlists.map((pl) => (
+                  {playlists.map((pl: any) => (
                     <button
                       key={pl.id}
                       onClick={() => {
-                        useLibraryStore.getState().addToPlaylist(pl.id, track);
+                        useLibStore.getState().addToPlaylist(pl.id, track);
                         setShowPlaylistMenu(false);
                       }}
                       className="w-full text-left px-2.5 py-2 text-xs font-medium text-white/85 hover:text-white hover:bg-white/12 rounded-xl truncate cursor-pointer"
@@ -333,10 +447,31 @@ const TrackRow = memo(({
               )}
           </div>
         )}
+
+        {onRemove && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(track);
+            }}
+            title="Remove from playlist"
+            className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+              isPhone
+                ? 'text-white/45 opacity-100'
+                : activeVisual
+                ? 'text-white/55 opacity-100 translate-x-0 hover:text-rose-400 hover:bg-rose-500/15'
+                : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Duration */}
-      <div className="text-xs font-medium text-white/45 w-11 text-right tabular-nums flex-shrink-0">
+      <div className="relative z-10 text-xs font-medium text-white/45 w-11 text-right tabular-nums flex-shrink-0">
         {formatDuration(track.duration)}
       </div>
     </div>
