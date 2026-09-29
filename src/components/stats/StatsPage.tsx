@@ -16,14 +16,20 @@ export default function StatsPage() {
   const [isExportingPoster, setIsExportingPoster] = useState(false);
 
   const totalListens = Math.max(playHistory.length, recentlyPlayed.length);
+  const normalizeSec = (d?: number) => {
+    if (!d || isNaN(d) || d <= 0) return 210;
+    // If duration was accidentally stored in milliseconds, convert to seconds
+    return d > 3600 ? Math.round(d / 1000) : d;
+  };
   const totalSeconds =
-    playHistory.reduce((acc, p) => acc + (p.duration || 210), 0) ||
-    recentlyPlayed.length * 210;
-  const totalMinutes = Math.round(totalSeconds / 60);
+    playHistory.length > 0
+      ? playHistory.reduce((acc, p) => acc + normalizeSec(p.duration), 0)
+      : recentlyPlayed.reduce((acc, r: any) => acc + normalizeSec(r?.track?.duration || r?.duration), 0);
+  const totalMinutes = totalListens > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : 0;
 
   const artistList = [
     ...playHistory.map((p) => p.artist).filter(Boolean),
-    ...recentlyPlayed.map((t) => t.artist).filter(Boolean)
+    ...recentlyPlayed.map((t: any) => t?.track?.artist || t?.artist).filter(Boolean)
   ];
   const uniqueArtists = new Set(artistList).size;
 
@@ -39,7 +45,9 @@ export default function StatsPage() {
       trackCounts[key].count += 1;
     }
   } else {
-    for (const t of recentlyPlayed) {
+    for (const item of recentlyPlayed as any[]) {
+      const t = item?.track || item;
+      if (!t?.title) continue;
       const key = `${t.title}|${t.artist}`;
       if (!trackCounts[key]) {
         trackCounts[key] = { title: t.title, artist: t.artist, count: 1 };
@@ -326,7 +334,7 @@ export default function StatsPage() {
             Total Stream Time
           </span>
           <span className="text-2xl sm:text-3xl font-black text-white">
-            {formatListeningTime(Math.max(totalSeconds, 180))}
+            {formatListeningTime(totalMinutes)}
           </span>
         </GlassCard>
         <GlassCard className="p-5 flex flex-col gap-1.5">
