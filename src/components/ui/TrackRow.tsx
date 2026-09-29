@@ -6,6 +6,11 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { useOfflineVault } from '../../services/offlineVault';
+import {
+  useChorusPreview,
+  toggleChorusPreview,
+  stopChorusPreview
+} from '../../services/chorusPreview';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 
@@ -116,6 +121,7 @@ const TrackRow = memo(({
   const rowId = useId();
   const { isPhone } = useDevicePreset();
   const { isHovered, onMouseEnter, onMouseLeave } = useSharedTrackHover(rowId);
+  const { isPreviewing, isLoading: isPreviewLoading, remainingSec } = useChorusPreview(track.id);
 
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [menuCoords, setMenuCoords] = useState({ top: 0, left: 0 });
@@ -154,6 +160,7 @@ const TrackRow = memo(({
   }, [showPlaylistMenu]);
 
   const handleTriggerPlay = () => {
+    stopChorusPreview(false);
     const player = usePlayerStore.getState();
     if (isCurrentTrack) {
       player.togglePlay();
@@ -327,6 +334,35 @@ const TrackRow = memo(({
 
       {/* Actions */}
       <div className="relative z-10 flex items-center gap-1 sm:gap-1.5">
+        {/* 15s Smart Chorus Audio Preview Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleChorusPreview(track);
+          }}
+          title={
+            isPreviewing
+              ? 'Stop 15s Chorus Preview'
+              : 'Preview 15s Chorus Drop (without losing your current queue)'
+          }
+          className={`px-2 py-1 rounded-full text-[10px] font-extrabold transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer flex items-center gap-1 ${
+            isPreviewing
+              ? 'bg-[var(--color-accent)] text-white opacity-100 shadow-[0_0_14px_var(--color-accent)]'
+              : isPhone
+              ? 'text-white/60 bg-white/[0.06] opacity-100'
+              : activeVisual
+              ? 'text-white/75 bg-white/[0.08] opacity-100 translate-x-0 hover:bg-[var(--color-accent)] hover:text-white'
+              : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+          }`}
+        >
+          {isPreviewLoading ? (
+            <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <span>{isPreviewing ? `⏹ ${remainingSec}s` : '⚡ 15s'}</span>
+          )}
+        </button>
+
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -434,7 +470,7 @@ const TrackRow = memo(({
                     <button
                       key={pl.id}
                       onClick={() => {
-                        useLibStore.getState().addToPlaylist(pl.id, track);
+                        useLibraryStore.getState().addToPlaylist(pl.id, track);
                         setShowPlaylistMenu(false);
                       }}
                       className="w-full text-left px-2.5 py-2 text-xs font-medium text-white/85 hover:text-white hover:bg-white/12 rounded-xl truncate cursor-pointer"

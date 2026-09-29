@@ -33,16 +33,22 @@ let htmlAudioElement: HTMLAudioElement | null = null;
 let preloadAudioElement: HTMLAudioElement | null = null;
 let activeEngine: 'audio' | 'youtube' = 'audio';
 
-// Web Audio API Studio Mastering Graph, True 360° HRTF 3D Spatial Stage & Real-time Visualizer Analyser
+// Web Audio API Studio Mastering Graph, True 360° HRTF 3D Spatial Stage, Vocal Stem Isolator & Visualizer Analyser
 let audioCtx: AudioContext | null = null;
 let sourceNode: MediaElementAudioSourceNode | null = null;
 let preGainNode: GainNode | null = null;
 let eqFilters: BiquadFilterNode[] = [];
+let normalStemGain: GainNode | null = null;
+let karaokeStemGain: GainNode | null = null;
+let acapellaStemGain: GainNode | null = null;
 let stereoPanner: StereoPannerNode | null = null;
 let dryPathGain: GainNode | null = null;
 let hrtfPanner: PannerNode | null = null;
 let spatialOrbitBusGain: GainNode | null = null;
 let subAnchorGain: GainNode | null = null;
+let sinLfoNode: OscillatorNode | null = null;
+let cosLfoNode: OscillatorNode | null = null;
+let elevLfoNode: OscillatorNode | null = null;
 let panLfoGain: GainNode | null = null;
 let hrtfXGain: GainNode | null = null;
 let hrtfYGain: GainNode | null = null;
@@ -158,11 +164,12 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
     spatialOrbitBusGain = audioCtx.createGain();
     spatialOrbitBusGain.gain.value = 0;
 
-    // Quadrature Sine (Left <-> Right X-axis) & Cosine (Front <-> Back Z-axis) Oscillators at 0.145 Hz (~6.9s full 360° orbit)
-    const orbitFreq = 0.145;
+    // Quadrature Sine (Left <-> Right X-axis) & Cosine (Front <-> Back Z-axis) Oscillators
+    const orbitFreq = useStudioStore.getState().spatialOrbitSpeed || 0.145;
     const sinLfo = audioCtx.createOscillator();
     sinLfo.type = 'sine';
     sinLfo.frequency.value = orbitFreq;
+    sinLfoNode = sinLfo;
 
     // Exact 90°-shifted Cosine PeriodicWave for circular Z-axis (Front-to-Back depth around head)
     const cosWave = audioCtx.createPeriodicWave(
@@ -173,11 +180,13 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
     const cosLfo = audioCtx.createOscillator();
     cosLfo.setPeriodicWave(cosWave);
     cosLfo.frequency.value = orbitFreq;
+    cosLfoNode = cosLfo;
 
     // 2nd-Harmonic Vertical Halo LFO (Y-axis elevation)
     const elevLfo = audioCtx.createOscillator();
     elevLfo.type = 'sine';
     elevLfo.frequency.value = orbitFreq * 2;
+    elevLfoNode = elevLfo;
 
     panLfoGain = audioCtx.createGain();
     panLfoGain.gain.value = 0; // 0.90 in 3D Spatial Audio for unmistakable Left-to-Right ear travel
@@ -280,22 +289,111 @@ function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]) {
       prev = f;
     }
 
+    // 5. REAL-TIME VOCAL REMOVER (KARAOKE) & ACAPELLA STEM ISOLATOR ENGINE
+    const stemBusNode = audioCtx.createGain();
+    stemBusNode.gain.value = 1.0;
+
+    normalStemGain = audioCtx.createGain();
+    normalStemGain.gain.value = 1.0;
+    prev.connect(normalStemGain);
+    normalStemGain.connect(stemBusNode);
+
+    // 5A. Karaoke Mode: Bass-Preserving Mid/Side Phase Canceller (L - R in 155Hz–6000Hz + intact <155Hz Sub-Bass & >6kHz Air)
+    karaokeStemGain = audioCtx.createGain();
+    karaokeStemGain.gain.value = 0;
+
+    const karaokeBassKeeper = audioCtx.createBiquadFilter();
+    karaokeBassKeeper.type = 'lowpass';
+    karaokeBassKeeper.frequency.value = 155;
+    karaokeBassKeeper.Q.value = 0.707;
+    prev.connect(karaokeBassKeeper);
+    karaokeBassKeeper.connect(karaokeStemGain);
+
+    const karaokeAirKeeper = audioCtx.createBiquadFilter();
+    karaokeAirKeeper.type = 'highpass';
+    karaokeAirKeeper.frequency.value = 6000;
+    karaokeAirKeeper.Q.value = 0.707;
+    const karaokeAirGain = audioCtx.createGain();
+    karaokeAirGain.gain.value = 0.48;
+    prev.connect(karaokeAirKeeper);
+    karaokeAirKeeper.connect(karaokeAirGain);
+    karaokeAirGain.connect(karaokeStemGain);
+
+    const karaokeSplit = audioCtx.createChannelSplitter(2);
+    const karaokeInvertR = audioCtx.createGain();
+    karaokeInvertR.gain.value = -1.0;
+    const karaokeDiffSum = audioCtx.createGain();
+    karaokeDiffSum.gain.value = 1.25;
+
+    const karaokeVocalBandHP = audioCtx.createBiquadFilter();
+    karaokeVocalBandHP.type = 'highpass';
+    karaokeVocalBandHP.frequency.value = 155;
+    karaokeVocalBandHP.Q.value = 0.707;
+
+    const karaokeVocalBandLP = audioCtx.createBiquadFilter();
+    karaokeVocalBandLP.type = 'lowpass';
+    karaokeVocalBandLP.frequency.value = 6000;
+    karaokeVocalBandLP.Q.value = 0.707;
+
+    // Stereoize the cancelled side signal via a 0.9ms micro-decorrelation delay on R so instrumental feels wide
+    const karaokeSideMerger = audioCtx.createChannelMerger(2);
+    const karaokeSideDelayR = audioCtx.createDelay(0.02);
+    karaokeSideDelayR.delayTime.value = 0.0009;
+
+    prev.connect(karaokeSplit);
+    karaokeSplit.connect(karaokeDiffSum, 0);
+    karaokeSplit.connect(karaokeInvertR, 1);
+    karaokeInvertR.connect(karaokeDiffSum);
+    karaokeDiffSum.connect(karaokeVocalBandHP);
+    karaokeVocalBandHP.connect(karaokeVocalBandLP);
+    karaokeVocalBandLP.connect(karaokeSideMerger, 0, 0);
+    karaokeVocalBandLP.connect(karaokeSideDelayR);
+    karaokeSideDelayR.connect(karaokeSideMerger, 0, 1);
+    karaokeSideMerger.connect(karaokeStemGain);
+    karaokeStemGain.connect(stemBusNode);
+
+    // 5B. Acapella Mode: Lead Vocal Formant Spotlight (210Hz–4400Hz Bandpass + 1.6kHz Presence Lift)
+    acapellaStemGain = audioCtx.createGain();
+    acapellaStemGain.gain.value = 0;
+
+    const acapellaHP = audioCtx.createBiquadFilter();
+    acapellaHP.type = 'highpass';
+    acapellaHP.frequency.value = 210;
+    acapellaHP.Q.value = 0.85;
+
+    const acapellaLP = audioCtx.createBiquadFilter();
+    acapellaLP.type = 'lowpass';
+    acapellaLP.frequency.value = 4500;
+    acapellaLP.Q.value = 0.85;
+
+    const acapellaFormant = audioCtx.createBiquadFilter();
+    acapellaFormant.type = 'peaking';
+    acapellaFormant.frequency.value = 1650;
+    acapellaFormant.Q.value = 0.95;
+    acapellaFormant.gain.value = 4.2;
+
+    prev.connect(acapellaHP);
+    acapellaHP.connect(acapellaLP);
+    acapellaLP.connect(acapellaFormant);
+    acapellaFormant.connect(acapellaStemGain);
+    acapellaStemGain.connect(stemBusNode);
+
     // Path A: Primary Stereo Panner Path -> dryPathGain -> masterLimiter
-    prev.connect(stereoPanner);
+    stemBusNode.connect(stereoPanner);
     stereoPanner.connect(dryPathGain);
     dryPathGain.connect(masterLimiter);
 
     // Path B: True 3D HRTF 360° Orbit Bus -> spatialOrbitBusGain -> masterLimiter
-    prev.connect(hrtfPanner);
+    stemBusNode.connect(hrtfPanner);
     hrtfPanner.connect(spatialOrbitBusGain);
     spatialOrbitBusGain.connect(masterLimiter);
 
     // Path C: Center Sub-Bass Foundation Anchor (< 95Hz) -> masterLimiter
-    prev.connect(subAnchorLP);
+    stemBusNode.connect(subAnchorLP);
     subAnchorGain.connect(masterLimiter);
 
     // Path D: 3D Binaural Stereo Widener -> masterLimiter
-    prev.connect(widenerHP);
+    stemBusNode.connect(widenerHP);
     spatialWidthGain.connect(masterLimiter);
 
     // Path E: 3D Acoustic Concert Dome Reverb -> masterLimiter
@@ -357,11 +455,57 @@ function applyStudioFXToAudio(audio: HTMLAudioElement | null, fxMode: StudioFXMo
     subAnchorGain
   ) {
     const now = audioCtx.currentTime;
+    const studio = useStudioStore.getState();
     const isSpatial3D = fxMode === '8d-orbit';
 
-    // 1. Deep 360° Binaural Pan Sweep (±0.90) + True 3D HRTF Orbit Bus (X/Y/Z circular rotation around head)
-    panLfoGain.gain.setTargetAtTime(isSpatial3D ? 0.9 : 0, now, 0.08);
-    if (!isSpatial3D) {
+    // 0. Real-Time Vocal Stem Mode Crossfader (Normal vs Karaoke Instrumental vs Acapella Vocal)
+    if (normalStemGain && karaokeStemGain && acapellaStemGain) {
+      const vMode = studio.vocalMode || 'normal';
+      normalStemGain.gain.setTargetAtTime(vMode === 'normal' ? 1.0 : 0.0, now, 0.05);
+      karaokeStemGain.gain.setTargetAtTime(vMode === 'karaoke' ? 1.05 : 0.0, now, 0.05);
+      acapellaStemGain.gain.setTargetAtTime(vMode === 'acapella' ? 1.1 : 0.0, now, 0.05);
+    }
+
+    // Update 360° LFO Orbit Speed in real time
+    const speedHz = Math.max(0.04, Math.min(0.4, studio.spatialOrbitSpeed || 0.145));
+    if (sinLfoNode && cosLfoNode && elevLfoNode) {
+      sinLfoNode.frequency.setTargetAtTime(speedHz, now, 0.06);
+      cosLfoNode.frequency.setTargetAtTime(speedHz, now, 0.06);
+      elevLfoNode.frequency.setTargetAtTime(speedHz * 2, now, 0.06);
+    }
+
+    // 1. Deep 360° Binaural Pan Sweep + True 3D HRTF Orbit Bus (Auto-Orbit vs Manual 3D Joypad)
+    if (isSpatial3D) {
+      if (studio.spatialOrbitAuto) {
+        panLfoGain.gain.setTargetAtTime(0.9, now, 0.08);
+        if (hrtfXGain && hrtfZGain && hrtfYGain) {
+          hrtfXGain.gain.setTargetAtTime(2.3, now, 0.08);
+          hrtfZGain.gain.setTargetAtTime(1.85, now, 0.08);
+          hrtfYGain.gain.setTargetAtTime(0.45, now, 0.08);
+        }
+        stereoPanner.pan.setTargetAtTime(0, now, 0.08);
+        if (hrtfPanner?.positionX && hrtfPanner?.positionZ) {
+          hrtfPanner.positionX.setTargetAtTime(0, now, 0.08);
+          hrtfPanner.positionZ.setTargetAtTime(0, now, 0.08);
+        }
+      } else {
+        // Manual 3D Position Radar Pad Mode
+        panLfoGain.gain.setTargetAtTime(0, now, 0.05);
+        if (hrtfXGain && hrtfZGain && hrtfYGain) {
+          hrtfXGain.gain.setTargetAtTime(0, now, 0.05);
+          hrtfZGain.gain.setTargetAtTime(0, now, 0.05);
+          hrtfYGain.gain.setTargetAtTime(0.15, now, 0.05);
+        }
+        const manualX = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
+        const manualZ = Math.max(-1, Math.min(1, studio.spatialManualPos?.z ?? -0.5));
+        stereoPanner.pan.setTargetAtTime(manualX * 0.92, now, 0.04);
+        if (hrtfPanner?.positionX && hrtfPanner?.positionZ) {
+          hrtfPanner.positionX.setTargetAtTime(manualX * 2.6, now, 0.04);
+          hrtfPanner.positionZ.setTargetAtTime(manualZ * 2.2, now, 0.04);
+        }
+      }
+    } else {
+      panLfoGain.gain.setTargetAtTime(0, now, 0.08);
       stereoPanner.pan.setTargetAtTime(0, now, 0.08);
     }
 
@@ -370,10 +514,12 @@ function applyStudioFXToAudio(audio: HTMLAudioElement | null, fxMode: StudioFXMo
     spatialOrbitBusGain.gain.setTargetAtTime(isSpatial3D ? 0.95 : 0, now, 0.08);
     subAnchorGain.gain.setTargetAtTime(isSpatial3D ? 0.45 : 0, now, 0.08);
 
+    const roomAmt = Math.max(0, Math.min(0.65, studio.spatialRoomSize ?? 0.26));
+
     // 2. Binaural Haas 3D Stereo Widener (projects soundstage outside the headphones)
     const widthAmount =
       fxMode === '8d-orbit'
-        ? 0.34
+        ? Math.min(0.45, 0.2 + roomAmt * 0.5)
         : fxMode === 'vocal-stage'
         ? 0.16
         : fxMode === 'bass-cinema'
@@ -386,7 +532,7 @@ function applyStudioFXToAudio(audio: HTMLAudioElement | null, fxMode: StudioFXMo
       fxMode === 'slowed-reverb'
         ? 0.34
         : fxMode === '8d-orbit'
-        ? 0.25
+        ? roomAmt
         : fxMode === 'vocal-stage'
         ? 0.15
         : 0;
@@ -483,17 +629,31 @@ export default function YouTubeEmbed() {
   const crossfadeDuration = useSettingsStore((s) => s.crossfadeDuration);
   const autoplay = useSettingsStore((s) => s.autoplay);
   const fxMode = useStudioStore((s) => s.fxMode);
+  const vocalMode = useStudioStore((s) => s.vocalMode);
+  const spatialOrbitAuto = useStudioStore((s) => s.spatialOrbitAuto);
+  const spatialOrbitSpeed = useStudioStore((s) => s.spatialOrbitSpeed);
+  const spatialRoomSize = useStudioStore((s) => s.spatialRoomSize);
+  const spatialManualPos = useStudioStore((s) => s.spatialManualPos);
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
   const tickPomodoro = useStudioStore((s) => s.tickPomodoro);
   const sleepActive = useStudioStore((s) => s.sleepActive);
   const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
   const tickSleepTimer = useStudioStore((s) => s.tickSleepTimer);
 
-  // Sync 10-band Equalizer gains + Studio FX EQ offsets + dynamic headroom in real time
+  // Sync 10-band Equalizer gains + Studio FX + Vocal Stem Mode + 3D Spatial Radar in real time
   useEffect(() => {
     syncHeadroomAndEQ(eqBands, fxMode);
     applyStudioFXToAudio(audioRef.current, fxMode, playbackSpeed || 1);
-  }, [eqBands, fxMode, playbackSpeed]);
+  }, [
+    eqBands,
+    fxMode,
+    playbackSpeed,
+    vocalMode,
+    spatialOrbitAuto,
+    spatialOrbitSpeed,
+    spatialRoomSize,
+    spatialManualPos
+  ]);
 
   // Global Focus Pomodoro Timer 1s ticker
   useEffect(() => {

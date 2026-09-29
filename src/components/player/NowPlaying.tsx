@@ -87,6 +87,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const [deckMode, setDeckMode] = useState<'cover' | 'vinyl'>('vinyl');
   const [zenMode, setZenMode] = useState(false);
   const [showWaveCard, setShowWaveCard] = useState(false);
+  const [waveCardQuote, setWaveCardQuote] = useState<string>('');
 
   // Atomic Zustand selectors (prevents re-rendering on currentTime / progress ticks!)
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -115,6 +116,8 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
   const setVisualizerStyle = useSettingsStore((s) => s.setVisualizerStyle);
   const setShowVisualizer = useSettingsStore((s) => s.setShowVisualizer);
   const fxMode = useStudioStore((s) => s.fxMode);
+  const vocalMode = useStudioStore((s) => s.vocalMode);
+  const setVocalMode = useStudioStore((s) => s.setVocalMode);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
 
   if (!currentTrack) return null;
@@ -210,6 +213,36 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* 1-Click Karaoke / Acapella Vocal Stem Toggle */}
+              <button
+                onClick={() =>
+                  setVocalMode(
+                    vocalMode === 'normal'
+                      ? 'karaoke'
+                      : vocalMode === 'karaoke'
+                      ? 'acapella'
+                      : 'normal'
+                  )
+                }
+                className={`px-3 h-9 rounded-full text-xs font-extrabold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                  vocalMode === 'karaoke'
+                    ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white border-white/25 shadow-lg'
+                    : vocalMode === 'acapella'
+                    ? 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white border-white/25 shadow-lg'
+                    : 'liquid-glass text-white/90 hover:text-white border-white/15'
+                }`}
+                title="Cycle Real-Time Karaoke Vocal Remover (Instrumental) & Acapella Vocal Isolate"
+              >
+                <span>{vocalMode === 'karaoke' ? '🎸' : vocalMode === 'acapella' ? '🎙️' : '🎤'}</span>
+                <span className="hidden md:inline">
+                  {vocalMode === 'karaoke'
+                    ? 'Karaoke'
+                    : vocalMode === 'acapella'
+                    ? 'Acapella'
+                    : 'Vocals'}
+                </span>
+              </button>
+
               {/* Studio Audio FX & Ambient Mixer Button */}
               <button
                 onClick={() => setStudioModalOpen(true)}
@@ -218,7 +251,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                     ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-[0_0_20px_rgba(250,45,72,0.45)]'
                     : 'liquid-glass text-white/90 hover:text-white border-white/15'
                 }`}
-                title="Open Studio Audio FX (Slowed + Reverb, 8D Orbit, Nightcore) & Ambient Mixer"
+                title="Open Studio Audio FX (Slowed + Reverb, 3D Spatial Radar, Nightcore) & Ambient Mixer"
               >
                 <span>🎛️</span>
                 <span className="hidden sm:inline">
@@ -230,16 +263,19 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
 
               {/* Share WaveCard Button */}
               <button
-                onClick={() => setShowWaveCard(true)}
+                onClick={() => {
+                  setWaveCardQuote('');
+                  setShowWaveCard(true);
+                }}
                 className="px-3.5 h-9 rounded-full liquid-glass text-xs font-bold text-white/90 hover:text-white flex items-center gap-1.5 cursor-pointer border border-white/15"
-                title="Generate Shareable Lyric WaveCard"
+                title="Generate Shareable 1080×1920 Lyric Story Poster"
               >
                 <svg className="w-3.5 h-3.5 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                   <rect x="3" y="3" width="18" height="18" rx="3" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
-                <span className="hidden sm:inline">WaveCard</span>
+                <span className="hidden sm:inline">Poster</span>
               </button>
 
               {/* 3D Zen Mode Toggle */}
@@ -610,7 +646,14 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                       transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.65 }}
                       className="w-full lg:w-7/12 h-[42vh] lg:h-[72vh] flex-shrink-0 will-change-transform"
                     >
-                      <LyricsView artist={currentTrack.artist} title={currentTrack.title} />
+                      <LyricsView
+                        artist={currentTrack.artist}
+                        title={currentTrack.title}
+                        onShareLyric={(quote) => {
+                          setWaveCardQuote(quote);
+                          setShowWaveCard(true);
+                        }}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -624,6 +667,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
             onClose={() => setShowWaveCard(false)}
             track={currentTrack}
             currentTime={usePlayerStore.getState().currentTime}
+            initialQuote={waveCardQuote}
           />
         </motion.div>
       )}

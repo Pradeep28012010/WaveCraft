@@ -277,8 +277,15 @@ function startAmbientLayer(id: AmbientLayerId, volume: number) {
   }
 }
 
+export type VocalStemMode = 'normal' | 'karaoke' | 'acapella';
+
 interface StudioState {
   fxMode: StudioFXMode;
+  vocalMode: VocalStemMode;
+  spatialOrbitAuto: boolean;
+  spatialOrbitSpeed: number;
+  spatialRoomSize: number;
+  spatialManualPos: { x: number; z: number };
   ambientVolumes: Record<AmbientLayerId, number>;
   isStudioModalOpen: boolean;
   isCommandPaletteOpen: boolean;
@@ -296,6 +303,11 @@ interface StudioState {
   sleepEndAtTrack: boolean;
 
   setFxMode: (mode: StudioFXMode) => void;
+  setVocalMode: (mode: VocalStemMode) => void;
+  setSpatialOrbitAuto: (auto: boolean) => void;
+  setSpatialOrbitSpeed: (speed: number) => void;
+  setSpatialRoomSize: (size: number) => void;
+  setSpatialManualPos: (pos: { x: number; z: number }) => void;
   setAmbientVolume: (id: AmbientLayerId, volume: number) => void;
   stopAllAmbient: () => void;
   setStudioModalOpen: (open: boolean) => void;
@@ -313,6 +325,11 @@ interface StudioState {
 
 export const useStudioStore = create<StudioState>((set, get) => ({
   fxMode: 'normal',
+  vocalMode: 'normal',
+  spatialOrbitAuto: true,
+  spatialOrbitSpeed: 0.145,
+  spatialRoomSize: 0.26,
+  spatialManualPos: { x: 0.65, z: -0.55 },
   ambientVolumes: {
     rain: 0,
     vinyl: 0,
@@ -333,6 +350,19 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   sleepEndAtTrack: false,
 
   setFxMode: (fxMode) => set({ fxMode }),
+  setVocalMode: (vocalMode) => set({ vocalMode }),
+  setSpatialOrbitAuto: (spatialOrbitAuto) => set({ spatialOrbitAuto }),
+  setSpatialOrbitSpeed: (spatialOrbitSpeed) =>
+    set({ spatialOrbitSpeed: Math.max(0.04, Math.min(0.4, spatialOrbitSpeed)) }),
+  setSpatialRoomSize: (spatialRoomSize) =>
+    set({ spatialRoomSize: Math.max(0, Math.min(0.65, spatialRoomSize)) }),
+  setSpatialManualPos: (spatialManualPos) =>
+    set({
+      spatialManualPos: {
+        x: Math.max(-1, Math.min(1, spatialManualPos.x)),
+        z: Math.max(-1, Math.min(1, spatialManualPos.z))
+      }
+    }),
 
   setAmbientVolume: (id, volume) => {
     const clamped = Math.max(0, Math.min(1, volume));

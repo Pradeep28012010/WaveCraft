@@ -2,12 +2,14 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getLyricsData, type LyricsResult } from '../../services/lyrics';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useStudioStore } from '../../stores/studioStore';
 import type { LyricLine } from '../../types';
 
 interface LyricsViewProps {
   artist?: string;
   title?: string;
   isFullScreen?: boolean;
+  onShareLyric?: (quote: string) => void;
 }
 
 const formatTimestamp = (seconds: number) => {
@@ -45,10 +47,12 @@ ActiveLineProgress.displayName = 'ActiveLineProgress';
 
 interface LyricRowProps {
   line: LyricLine;
+  nextLineText?: string;
   index: number;
   activeIndex: number;
   nextLineTime: number;
   onSelectLine: (time: number) => void;
+  onShareLine?: (quote: string) => void;
   setRowRef: (index: number, el: HTMLDivElement | null) => void;
 }
 
@@ -57,7 +61,16 @@ interface LyricRowProps {
  * Only re-renders when its own relative distance category to `activeIndex` changes.
  */
 const LyricRow = memo(
-  ({ line, index, activeIndex, nextLineTime, onSelectLine, setRowRef }: LyricRowProps) => {
+  ({
+    line,
+    nextLineText,
+    index,
+    activeIndex,
+    nextLineTime,
+    onSelectLine,
+    onShareLine,
+    setRowRef
+  }: LyricRowProps) => {
     const isCurrent = index === activeIndex;
     const isPast = index < activeIndex;
     const distance = activeIndex === -1 ? Math.min(index, 4) : Math.min(Math.abs(index - activeIndex), 4);
@@ -129,17 +142,33 @@ const LyricRow = memo(
               {line.text}
             </p>
 
-            {line.time >= 0 && (
-              <span
-                className={`text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full flex-shrink-0 transition-opacity duration-150 ${
-                  isCurrent
-                    ? 'opacity-90 bg-[var(--color-accent)]/25 text-[var(--color-accent)] border border-[var(--color-accent)]/40'
-                    : 'opacity-0 group-hover:opacity-80 bg-white/10 text-white/70'
-                }`}
-              >
-                {formatTimestamp(line.time)}
-              </span>
-            )}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {onShareLine && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShareLine(nextLineText ? `${line.text}\n${nextLineText}` : line.text);
+                  }}
+                  title="Create 1080×1920 Story Poster with this lyric line"
+                  className="opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-full bg-white/15 hover:bg-[var(--color-accent)] text-[10px] font-extrabold text-white transition-all cursor-pointer"
+                >
+                  📸 Poster
+                </button>
+              )}
+
+              {line.time >= 0 && (
+                <span
+                  className={`text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full flex-shrink-0 transition-opacity duration-150 ${
+                    isCurrent
+                      ? 'opacity-90 bg-[var(--color-accent)]/25 text-[var(--color-accent)] border border-[var(--color-accent)]/40'
+                      : 'opacity-0 group-hover:opacity-80 bg-white/10 text-white/70'
+                  }`}
+                >
+                  {formatTimestamp(line.time)}
+                </span>
+              )}
+            </div>
           </div>
 
           {isCurrent && <ActiveLineProgress startTime={line.time} endTime={nextLineTime} />}
@@ -171,7 +200,7 @@ const LyricRow = memo(
 );
 LyricRow.displayName = 'LyricRow';
 
-export default function LyricsView({ artist, title }: LyricsViewProps) {
+export default function LyricsView({ artist, title, onShareLyric }: LyricsViewProps) {
   const [result, setResult] = useState<LyricsResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userScrolling, setUserScrolling] = useState(false);
@@ -409,12 +438,15 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
     };
   }, []);
 
+  const vocalMode = useStudioStore((s) => s.vocalMode);
+  const setVocalMode = useStudioStore((s) => s.setVocalMode);
+
   const vocalGrade =
     vocalScore >= 95 ? 'S+' : vocalScore >= 88 ? 'S' : vocalScore >= 80 ? 'A' : 'B';
 
   return (
     <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
-      {/* Header Pill + Live Sing-Along Karaoke Scorer */}
+      {/* Header Pill + Live Karaoke Vocal Remover + Sing-Along Scorer */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-white/10 bg-black/30 flex-shrink-0 z-20">
         <div className="flex items-center gap-2.5">
           <span className="relative flex h-2.5 w-2.5">
@@ -430,7 +462,55 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
           </span>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 1-Click Karaoke / Acapella Vocal Stem Switcher */}
+          <button
+            type="button"
+            onClick={() =>
+              setVocalMode(
+                vocalMode === 'normal'
+                  ? 'karaoke'
+                  : vocalMode === 'karaoke'
+                  ? 'acapella'
+                  : 'normal'
+              )
+            }
+            className={`px-3 py-1 rounded-full text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+              vocalMode === 'karaoke'
+                ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg'
+                : vocalMode === 'acapella'
+                ? 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-lg'
+                : 'bg-white/10 hover:bg-white/20 text-white/80'
+            }`}
+            title="Cycle Real-Time Vocal Remover (Karaoke Instrumental) / Acapella Vocal Isolate"
+          >
+            <span>{vocalMode === 'karaoke' ? '🎸' : vocalMode === 'acapella' ? '🎙️' : '🎚️'}</span>
+            <span>
+              {vocalMode === 'karaoke'
+                ? 'Karaoke: Vocals Off'
+                : vocalMode === 'acapella'
+                ? 'Acapella: Vocals Only'
+                : 'Karaoke Mode'}
+            </span>
+          </button>
+
+          {onShareLyric && (
+            <button
+              type="button"
+              onClick={() => {
+                const curIdx = activeIndex >= 0 ? activeIndex : 0;
+                const l1 = lines[curIdx]?.text || '';
+                const l2 = lines[curIdx + 1]?.text || '';
+                onShareLyric(l2 ? `${l1}\n${l2}` : l1);
+              }}
+              className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-extrabold text-white/85 cursor-pointer flex items-center gap-1"
+              title="Export 1080×1920 Social Story Poster of current lyrics"
+            >
+              <span>📸</span>
+              <span className="hidden sm:inline">Lyric Poster</span>
+            </button>
+          )}
+
           {singAlongActive && (
             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-[11px] font-extrabold text-emerald-200">
               <div className="w-12 h-1.5 bg-black/50 rounded-full overflow-hidden">
@@ -504,10 +584,12 @@ export default function LyricsView({ artist, title }: LyricsViewProps) {
                 <LyricRow
                   key={index}
                   line={line}
+                  nextLineText={lines[index + 1]?.text}
                   index={index}
                   activeIndex={activeIndex}
                   nextLineTime={nextLineTime}
                   onSelectLine={handleSelectLine}
+                  onShareLine={onShareLyric}
                   setRowRef={setRowRef}
                 />
               );
