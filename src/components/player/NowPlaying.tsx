@@ -224,16 +224,20 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                       : 'normal'
                   )
                 }
-                className={`px-3 h-9 rounded-full text-xs font-extrabold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer border transition-all ${
                   vocalMode === 'karaoke'
-                    ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white border-white/25 shadow-lg'
+                    ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white border-rose-300/40 shadow-[0_0_20px_rgba(244,63,94,0.45)]'
                     : vocalMode === 'acapella'
-                    ? 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white border-white/25 shadow-lg'
-                    : 'liquid-glass text-white/90 hover:text-white border-white/15'
+                    ? 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white border-violet-300/40 shadow-[0_0_20px_rgba(139,92,246,0.45)]'
+                    : 'liquid-glass text-white/85 hover:text-white border-white/15 hover:border-white/25'
                 }`}
                 title="Cycle Real-Time Karaoke Vocal Remover (Instrumental) & Acapella Vocal Isolate"
               >
-                <span>{vocalMode === 'karaoke' ? '🎸' : vocalMode === 'acapella' ? '🎙️' : '🎤'}</span>
+                <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
                 <span className="hidden md:inline">
                   {vocalMode === 'karaoke'
                     ? 'Karaoke'
@@ -246,14 +250,24 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
               {/* Studio Audio FX & Ambient Mixer Button */}
               <button
                 onClick={() => setStudioModalOpen(true)}
-                className={`px-3.5 h-9 rounded-full text-xs font-extrabold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer border transition-all ${
                   fxMode !== 'normal'
                     ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-[0_0_20px_rgba(250,45,72,0.45)]'
-                    : 'liquid-glass text-white/90 hover:text-white border-white/15'
+                    : 'liquid-glass text-white/85 hover:text-white border-white/15 hover:border-white/25'
                 }`}
                 title="Open Studio Audio FX (Slowed + Reverb, 3D Spatial Radar, Nightcore) & Ambient Mixer"
               >
-                <span>🎛️</span>
+                <svg className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" x2="4" y1="21" y2="14" />
+                  <line x1="4" x2="4" y1="10" y2="3" />
+                  <line x1="12" x2="12" y1="21" y2="12" />
+                  <line x1="12" x2="12" y1="8" y2="3" />
+                  <line x1="20" x2="20" y1="21" y2="16" />
+                  <line x1="20" x2="20" y1="12" y2="3" />
+                  <line x1="2" x2="6" y1="14" y2="14" />
+                  <line x1="10" x2="14" y1="8" y2="8" />
+                  <line x1="18" x2="22" y1="16" y2="16" />
+                </svg>
                 <span className="hidden sm:inline">
                   {fxMode !== 'normal'
                     ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
@@ -267,10 +281,10 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                   setWaveCardQuote('');
                   setShowWaveCard(true);
                 }}
-                className="px-3.5 h-9 rounded-full liquid-glass text-xs font-bold text-white/90 hover:text-white flex items-center gap-1.5 cursor-pointer border border-white/15"
+                className="px-3.5 h-9 rounded-full liquid-glass text-xs font-bold text-white/85 hover:text-white flex items-center gap-1.5 cursor-pointer border border-white/15 hover:border-white/25 transition-all"
                 title="Generate Shareable 1080×1920 Lyric Story Poster"
               >
-                <svg className="w-3.5 h-3.5 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                   <rect x="3" y="3" width="18" height="18" rx="3" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
@@ -285,10 +299,10 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                   setZenMode(nextZen);
                   if (nextZen) setShowVisualizer(true);
                 }}
-                className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer border ${
                   zenMode
-                    ? 'bg-[var(--color-accent)] text-white shadow-[0_0_20px_var(--color-accent)]'
-                    : 'liquid-glass text-white/85 hover:text-white'
+                    ? 'bg-[var(--color-accent)] text-white border-white/30 shadow-[0_0_20px_var(--color-accent)]'
+                    : 'liquid-glass text-white/85 hover:text-white border-white/15 hover:border-white/25'
                 }`}
                 title="Toggle Fullscreen 3D Visualizer Zen Mode"
               >
@@ -301,7 +315,7 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                   const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
                   setPlaybackSpeed(next);
                 }}
-                className="px-3 h-9 rounded-full liquid-glass text-xs font-bold text-white/90 hover:text-white cursor-pointer"
+                className="px-3 h-9 rounded-full liquid-glass text-xs font-bold text-white/85 hover:text-white border border-white/15 hover:border-white/25 cursor-pointer transition-all tabular-nums"
                 title="Playback Speed"
               >
                 {playbackSpeed}x
@@ -602,34 +616,37 @@ export default function NowPlaying({ isOpen, onClose }: NowPlayingProps) {
                       />
                     </div>
 
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <button
-                        onClick={() => {
-                          const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
-                          const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
-                          setShowVisualizer(true);
-                          setVisualizerStyle(next.id);
-                        }}
-                        className="px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase liquid-glass text-white/85 hover:text-white cursor-pointer"
-                        title="Cycle 3D Visualizer Style"
-                      >
-                        {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula'}
-                      </button>
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => setShowLyrics(!showLyrics)}
-                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
-                          showLyrics ? 'bg-[var(--color-accent)] text-white shadow-lg' : 'text-white/50 hover:text-white'
+                        className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 border ${
+                          showLyrics
+                            ? 'bg-[var(--color-accent)] text-white border-white/25 shadow-[0_0_18px_rgba(250,45,72,0.45)]'
+                            : 'liquid-glass text-white/65 hover:text-white border-white/10 hover:border-white/25'
                         }`}
                       >
-                        Lyrics
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span>Lyrics</span>
                       </button>
                       <button
                         onClick={() => setShowQueue(!showQueue)}
-                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
-                          showQueue ? 'liquid-glass text-white' : 'text-white/50 hover:text-white'
+                        className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 border ${
+                          showQueue
+                            ? 'bg-white text-black border-white shadow-lg'
+                            : 'liquid-glass text-white/65 hover:text-white border-white/10 hover:border-white/25'
                         }`}
                       >
-                        Queue
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="8" y1="6" x2="21" y2="6" />
+                          <line x1="8" y1="12" x2="21" y2="12" />
+                          <line x1="8" y1="18" x2="21" y2="18" />
+                          <line x1="3" y1="6" x2="3.01" y2="6" />
+                          <line x1="3" y1="12" x2="3.01" y2="12" />
+                          <line x1="3" y1="18" x2="3.01" y2="18" />
+                        </svg>
+                        <span>Queue</span>
                       </button>
                     </div>
                   </div>

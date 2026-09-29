@@ -142,7 +142,7 @@ const LyricRow = memo(
               {line.text}
             </p>
 
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {onShareLine && (
                 <button
                   type="button"
@@ -151,18 +151,23 @@ const LyricRow = memo(
                     onShareLine(nextLineText ? `${line.text}\n${nextLineText}` : line.text);
                   }}
                   title="Create 1080×1920 Story Poster with this lyric line"
-                  className="opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-full bg-white/15 hover:bg-[var(--color-accent)] text-[10px] font-extrabold text-white transition-all cursor-pointer"
+                  className="opacity-0 group-hover:opacity-100 px-2.5 py-1 rounded-full bg-white/10 hover:bg-[var(--color-accent)] border border-white/15 hover:border-white/30 text-[11px] font-bold text-white/90 hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-sm"
                 >
-                  📸 Poster
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="3" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  <span className="hidden sm:inline">Card</span>
                 </button>
               )}
 
               {line.time >= 0 && (
                 <span
-                  className={`text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full flex-shrink-0 transition-opacity duration-150 ${
+                  className={`text-[11px] font-semibold tabular-nums px-2.5 py-0.5 rounded-full flex-shrink-0 transition-opacity duration-150 ${
                     isCurrent
-                      ? 'opacity-90 bg-[var(--color-accent)]/25 text-[var(--color-accent)] border border-[var(--color-accent)]/40'
-                      : 'opacity-0 group-hover:opacity-80 bg-white/10 text-white/70'
+                      ? 'opacity-95 bg-white/12 text-white/90 border border-white/20 shadow-inner'
+                      : 'opacity-0 group-hover:opacity-75 bg-white/[0.07] text-white/65'
                   }`}
                 >
                   {formatTimestamp(line.time)}
@@ -446,24 +451,28 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
 
   return (
     <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
-      {/* Header Pill + Live Karaoke Vocal Remover + Sing-Along Scorer */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-white/10 bg-black/30 flex-shrink-0 z-20">
-        <div className="flex items-center gap-2.5">
-          <span className="relative flex h-2.5 w-2.5">
+      {/* Sleek Single-Row Spatial Studio Toolbar */}
+      <div className="h-14 px-5 flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.025] backdrop-blur-xl flex-shrink-0 z-20">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
             <span
               className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-75 ${
                 !isPlaying ? 'hidden' : ''
               }`}
             />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--color-accent)]" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
           </span>
-          <span className="text-xs font-bold uppercase tracking-widest text-white/85">
-            {result?.synced ? 'WaveSync • 120Hz Live Lyrics' : 'WaveSync • Auto-Flow Lyrics'}
+          <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-white/90 truncate">
+            WaveSync
+          </span>
+          <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-white/[0.07] border border-white/10 text-[10px] font-bold uppercase tracking-wider text-white/55">
+            {result?.synced ? '120Hz Live' : 'Auto-Flow'}
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* 1-Click Karaoke / Acapella Vocal Stem Switcher */}
+        {/* Unified Segmented Glass Control Dock */}
+        <div className="flex items-center gap-1 p-1 rounded-full bg-black/40 border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] flex-shrink-0">
+          {/* 1. Karaoke / Acapella Vocal Stem Switcher */}
           <button
             type="button"
             onClick={() =>
@@ -475,82 +484,107 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
                   : 'normal'
               )
             }
-            className={`px-3 py-1 rounded-full text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 ${
               vocalMode === 'karaoke'
-                ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-[0_0_16px_rgba(244,63,94,0.5)]'
                 : vocalMode === 'acapella'
-                ? 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-lg'
-                : 'bg-white/10 hover:bg-white/20 text-white/80'
+                ? 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-[0_0_16px_rgba(139,92,246,0.5)]'
+                : 'text-white/70 hover:text-white hover:bg-white/[0.08]'
             }`}
-            title="Cycle Real-Time Vocal Remover (Karaoke Instrumental) / Acapella Vocal Isolate"
+            title="Cycle Real-Time Vocal Remover (Karaoke Instrumental) & Acapella Vocal Isolate"
           >
-            <span>{vocalMode === 'karaoke' ? '🎸' : vocalMode === 'acapella' ? '🎙️' : '🎚️'}</span>
+            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 10v3" />
+              <path d="M6 6v11" />
+              <path d="M10 3v18" />
+              <path d="M14 8v7" />
+              <path d="M18 5v13" />
+              <path d="M22 10v3" />
+            </svg>
             <span>
               {vocalMode === 'karaoke'
-                ? 'Karaoke: Vocals Off'
+                ? 'Karaoke On'
                 : vocalMode === 'acapella'
-                ? 'Acapella: Vocals Only'
-                : 'Karaoke Mode'}
+                ? 'Acapella On'
+                : 'Karaoke'}
             </span>
           </button>
 
-          {onShareLyric && (
-            <button
-              type="button"
-              onClick={() => {
-                const curIdx = activeIndex >= 0 ? activeIndex : 0;
-                const l1 = lines[curIdx]?.text || '';
-                const l2 = lines[curIdx + 1]?.text || '';
-                onShareLyric(l2 ? `${l1}\n${l2}` : l1);
-              }}
-              className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-extrabold text-white/85 cursor-pointer flex items-center gap-1"
-              title="Export 1080×1920 Social Story Poster of current lyrics"
-            >
-              <span>📸</span>
-              <span className="hidden sm:inline">Lyric Poster</span>
-            </button>
-          )}
+          <div className="w-px h-4 bg-white/10" />
 
+          {/* 2. Live Sing-Along Pitch & Energy Scorer */}
           {singAlongActive && (
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-[11px] font-extrabold text-emerald-200">
-              <div className="w-12 h-1.5 bg-black/50 rounded-full overflow-hidden">
+            <div className="hidden md:flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-200">
+              <div className="w-10 h-1.5 bg-black/60 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-emerald-400 to-cyan-300 rounded-full transition-[width] duration-75"
                   style={{ width: `${micLevel}%` }}
                 />
               </div>
-              <span>🔥 {vocalStreak}x</span>
-              <span className="px-1.5 py-0.2 rounded bg-emerald-400 text-black text-[10px] font-black">
-                {vocalGrade} • {vocalScore}%
+              <span className="tabular-nums text-emerald-300">{vocalStreak}x</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-400 text-black text-[10px] font-black tabular-nums">
+                {vocalGrade} {vocalScore}%
               </span>
             </div>
           )}
 
           <button
+            type="button"
             onClick={toggleSingAlong}
-            className={`px-3 py-1 rounded-full text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 ${
               singAlongActive
-                ? 'bg-rose-500 text-white shadow-lg'
-                : 'bg-white/10 hover:bg-white/20 text-white/80'
+                ? 'bg-emerald-500 text-black font-extrabold shadow-[0_0_16px_rgba(16,185,129,0.5)]'
+                : 'text-white/70 hover:text-white hover:bg-white/[0.08]'
             }`}
             title="Sing along with your microphone for live vocal pitch & energy scoring"
           >
-            <span>🎤</span>
-            <span>{singAlongActive ? 'Stop Mic Score' : 'Sing-Along Score'}</span>
+            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" x2="12" y1="19" y2="22" />
+            </svg>
+            <span>{singAlongActive ? 'Stop Mic' : 'Sing-Along'}</span>
           </button>
+
+          {/* 3. Lyric Story Poster Studio */}
+          {onShareLyric && (
+            <>
+              <div className="w-px h-4 bg-white/10" />
+              <button
+                type="button"
+                onClick={() => {
+                  const curIdx = activeIndex >= 0 ? activeIndex : 0;
+                  const l1 = lines[curIdx]?.text || '';
+                  const l2 = lines[curIdx + 1]?.text || '';
+                  onShareLyric(l2 ? `${l1}\n${l2}` : l1);
+                }}
+                className="px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide text-white/70 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer flex items-center gap-1.5"
+                title="Export 1080×1920 Social Story Poster of current lyrics"
+              >
+                <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                <span className="hidden sm:inline">Story Card</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Top & Bottom Soft Depth-of-Field Gradient Masks */}
-      <div className="pointer-events-none absolute top-12 left-0 right-0 h-12 bg-gradient-to-b from-black/55 to-transparent z-10" />
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/65 to-transparent z-10" />
-
-      {/* Scrollable Spatial Lyrics Viewport */}
+      {/* Scrollable Spatial Lyrics Viewport with True Alpha Feather Mask */}
       <div
         ref={containerRef}
         onWheel={handleUserScrollInteraction}
         onTouchMove={handleUserScrollInteraction}
-        className="flex-1 overflow-y-auto px-6 sm:px-10 py-14 no-scrollbar relative will-change-scroll"
+        style={{
+          WebkitMaskImage:
+            'linear-gradient(to bottom, transparent 0px, black 36px, black calc(100% - 48px), transparent 100%)',
+          maskImage:
+            'linear-gradient(to bottom, transparent 0px, black 36px, black calc(100% - 48px), transparent 100%)'
+        }}
+        className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 no-scrollbar relative will-change-scroll"
       >
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-white/60">
