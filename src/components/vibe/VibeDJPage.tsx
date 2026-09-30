@@ -103,7 +103,7 @@ export default function VibeDJPage() {
               <button
                 type="submit"
                 disabled={isGenerating || !prompt.trim()}
-                className="h-14 px-7 rounded-2xl bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-600 text-white font-extrabold text-sm sm:text-base shadow-xl hover:brightness-110 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2.5 flex-shrink-0"
+                className="h-14 px-7 rounded-2xl glass-button-primary text-white font-extrabold text-sm sm:text-base cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2.5 flex-shrink-0"
               >
                 {isGenerating ? (
                   <>
@@ -152,7 +152,7 @@ export default function VibeDJPage() {
                 setPrompt(preset.prompt);
                 launchVibe(preset);
               }}
-              className="text-left p-5 rounded-2xl liquid-glass border border-white/10 hover:border-white/25 transition-all group relative overflow-hidden cursor-pointer"
+              className="text-left p-5 rounded-2xl liquid-glass border border-white/15 hover:border-white/30 transition-all group relative overflow-hidden cursor-pointer"
             >
               <div
                 className={`absolute -right-8 -bottom-8 w-28 h-28 rounded-full bg-gradient-to-br ${preset.gradient} opacity-25 blur-2xl group-hover:opacity-50 transition-opacity`}
@@ -208,13 +208,13 @@ export default function VibeDJPage() {
                       playTrack(activeBlueprint.tracks[0], activeBlueprint.tracks, 0);
                     }
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-white text-black font-extrabold text-xs hover:scale-105 transition-transform cursor-pointer"
+                  className="px-5 py-2.5 rounded-full glass-button-primary text-white font-extrabold text-xs cursor-pointer"
                 >
                   ▶ Play Full Flow
                 </button>
                 <button
                   onClick={handleSaveAsPlaylist}
-                  className="px-4 py-2.5 rounded-xl liquid-glass text-white font-bold text-xs hover:bg-white/15 transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-full glass-button text-white font-bold text-xs cursor-pointer"
                 >
                   {savedToast ? '✓ Saved to Playlists!' : '+ Save as Playlist'}
                 </button>

@@ -380,7 +380,7 @@ export default function TopBar() {
           {roomCode && (
             <button
               onClick={() => navigate('/jam')}
-              className="hidden md:flex items-center gap-2 px-3.5 h-9 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-xs font-extrabold text-emerald-300 hover:bg-emerald-500/30 transition-colors cursor-pointer"
+              className="hidden md:flex items-center gap-2 px-3.5 h-9 rounded-full glass-button-emerald text-xs font-extrabold cursor-pointer"
               title="Open Active Jam Room"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -392,10 +392,10 @@ export default function TopBar() {
           <button
             onClick={() => setStudioModalOpen(true)}
             title="Studio Audio FX, Ambient Mixer, Focus & Sleep Timer"
-            className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer border ${
+            className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
               fxMode !== 'normal' || hasActiveAmbient || sleepActive
-                ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-[0_0_20px_rgba(250,45,72,0.45)]'
-                : 'liquid-glass border-white/15 text-white/90 hover:text-white hover:bg-white/15'
+                ? 'glass-button-primary text-white'
+                : 'glass-button text-white/90 hover:text-white'
             }`}
           >
             <span>🎛️</span>
@@ -407,7 +407,7 @@ export default function TopBar() {
             <button
               onClick={triggerInstall}
               title="Install WaveCraft as Desktop / Mobile App"
-              className="hidden xl:flex items-center gap-1.5 px-3.5 h-9 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/90 hover:text-white hover:bg-white/15 transition-all cursor-pointer"
+              className="hidden xl:flex items-center gap-1.5 px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/90 hover:text-white cursor-pointer"
             >
               <svg className="w-3.5 h-3.5 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -440,7 +440,7 @@ export default function TopBar() {
                 <h3 className="text-lg font-extrabold text-white">Install WaveCraft App</h3>
                 <button
                   onClick={() => setShowInstallGuide(false)}
-                  className="w-8 h-8 rounded-full liquid-glass flex items-center justify-center text-white/65 hover:text-white cursor-pointer"
+                  className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/65 hover:text-white cursor-pointer"
                 >
                   ✕
                 </button>
@@ -460,7 +460,7 @@ export default function TopBar() {
               </div>
               <button
                 onClick={() => setShowInstallGuide(false)}
-                className="w-full py-2.5 rounded-xl bg-[var(--color-accent)] text-white font-bold text-xs cursor-pointer"
+                className="w-full py-2.5 rounded-full glass-button-primary text-white font-bold text-xs cursor-pointer"
               >
                 Got It
               </button>

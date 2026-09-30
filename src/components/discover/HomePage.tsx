@@ -155,7 +155,7 @@ export default function HomePage() {
             <p className="text-white/65 text-sm sm:text-base mt-3 leading-relaxed">
               Stream full-length songs in 320kbps studio quality with spatial glass aesthetics, time-synced lyrics, real-time audio visualizers, and zero ads.
             </p>
-            <div className="flex flex-wrap items-center gap-3.5 mt-6">
+            <div className="flex flex-wrap items-center gap-3 mt-6">
               <button
                 onClick={() => {
                   if (trendingTracks.length > 0) {
@@ -164,7 +164,7 @@ export default function HomePage() {
                     handlePlayMood('hero', 'top global hits');
                   }
                 }}
-                className="px-6 py-3 rounded-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-sm flex items-center gap-2.5 shadow-xl shadow-[var(--color-accent)]/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                className="px-6 py-3 rounded-full glass-button-primary text-white font-bold text-sm flex items-center gap-2.5 cursor-pointer"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
@@ -174,14 +174,14 @@ export default function HomePage() {
 
               <button
                 onClick={() => navigate('/vibe')}
-                className="px-5 py-3 rounded-full liquid-glass border border-white/20 text-sm font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-2"
+                className="px-5 py-3 rounded-full glass-button text-sm font-bold text-white flex items-center gap-2 cursor-pointer"
               >
                 <span>✨ AI Vibe DJ</span>
               </button>
 
               <button
                 onClick={() => navigate('/jam')}
-                className="px-5 py-3 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30 text-sm font-bold text-emerald-300 transition-all cursor-pointer flex items-center gap-2"
+                className="px-5 py-3 rounded-full glass-button-emerald text-sm font-bold flex items-center gap-2 cursor-pointer"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                 <span>Live Jam Room</span>
@@ -189,7 +189,7 @@ export default function HomePage() {
 
               <button
                 onClick={() => useStudioStore.getState().setStudioModalOpen(true)}
-                className="px-5 py-3 rounded-full bg-purple-500/15 hover:bg-purple-500/25 border border-purple-400/30 text-sm font-bold text-purple-200 transition-all cursor-pointer flex items-center gap-2"
+                className="px-5 py-3 rounded-full glass-button-purple text-sm font-bold flex items-center gap-2 cursor-pointer"
               >
                 <span>🎛️ Studio FX & Ambient Focus</span>
               </button>

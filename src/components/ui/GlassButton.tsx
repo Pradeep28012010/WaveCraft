@@ -31,11 +31,10 @@ const GlassButton = ({
   if (variant === 'default') {
     variantClass = 'glass-button rounded-full';
   } else if (variant === 'primary') {
-    variantClass =
-      'bg-gradient-to-r from-[var(--color-accent)] to-rose-500 hover:brightness-110 text-white border border-white/20 shadow-[0_8px_24px_rgba(250,45,72,0.35)] rounded-full';
+    variantClass = 'glass-button-primary rounded-full';
   } else if (variant === 'ghost') {
     variantClass =
-      'bg-transparent hover:bg-white/10 text-white/80 hover:text-white border border-transparent hover:border-white/15 rounded-full';
+      'glass-button bg-white/[0.05] hover:bg-white/[0.14] text-white/80 hover:text-white border border-white/12 hover:border-white/28 rounded-full';
   } else if (variant === 'icon') {
     variantClass = 'glass-button rounded-full p-2';
   }

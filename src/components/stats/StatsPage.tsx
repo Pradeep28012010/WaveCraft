@@ -1,24 +1,73 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useStudioStore } from '../../stores/studioStore';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { getOfflineTracks } from '../../services/offlineVault';
 import { formatListeningTime } from '../../utils/formatTime';
 import { searchTracks } from '../../services/youtube';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import GlassCard from '../ui/GlassCard';
 
+interface AchievementBadge {
+  id: string;
+  icon: string;
+  name: string;
+  desc: string;
+  category: 'Streaming' | 'Curation' | 'Studio DSP' | 'Exploration';
+  tier: 'Bronze' | 'Silver' | 'Gold' | 'Mythic';
+  current: number;
+  target: number;
+  unit: string;
+  unlocked: boolean;
+  progressPct: number;
+}
+
+const TIER_STYLES: Record<
+  AchievementBadge['tier'],
+  { label: string; badgeClass: string; barGradient: string }
+> = {
+  Bronze: {
+    label: 'BRONZE',
+    badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-400/30',
+    barGradient: 'from-amber-500 to-orange-400'
+  },
+  Silver: {
+    label: 'SILVER',
+    badgeClass: 'bg-cyan-500/15 text-cyan-200 border-cyan-400/30',
+    barGradient: 'from-cyan-400 to-blue-500'
+  },
+  Gold: {
+    label: 'GOLD',
+    badgeClass: 'bg-yellow-400/20 text-yellow-200 border-yellow-300/40',
+    barGradient: 'from-yellow-400 via-amber-400 to-rose-500'
+  },
+  Mythic: {
+    label: 'MYTHIC',
+    badgeClass: 'bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-400/40',
+    barGradient: 'from-[var(--color-accent)] via-fuchsia-500 to-cyan-400'
+  }
+};
+
 export default function StatsPage() {
   const { playHistory = [], recentlyPlayed = [], likedSongs = [], playlists = [] } = useLibraryStore();
   const playTrack = usePlayerStore((s) => s.playTrack);
   const fxMode = useStudioStore((s) => s.fxMode);
+  const vocalMode = useStudioStore((s) => s.vocalMode);
+  const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
   const completedSessions = useStudioStore((s) => s.completedSessions);
+  const equalizerPreset = useSettingsStore((s) => s.equalizerPreset);
+  const equalizerBands = useSettingsStore((s) => s.equalizerBands);
+
   const [isExportingPoster, setIsExportingPoster] = useState(false);
+  const [badgeFilter, setBadgeFilter] = useState<'all' | 'unlocked' | 'in-progress'>('all');
+
+  const offlineCount = useMemo(() => getOfflineTracks().length, [likedSongs.length, playHistory.length]);
 
   const totalListens = Math.max(playHistory.length, recentlyPlayed.length);
   const normalizeSec = (d?: number) => {
     if (!d || isNaN(d) || d <= 0) return 210;
-    // If duration was accidentally stored in milliseconds, convert to seconds
     return d > 3600 ? Math.round(d / 1000) : d;
   };
   const totalSeconds =
@@ -29,9 +78,20 @@ export default function StatsPage() {
 
   const artistList = [
     ...playHistory.map((p) => p.artist).filter(Boolean),
-    ...recentlyPlayed.map((t: any) => t?.track?.artist || t?.artist).filter(Boolean)
+    ...recentlyPlayed.map((t: any) => t?.track?.artist || t?.artist).filter(Boolean),
+    ...likedSongs.map((t) => t?.artist).filter(Boolean)
   ];
-  const uniqueArtists = new Set(artistList).size;
+  const uniqueArtists = new Set(
+    artistList
+      .flatMap((a) => String(a).split(/,|&|feat\.|ft\./i))
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s.length > 1)
+  ).size;
+
+  const totalPlaylistTracks = useMemo(
+    () => playlists.reduce((sum, pl) => sum + (pl.tracks?.length || 0), 0),
+    [playlists]
+  );
 
   // Compute Top Tracks from playHistory + fallback to recentlyPlayed
   const trackCounts: Record<string, { title: string; artist: string; count: number }> = {};
@@ -63,7 +123,9 @@ export default function StatsPage() {
   const artistCounts: Record<string, number> = {};
   for (const a of artistList) {
     if (!a) continue;
-    artistCounts[a] = (artistCounts[a] || 0) + 1;
+    const primary = String(a).split(',')[0].trim();
+    if (!primary) continue;
+    artistCounts[primary] = (artistCounts[primary] || 0) + 1;
   }
   const topArtists = Object.entries(artistCounts)
     .sort((a, b) => b[1] - a[1])
@@ -72,13 +134,13 @@ export default function StatsPage() {
 
   // Determine Dynamic Listener Aura Personality
   const auraProfile =
-    totalListens >= 15
+    totalListens >= 25
       ? {
           title: 'Sonic Horizon Architect',
           subtitle: 'High-frequency curator with a taste for immersive studio soundstages',
           colors: ['#fa2d48', '#7c3aed', '#0ea5e9']
         }
-      : likedSongs.length >= 3
+      : likedSongs.length >= 5 || playlists.length >= 2
       ? {
           title: 'Velvet Vault Collector',
           subtitle: 'Selective audiophile building a timeless personal rotation',
@@ -90,53 +152,233 @@ export default function StatsPage() {
           colors: ['#fa2d48', '#6366f1', '#10b981']
         };
 
-  // Unlockable Listener Badges
-  const badges = [
-    {
-      id: 'audiophile',
-      icon: '🎧',
-      name: '320k Studio Purist',
-      desc: 'Streamed in bit-accurate 320kbps Studio AAC',
-      unlocked: totalListens >= 1
-    },
-    {
-      id: 'dsp-alchemist',
-      icon: '🎛️',
-      name: 'DSP Alchemist',
-      desc: 'Transformed tracks with Slowed + Reverb, 8D Orbit, or Nightcore',
-      unlocked: fxMode !== 'normal' || totalListens >= 3
-    },
-    {
-      id: 'curator',
-      icon: '💎',
-      name: 'Vault Curator',
-      desc: 'Saved favorite tracks to Liked Songs or custom playlists',
-      unlocked: likedSongs.length >= 1 || playlists.length >= 1
-    },
-    {
-      id: 'rhythm-explorer',
-      icon: '🔥',
-      name: 'Rhythm Explorer',
-      desc: 'Streamed 5+ tracks on WaveCraft',
-      unlocked: totalListens >= 5
-    },
-    {
-      id: 'crate-digger',
-      icon: '🌌',
-      name: 'Crate Digger',
-      desc: 'Explored 3+ distinct musical artists',
-      unlocked: uniqueArtists >= 3
-    },
-    {
-      id: 'deep-focus',
-      icon: '⏱️',
-      name: 'Deep Focus Master',
-      desc: 'Completed a Focus Pomodoro or 20+ mins of listening',
-      unlocked: completedSessions >= 1 || totalMinutes >= 20
-    }
-  ];
+  // DSP & Studio activity signals
+  const hasCustomEQ =
+    equalizerPreset !== 'Flat' || (Array.isArray(equalizerBands) && equalizerBands.some((b) => b !== 0));
+  const hasAmbientActive = Object.values(ambientVolumes || {}).some((v) => v > 0);
+  const dspFeaturesUsed =
+    (fxMode !== 'normal' ? 1 : 0) +
+    (vocalMode !== 'normal' ? 1 : 0) +
+    (hasCustomEQ ? 1 : 0) +
+    (hasAmbientActive ? 1 : 0) +
+    (totalListens >= 3 ? 1 : 0);
+
+  // Build 16 Rich Achievement Badges with Real Progress Tracking
+  const badges: AchievementBadge[] = useMemo(() => {
+    const raw: Omit<AchievementBadge, 'unlocked' | 'progressPct'>[] = [
+      {
+        id: 'first-frequency',
+        icon: '🎧',
+        name: '320k Studio Purist',
+        desc: 'Stream your first track in bit-accurate 320kbps Studio AAC',
+        category: 'Streaming',
+        tier: 'Bronze',
+        current: Math.min(1, totalListens),
+        target: 1,
+        unit: 'track'
+      },
+      {
+        id: 'rhythm-explorer',
+        icon: '🔥',
+        name: 'Rhythm Explorer',
+        desc: 'Stream 10 tracks across WaveCraft Studio',
+        category: 'Streaming',
+        tier: 'Bronze',
+        current: totalListens,
+        target: 10,
+        unit: 'tracks'
+      },
+      {
+        id: 'rotation-veteran',
+        icon: '⚡',
+        name: 'Rotation Veteran',
+        desc: 'Reach 50 total tracks streamed in your listening history',
+        category: 'Streaming',
+        tier: 'Silver',
+        current: totalListens,
+        target: 50,
+        unit: 'tracks'
+      },
+      {
+        id: 'studio-centurion',
+        icon: '👑',
+        name: 'Studio Centurion',
+        desc: 'Stream 100+ tracks in lossless-grade studio fidelity',
+        category: 'Streaming',
+        tier: 'Gold',
+        current: totalListens,
+        target: 100,
+        unit: 'tracks'
+      },
+      {
+        id: 'sonic-immortal',
+        icon: '🌟',
+        name: 'Sonic Immortal',
+        desc: 'Achieve 250+ lifetime streams across the WaveCraft universe',
+        category: 'Streaming',
+        tier: 'Mythic',
+        current: totalListens,
+        target: 250,
+        unit: 'tracks'
+      },
+      {
+        id: 'audiophile-hour',
+        icon: '⏳',
+        name: 'Audiophile Hour',
+        desc: 'Accumulate 60 minutes of high-definition listening time',
+        category: 'Streaming',
+        tier: 'Silver',
+        current: totalMinutes,
+        target: 60,
+        unit: 'mins'
+      },
+      {
+        id: 'marathon-session',
+        icon: '🌙',
+        name: 'Midnight Marathon',
+        desc: 'Stream for 300+ minutes (5 hours) of pure uninterrupted music',
+        category: 'Streaming',
+        tier: 'Gold',
+        current: totalMinutes,
+        target: 300,
+        unit: 'mins'
+      },
+      {
+        id: 'vault-curator',
+        icon: '💎',
+        name: 'Vault Curator',
+        desc: 'Save 5 favorite songs to your Liked Songs collection',
+        category: 'Curation',
+        tier: 'Bronze',
+        current: likedSongs.length,
+        target: 5,
+        unit: 'liked'
+      },
+      {
+        id: 'heartbeat-collector',
+        icon: '❤️',
+        name: 'Heartbeat Collector',
+        desc: 'Curate 25+ essential tracks inside your Liked Songs vault',
+        category: 'Curation',
+        tier: 'Silver',
+        current: likedSongs.length,
+        target: 25,
+        unit: 'liked'
+      },
+      {
+        id: 'velvet-archivist',
+        icon: '🏛️',
+        name: 'Velvet Archivist',
+        desc: 'Amass 75+ Liked Songs in your personal audiophile library',
+        category: 'Curation',
+        tier: 'Mythic',
+        current: likedSongs.length,
+        target: 75,
+        unit: 'liked'
+      },
+      {
+        id: 'playlist-architect',
+        icon: '💿',
+        name: 'Playlist Architect',
+        desc: 'Create or import 3 custom playlists in your library',
+        category: 'Curation',
+        tier: 'Silver',
+        current: playlists.length,
+        target: 3,
+        unit: 'playlists'
+      },
+      {
+        id: 'record-mogul',
+        icon: '🎼',
+        name: 'Grand Record Mogul',
+        desc: 'Curate 50+ total songs across all your custom & imported playlists',
+        category: 'Curation',
+        tier: 'Gold',
+        current: totalPlaylistTracks,
+        target: 50,
+        unit: 'songs'
+      },
+      {
+        id: 'crate-digger',
+        icon: '🌌',
+        name: 'Crate Digger',
+        desc: 'Explore 5 distinct musical artists across your sessions',
+        category: 'Exploration',
+        tier: 'Bronze',
+        current: uniqueArtists,
+        target: 5,
+        unit: 'artists'
+      },
+      {
+        id: 'sonic-cosmopolitan',
+        icon: '🧭',
+        name: 'Sonic Cosmopolitan',
+        desc: 'Discover 25+ unique artists across global genres and eras',
+        category: 'Exploration',
+        tier: 'Gold',
+        current: uniqueArtists,
+        target: 25,
+        unit: 'artists'
+      },
+      {
+        id: 'dsp-alchemist',
+        icon: '🎛️',
+        name: 'DSP Sound Alchemist',
+        desc: 'Customize Studio FX (3D Spatial, Slowed+Reverb, 10-Band EQ, or Ambient Synth)',
+        category: 'Studio DSP',
+        tier: 'Silver',
+        current: Math.min(2, dspFeaturesUsed),
+        target: 2,
+        unit: 'DSP modes'
+      },
+      {
+        id: 'deep-focus-master',
+        icon: '⏱️',
+        name: 'Deep Focus & Vault Master',
+        desc: 'Complete a Focus Pomodoro, cache Offline Vault tracks, or stream 30+ mins',
+        category: 'Studio DSP',
+        tier: 'Gold',
+        current: Math.min(
+          30,
+          completedSessions * 30 + offlineCount * 10 + totalMinutes
+        ),
+        target: 30,
+        unit: 'pts'
+      }
+    ];
+
+    return raw.map((b) => {
+      const unlocked = b.current >= b.target;
+      const progressPct = Math.min(100, Math.max(0, Math.round((b.current / b.target) * 100)));
+      return {
+        ...b,
+        unlocked,
+        progressPct
+      };
+    });
+  }, [
+    totalListens,
+    totalMinutes,
+    likedSongs.length,
+    playlists.length,
+    totalPlaylistTracks,
+    uniqueArtists,
+    dspFeaturesUsed,
+    completedSessions,
+    offlineCount
+  ]);
 
   const unlockedCount = badges.filter((b) => b.unlocked).length;
+  const inProgressCount = badges.length - unlockedCount;
+  const overallCompletionPct = Math.round(
+    badges.reduce((acc, b) => acc + b.progressPct, 0) / badges.length
+  );
+
+  const filteredBadges = useMemo(() => {
+    if (badgeFilter === 'unlocked') return badges.filter((b) => b.unlocked);
+    if (badgeFilter === 'in-progress') return badges.filter((b) => !b.unlocked);
+    return badges;
+  }, [badges, badgeFilter]);
 
   // Generate & Download High-Res 1080x1350 "WaveCraft Wrapped" Listener Passport PNG
   const handleDownloadWrappedPoster = () => {
@@ -305,17 +547,17 @@ export default function StatsPage() {
               {auraProfile.subtitle}. You have unlocked{' '}
               <strong className="text-white">
                 {unlockedCount} of {badges.length} Studio Achievements
-              </strong>
-              .
+              </strong>{' '}
+              ({overallCompletionPct}% overall mastery).
             </p>
           </div>
 
           <motion.button
-            whileHover={{ scale: 1.04 }}
+            whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.96 }}
             onClick={handleDownloadWrappedPoster}
             disabled={isExportingPoster}
-            className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-600 text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider shadow-[0_12px_35px_rgba(250,45,72,0.45)] flex items-center justify-center gap-2.5 cursor-pointer flex-shrink-0"
+            className="px-6 py-3.5 rounded-2xl glass-button-primary text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 cursor-pointer flex-shrink-0"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -359,46 +601,151 @@ export default function StatsPage() {
         </GlassCard>
       </div>
 
-      {/* Unlockable Listener Achievements Grid */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-extrabold text-white">🏅 Listener Achievement Badges</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {badges.map((badge) => (
-            <motion.div
-              key={badge.id}
-              whileHover={{ y: -2 }}
-              className={`p-4 rounded-2xl border flex items-start gap-3.5 transition-all ${
-                badge.unlocked
-                  ? 'liquid-glass border-white/20 shadow-lg'
-                  : 'bg-white/[0.02] border-white/5 opacity-50'
+      {/* Unlockable Listener Achievements Grid with Live Progress Bars */}
+      <div className="space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-white flex items-center gap-2.5">
+              <span>🏅 Listener Achievement Badges</span>
+              <span className="text-xs font-extrabold px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-white/80">
+                {overallCompletionPct}% Mastery
+              </span>
+            </h2>
+            <p className="text-xs text-white/55 mt-0.5">
+              Track your real-time progress across all 16 Studio Milestones — every stream, like, and playlist counts.
+            </p>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setBadgeFilter('all')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+                badgeFilter === 'all'
+                  ? 'glass-button-primary text-white'
+                  : 'glass-button text-white/70 hover:text-white'
               }`}
             >
-              <div
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 ${
+              All ({badges.length})
+            </button>
+            <button
+              onClick={() => setBadgeFilter('unlocked')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+                badgeFilter === 'unlocked'
+                  ? 'glass-button-emerald text-white'
+                  : 'glass-button text-white/70 hover:text-white'
+              }`}
+            >
+              Unlocked ({unlockedCount})
+            </button>
+            <button
+              onClick={() => setBadgeFilter('in-progress')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+                badgeFilter === 'in-progress'
+                  ? 'glass-button-purple text-white'
+                  : 'glass-button text-white/70 hover:text-white'
+              }`}
+            >
+              In Progress ({inProgressCount})
+            </button>
+          </div>
+        </div>
+
+        {/* Overall Achievement Mastery Bar */}
+        <div className="p-4 rounded-2xl liquid-glass border border-white/15 flex flex-col gap-2">
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-white/80">
+              Overall Studio Achievement Progress ({unlockedCount} Unlocked • {inProgressCount} In Progress)
+            </span>
+            <span className="text-emerald-300 tabular-nums">{overallCompletionPct}%</span>
+          </div>
+          <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden p-0.5">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${overallCompletionPct}%` }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] via-purple-500 to-emerald-400"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {filteredBadges.map((badge) => {
+            const tierMeta = TIER_STYLES[badge.tier];
+            const remaining = Math.max(0, badge.target - badge.current);
+
+            return (
+              <motion.div
+                key={badge.id}
+                whileHover={{ y: -3 }}
+                className={`p-4 rounded-2xl border flex flex-col justify-between gap-3.5 transition-all ${
                   badge.unlocked
-                    ? 'bg-gradient-to-br from-[var(--color-accent)]/30 to-purple-500/30 border border-white/20'
-                    : 'bg-white/5'
+                    ? 'liquid-glass border-white/25 shadow-xl'
+                    : 'glass border-white/10 hover:border-white/20'
                 }`}
               >
-                {badge.icon}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-extrabold text-white truncate">{badge.name}</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 border ${
                       badge.unlocked
-                        ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
-                        : 'bg-white/10 text-white/40'
+                        ? 'bg-gradient-to-br from-[var(--color-accent)]/30 via-purple-500/25 to-cyan-500/25 border-white/25 shadow-lg'
+                        : 'bg-white/[0.06] border-white/10 opacity-80'
                     }`}
                   >
-                    {badge.unlocked ? 'UNLOCKED' : 'LOCKED'}
-                  </span>
+                    {badge.icon}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border ${tierMeta.badgeClass}`}
+                      >
+                        {tierMeta.label}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                          badge.unlocked
+                            ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/35'
+                            : 'bg-white/10 text-white/65 border border-white/10'
+                        }`}
+                      >
+                        {badge.unlocked ? '✓ UNLOCKED' : `${badge.progressPct}%`}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-extrabold text-white truncate">{badge.name}</h3>
+                    <p className="text-[11px] text-white/60 mt-0.5 leading-relaxed line-clamp-2">
+                      {badge.desc}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-white/55 mt-1 leading-relaxed">{badge.desc}</p>
-              </div>
-            </motion.div>
-          ))}
+
+                {/* Live Progress Bar & Counter */}
+                <div className="pt-2 border-t border-white/10 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className={badge.unlocked ? 'text-emerald-300' : 'text-white/70'}>
+                      {badge.unlocked
+                        ? 'Milestone Completed!'
+                        : `${remaining} more ${badge.unit} to unlock`}
+                    </span>
+                    <span className="text-white/90 tabular-nums">
+                      {Math.min(badge.current, badge.target)} / {badge.target} {badge.unit}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${badge.progressPct}%` }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                      className={`h-full rounded-full bg-gradient-to-r ${
+                        badge.unlocked
+                          ? 'from-emerald-400 to-teal-300'
+                          : tierMeta.barGradient
+                      }`}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
 
