@@ -239,6 +239,18 @@ function StudioFXModalContent() {
 
   const orbX = spatialOrbitAuto ? Math.sin(liveOrbitAngle) * 0.78 : spatialManualPos.x;
   const orbZ = spatialOrbitAuto ? -Math.cos(liveOrbitAngle) * 0.78 : spatialManualPos.z;
+  const azimuthDeg = Math.round(((Math.atan2(orbX, -orbZ) * 180) / Math.PI + 360) % 360);
+  const distanceMeters = (Math.hypot(orbX, orbZ) * 2.5).toFixed(2);
+  const leftEarLevel = Math.round(Math.min(100, Math.max(18, 72 - orbX * 38)));
+  const rightEarLevel = Math.round(Math.min(100, Math.max(18, 72 + orbX * 38)));
+  const stageZoneLabel =
+    azimuthDeg >= 315 || azimuthDeg < 45
+      ? 'Front Center Stage'
+      : azimuthDeg < 135
+      ? 'Right Acoustic Wing'
+      : azimuthDeg < 225
+      ? 'Rear Surround Halo'
+      : 'Left Acoustic Wing';
 
   const hasAnyAmbient = Object.values(ambientVolumes).some((v) => v > 0.01);
   const hasCustomRack =
@@ -646,72 +658,99 @@ function StudioFXModalContent() {
         {/* ================= DECK 2: 360° HRTF SPATIAL RADAR + VOCAL STEM ISOLATOR ================= */}
         {(activeTab === 'all' || activeTab === 'spatial') && (
           <div className="space-y-6">
-            {/* Interactive 3D Spatial Audio Control Pad (Radar Joypad) */}
+            {/* Redesigned Holographic 360° HRTF Spatial Soundstage Workstation */}
             <div
-              className={`p-5 rounded-3xl border transition-all ${
+              className={`p-5 sm:p-6 rounded-3xl border transition-all relative overflow-hidden ${
                 fxMode === '8d-orbit'
-                  ? 'bg-gradient-to-br from-cyan-500/[0.12] via-blue-600/[0.08] to-purple-600/[0.10] border-cyan-400/35 shadow-[0_16px_48px_rgba(6,182,212,0.18)]'
+                  ? 'bg-gradient-to-br from-cyan-500/[0.12] via-slate-900/80 to-indigo-600/[0.12] border-cyan-400/40 shadow-[0_20px_60px_rgba(6,182,212,0.18)]'
                   : 'bg-white/[0.03] border-white/12'
               }`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-extrabold uppercase tracking-wider text-white">
-                      🎧 Interactive 360° HRTF Spatial Soundstage Radar
+              {/* Top Header Bar */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 pb-4 mb-5 border-b border-white/10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse" />
+                    <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
+                      360° HRTF Spatial Soundstage & Binaural Acoustic Dome
                     </h3>
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase whitespace-nowrap flex-shrink-0 ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
                         fxMode === '8d-orbit'
-                          ? 'glass-button-cyan text-cyan-200'
-                          : 'bg-white/10 text-white/55'
+                          ? 'bg-cyan-500/25 border border-cyan-400/45 text-cyan-200'
+                          : 'bg-white/10 border border-white/15 text-white/60'
                       }`}
                     >
                       {fxMode === '8d-orbit'
                         ? spatialOrbitAuto
-                          ? 'AUTO 360° ORBIT'
-                          : 'MANUAL 3D POSITION'
-                        : 'CLICK RADAR TO ENGAGE'}
+                          ? '● AUTO 360° ORBIT ACTIVE'
+                          : '● MANUAL 3D VECTOR LOCKED'
+                        : 'STANDBY • CLICK TO ENGAGE'}
                     </span>
                   </div>
-                  <p className="text-xs text-white/55 mt-0.5">
-                    Drag the glowing 3D sound source anywhere around your head or let it orbit automatically in 360° HRTF space.
+                  <p className="text-xs text-white/55">
+                    Position the 3D sound emitter anywhere in a 360° binaural sphere around your ears while keeping &lt;95Hz sub-bass phase-locked in the center.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Segmented Trajectory Mode Switcher */}
+                <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/50 border border-white/12 self-start lg:self-center flex-shrink-0">
                   <button
+                    type="button"
                     onClick={() => {
                       if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
                       setSpatialOrbitAuto(true);
                     }}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all whitespace-nowrap ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all whitespace-nowrap flex items-center gap-1.5 ${
                       fxMode === '8d-orbit' && spatialOrbitAuto
-                        ? 'glass-button-cyan text-cyan-200'
-                        : 'glass-button text-white/75 hover:text-white'
+                        ? 'glass-button-cyan text-white shadow-md'
+                        : 'text-white/65 hover:text-white'
                     }`}
                   >
-                    🔄 Auto 360° Orbit
+                    <span>🔄 Auto 360° Orbit</span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
                       setSpatialOrbitAuto(false);
                     }}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all whitespace-nowrap ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all whitespace-nowrap flex items-center gap-1.5 ${
                       fxMode === '8d-orbit' && !spatialOrbitAuto
-                        ? 'glass-button-cyan text-cyan-200'
-                        : 'glass-button text-white/75 hover:text-white'
+                        ? 'glass-button-cyan text-white shadow-md'
+                        : 'text-white/65 hover:text-white'
                     }`}
                   >
-                    🕹️ Manual Joypad
+                    <span>🕹️ Manual 3D Pad</span>
                   </button>
+                  {fxMode === '8d-orbit' && (
+                    <button
+                      type="button"
+                      onClick={() => setFxMode('normal')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-300 hover:bg-rose-500/15 cursor-pointer transition-all whitespace-nowrap"
+                    >
+                      Bypass
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-                {/* Left: 2D Interactive Circular Head-Stage Radar Pad */}
-                <div className="md:col-span-5 flex flex-col items-center">
+              {/* Main 2-Column Spatial Console Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                {/* Left Column (5 cols): Holographic Radar Viewport + Live Binaural Ear Telemetry */}
+                <div className="lg:col-span-5 p-4 rounded-2xl bg-black/55 border border-white/12 flex flex-col items-center justify-between gap-3.5">
+                  {/* Top Radar Telemetry Strip */}
+                  <div className="w-full flex items-center justify-between gap-2 text-[11px]">
+                    <span className="font-extrabold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5 whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                      {stageZoneLabel}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg bg-white/[0.06] border border-white/10 font-mono font-bold text-white/85 tabular-nums whitespace-nowrap">
+                      {azimuthDeg}° AZ • {distanceMeters}m
+                    </span>
+                  </div>
+
+                  {/* Interactive 224x224 Holographic Soundfield Radar */}
                   <div
                     ref={radarRef}
                     onPointerDown={(e) => {
@@ -725,52 +764,166 @@ function StudioFXModalContent() {
                     }}
                     onPointerUp={() => setIsDraggingRadar(false)}
                     onPointerCancel={() => setIsDraggingRadar(false)}
-                    className="relative w-52 h-52 rounded-full bg-black/60 border border-cyan-400/30 shadow-inner flex items-center justify-center cursor-crosshair touch-none overflow-hidden"
+                    className="relative w-56 h-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.16)_0%,rgba(15,23,42,0.85)_62%,rgba(0,0,0,0.95)_100%)] border border-cyan-400/40 shadow-[inset_0_0_36px_rgba(34,211,238,0.18),0_12px_32px_rgba(0,0,0,0.65)] flex items-center justify-center cursor-crosshair touch-none overflow-hidden select-none"
                   >
-                    <div className="absolute w-36 h-36 rounded-full border border-white/10 pointer-events-none" />
-                    <div className="absolute w-20 h-20 rounded-full border border-white/10 pointer-events-none" />
-                    <div className="absolute inset-x-0 top-1/2 h-px bg-white/10 pointer-events-none" />
-                    <div className="absolute inset-y-0 left-1/2 w-px bg-white/10 pointer-events-none" />
+                    {/* SVG Reticle Grid & Dynamic Acoustic Wavefront Beam */}
+                    <svg
+                      viewBox="0 0 224 224"
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                    >
+                      <defs>
+                        <linearGradient id="spatialBeamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="rgba(34, 211, 238, 0.48)" />
+                          <stop offset="100%" stopColor="rgba(59, 130, 246, 0.04)" />
+                        </linearGradient>
+                      </defs>
+                      {/* Concentric Distance Rings (0.8m, 1.6m, 2.4m) */}
+                      <circle cx="112" cy="112" r="84" fill="none" stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" />
+                      <circle cx="112" cy="112" r="56" fill="none" stroke="rgba(255,255,255,0.10)" />
+                      <circle cx="112" cy="112" r="28" fill="none" stroke="rgba(34,211,238,0.18)" />
+                      {/* Primary & Diagonal Crosshairs */}
+                      <line x1="112" y1="8" x2="112" y2="216" stroke="rgba(255,255,255,0.08)" />
+                      <line x1="8" y1="112" x2="216" y2="112" stroke="rgba(255,255,255,0.08)" />
+                      <line x1="38" y1="38" x2="186" y2="186" stroke="rgba(255,255,255,0.05)" />
+                      <line x1="186" y1="38" x2="38" y2="186" stroke="rgba(255,255,255,0.05)" />
 
-                    <span className="absolute top-2 text-[9px] font-extrabold tracking-widest text-cyan-300/70 uppercase pointer-events-none">
-                      FRONTSTAGE
+                      {/* Acoustic Wavefront Projection Cone from Emitter to Listener */}
+                      {(() => {
+                        const ex = 112 + orbX * 86;
+                        const ez = 112 + orbZ * 86;
+                        const angle = Math.atan2(112 - ez, 112 - ex);
+                        const spread = 0.42;
+                        const wx1 = ex + Math.cos(angle - spread) * 58;
+                        const wz1 = ez + Math.sin(angle - spread) * 58;
+                        const wx2 = ex + Math.cos(angle + spread) * 58;
+                        const wz2 = ez + Math.sin(angle + spread) * 58;
+                        return (
+                          <>
+                            <polygon
+                              points={`${ex},${ez} ${wx1},${wz1} ${wx2},${wz2}`}
+                              fill="url(#spatialBeamGrad)"
+                            />
+                            <line
+                              x1="112"
+                              y1="112"
+                              x2={ex}
+                              y2={ez}
+                              stroke="rgba(34, 211, 238, 0.65)"
+                              strokeWidth="1.5"
+                              strokeDasharray="3 3"
+                            />
+                          </>
+                        );
+                      })()}
+                    </svg>
+
+                    {/* Cardinal Degree Labels */}
+                    <span className="absolute top-2 text-[9px] font-black tracking-widest text-cyan-300/90 uppercase pointer-events-none">
+                      0° FRONT STAGE
                     </span>
-                    <span className="absolute bottom-2 text-[9px] font-extrabold tracking-widest text-white/40 uppercase pointer-events-none">
-                      REAR SURROUND
+                    <span className="absolute bottom-2 text-[9px] font-extrabold tracking-widest text-white/45 uppercase pointer-events-none">
+                      180° REAR HALO
                     </span>
-                    <span className="absolute left-2.5 text-[9px] font-extrabold tracking-widest text-white/45 uppercase pointer-events-none">
-                      L
+                    <span className="absolute left-2.5 text-[9px] font-extrabold tracking-widest text-white/55 uppercase pointer-events-none">
+                      270° L
                     </span>
-                    <span className="absolute right-2.5 text-[9px] font-extrabold tracking-widest text-white/45 uppercase pointer-events-none">
-                      R
+                    <span className="absolute right-2.5 text-[9px] font-extrabold tracking-widest text-white/55 uppercase pointer-events-none">
+                      90° R
                     </span>
 
-                    <div className="relative z-10 w-9 h-9 rounded-full bg-white/10 border border-white/25 flex items-center justify-center text-sm shadow-md pointer-events-none">
+                    {/* Center Listener Reference Node */}
+                    <div className="relative z-10 w-10 h-10 rounded-full bg-slate-900/90 border border-cyan-400/40 flex items-center justify-center text-sm shadow-[0_0_20px_rgba(34,211,238,0.25)] pointer-events-none">
                       🎧
                     </div>
 
+                    {/* Draggable / Orbiting 3D Sound Emitter Orb */}
                     <div
                       style={{
-                        transform: `translate3d(${(orbX * 82).toFixed(1)}px, ${(orbZ * 82).toFixed(1)}px, 0)`
+                        transform: `translate3d(${(orbX * 86).toFixed(1)}px, ${(orbZ * 86).toFixed(1)}px, 0)`
                       }}
-                      className="pointer-events-none absolute w-7 h-7 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 border-2 border-white shadow-[0_0_24px_4px_rgba(34,211,238,0.85)] flex items-center justify-center will-change-transform z-20"
+                      className="pointer-events-none absolute w-8 h-8 rounded-full bg-gradient-to-br from-cyan-300 via-sky-400 to-blue-600 border-2 border-white shadow-[0_0_28px_6px_rgba(34,211,238,0.9)] flex items-center justify-center will-change-transform z-20"
                     >
-                      <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                      <span className="absolute inset-0 rounded-full border border-cyan-200 animate-ping opacity-75" />
+                      <span className="w-2 h-2 rounded-full bg-white" />
                     </div>
                   </div>
-                  <span className="text-[11px] font-semibold text-white/55 mt-2 whitespace-nowrap">
-                    X: {(orbX * 2.5).toFixed(1)}m • Z: {(orbZ * 2.2).toFixed(1)}m • &lt;95Hz Sub Centered
-                  </span>
+
+                  {/* Bottom Binaural Ear ILD Level Meters */}
+                  <div className="w-full space-y-1.5 pt-1">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10">
+                        <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+                          <span className="text-white/60">L-EAR BINAURAL</span>
+                          <span className="text-cyan-300 tabular-nums">{leftEarLevel}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-150"
+                            style={{ width: `${leftEarLevel}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10">
+                        <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+                          <span className="text-white/60">R-EAR BINAURAL</span>
+                          <span className="text-cyan-300 tabular-nums">{rightEarLevel}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-150"
+                            style={{ width: `${rightEarLevel}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-white/45 font-semibold px-1">
+                      <span>X: {(orbX * 2.5).toFixed(1)}m • Z: {(orbZ * 2.2).toFixed(1)}m</span>
+                      <span className="text-emerald-300/85">● &lt;95Hz Sub Phase-Locked</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Right: 3D Spatial Orbit Speed, Room Dome Ambience & Quick Position Presets */}
-                <div className="md:col-span-7 space-y-4">
-                  <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-white/85">🔄 360° Orbit Rotation Speed</span>
-                      <span className="font-extrabold text-cyan-300 tabular-nums whitespace-nowrap">
-                        {(1 / spatialOrbitSpeed).toFixed(1)}s / rev ({spatialOrbitSpeed.toFixed(2)} Hz)
-                      </span>
+                {/* Right Column (7 cols): Orbit Velocity, Dome Reflections & 6-Point Stage Matrix */}
+                <div className="lg:col-span-7 flex flex-col justify-between gap-4">
+                  {/* 1. 360° Orbit Angular Velocity Module */}
+                  <div className="p-4 rounded-2xl bg-black/45 border border-white/12 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                          <span>🔄 360° Orbit Angular Velocity</span>
+                        </span>
+                        <p className="text-[11px] text-white/45">
+                          Controls how fast the 3D soundstage rotates around your head
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {[
+                          { label: 'Slow 16s', val: 0.06 },
+                          { label: 'Med 8s', val: 0.12 },
+                          { label: 'Fast 3s', val: 0.32 }
+                        ].map((sp) => (
+                          <button
+                            key={sp.label}
+                            type="button"
+                            onClick={() => {
+                              if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
+                              setSpatialOrbitAuto(true);
+                              setSpatialOrbitSpeed(sp.val);
+                            }}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer whitespace-nowrap ${
+                              Math.abs(spatialOrbitSpeed - sp.val) < 0.025
+                                ? 'bg-cyan-500/25 border-cyan-400/50 text-cyan-200'
+                                : 'bg-white/[0.04] border-white/10 text-white/55 hover:text-white'
+                            }`}
+                          >
+                            {sp.label}
+                          </button>
+                        ))}
+                        <span className="px-2.5 py-0.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30 text-[11px] font-black text-cyan-300 tabular-nums whitespace-nowrap">
+                          {(1 / spatialOrbitSpeed).toFixed(1)}s / rev
+                        </span>
+                      </div>
                     </div>
                     <input
                       type="range"
@@ -786,12 +939,43 @@ function StudioFXModalContent() {
                     />
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-white/85">🏛️ Concert Dome Acoustic Ambience</span>
-                      <span className="font-extrabold text-cyan-300 tabular-nums whitespace-nowrap">
-                        {Math.round((spatialRoomSize / 0.65) * 100)}% Dome Depth
-                      </span>
+                  {/* 2. Concert Dome Acoustic Ambience Module */}
+                  <div className="p-4 rounded-2xl bg-black/45 border border-white/12 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                          <span>🏛️ Concert Dome Acoustic Reflections</span>
+                        </span>
+                        <p className="text-[11px] text-white/45">
+                          Early wall reflections & binaural air absorption depth
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {[
+                          { label: 'Booth 25%', val: 0.16 },
+                          { label: 'Hall 60%', val: 0.39 },
+                          { label: 'Dome 95%', val: 0.62 }
+                        ].map((rm) => (
+                          <button
+                            key={rm.label}
+                            type="button"
+                            onClick={() => {
+                              if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
+                              setSpatialRoomSize(rm.val);
+                            }}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer whitespace-nowrap ${
+                              Math.abs(spatialRoomSize - rm.val) < 0.05
+                                ? 'bg-cyan-500/25 border-cyan-400/50 text-cyan-200'
+                                : 'bg-white/[0.04] border-white/10 text-white/55 hover:text-white'
+                            }`}
+                          >
+                            {rm.label}
+                          </button>
+                        ))}
+                        <span className="px-2.5 py-0.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30 text-[11px] font-black text-cyan-300 tabular-nums whitespace-nowrap">
+                          {Math.round((spatialRoomSize / 0.65) * 100)}% Depth
+                        </span>
+                      </div>
                     </div>
                     <input
                       type="range"
@@ -807,25 +991,57 @@ function StudioFXModalContent() {
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {[
-                      { label: 'Front Row Stage', x: 0, z: -0.82 },
-                      { label: 'Left Balcony', x: -0.8, z: -0.35 },
-                      { label: 'Right Balcony', x: 0.8, z: -0.35 },
-                      { label: 'Rear Surround Halo', x: 0, z: 0.82 }
-                    ].map((preset) => (
-                      <button
-                        key={preset.label}
-                        onClick={() => {
-                          if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
-                          setSpatialOrbitAuto(false);
-                          setSpatialManualPos({ x: preset.x, z: preset.z });
-                        }}
-                        className="px-3 py-1.5 rounded-full glass-button text-[11px] font-bold text-white/80 hover:text-white cursor-pointer transition-colors whitespace-nowrap"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
+                  {/* 3. 6-Point Acoustic Stage Position Matrix */}
+                  <div className="p-4 rounded-2xl bg-black/45 border border-white/12 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold text-white/90 uppercase tracking-wider">
+                        🎯 Quick 3D Acoustic Stage Positions
+                      </span>
+                      <span className="text-[10px] text-white/45 font-semibold">
+                        Click any zone to lock 3D vector
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { icon: '🎤', label: 'Front Row Stage', sub: '0° • 2.0m Center', x: 0, z: -0.82 },
+                        { icon: '🎸', label: 'Front Left Wing', sub: '310° • 2.1m Left', x: -0.65, z: -0.55 },
+                        { icon: '🎹', label: 'Front Right Wing', sub: '50° • 2.1m Right', x: 0.65, z: -0.55 },
+                        { icon: '🏛️', label: 'Left Balcony', sub: '270° • 2.2m Hard L', x: -0.85, z: 0 },
+                        { icon: '🏛️', label: 'Right Balcony', sub: '90° • 2.2m Hard R', x: 0.85, z: 0 },
+                        { icon: '🌌', label: 'Rear Surround Halo', sub: '180° • 2.0m Behind', x: 0, z: 0.82 }
+                      ].map((preset) => {
+                        const isSelected =
+                          fxMode === '8d-orbit' &&
+                          !spatialOrbitAuto &&
+                          Math.hypot(spatialManualPos.x - preset.x, spatialManualPos.z - preset.z) < 0.18;
+
+                        return (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => {
+                              if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
+                              setSpatialOrbitAuto(false);
+                              setSpatialManualPos({ x: preset.x, z: preset.z });
+                            }}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 min-w-0 ${
+                              isSelected
+                                ? 'bg-cyan-500/20 border-cyan-400/55 text-white shadow-md'
+                                : 'bg-white/[0.04] border-white/10 text-white/75 hover:text-white hover:bg-white/[0.08]'
+                            }`}
+                          >
+                            <span className="text-base flex-shrink-0">{preset.icon}</span>
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-extrabold truncate">{preset.label}</div>
+                              <div className="text-[9px] text-white/50 font-semibold truncate">
+                                {preset.sub}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
