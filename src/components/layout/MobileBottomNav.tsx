@@ -40,9 +40,10 @@ export default function MobileBottomNav() {
       name: 'DJ Mix',
       path: '/dj',
       icon: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
-          <circle cx="8" cy="12" r="5" />
-          <circle cx="16" cy="12" r="5" />
+        <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 14v-3a9 9 0 0 1 18 0v3" />
+          <path d="M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+          <path d="M3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
         </svg>
       )
     },

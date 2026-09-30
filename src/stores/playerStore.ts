@@ -47,10 +47,7 @@ function loadPlayerSessionSync(): PersistedPlayerSession {
           ? Math.max(0, Math.min(1, parsed.volume))
           : defaults.volume,
       isMuted: typeof parsed.isMuted === 'boolean' ? parsed.isMuted : false,
-      repeatMode:
-        parsed.repeatMode === 'all' || parsed.repeatMode === 'one' || parsed.repeatMode === 'off'
-          ? parsed.repeatMode
-          : 'off',
+      repeatMode: 'off',
       isShuffled: typeof parsed.isShuffled === 'boolean' ? parsed.isShuffled : false,
       playbackSpeed:
         typeof parsed.playbackSpeed === 'number' ? parsed.playbackSpeed : 1,
