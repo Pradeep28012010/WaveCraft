@@ -146,6 +146,7 @@
       inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
       inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
     color: var(--color-text-primary);
+    white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     transform: translateZ(0);
     cursor: pointer;
@@ -187,6 +188,7 @@
       inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
       inset 0 -1px 0 0 rgba(250, 45, 72, 0.14);
     color: #ffffff;
+    white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     transform: translateZ(0);
     cursor: pointer;
@@ -228,6 +230,7 @@
       inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
       inset 0 -1px 0 0 rgba(52, 211, 153, 0.12);
     color: #a7f3d0;
+    white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     transform: translateZ(0);
     cursor: pointer;
@@ -265,6 +268,7 @@
       inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
       inset 0 -1px 0 0 rgba(192, 132, 252, 0.12);
     color: #e9d5ff;
+    white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     transform: translateZ(0);
     cursor: pointer;
@@ -302,6 +306,7 @@
       inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
       inset 0 -1px 0 0 rgba(34, 211, 238, 0.12);
     color: #a5f3fc;
+    white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     transform: translateZ(0);
     cursor: pointer;

@@ -315,7 +315,7 @@ export default function JamRoomPage() {
                       placeholder="Enter your DJ / Listener name..."
                       className="flex-1 bg-transparent text-sm font-semibold text-white placeholder-white/35 focus:outline-none pr-4"
                     />
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-extrabold uppercase tracking-wider mr-1">
+                    <span className="px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-extrabold uppercase tracking-wider mr-1 whitespace-nowrap flex-shrink-0">
                       Ready
                     </span>
                   </div>
@@ -332,14 +332,14 @@ export default function JamRoomPage() {
                   <div className="absolute inset-20 rounded-full border border-rose-500/30" />
 
                   {/* Orbiting Listener Nodes */}
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full liquid-glass border border-emerald-400/40 text-[10px] font-extrabold text-emerald-300 shadow-lg flex items-center gap-1.5">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full liquid-glass border border-emerald-400/40 text-[10px] font-extrabold text-emerald-300 shadow-lg flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                     <span>Cloud Relay</span>
                   </div>
-                  <div className="absolute bottom-5 left-4 px-2.5 py-1 rounded-full liquid-glass border border-cyan-400/40 text-[10px] font-extrabold text-cyan-300 shadow-lg">
+                  <div className="absolute bottom-5 left-4 px-2.5 py-1 rounded-full liquid-glass border border-cyan-400/40 text-[10px] font-extrabold text-cyan-300 shadow-lg whitespace-nowrap flex-shrink-0">
                     WebRTC P2P
                   </div>
-                  <div className="absolute bottom-5 right-4 px-2.5 py-1 rounded-full liquid-glass border border-rose-400/40 text-[10px] font-extrabold text-rose-300 shadow-lg">
+                  <div className="absolute bottom-5 right-4 px-2.5 py-1 rounded-full liquid-glass border border-rose-400/40 text-[10px] font-extrabold text-rose-300 shadow-lg whitespace-nowrap flex-shrink-0">
                     320kbps HD
                   </div>
 
@@ -352,7 +352,7 @@ export default function JamRoomPage() {
                         <span className="w-1 bg-rose-400 rounded-full animate-eq-3" />
                         <span className="w-1 bg-emerald-400 rounded-full animate-eq-2" />
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-white/75 mt-1">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-white/75 mt-1 whitespace-nowrap">
                         WAVE SYNC
                       </span>
                     </div>
@@ -381,7 +381,7 @@ export default function JamRoomPage() {
                       <line x1="12" y1="19" x2="12" y2="22" />
                     </svg>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-rose-500/15 border border-rose-400/30 text-[10px] font-extrabold uppercase tracking-wider text-rose-300">
+                  <span className="px-3 py-1 rounded-full bg-rose-500/15 border border-rose-400/30 text-[10px] font-extrabold uppercase tracking-wider text-rose-300 whitespace-nowrap flex-shrink-0">
                     HOST BROADCAST
                   </span>
                 </div>
@@ -395,7 +395,7 @@ export default function JamRoomPage() {
                   {['Instant Room Code', 'Shared Party Queue', 'Crowd Emoji Reactions'].map((tag) => (
                     <span
                       key={tag}
-                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] font-semibold text-white/70"
+                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] font-semibold text-white/70 whitespace-nowrap"
                     >
                       {tag}
                     </span>
@@ -407,7 +407,7 @@ export default function JamRoomPage() {
                 whileHover={{ y: -2, scale: 1.01 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={handleStartRoom}
-                className="mt-7 w-full py-3.5 px-6 rounded-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-600 text-white font-extrabold text-sm shadow-[0_12px_30px_rgba(250,45,72,0.35)] hover:brightness-110 transition-all cursor-pointer flex items-center justify-center gap-2"
+                className="mt-7 w-full py-3.5 px-6 rounded-full glass-button-primary text-white font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap"
               >
                 <span>+ Launch Live Jam Room</span>
               </motion.button>
@@ -429,21 +429,21 @@ export default function JamRoomPage() {
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                     </svg>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 whitespace-nowrap flex-shrink-0">
                     TUNE IN LIVE
                   </span>
                 </div>
 
                 <h2 className="text-2xl font-extrabold text-white">Join a Friend’s Frequency</h2>
                 <p className="text-sm text-white/60 mt-2 leading-relaxed">
-                  Have a room code like <code className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-mono font-bold">WAVE-7X9K</code>? Enter it below to lock your player directly to their live audio stream.
+                  Have a room code like <code className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-mono font-bold whitespace-nowrap">WAVE-7X9K</code>? Enter it below to lock your player directly to their live audio stream.
                 </p>
 
                 <div className="flex flex-wrap gap-2 mt-4">
                   {['Cross-Device Phone & Laptop', 'Auto Drift Correction', 'Co-DJ Queueing'].map((tag) => (
                     <span
                       key={tag}
-                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] font-semibold text-white/70"
+                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] font-semibold text-white/70 whitespace-nowrap"
                     >
                       {tag}
                     </span>
@@ -463,7 +463,7 @@ export default function JamRoomPage() {
                   whileHover={{ y: -2, scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   type="submit"
-                  className="py-3 px-7 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-extrabold text-sm shadow-[0_12px_30px_rgba(16,185,129,0.35)] hover:brightness-110 transition-all cursor-pointer flex-shrink-0"
+                  className="py-3 px-7 rounded-full glass-button-emerald text-white font-extrabold text-sm transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
                 >
                   Lock Into Jam
                 </motion.button>

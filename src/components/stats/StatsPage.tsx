@@ -607,7 +607,7 @@ export default function StatsPage() {
           <div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-white flex items-center gap-2.5">
               <span>🏅 Listener Achievement Badges</span>
-              <span className="text-xs font-extrabold px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-white/80">
+              <span className="text-xs font-extrabold px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-white/80 whitespace-nowrap flex-shrink-0">
                 {overallCompletionPct}% Mastery
               </span>
             </h2>
@@ -617,10 +617,10 @@ export default function StatsPage() {
           </div>
 
           {/* Filter Pills */}
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
             <button
               onClick={() => setBadgeFilter('all')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                 badgeFilter === 'all'
                   ? 'glass-button-primary text-white'
                   : 'glass-button text-white/70 hover:text-white'
@@ -630,7 +630,7 @@ export default function StatsPage() {
             </button>
             <button
               onClick={() => setBadgeFilter('unlocked')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                 badgeFilter === 'unlocked'
                   ? 'glass-button-emerald text-white'
                   : 'glass-button text-white/70 hover:text-white'
@@ -640,7 +640,7 @@ export default function StatsPage() {
             </button>
             <button
               onClick={() => setBadgeFilter('in-progress')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                 badgeFilter === 'in-progress'
                   ? 'glass-button-purple text-white'
                   : 'glass-button text-white/70 hover:text-white'
@@ -653,11 +653,11 @@ export default function StatsPage() {
 
         {/* Overall Achievement Mastery Bar */}
         <div className="p-4 rounded-2xl liquid-glass border border-white/15 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs font-bold">
-            <span className="text-white/80">
+          <div className="flex items-center justify-between gap-2 text-xs font-bold">
+            <span className="text-white/80 truncate">
               Overall Studio Achievement Progress ({unlockedCount} Unlocked • {inProgressCount} In Progress)
             </span>
-            <span className="text-emerald-300 tabular-nums">{overallCompletionPct}%</span>
+            <span className="text-emerald-300 tabular-nums whitespace-nowrap flex-shrink-0">{overallCompletionPct}%</span>
           </div>
           <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden p-0.5">
             <motion.div
@@ -678,31 +678,32 @@ export default function StatsPage() {
               <motion.div
                 key={badge.id}
                 whileHover={{ y: -3 }}
-                className={`p-4 rounded-2xl border flex flex-col justify-between gap-3.5 transition-all ${
+                className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all ${
                   badge.unlocked
                     ? 'liquid-glass border-white/25 shadow-xl'
                     : 'glass border-white/10 hover:border-white/20'
                 }`}
               >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 border ${
-                      badge.unlocked
-                        ? 'bg-gradient-to-br from-[var(--color-accent)]/30 via-purple-500/25 to-cyan-500/25 border-white/25 shadow-lg'
-                        : 'bg-white/[0.06] border-white/10 opacity-80'
-                    }`}
-                  >
-                    {badge.icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1.5 mb-1">
+                <div className="flex flex-col gap-2.5">
+                  {/* Top Header Row: Icon on Left, Tier + Status Pills on Right */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div
+                      className={`w-11 h-11 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 border ${
+                        badge.unlocked
+                          ? 'bg-gradient-to-br from-[var(--color-accent)]/30 via-purple-500/25 to-cyan-500/25 border-white/25 shadow-lg'
+                          : 'bg-white/[0.06] border-white/10 opacity-80'
+                      }`}
+                    >
+                      {badge.icon}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border ${tierMeta.badgeClass}`}
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border whitespace-nowrap flex-shrink-0 ${tierMeta.badgeClass}`}
                       >
                         {tierMeta.label}
                       </span>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                        className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap flex-shrink-0 ${
                           badge.unlocked
                             ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/35'
                             : 'bg-white/10 text-white/65 border border-white/10'
@@ -711,6 +712,10 @@ export default function StatsPage() {
                         {badge.unlocked ? '✓ UNLOCKED' : `${badge.progressPct}%`}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Full-width Title & Description */}
+                  <div className="min-w-0">
                     <h3 className="text-sm font-extrabold text-white truncate">{badge.name}</h3>
                     <p className="text-[11px] text-white/60 mt-0.5 leading-relaxed line-clamp-2">
                       {badge.desc}
@@ -718,15 +723,19 @@ export default function StatsPage() {
                   </div>
                 </div>
 
-                {/* Live Progress Bar & Counter */}
-                <div className="pt-2 border-t border-white/10 space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px] font-bold">
-                    <span className={badge.unlocked ? 'text-emerald-300' : 'text-white/70'}>
+                {/* Live Progress Bar & Counter (Single-line guaranteed) */}
+                <div className="pt-2.5 border-t border-white/10 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
+                    <span
+                      className={`whitespace-nowrap truncate ${
+                        badge.unlocked ? 'text-emerald-300' : 'text-white/70'
+                      }`}
+                    >
                       {badge.unlocked
-                        ? 'Milestone Completed!'
-                        : `${remaining} more ${badge.unit} to unlock`}
+                        ? '✓ Milestone Complete'
+                        : `${remaining} ${badge.unit} left`}
                     </span>
-                    <span className="text-white/90 tabular-nums">
+                    <span className="text-white/90 tabular-nums whitespace-nowrap flex-shrink-0">
                       {Math.min(badge.current, badge.target)} / {badge.target} {badge.unit}
                     </span>
                   </div>
@@ -774,7 +783,7 @@ export default function StatsPage() {
                       </span>
                       <span className="text-xs text-white/55 truncate">{track.artist}</span>
                     </div>
-                    <span className="text-xs font-bold text-white/60 bg-white/10 px-2.5 py-1 rounded-full">
+                    <span className="text-xs font-bold text-white/60 bg-white/10 px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0">
                       {track.count} {track.count === 1 ? 'play' : 'plays'}
                     </span>
                   </div>
@@ -795,14 +804,14 @@ export default function StatsPage() {
               {topArtists.map((artist, idx) => {
                 const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
                 return (
-                  <GlassCard key={idx} className="p-4 flex items-center justify-between">
+                  <GlassCard key={idx} className="p-4 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold flex-shrink-0">
                         {medal}
                       </div>
                       <span className="text-sm font-bold text-white truncate">{artist.artist}</span>
                     </div>
-                    <span className="text-xs font-semibold text-white/50 flex-shrink-0">
+                    <span className="text-xs font-semibold text-white/50 whitespace-nowrap flex-shrink-0">
                       {artist.count} {artist.count === 1 ? 'play' : 'plays'}
                     </span>
                   </GlassCard>

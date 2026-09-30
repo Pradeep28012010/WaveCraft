@@ -297,12 +297,12 @@ const TrackRow = memo(({
             {track.title}
           </span>
           {trackIsOffline ? (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex-shrink-0">
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 whitespace-nowrap flex-shrink-0">
               ⚡ OFFLINE
             </span>
           ) : (
             track.audioUrl && (
-              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase bg-white/10 text-white/70 border border-white/10 flex-shrink-0">
+              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase bg-white/10 text-white/70 border border-white/10 whitespace-nowrap flex-shrink-0">
                 320k HD
               </span>
             )

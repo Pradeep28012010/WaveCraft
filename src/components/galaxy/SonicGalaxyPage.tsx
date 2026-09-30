@@ -1319,15 +1319,15 @@ export default function SonicGalaxyPage() {
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/40 text-[10px] font-extrabold uppercase tracking-widest text-purple-200">
+              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/40 text-[10px] font-extrabold uppercase tracking-widest text-purple-200 whitespace-nowrap flex-shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
                 4D COSINE DNA ENGINE
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 whitespace-nowrap flex-shrink-0">
                 {stars.length} Stars • {avgTasteMatch}% Avg Taste Match
               </span>
               {userTasteProfile.hasHistory && (
-                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-[10px] font-bold text-cyan-200">
+                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-[10px] font-bold text-cyan-200 whitespace-nowrap flex-shrink-0">
                   Synced to Your Library
                 </span>
               )}
@@ -1575,7 +1575,7 @@ export default function SonicGalaxyPage() {
             <button
               type="button"
               onClick={() => setInspectorTab('dna')}
-              className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              className={`flex-1 py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 inspectorTab === 'dna'
                   ? 'glass-button-primary text-white'
                   : 'text-white/65 hover:text-white'
@@ -1586,7 +1586,7 @@ export default function SonicGalaxyPage() {
             <button
               type="button"
               onClick={() => setInspectorTab('neighbors')}
-              className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              className={`flex-1 py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 inspectorTab === 'neighbors'
                   ? 'glass-button-purple text-white'
                   : 'text-white/65 hover:text-white'
@@ -1597,7 +1597,7 @@ export default function SonicGalaxyPage() {
             <button
               type="button"
               onClick={() => setInspectorTab('roster')}
-              className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              className={`flex-1 py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 inspectorTab === 'roster'
                   ? 'glass-button-cyan text-white'
                   : 'text-white/65 hover:text-white'
@@ -1629,9 +1629,9 @@ export default function SonicGalaxyPage() {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 mb-1">
+                    <div className="flex items-center gap-1.5 mb-1 overflow-hidden">
                       <span
-                        className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white"
+                        className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white whitespace-nowrap flex-shrink-0"
                         style={{
                           backgroundColor: `${selectedStar.color}40`,
                           border: `1px solid ${selectedStar.color}`
@@ -1639,7 +1639,7 @@ export default function SonicGalaxyPage() {
                       >
                         {selectedStar.clusterName}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-[9px] font-bold text-white/70">
+                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-[9px] font-bold text-white/70 whitespace-nowrap flex-shrink-0">
                         {selectedStar.sourceLabel}
                       </span>
                     </div>
@@ -1653,10 +1653,10 @@ export default function SonicGalaxyPage() {
 
                   {/* Real Taste Match Circular Badge */}
                   <div className="flex flex-col items-center justify-center px-3 py-2 rounded-2xl bg-emerald-500/15 border border-emerald-400/35 flex-shrink-0">
-                    <span className="text-lg font-black text-emerald-300 leading-none tabular-nums">
+                    <span className="text-lg font-black text-emerald-300 leading-none tabular-nums whitespace-nowrap">
                       {selectedStar.affinityScore}%
                     </span>
-                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-200/80 mt-0.5">
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-200/80 mt-0.5 whitespace-nowrap">
                       Match
                     </span>
                   </div>
@@ -1674,11 +1674,11 @@ export default function SonicGalaxyPage() {
                     >
                       {/* Real Taste Match Breakdown Card */}
                       <div className="p-3.5 rounded-2xl bg-black/40 border border-white/12 space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 whitespace-nowrap">
                             🎯 Real Taste Match Breakdown
                           </span>
-                          <span className="text-[10px] font-bold text-white/50">
+                          <span className="text-[10px] font-bold text-white/50 whitespace-nowrap flex-shrink-0">
                             Cosine Vector Engine
                           </span>
                         </div>
@@ -1687,26 +1687,26 @@ export default function SonicGalaxyPage() {
                         </p>
                         <div className="grid grid-cols-3 gap-2 pt-1">
                           <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center">
-                            <div className="text-sm font-black text-cyan-300 tabular-nums">
+                            <div className="text-sm font-black text-cyan-300 tabular-nums whitespace-nowrap">
                               {selectedStar.matchBreakdown.sonicSimilarityPct}%
                             </div>
-                            <div className="text-[9px] font-bold uppercase text-white/50">
+                            <div className="text-[9px] font-bold uppercase text-white/50 whitespace-nowrap">
                               4D Sonic DNA
                             </div>
                           </div>
                           <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center">
-                            <div className="text-sm font-black text-purple-300 tabular-nums">
+                            <div className="text-sm font-black text-purple-300 tabular-nums whitespace-nowrap">
                               {selectedStar.matchBreakdown.artistAffinityPct}%
                             </div>
-                            <div className="text-[9px] font-bold uppercase text-white/50">
+                            <div className="text-[9px] font-bold uppercase text-white/50 whitespace-nowrap">
                               Artist Affinity
                             </div>
                           </div>
                           <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center">
-                            <div className="text-sm font-black text-rose-300 tabular-nums">
+                            <div className="text-sm font-black text-rose-300 tabular-nums whitespace-nowrap">
                               {selectedStar.matchBreakdown.vibeSynergyPct}%
                             </div>
-                            <div className="text-[9px] font-bold uppercase text-white/50">
+                            <div className="text-[9px] font-bold uppercase text-white/50 whitespace-nowrap">
                               Cluster Fit
                             </div>
                           </div>
@@ -1715,9 +1715,9 @@ export default function SonicGalaxyPage() {
 
                       {/* Planetary Sonic DNA 4-Channel Bars */}
                       <div className="p-3.5 rounded-2xl bg-black/40 border border-white/12 space-y-2.5">
-                        <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-white/65">
-                          <span>🧬 Track Sonic DNA vs. Your Profile</span>
-                          <span className="text-cyan-300">320kbps HD</span>
+                        <div className="flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase tracking-wider text-white/65">
+                          <span className="whitespace-nowrap truncate">🧬 Track Sonic DNA vs. Your Profile</span>
+                          <span className="text-cyan-300 whitespace-nowrap flex-shrink-0">320kbps HD</span>
                         </div>
                         {[
                           {
@@ -1746,9 +1746,9 @@ export default function SonicGalaxyPage() {
                           }
                         ].map((metric) => (
                           <div key={metric.label} className="space-y-1">
-                            <div className="flex justify-between text-[11px] font-bold">
-                              <span className="text-white/75">{metric.label}</span>
-                              <span className="text-white tabular-nums">
+                            <div className="flex justify-between gap-2 text-[11px] font-bold">
+                              <span className="text-white/75 whitespace-nowrap">{metric.label}</span>
+                              <span className="text-white tabular-nums whitespace-nowrap flex-shrink-0">
                                 {metric.val}%{' '}
                                 <span className="text-[10px] text-white/40 font-normal">
                                   (You: {metric.userVal}%)
@@ -1808,7 +1808,7 @@ export default function SonicGalaxyPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 tabular-nums">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 tabular-nums whitespace-nowrap flex-shrink-0">
                               {pairMatch}% DNA
                             </span>
                             <button

@@ -49,9 +49,9 @@ export default function LibraryPage() {
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
               </svg>
             </div>
-            <div>
-              <h2 className="text-xl font-bold mb-1">Liked Songs</h2>
-              <p className="text-sm text-white/60">{likedSongs.length} saved tracks</p>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold mb-1 whitespace-nowrap">Liked Songs</h2>
+              <p className="text-sm text-white/60 whitespace-nowrap">{likedSongs.length} saved tracks</p>
             </div>
           </GlassCard>
         </Link>
@@ -63,9 +63,9 @@ export default function LibraryPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <div>
-              <h2 className="text-xl font-bold mb-1">Recently Played</h2>
-              <p className="text-sm text-white/60">{recentlyPlayed.length} tracks in history</p>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold mb-1 whitespace-nowrap">Recently Played</h2>
+              <p className="text-sm text-white/60 whitespace-nowrap">{recentlyPlayed.length} tracks in history</p>
             </div>
           </GlassCard>
         </Link>
@@ -78,21 +78,21 @@ export default function LibraryPage() {
             variant="liquid"
             padding="md"
             hover
-            className={`flex items-center gap-5 h-full border ${
+            className={`flex items-center gap-4 h-full border ${
               showOfflineVault ? 'border-emerald-400/50 bg-emerald-500/10' : ''
             }`}
           >
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center flex-shrink-0 shadow-xl group-hover:scale-105 transition-transform">
               <span className="text-3xl">⚡</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold mb-1">Offline Vault</h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-xl font-bold whitespace-nowrap">Offline Vault</h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 whitespace-nowrap flex-shrink-0">
                   320k LOCAL
                 </span>
               </div>
-              <p className="text-sm text-white/60">
+              <p className="text-sm text-white/60 whitespace-nowrap">
                 {offlineTracks.length} zero-internet tracks
               </p>
             </div>
@@ -105,9 +105,9 @@ export default function LibraryPage() {
         <GlassCard variant="liquid" padding="lg" className="mb-10 border border-emerald-400/30">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
-              <h3 className="text-xl font-extrabold text-white flex items-center gap-2">
-                <span>⚡ Offline 320kbps Audio Vault</span>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
+              <h3 className="text-xl font-extrabold text-white flex items-center gap-2 flex-wrap">
+                <span className="whitespace-nowrap">⚡ Offline 320kbps Audio Vault</span>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 whitespace-nowrap flex-shrink-0">
                   {offlineTracks.length} Cached
                 </span>
               </h3>

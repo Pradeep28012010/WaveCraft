@@ -157,17 +157,17 @@ export default function VibeDJPage() {
               <div
                 className={`absolute -right-8 -bottom-8 w-28 h-28 rounded-full bg-gradient-to-br ${preset.gradient} opacity-25 blur-2xl group-hover:opacity-50 transition-opacity`}
               />
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <span className="text-3xl">{preset.emoji}</span>
-                <span className="px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-bold text-white/75 uppercase tracking-wider">
+                <span className="px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-bold text-white/75 uppercase tracking-wider whitespace-nowrap flex-shrink-0">
                   EQ: {preset.eqPreset}
                 </span>
               </div>
               <h3 className="text-base font-extrabold text-white mt-3">{preset.title}</h3>
               <p className="text-xs text-white/55 mt-1 line-clamp-2">{preset.prompt}</p>
-              <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] font-semibold text-white/65">
-                <span>{preset.energyLabel}</span>
-                <span className="text-[var(--color-accent)] group-hover:translate-x-1 transition-transform">
+              <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-2 text-[11px] font-semibold text-white/65">
+                <span className="whitespace-nowrap truncate">{preset.energyLabel}</span>
+                <span className="text-[var(--color-accent)] group-hover:translate-x-1 transition-transform whitespace-nowrap flex-shrink-0">
                   Launch →
                 </span>
               </div>

@@ -745,16 +745,16 @@ export default function DJConsolePage() {
 
           <div className="relative z-10">
             {/* Deck A Top Status Bar */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between gap-2 mb-4">
               <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/40 text-rose-300 text-xs font-black tracking-wider">
+                <span className="px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/40 text-rose-300 text-xs font-black tracking-wider whitespace-nowrap flex-shrink-0">
                   DECK A • MASTER
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-extrabold text-white/75">
+                <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-extrabold text-white/75 whitespace-nowrap flex-shrink-0">
                   KEY {metaA.key}
                 </span>
               </div>
-              <div className="text-right">
+              <div className="text-right whitespace-nowrap flex-shrink-0">
                 <span className="text-sm font-black tabular-nums text-rose-300">{liveBpmA} BPM</span>
                 <span className="text-[11px] font-bold tabular-nums text-white/50 ml-1.5">
                   ({((playbackSpeedA || 1) * 100).toFixed(0)}%)
@@ -1146,7 +1146,7 @@ export default function DJConsolePage() {
               </div>
             </div>
 
-            <div className="flex justify-center gap-2 mt-2.5">
+            <div className="flex justify-center gap-2 mt-2.5 flex-wrap">
               {[
                 { label: 'Full A', val: -1 },
                 { label: '75% A', val: -0.5 },
@@ -1157,7 +1157,7 @@ export default function DJConsolePage() {
                 <button
                   key={preset.label}
                   onClick={() => setCrossfader(preset.val)}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold cursor-pointer transition-all border ${
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold cursor-pointer transition-all border whitespace-nowrap flex-shrink-0 ${
                     Math.abs(crossfader - preset.val) < 0.08
                       ? 'bg-white/20 text-white border-white/40 shadow'
                       : 'glass-button text-white/65 hover:text-white'
@@ -1180,16 +1180,16 @@ export default function DJConsolePage() {
 
           <div className="relative z-10">
             {/* Deck B Top Status Bar */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between gap-2 mb-4">
               <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black tracking-wider">
+                <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black tracking-wider whitespace-nowrap flex-shrink-0">
                   DECK B • CUE / MIX
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-extrabold text-white/75">
+                <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-extrabold text-white/75 whitespace-nowrap flex-shrink-0">
                   KEY {metaB.key}
                 </span>
               </div>
-              <div className="text-right">
+              <div className="text-right whitespace-nowrap flex-shrink-0">
                 <span className="text-sm font-black tabular-nums text-cyan-300">{liveBpmB} BPM</span>
                 <span className="text-[11px] font-bold tabular-nums text-white/50 ml-1.5">
                   ({(speedB * 100).toFixed(0)}%)
