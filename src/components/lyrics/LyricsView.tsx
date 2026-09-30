@@ -147,7 +147,7 @@ const LyricRow = memo(
                     onShareLine(nextLineText ? `${line.text}\n${nextLineText}` : line.text);
                   }}
                   title="Create 1080×1920 Story Poster with this lyric line"
-                  className="opacity-0 group-hover:opacity-100 px-2.5 py-1 rounded-full bg-white/10 hover:bg-[var(--color-accent)] border border-white/15 hover:border-white/30 text-[11px] font-bold text-white/90 hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                  className="opacity-0 group-hover:opacity-100 px-2.5 py-1 rounded-full glass-button hover:glass-button-primary text-[11px] font-bold text-white/90 hover:text-white transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap flex-shrink-0"
                 >
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="3" />
@@ -467,7 +467,7 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
         </div>
 
         {/* Unified Segmented Glass Control Dock */}
-        <div className="flex items-center gap-1 p-1 rounded-full bg-black/40 border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {/* 1. Karaoke / Acapella Vocal Stem Switcher */}
           <button
             type="button"
@@ -480,12 +480,12 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
                   : 'normal'
               )
             }
-            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               vocalMode === 'karaoke'
-                ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-[0_0_16px_rgba(244,63,94,0.5)]'
+                ? 'glass-button-primary text-white'
                 : vocalMode === 'acapella'
-                ? 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-[0_0_16px_rgba(139,92,246,0.5)]'
-                : 'text-white/70 hover:text-white hover:bg-white/[0.08]'
+                ? 'glass-button-purple text-white'
+                : 'glass-button text-white/80 hover:text-white'
             }`}
             title="Cycle Real-Time Vocal Remover (Karaoke Instrumental) & Acapella Vocal Isolate"
           >
@@ -506,11 +506,9 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
             </span>
           </button>
 
-          <div className="w-px h-4 bg-white/10" />
-
           {/* 2. Live Sing-Along Pitch & Energy Scorer */}
           {singAlongActive && (
-            <div className="hidden md:flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-200">
+            <div className="hidden md:flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full glass-button-emerald text-[10px] font-extrabold text-emerald-200">
               <div className="w-10 h-1.5 bg-black/60 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-emerald-400 to-cyan-300 rounded-full transition-[width] duration-75"
@@ -518,7 +516,7 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
                 />
               </div>
               <span className="tabular-nums text-emerald-300">{vocalStreak}x</span>
-              <span className="px-1.5 py-0.5 rounded-full bg-emerald-400 text-black text-[10px] font-black tabular-nums">
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-400/25 border border-emerald-400/40 text-emerald-100 text-[10px] font-black tabular-nums">
                 {vocalGrade} {vocalScore}%
               </span>
             </div>
@@ -527,10 +525,10 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
           <button
             type="button"
             onClick={toggleSingAlong}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               singAlongActive
-                ? 'bg-emerald-500 text-black font-extrabold shadow-[0_0_16px_rgba(16,185,129,0.5)]'
-                : 'text-white/70 hover:text-white hover:bg-white/[0.08]'
+                ? 'glass-button-emerald text-emerald-200 font-extrabold'
+                : 'glass-button text-white/80 hover:text-white'
             }`}
             title="Sing along with your microphone for live vocal pitch & energy scoring"
           >
@@ -544,27 +542,24 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
 
           {/* 3. Lyric Story Poster Studio */}
           {onShareLyric && (
-            <>
-              <div className="w-px h-4 bg-white/10" />
-              <button
-                type="button"
-                onClick={() => {
-                  const curIdx = activeIndex >= 0 ? activeIndex : 0;
-                  const l1 = lines[curIdx]?.text || '';
-                  const l2 = lines[curIdx + 1]?.text || '';
-                  onShareLyric(l2 ? `${l1}\n${l2}` : l1);
-                }}
-                className="px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide text-white/70 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer flex items-center gap-1.5"
-                title="Export 1080×1920 Social Story Poster of current lyrics"
-              >
-                <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="3" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
-                <span className="hidden sm:inline">Story Card</span>
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => {
+                const curIdx = activeIndex >= 0 ? activeIndex : 0;
+                const l1 = lines[curIdx]?.text || '';
+                const l2 = lines[curIdx + 1]?.text || '';
+                onShareLyric(l2 ? `${l1}\n${l2}` : l1);
+              }}
+              className="px-3 py-1.5 rounded-full glass-button text-[11px] font-bold tracking-wide text-white/80 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+              title="Export 1080×1920 Social Story Poster of current lyrics"
+            >
+              <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              <span className="hidden sm:inline">Story Card</span>
+            </button>
           )}
         </div>
       </div>
@@ -648,7 +643,7 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
               setUserScrolling(false);
               animateScrollToActive();
             }}
-            className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-[var(--color-accent)] text-white text-xs font-extrabold tracking-wide shadow-[0_8px_28px_rgba(250,45,72,0.55)] flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+            className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full glass-button-primary text-white text-xs font-extrabold tracking-wide flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="23 4 23 10 17 10" />

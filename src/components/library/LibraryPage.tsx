@@ -148,42 +148,46 @@ export default function LibraryPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
         {/* Create Playlist Card */}
-        <button
+        <div
           onClick={() => setIsCreateModalOpen(true)}
-          className="text-left group outline-none cursor-pointer"
+          className="text-left group cursor-pointer"
         >
           <GlassCard
+            variant="liquid"
             padding="md"
-            className="h-full flex flex-col items-center justify-center border-dashed border-2 border-white/20 bg-white/[0.02] hover:bg-white/[0.06] transition-all min-h-[230px]"
+            hover
+            className="h-full flex flex-col items-center justify-center border border-white/15 hover:border-white/30 transition-all min-h-[230px]"
           >
-            <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mb-3 group-hover:scale-110 group-hover:bg-[var(--color-accent)] transition-all">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-14 h-14 rounded-full glass-button flex items-center justify-center mb-3.5 group-hover:scale-110 transition-all">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
               </svg>
             </div>
             <h3 className="font-bold text-base text-white">Create Playlist</h3>
-            <p className="text-xs text-white/45 mt-1">Build a custom mix</p>
+            <p className="text-xs text-white/50 mt-1 text-center">Build a custom mix</p>
           </GlassCard>
-        </button>
+        </div>
 
         {/* Import Playlist Card */}
-        <button
+        <div
           onClick={() => setIsImportModalOpen(true)}
-          className="text-left group outline-none cursor-pointer"
+          className="text-left group cursor-pointer"
         >
           <GlassCard
+            variant="liquid"
             padding="md"
-            className="h-full flex flex-col items-center justify-center border-dashed border-2 border-emerald-400/25 bg-emerald-500/[0.03] hover:bg-emerald-500/[0.08] transition-all min-h-[230px]"
+            hover
+            className="h-full flex flex-col items-center justify-center border border-emerald-400/25 hover:border-emerald-400/45 transition-all min-h-[230px]"
           >
-            <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center mb-3 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-14 h-14 rounded-full glass-button-emerald flex items-center justify-center mb-3.5 group-hover:scale-110 transition-all">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
             </div>
             <h3 className="font-bold text-base text-white">Import Playlist</h3>
             <p className="text-xs text-white/50 mt-1 text-center">From playlist URLs or song lists</p>
           </GlassCard>
-        </button>
+        </div>
 
         {playlists.map((playlist) => (
           <PlaylistCard

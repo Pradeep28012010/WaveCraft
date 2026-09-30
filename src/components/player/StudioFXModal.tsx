@@ -267,8 +267,8 @@ function StudioFXModalContent() {
                     }}
                     className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
                       fxMode === '8d-orbit' && spatialOrbitAuto
-                        ? 'bg-cyan-400 text-black shadow-lg'
-                        : 'bg-white/10 text-white/75 hover:text-white'
+                        ? 'glass-button-cyan text-cyan-200'
+                        : 'glass-button text-white/75 hover:text-white'
                     }`}
                   >
                     🔄 Auto 360° Orbit
@@ -280,8 +280,8 @@ function StudioFXModalContent() {
                     }}
                     className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
                       fxMode === '8d-orbit' && !spatialOrbitAuto
-                        ? 'bg-cyan-400 text-black shadow-lg'
-                        : 'bg-white/10 text-white/75 hover:text-white'
+                        ? 'glass-button-cyan text-cyan-200'
+                        : 'glass-button text-white/75 hover:text-white'
                     }`}
                   >
                     🕹️ Manual Joypad
@@ -406,7 +406,7 @@ function StudioFXModalContent() {
                           setSpatialOrbitAuto(false);
                           setSpatialManualPos({ x: preset.x, z: preset.z });
                         }}
-                        className="px-3 py-1.5 rounded-full bg-white/[0.07] hover:bg-white/[0.15] border border-white/10 text-[11px] font-bold text-white/80 hover:text-white cursor-pointer transition-colors"
+                        className="px-3 py-1.5 rounded-full glass-button text-[11px] font-bold text-white/80 hover:text-white cursor-pointer transition-colors"
                       >
                         {preset.label}
                       </button>
@@ -423,7 +423,7 @@ function StudioFXModalContent() {
                   <h3 className="text-sm font-extrabold uppercase tracking-wider text-white/85 flex items-center gap-2">
                     <span>🎤 Real-Time Vocal Remover & Stem Isolator</span>
                     {vocalMode !== 'normal' && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500 text-white">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] glass-button-primary text-white">
                         {vocalMode.toUpperCase()}
                       </span>
                     )}
@@ -435,7 +435,7 @@ function StudioFXModalContent() {
                 {vocalMode !== 'normal' && (
                   <button
                     onClick={() => setVocalMode('normal')}
-                    className="text-xs font-bold text-white/60 hover:text-white cursor-pointer"
+                    className="px-3 py-1 rounded-full glass-button text-xs font-bold text-white/75 hover:text-white cursor-pointer"
                   >
                     Restore Full Vocals
                   </button>
@@ -493,7 +493,7 @@ function StudioFXModalContent() {
                 {hasAnyAmbient && (
                   <button
                     onClick={stopAllAmbient}
-                    className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold text-white/80 cursor-pointer"
+                    className="px-3 py-1 rounded-full glass-button text-xs font-bold text-white/80 hover:text-white cursor-pointer"
                   >
                     Mute All Layers
                   </button>
@@ -527,8 +527,8 @@ function StudioFXModalContent() {
                           }
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${
                             isLayerActive
-                              ? 'bg-emerald-400 text-black'
-                              : 'bg-white/10 text-white/60 hover:text-white'
+                              ? 'glass-button-emerald text-emerald-200'
+                              : 'glass-button text-white/60 hover:text-white'
                           }`}
                         >
                           {isLayerActive ? `${Math.round(vol * 100)}%` : 'OFF'}
@@ -578,7 +578,7 @@ function StudioFXModalContent() {
                   {pomodoroActive ? (
                     <button
                       onClick={stopPomodoro}
-                      className="flex-1 py-2.5 rounded-xl bg-red-500/25 border border-red-400/40 text-red-200 text-xs font-extrabold cursor-pointer hover:bg-red-500/35"
+                      className="flex-1 py-2.5 rounded-xl glass-button-primary text-red-100 text-xs font-extrabold cursor-pointer"
                     >
                       Stop {pomodoroMode === 'focus' ? 'Focus' : 'Break'} Timer
                     </button>
@@ -586,13 +586,13 @@ function StudioFXModalContent() {
                     <>
                       <button
                         onClick={() => startPomodoro('focus')}
-                        className="flex-1 py-2.5 rounded-xl bg-[var(--color-accent)] text-white text-xs font-extrabold cursor-pointer hover:opacity-95 shadow-lg"
+                        className="flex-1 py-2.5 rounded-xl glass-button-primary text-white text-xs font-extrabold cursor-pointer"
                       >
                         Start 25m Focus
                       </button>
                       <button
                         onClick={() => startPomodoro('break')}
-                        className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white/85 text-xs font-bold cursor-pointer"
+                        className="px-4 py-2.5 rounded-xl glass-button text-white/85 hover:text-white text-xs font-bold cursor-pointer"
                       >
                         5m Break
                       </button>
@@ -620,7 +620,7 @@ function StudioFXModalContent() {
                 {sleepActive ? (
                   <button
                     onClick={stopSleepTimer}
-                    className="w-full py-2.5 rounded-xl bg-purple-500/25 border border-purple-400/40 text-purple-200 text-xs font-extrabold cursor-pointer hover:bg-purple-500/35"
+                    className="w-full py-2.5 rounded-xl glass-button-purple text-purple-200 text-xs font-extrabold cursor-pointer"
                   >
                     Cancel Sleep Timer ({sleepEndAtTrack ? 'End of Song' : formatClock(sleepRemaining)})
                   </button>
@@ -630,14 +630,14 @@ function StudioFXModalContent() {
                       <button
                         key={mins}
                         onClick={() => startSleepTimer(mins)}
-                        className="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white cursor-pointer"
+                        className="flex-1 py-2 rounded-xl glass-button text-xs font-bold text-white cursor-pointer"
                       >
                         {mins}m
                       </button>
                     ))}
                     <button
                       onClick={() => setEndAtTrack(true)}
-                      className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white/80 cursor-pointer"
+                      className="px-3 py-2 rounded-xl glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer"
                     >
                       End of Song
                     </button>

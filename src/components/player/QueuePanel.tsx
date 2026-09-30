@@ -218,7 +218,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 rounded-full bg-white/[0.07] hover:bg-white/[0.15] border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer flex-shrink-0"
+                  className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer flex-shrink-0"
                   title="Close Queue"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
@@ -230,12 +230,12 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
               {/* Segmented Tab Pill + Repeat Mode Badge */}
               <div className="flex items-center justify-between gap-2">
-                <div className="inline-flex items-center p-1 rounded-full bg-black/45 border border-white/[0.1] shadow-inner">
+                <div className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass">
                   <button
                     onClick={() => setActiveTab('upnext')}
                     className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       activeTab === 'upnext'
-                        ? 'bg-[var(--color-accent)] text-white shadow-[0_2px_12px_rgba(250,45,72,0.45)]'
+                        ? 'glass-button-primary text-white'
                         : 'text-white/60 hover:text-white'
                     }`}
                   >
@@ -246,7 +246,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     onClick={() => setActiveTab('history')}
                     className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       activeTab === 'history'
-                        ? 'bg-white/20 text-white shadow-sm'
+                        ? 'glass-button text-white'
                         : 'text-white/60 hover:text-white'
                     }`}
                   >
@@ -261,7 +261,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     onClick={handleAiAutoFill}
                     disabled={!currentTrack || isAiFilling}
                     title="AI Smart Fill: Add 5 matching 320kbps tracks"
-                    className="h-7 px-2.5 rounded-full bg-gradient-to-r from-[var(--color-accent)]/25 to-purple-500/25 hover:from-[var(--color-accent)]/40 hover:to-purple-500/40 border border-[var(--color-accent)]/35 text-[11px] font-bold text-white flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40"
+                    className="h-7 px-2.5 rounded-full glass-button-primary text-[11px] font-bold text-white flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40"
                   >
                     {isAiFilling ? (
                       <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -277,7 +277,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     onClick={handleShuffleUpcoming}
                     disabled={upcomingItems.length <= 1}
                     title="Shuffle Upcoming Tracks"
-                    className="w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer disabled:opacity-35"
+                    className="w-7 h-7 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer disabled:opacity-35"
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
                       <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
@@ -287,10 +287,10 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                   <button
                     onClick={cycleRepeat}
                     title={`Repeat Mode: ${repeatMode.toUpperCase()}`}
-                    className={`w-7 h-7 rounded-full border flex items-center justify-center transition-all cursor-pointer relative ${
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
                       repeatMode !== 'off'
-                        ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)]/50 text-[var(--color-accent)]'
-                        : 'bg-white/[0.06] hover:bg-white/[0.14] border-white/10 text-white/70 hover:text-white'
+                        ? 'glass-button-primary text-white'
+                        : 'glass-button text-white/70 hover:text-white'
                     }`}
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
@@ -310,10 +310,10 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     onClick={handleSaveQueueAsPlaylist}
                     disabled={queue.length === 0}
                     title="Save Queue as Playlist in Library"
-                    className={`h-7 px-2.5 rounded-full border text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                    className={`h-7 px-2.5 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
                       savedToast
-                        ? 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
-                        : 'bg-white/[0.06] hover:bg-white/[0.14] border-white/10 text-white/75 hover:text-white'
+                        ? 'glass-button-emerald text-emerald-300'
+                        : 'glass-button text-white/75 hover:text-white'
                     }`}
                   >
                     {savedToast ? '✓ Saved' : 'Save'}
@@ -374,13 +374,13 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button
                         onClick={() => toggleLike(currentTrack)}
                         className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                           isCurrentLiked
-                            ? 'text-[var(--color-accent)]'
-                            : 'text-white/45 hover:text-white hover:bg-white/10'
+                            ? 'glass-button-primary text-white'
+                            : 'glass-button text-white/60 hover:text-white'
                         }`}
                         title={isCurrentLiked ? 'Liked' : 'Like Track'}
                       >
@@ -397,7 +397,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
                       <button
                         onClick={togglePlay}
-                        className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shadow hover:scale-105 transition-transform cursor-pointer"
+                        className="w-8 h-8 rounded-full glass-button-primary text-white flex items-center justify-center hover:scale-105 transition-transform cursor-pointer"
                         title={isPlaying ? 'Pause' : 'Play'}
                       >
                         {isPlaying ? (
@@ -441,7 +441,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                         <button
                           onClick={handleAiAutoFill}
                           disabled={isAiFilling}
-                          className="px-4 py-2 rounded-full bg-[var(--color-accent)] text-white text-xs font-extrabold shadow-[0_4px_16px_rgba(250,45,72,0.4)] hover:scale-105 transition-transform cursor-pointer"
+                          className="px-4 py-2 rounded-full glass-button-primary text-white text-xs font-extrabold hover:scale-105 transition-transform cursor-pointer"
                         >
                           {isAiFilling ? 'Curating 320kbps Mix...' : '✨ Auto-Fill 5 Similar Songs'}
                         </button>

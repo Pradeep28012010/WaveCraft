@@ -31,15 +31,6 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
-
-  button:not(:disabled) {
-    box-shadow:
-      0 6px 18px -6px rgba(0, 0, 0, 0.35),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.24),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(18px) saturate(180%);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
-  }
 }
 
 /* Custom scrollbar - sleek translucent style */
@@ -142,12 +133,12 @@
   .glass-button {
     background: linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.145) 0%,
+      rgba(255, 255, 255, 0.14) 0%,
       rgba(255, 255, 255, 0.05) 55%,
-      rgba(255, 255, 255, 0.095) 100%
+      rgba(255, 255, 255, 0.09) 100%
     );
-    backdrop-filter: blur(22px) saturate(190%);
-    -webkit-backdrop-filter: blur(22px) saturate(190%);
+    backdrop-filter: blur(24px) saturate(190%);
+    -webkit-backdrop-filter: blur(24px) saturate(190%);
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: var(--radius-full);
     box-shadow:
@@ -155,11 +146,7 @@
       inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
       inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
     color: var(--color-text-primary);
-    transition:
-      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-      background 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     transform: translateZ(0);
     cursor: pointer;
   }
@@ -168,7 +155,7 @@
     background: linear-gradient(
       135deg,
       rgba(255, 255, 255, 0.22) 0%,
-      rgba(255, 255, 255, 0.085) 55%,
+      rgba(255, 255, 255, 0.09) 55%,
       rgba(255, 255, 255, 0.14) 100%
     );
     border-color: rgba(255, 255, 255, 0.34);
@@ -183,40 +170,41 @@
     transform: scale3d(0.96, 0.96, 1);
   }
 
-  /* Tinted Liquid Glass Primary Accent Button */
+  /* Translucent Rose-Tinted Liquid Glass Primary Button (Exact same glass material, never opaque!) */
   .glass-button-primary {
     background: linear-gradient(
       135deg,
-      rgba(255, 92, 119, 0.85) 0%,
-      rgba(250, 45, 72, 0.72) 50%,
-      rgba(190, 18, 60, 0.82) 100%
+      rgba(250, 45, 72, 0.32) 0%,
+      rgba(250, 45, 72, 0.16) 55%,
+      rgba(168, 85, 247, 0.26) 100%
     );
-    backdrop-filter: blur(22px) saturate(200%);
-    -webkit-backdrop-filter: blur(22px) saturate(200%);
-    border: 1px solid rgba(255, 255, 255, 0.32);
+    backdrop-filter: blur(24px) saturate(195%);
+    -webkit-backdrop-filter: blur(24px) saturate(195%);
+    border: 1px solid rgba(250, 45, 72, 0.48);
     border-radius: var(--radius-full);
     box-shadow:
-      0 10px 28px -4px rgba(250, 45, 72, 0.45),
-      inset 0 1.5px 0 0 rgba(255, 255, 255, 0.42),
-      inset 0 -1px 0 0 rgba(0, 0, 0, 0.2);
+      0 8px 24px -4px rgba(250, 45, 72, 0.3),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
+      inset 0 -1px 0 0 rgba(250, 45, 72, 0.14);
     color: #ffffff;
-    transition:
-      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.22s ease;
+    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     transform: translateZ(0);
     cursor: pointer;
   }
 
   .glass-button-primary:hover:not(:disabled) {
-    border-color: rgba(255, 255, 255, 0.5);
+    background: linear-gradient(
+      135deg,
+      rgba(250, 45, 72, 0.44) 0%,
+      rgba(250, 45, 72, 0.24) 55%,
+      rgba(168, 85, 247, 0.34) 100%
+    );
+    border-color: rgba(255, 120, 140, 0.65);
     box-shadow:
-      0 14px 36px -4px rgba(250, 45, 72, 0.6),
-      inset 0 1.5px 0 0 rgba(255, 255, 255, 0.55),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.12);
-    filter: brightness(1.07);
-    transform: translate3d(0, -1.5px, 0);
+      0 12px 30px -4px rgba(250, 45, 72, 0.42),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.44),
+      inset 0 -1px 0 0 rgba(250, 45, 72, 0.18);
+    transform: translate3d(0, -1px, 0);
   }
 
   .glass-button-primary:active:not(:disabled) {

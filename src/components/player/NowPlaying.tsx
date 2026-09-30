@@ -182,7 +182,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             <div className="flex items-center gap-2.5">
               <button
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center rounded-full liquid-glass text-white hover:scale-105 transition-transform cursor-pointer"
+                className="w-10 h-10 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
                 title="Minimize Player"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -192,19 +192,23 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
               {/* Cover vs Vinyl Turntable Switcher */}
               {!zenMode && (
-                <div className="hidden sm:flex items-center p-1 rounded-full liquid-glass border border-white/10">
+                <div className="hidden sm:flex items-center gap-1 p-1 rounded-full liquid-glass border border-white/15">
                   <button
                     onClick={() => setDeckMode('cover')}
-                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                      deckMode === 'cover' ? 'bg-white text-black shadow' : 'text-white/65 hover:text-white'
+                    className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                      deckMode === 'cover'
+                        ? 'glass-button-primary text-white'
+                        : 'text-white/65 hover:text-white'
                     }`}
                   >
                     Cover
                   </button>
                   <button
                     onClick={() => setDeckMode('vinyl')}
-                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                      deckMode === 'vinyl' ? 'bg-white text-black shadow' : 'text-white/65 hover:text-white'
+                    className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                      deckMode === 'vinyl'
+                        ? 'glass-button-primary text-white'
+                        : 'text-white/65 hover:text-white'
                     }`}
                   >
                     Vinyl Deck
@@ -239,12 +243,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       : 'normal'
                   )
                 }
-                className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
                   vocalMode === 'karaoke'
-                    ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white border-rose-300/40 shadow-[0_0_20px_rgba(244,63,94,0.45)]'
+                    ? 'glass-button-primary text-white'
                     : vocalMode === 'acapella'
-                    ? 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white border-violet-300/40 shadow-[0_0_20px_rgba(139,92,246,0.45)]'
-                    : 'liquid-glass text-white/85 hover:text-white border-white/15 hover:border-white/25'
+                    ? 'glass-button-purple text-white'
+                    : 'glass-button text-white/85 hover:text-white'
                 }`}
                 title="Cycle Real-Time Karaoke Vocal Remover (Instrumental) & Acapella Vocal Isolate"
               >
@@ -265,10 +269,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               {/* Studio Audio FX & Ambient Mixer Button */}
               <button
                 onClick={() => setStudioModalOpen(true)}
-                className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
                   fxMode !== 'normal'
-                    ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-[0_0_20px_rgba(250,45,72,0.45)]'
-                    : 'liquid-glass text-white/85 hover:text-white border-white/15 hover:border-white/25'
+                    ? 'glass-button-primary text-white'
+                    : 'glass-button text-white/85 hover:text-white'
                 }`}
                 title="Open Studio Audio FX (Slowed + Reverb, 3D Spatial Radar, Nightcore) & Ambient Mixer"
               >
@@ -296,7 +300,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   setWaveCardQuote('');
                   setShowWaveCard(true);
                 }}
-                className="px-3.5 h-9 rounded-full liquid-glass text-xs font-bold text-white/85 hover:text-white flex items-center gap-1.5 cursor-pointer border border-white/15 hover:border-white/25 transition-all"
+                className="px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white flex items-center gap-1.5 cursor-pointer transition-all"
                 title="Generate Shareable 1080×1920 Lyric Story Poster"
               >
                 <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -318,7 +322,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
                   if (next) setVisualizerStyle(next.id);
                 }}
-                className="hidden md:flex px-3.5 h-9 rounded-full liquid-glass text-xs font-bold text-white/85 hover:text-white items-center gap-1.5 cursor-pointer border border-white/15 hover:border-white/25 transition-all"
+                className="hidden md:flex px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white items-center gap-1.5 cursor-pointer transition-all"
                 title="Cycle Player Background Visualizer (Saved Automatically)"
               >
                 <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -336,10 +340,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   setZenMode(nextZen);
                   if (nextZen) setShowVisualizer(true);
                 }}
-                className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer ${
                   zenMode
-                    ? 'bg-[var(--color-accent)] text-white border-white/30 shadow-[0_0_20px_var(--color-accent)]'
-                    : 'liquid-glass text-white/85 hover:text-white border-white/15 hover:border-white/25'
+                    ? 'glass-button-primary text-white'
+                    : 'glass-button text-white/85 hover:text-white'
                 }`}
                 title="Toggle Fullscreen 3D Visualizer Zen Mode"
               >
@@ -352,7 +356,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
                   setPlaybackSpeed(next);
                 }}
-                className="px-3 h-9 rounded-full liquid-glass text-xs font-bold text-white/85 hover:text-white border border-white/15 hover:border-white/25 cursor-pointer transition-all tabular-nums"
+                className="px-3 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer transition-all tabular-nums"
                 title="Playback Speed"
               >
                 {playbackSpeed}x
@@ -370,7 +374,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     onClick={() => setVisualizerStyle(m.id)}
                     className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                       visualizerStyle === m.id
-                        ? 'bg-[var(--color-accent)] text-white shadow-lg'
+                        ? 'glass-button-primary text-white'
                         : 'text-white/65 hover:text-white hover:bg-white/10'
                     }`}
                   >
@@ -563,8 +567,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                     <button
                       onClick={() => toggleLike(currentTrack)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-full liquid-glass flex-shrink-0 transition-transform cursor-pointer ${
-                        isLiked ? 'text-[var(--color-accent)] scale-105' : 'text-white/60 hover:text-white'
+                      className={`w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer ${
+                        isLiked
+                          ? 'glass-button-primary text-[var(--color-accent)] scale-105'
+                          : 'glass-button text-white/65 hover:text-white'
                       }`}
                     >
                       <svg
@@ -583,11 +589,13 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   <NowPlayingScrubber fallbackDuration={currentTrack.duration || 210} />
 
                   {/* Transport Buttons */}
-                  <div className="flex items-center justify-center gap-6 sm:gap-8 mt-3">
+                  <div className="flex items-center justify-center gap-5 sm:gap-6 mt-3">
                     <button
                       onClick={toggleShuffle}
                       className={`w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer ${
-                        isShuffled ? 'liquid-glass text-[var(--color-accent)]' : 'text-white/50 hover:text-white'
+                        isShuffled
+                          ? 'glass-button-primary text-[var(--color-accent)]'
+                          : 'glass-button text-white/60 hover:text-white'
                       }`}
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -597,16 +605,16 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                     <button
                       onClick={prevTrack}
-                      className="w-11 h-11 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors cursor-pointer"
+                      className="w-11 h-11 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
                     >
-                      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                       </svg>
                     </button>
 
                     <button
                       onClick={togglePlay}
-                      className="w-15 h-15 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-transform shadow-[0_0_35px_rgba(255,255,255,0.4)] cursor-pointer"
+                      className="w-15 h-15 flex items-center justify-center rounded-full glass-button-primary text-white hover:scale-105 active:scale-95 transition-transform cursor-pointer"
                     >
                       {isPlaying ? (
                         <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
@@ -621,9 +629,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                     <button
                       onClick={nextTrack}
-                      className="w-11 h-11 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors cursor-pointer"
+                      className="w-11 h-11 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
                     >
-                      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                       </svg>
                     </button>
@@ -631,7 +639,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     <button
                       onClick={cycleRepeat}
                       className={`w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer ${
-                        repeatMode !== 'off' ? 'liquid-glass text-[var(--color-accent)]' : 'text-white/50 hover:text-white'
+                        repeatMode !== 'off'
+                          ? 'glass-button-primary text-[var(--color-accent)]'
+                          : 'glass-button text-white/60 hover:text-white'
                       }`}
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -646,7 +656,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   {/* Volume & Feature Toggles Row */}
                   <div className="w-full flex items-center justify-between gap-3 mt-5 pt-3 border-t border-white/10">
                     <div className="flex items-center gap-2">
-                      <button onClick={toggleMute} className="text-white/60 hover:text-white cursor-pointer">
+                      <button onClick={toggleMute} className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white cursor-pointer">
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                         </svg>
@@ -665,10 +675,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setShowLyrics(!showLyrics)}
-                        className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 border ${
+                        className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
                           showLyrics
-                            ? 'bg-[var(--color-accent)] text-white border-white/25 shadow-[0_0_18px_rgba(250,45,72,0.45)]'
-                            : 'liquid-glass text-white/65 hover:text-white border-white/10 hover:border-white/25'
+                            ? 'glass-button-primary text-white'
+                            : 'glass-button text-white/70 hover:text-white'
                         }`}
                       >
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -678,10 +688,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       </button>
                       <button
                         onClick={() => setShowQueue(!showQueue)}
-                        className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 border ${
+                        className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
                           showQueue
-                            ? 'bg-white text-black border-white shadow-lg'
-                            : 'liquid-glass text-white/65 hover:text-white border-white/10 hover:border-white/25'
+                            ? 'glass-button-primary text-white'
+                            : 'glass-button text-white/70 hover:text-white'
                         }`}
                       >
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

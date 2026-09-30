@@ -333,8 +333,8 @@ const TrackRow = memo(({
       </div>
 
       {/* Actions */}
-      <div className="relative z-10 flex items-center gap-1 sm:gap-1.5">
-        {/* 15s Smart Chorus Audio Preview Button */}
+      <div className="relative z-10 flex items-center gap-1.5 flex-shrink-0">
+        {/* 15s Smart Chorus Audio Preview Button — fixed single-line Liquid Glass pill */}
         <button
           type="button"
           onClick={(e) => {
@@ -346,14 +346,14 @@ const TrackRow = memo(({
               ? 'Stop 15s Chorus Preview'
               : 'Preview 15s Chorus Drop (without losing your current queue)'
           }
-          className={`px-2 py-1 rounded-full text-[10px] font-extrabold transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer flex items-center gap-1 ${
+          className={`px-2.5 h-8 rounded-full text-[10px] font-extrabold whitespace-nowrap flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer inline-flex items-center justify-center gap-1 ${
             isPreviewing
-              ? 'bg-[var(--color-accent)] text-white opacity-100 shadow-[0_0_14px_var(--color-accent)]'
+              ? 'glass-button-primary text-white opacity-100'
               : isPhone
-              ? 'text-white/60 bg-white/[0.06] opacity-100'
+              ? 'glass-button text-white/75 opacity-100'
               : activeVisual
-              ? 'text-white/75 bg-white/[0.08] opacity-100 translate-x-0 hover:bg-[var(--color-accent)] hover:text-white'
-              : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+              ? 'glass-button text-white/85 opacity-100 translate-x-0 hover:text-white'
+              : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
           }`}
         >
           {isPreviewLoading ? (
@@ -369,19 +369,19 @@ const TrackRow = memo(({
             toggleOfflineTrack(track);
           }}
           title={trackIsOffline ? 'Saved in Offline Vault (Click to Remove)' : 'Save 320kbps Audio to Offline Vault'}
-          className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
             trackIsOffline
-              ? 'text-emerald-400 opacity-100 bg-emerald-500/15'
+              ? 'glass-button-emerald text-emerald-300 opacity-100'
               : isSavingOffline
-              ? 'text-amber-300 opacity-100 animate-pulse'
+              ? 'glass-button text-amber-300 opacity-100 animate-pulse'
               : isPhone
-              ? 'text-white/45 opacity-100 active:bg-white/10'
+              ? 'glass-button text-white/60 opacity-100'
               : activeVisual
-              ? 'text-white/55 opacity-100 translate-x-0 hover:text-white hover:bg-white/12'
-              : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+              ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
+              : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
           }`}
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             {trackIsOffline ? (
               <polyline points="20 6 9 17 4 12" />
             ) : (
@@ -397,17 +397,17 @@ const TrackRow = memo(({
         <button
           onClick={handleLike}
           title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
-          className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
             liked
-              ? 'text-[var(--color-accent)] opacity-100 scale-105'
+              ? 'glass-button-primary text-[var(--color-accent)] opacity-100'
               : isPhone
-              ? 'text-white/45 opacity-100 active:bg-white/10'
+              ? 'glass-button text-white/60 opacity-100'
               : activeVisual
-              ? 'text-white/55 opacity-100 translate-x-0 hover:text-white hover:bg-white/12'
-              : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+              ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
+              : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
           }`}
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
         </button>
@@ -416,13 +416,13 @@ const TrackRow = memo(({
           <button
             onClick={handleQueue}
             title="Add to Queue"
-            className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
               activeVisual
-                ? 'text-white/55 opacity-100 translate-x-0 hover:text-white hover:bg-white/12'
-                : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+                ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
+                : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
             }`}
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -430,20 +430,20 @@ const TrackRow = memo(({
         )}
 
         {playlists.length > 0 && (
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
             <button
               ref={menuBtnRef}
               onClick={handleToggleMenu}
               title="Add to Playlist"
-              className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
                 isPhone
-                  ? 'text-white/45 opacity-100'
+                  ? 'glass-button text-white/60 opacity-100'
                   : activeVisual || showPlaylistMenu
-                  ? 'text-white/55 opacity-100 translate-x-0 hover:text-white hover:bg-white/12'
-                  : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+                  ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
+                  : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
               }`}
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="1" />
                 <circle cx="19" cy="12" r="1" />
                 <circle cx="5" cy="12" r="1" />
@@ -491,15 +491,15 @@ const TrackRow = memo(({
               onRemove(track);
             }}
             title="Remove from playlist"
-            className={`p-2 rounded-full transition-[opacity,transform,color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
               isPhone
-                ? 'text-white/45 opacity-100'
+                ? 'glass-button text-white/60 opacity-100'
                 : activeVisual
-                ? 'text-white/55 opacity-100 translate-x-0 hover:text-rose-400 hover:bg-rose-500/15'
-                : 'text-white/40 opacity-0 translate-x-1 pointer-events-none'
+                ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-rose-300'
+                : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
             }`}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
