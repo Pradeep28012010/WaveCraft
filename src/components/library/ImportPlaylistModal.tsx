@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GlassModal from '../ui/GlassModal';
 import GlassButton from '../ui/GlassButton';
@@ -29,6 +29,7 @@ export default function ImportPlaylistModal({
   const updatePlaylist = useLibraryStore((s) => s.updatePlaylist);
 
   const [mode, setMode] = useState<'live' | 'url' | 'text'>(initialMode);
+  const [prevOpenKey, setPrevOpenKey] = useState(`${isOpen}:${initialMode}`);
   const [urlInput, setUrlInput] = useState('');
   const [customName, setCustomName] = useState('');
   const [textInput, setTextInput] = useState('');
@@ -43,12 +44,15 @@ export default function ImportPlaylistModal({
   const [errorMsg, setErrorMsg] = useState('');
   const abortRef = useRef(false);
 
-  useEffect(() => {
+  // Sync mode synchronously before paint when modal opens so Frame 1 never flashes the wrong tab
+  const currentOpenKey = `${isOpen}:${initialMode}`;
+  if (currentOpenKey !== prevOpenKey) {
+    setPrevOpenKey(currentOpenKey);
     if (isOpen) {
       setMode(initialMode);
       setErrorMsg('');
     }
-  }, [isOpen, initialMode]);
+  }
 
   const matchQueriesToTracks = async (
     queries: ImportQueryItem[],

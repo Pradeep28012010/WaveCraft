@@ -199,9 +199,9 @@ export default function LibraryPage() {
             variant="liquid"
             padding="md"
             hover
-            className="h-full flex flex-col items-center justify-center border border-white/15 hover:border-white/30 transition-all min-h-[230px]"
+            className="h-full flex flex-col items-center justify-center border border-white/15 hover:border-white/30 transition-colors min-h-[230px]"
           >
-            <div className="w-14 h-14 rounded-full glass-button flex items-center justify-center mb-3.5 group-hover:scale-110 transition-all">
+            <div className="w-14 h-14 rounded-full glass-button flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
               </svg>
@@ -220,13 +220,13 @@ export default function LibraryPage() {
             variant="liquid"
             padding="md"
             hover
-            className="h-full flex flex-col items-center justify-center border border-emerald-400/35 hover:border-emerald-400/60 transition-all min-h-[230px] relative overflow-hidden"
+            className="h-full flex flex-col items-center justify-center border border-emerald-400/35 hover:border-emerald-400/60 transition-colors min-h-[230px] relative overflow-hidden"
           >
             <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/35 text-[9px] font-extrabold text-emerald-300 flex items-center gap-1 whitespace-nowrap">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
               AUTO-SYNC
             </span>
-            <div className="w-14 h-14 rounded-full glass-button-emerald flex items-center justify-center mb-3.5 group-hover:scale-110 transition-all">
+            <div className="w-14 h-14 rounded-full glass-button-emerald flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
               <svg className="w-6 h-6 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
@@ -247,9 +247,9 @@ export default function LibraryPage() {
             variant="liquid"
             padding="md"
             hover
-            className="h-full flex flex-col items-center justify-center border border-cyan-400/25 hover:border-cyan-400/45 transition-all min-h-[230px]"
+            className="h-full flex flex-col items-center justify-center border border-cyan-400/25 hover:border-cyan-400/45 transition-colors min-h-[230px]"
           >
-            <div className="w-14 h-14 rounded-full glass-button-cyan flex items-center justify-center mb-3.5 group-hover:scale-110 transition-all">
+            <div className="w-14 h-14 rounded-full glass-button-cyan flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>

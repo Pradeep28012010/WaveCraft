@@ -270,20 +270,22 @@ function StudioFXModalContent() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={() => setStudioModalOpen(false)}
-      className="fixed inset-0 z-[9990] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-2xl select-none"
-    >
+    <div className="fixed inset-0 z-[9990] flex items-center justify-center p-3 sm:p-6 select-none">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+        onClick={() => setStudioModalOpen(false)}
+        className="absolute inset-0 modal-backdrop-blur"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: 'spring', stiffness: 310, damping: 28 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-5xl max-h-[90vh] overflow-y-auto no-scrollbar rounded-3xl liquid-glass border border-white/20 p-5 sm:p-7 shadow-[0_32px_120px_rgba(0,0,0,0.9)] text-white space-y-6"
+        className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto no-scrollbar rounded-3xl modal-glass-panel p-5 sm:p-7 text-white space-y-6"
       >
         {/* ================= MASTERING WORKSTATION HEADER & LIVE SPECTRUM DECK ================= */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-white/12">
@@ -1298,7 +1300,7 @@ function StudioFXModalContent() {
           </div>
         )}
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
 

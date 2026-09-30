@@ -458,13 +458,14 @@ export default function TopBar() {
       {/* Fallback PWA Install Instructions Modal */}
       {showInstallGuide &&
         createPortal(
-          <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl"
-            onClick={() => setShowInstallGuide(false)}
-          >
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 modal-backdrop-blur"
+              onClick={() => setShowInstallGuide(false)}
+            />
             <div
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-3xl liquid-glass border border-white/20 p-6 shadow-2xl space-y-4"
+              className="relative z-10 w-full max-w-md rounded-3xl modal-glass-panel p-6 space-y-4"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-extrabold text-white">Install WaveCraft App</h3>

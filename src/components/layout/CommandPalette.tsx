@@ -322,20 +322,22 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-      className="fixed inset-0 z-[9995] flex items-start justify-center pt-[11vh] px-4 bg-black/75 backdrop-blur-2xl select-none"
-    >
+    <div className="fixed inset-0 z-[9995] flex items-start justify-center pt-[11vh] px-4 select-none">
       <motion.div
-        initial={{ opacity: 0, scale: 0.94, y: -16 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+        onClick={onClose}
+        className="absolute inset-0 modal-backdrop-blur"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: -10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.94, y: -16 }}
-        transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+        exit={{ opacity: 0, scale: 0.96, y: -10 }}
+        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl rounded-3xl liquid-glass border border-white/25 shadow-[0_30px_100px_rgba(0,0,0,0.9)] overflow-hidden text-white"
+        className="relative z-10 w-full max-w-2xl rounded-3xl modal-glass-panel overflow-hidden text-white"
       >
         {/* Search Input Header */}
         <div className="flex items-center gap-3.5 px-5 py-4 border-b border-white/12 bg-black/30">
@@ -489,6 +491,6 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
           <span className="font-semibold text-white/60">WaveCraft Spotlight • Ctrl+K</span>
         </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

@@ -498,19 +498,22 @@ export default function WaveCardModal({
 
   return createPortal(
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl"
-        onClick={onClose}
-      >
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
         <motion.div
-          initial={{ scale: 0.92, opacity: 0, y: 20 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute inset-0 modal-backdrop-blur"
+          onClick={onClose}
+        />
+        <motion.div
+          initial={{ scale: 0.96, opacity: 0, y: 10 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.92, opacity: 0, y: 20 }}
+          exit={{ scale: 0.96, opacity: 0, y: 10 }}
+          transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-4xl rounded-3xl liquid-glass border border-white/15 p-6 sm:p-8 shadow-[0_28px_90px_rgba(0,0,0,0.85)] max-h-[90vh] overflow-y-auto"
+          className="relative z-10 w-full max-w-4xl rounded-3xl modal-glass-panel p-6 sm:p-8 max-h-[90vh] overflow-y-auto"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
@@ -785,7 +788,7 @@ export default function WaveCardModal({
 
           <canvas ref={canvasRef} className="hidden" />
         </motion.div>
-      </motion.div>
+      </div>
     </AnimatePresence>,
     document.body
   );
