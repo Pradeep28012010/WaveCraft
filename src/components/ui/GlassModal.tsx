@@ -43,7 +43,7 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
             exit={{ opacity: 0 }}
             transition={MODAL_TRANSITION}
             onClick={onClose}
-            className="absolute inset-0 modal-backdrop-blur"
+            className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -51,7 +51,7 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={MODAL_TRANSITION}
             onClick={(e) => e.stopPropagation()}
-            className={`relative z-10 ${widthClass} max-h-[90vh] flex flex-col overflow-hidden p-6 sm:p-7 modal-glass-panel`}
+            className={`relative z-10 ${widthClass} max-h-[90vh] flex flex-col overflow-hidden p-6 sm:p-7 modal-glass-panel backdrop-blur-2xl backdrop-saturate-150`}
           >
             {title && (
               <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-white/12 flex-shrink-0">

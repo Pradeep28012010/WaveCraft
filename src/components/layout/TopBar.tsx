@@ -460,12 +460,12 @@ export default function TopBar() {
         createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div
-              className="absolute inset-0 modal-backdrop-blur"
+              className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
               onClick={() => setShowInstallGuide(false)}
             />
             <div
               onClick={(e) => e.stopPropagation()}
-              className="relative z-10 w-full max-w-md rounded-3xl modal-glass-panel p-6 space-y-4"
+              className="relative z-10 w-full max-w-md rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-6 space-y-4"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-extrabold text-white">Install WaveCraft App</h3>

@@ -277,7 +277,7 @@ function StudioFXModalContent() {
         exit={{ opacity: 0 }}
         transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
         onClick={() => setStudioModalOpen(false)}
-        className="absolute inset-0 modal-backdrop-blur"
+        className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -285,7 +285,7 @@ function StudioFXModalContent() {
         exit={{ opacity: 0, scale: 0.96, y: 10 }}
         transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
         onClick={(e) => e.stopPropagation()}
-        className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto no-scrollbar rounded-3xl modal-glass-panel p-5 sm:p-7 text-white space-y-6"
+        className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto no-scrollbar rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-5 sm:p-7 text-white space-y-6"
       >
         {/* ================= MASTERING WORKSTATION HEADER & LIVE SPECTRUM DECK ================= */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-white/12">
