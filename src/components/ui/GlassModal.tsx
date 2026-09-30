@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import GlassCard from './GlassCard';
 
 interface GlassModalProps {
@@ -31,7 +32,9 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
   if (size === 'sm') widthClass = 'w-full max-w-sm';
   if (size === 'lg') widthClass = 'w-full max-w-xl';
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[9995] flex items-center justify-center p-4 sm:p-6">
@@ -40,19 +43,19 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/65 backdrop-blur-md"
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`relative z-10 ${widthClass} max-h-[88vh] flex flex-col`}
+            className={`relative z-10 ${widthClass} max-h-[90vh] flex flex-col`}
           >
             <GlassCard
               variant="heavy"
               padding="lg"
-              className="w-full max-h-[88vh] flex flex-col overflow-hidden border border-white/20 shadow-[0_28px_80px_rgba(0,0,0,0.85)]"
+              className="w-full max-h-[90vh] flex flex-col overflow-hidden border border-white/20 shadow-[0_28px_90px_rgba(0,0,0,0.9)]"
             >
               {title && (
                 <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-white/10 flex-shrink-0">
@@ -74,7 +77,8 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 

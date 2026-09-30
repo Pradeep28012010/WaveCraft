@@ -12,10 +12,11 @@
   --color-text-tertiary: rgba(255, 255, 255, 0.42);
   --color-accent: #fa2d48;
   --color-accent-hover: #ff4760;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
   --radius-full: 9999px;
 }
 
