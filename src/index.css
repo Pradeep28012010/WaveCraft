@@ -343,3 +343,18 @@ input[type='range']::-moz-range-thumb {
   animation: eq-bar-3 0.92s ease-in-out infinite;
   will-change: transform;
 }
+
+/* ━━━ Landing Page ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+@keyframes landing-marquee-slide {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.landing-marquee {
+  animation: landing-marquee-slide 45s linear infinite;
+  width: max-content;
+  will-change: transform;
+}
+.landing-marquee:hover {
+  animation-play-state: paused;
+}

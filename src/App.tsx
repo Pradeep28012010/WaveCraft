@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
-import { useEffect, useRef, lazy } from 'react';
+import { Suspense, useEffect, useRef, lazy } from 'react';
 import { MotionConfig } from 'framer-motion';
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './components/discover/HomePage';
@@ -22,6 +22,7 @@ const VibeDJPage = lazy(() => import('./components/vibe/VibeDJPage'));
 const JamRoomPage = lazy(() => import('./components/jam/JamRoomPage'));
 const DJConsolePage = lazy(() => import('./components/dj/DJConsolePage'));
 const SonicGalaxyPage = lazy(() => import('./components/galaxy/SonicGalaxyPage'));
+const LandingPage = lazy(() => import('./components/landing/LandingPage'));
 
 function AppContent() {
   const loadLibrary = useLibraryStore((s) => s.loadFromStorage);
@@ -62,6 +63,23 @@ function AppContent() {
 
   return (
     <Routes>
+      {/* Standalone landing page — no sidebar, topbar, or player chrome */}
+      <Route
+        path="/welcome"
+        element={
+          <Suspense
+            fallback={
+              <div className="fixed inset-0 bg-[#050508] flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-white/15 border-t-[#fa2d48] rounded-full animate-spin" />
+              </div>
+            }
+          >
+            <LandingPage />
+          </Suspense>
+        }
+      />
+
+      {/* Main App Routes — wrapped in layout with sidebar, topbar, player */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/vibe" element={<VibeDJPage />} />
