@@ -26,6 +26,15 @@ export interface Playlist {
   updatedAt: number;
   isSmartPlaylist?: boolean;
   folder?: string;
+  // Live Auto-Sync Playlist fields
+  isLiveSync?: boolean;
+  sourceUrl?: string;
+  sourcePlatform?: string;
+  syncStrategy?: 'append' | 'mirror';
+  syncIntervalMinutes?: number;
+  lastSyncedAt?: number;
+  lastSyncDelta?: number;
+  remoteFingerprints?: string[];
 }
 
 export interface PlayerState {

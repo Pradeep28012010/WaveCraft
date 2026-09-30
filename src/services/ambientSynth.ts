@@ -190,6 +190,85 @@ function startAmbientLayer(id: AmbientLayerId, volume: number): void {
         } catch {}
       }
     });
+  } else if (id === 'campfire') {
+    // Cozy Campfire: Warm low-mid hearth glow + crisp stochastic wood ember crackles
+    const emberSrc = ctx.createBufferSource();
+    emberSrc.buffer = createNoiseBuffer(ctx, 'vinyl');
+    emberSrc.loop = true;
+
+    const emberBP = ctx.createBiquadFilter();
+    emberBP.type = 'bandpass';
+    emberBP.frequency.value = 1850;
+    emberBP.Q.value = 0.9;
+
+    const hearthSrc = ctx.createBufferSource();
+    hearthSrc.buffer = createNoiseBuffer(ctx, 'brown');
+    hearthSrc.loop = true;
+
+    const hearthLP = ctx.createBiquadFilter();
+    hearthLP.type = 'lowpass';
+    hearthLP.frequency.value = 220;
+
+    const hearthGain = ctx.createGain();
+    hearthGain.gain.value = 0.55;
+
+    emberSrc.connect(emberBP);
+    emberBP.connect(masterGain);
+
+    hearthSrc.connect(hearthLP);
+    hearthLP.connect(hearthGain);
+    hearthGain.connect(masterGain);
+
+    emberSrc.start();
+    hearthSrc.start();
+
+    activeLayerNodes.set(id, {
+      gain: masterGain,
+      cleanup: () => {
+        try {
+          emberSrc.stop();
+          hearthSrc.stop();
+          emberSrc.disconnect();
+          hearthSrc.disconnect();
+          masterGain.disconnect();
+        } catch {}
+      }
+    });
+  } else if (id === 'cafe') {
+    // Midnight Study Cafe: Warm room acoustics with gentle modulated acoustic air
+    const roomSrc = ctx.createBufferSource();
+    roomSrc.buffer = createNoiseBuffer(ctx, 'pink');
+    roomSrc.loop = true;
+
+    const formant1 = ctx.createBiquadFilter();
+    formant1.type = 'bandpass';
+    formant1.frequency.value = 480;
+    formant1.Q.value = 0.75;
+
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.value = 0.22;
+    lfoGain.gain.value = 140;
+    lfo.connect(lfoGain);
+    lfoGain.connect(formant1.frequency);
+
+    roomSrc.connect(formant1);
+    formant1.connect(masterGain);
+
+    roomSrc.start();
+    lfo.start();
+
+    activeLayerNodes.set(id, {
+      gain: masterGain,
+      cleanup: () => {
+        try {
+          roomSrc.stop();
+          lfo.stop();
+          roomSrc.disconnect();
+          masterGain.disconnect();
+        } catch {}
+      }
+    });
   }
 }
 

@@ -410,15 +410,16 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </button>
                     <button
                       onClick={togglePlay}
-                      className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
+                      className="w-12 h-12 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
                     >
                       {isPlaying ? (
-                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                        <svg className="w-6 h-6 block" viewBox="0 0 24 24" fill="currentColor">
+                          <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
+                          <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
                         </svg>
                       ) : (
-                        <svg className="w-6 h-6 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M8 5v14l11-7z" />
+                        <svg className="w-6 h-6 block" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
                         </svg>
                       )}
                     </button>
@@ -567,14 +568,14 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                     <button
                       onClick={() => toggleLike(currentTrack)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer ${
+                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer ${
                         isLiked
                           ? 'glass-button-primary text-[var(--color-accent)] scale-105'
                           : 'glass-button text-white/65 hover:text-white'
                       }`}
                     >
                       <svg
-                        className="w-5 h-5"
+                        className="w-5 h-5 block"
                         viewBox="0 0 24 24"
                         fill={isLiked ? 'currentColor' : 'none'}
                         stroke="currentColor"
@@ -588,63 +589,69 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   {/* Isolated 120fps Progress Bar */}
                   <NowPlayingScrubber fallbackDuration={currentTrack.duration || 210} />
 
-                  {/* Transport Buttons */}
-                  <div className="flex items-center justify-center gap-5 sm:gap-6 mt-3">
+                  {/* Symmetric Centered Transport Buttons */}
+                  <div className="w-full flex items-center justify-center gap-5 sm:gap-6 mt-3">
                     <button
                       onClick={toggleShuffle}
-                      className={`w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer ${
+                      title={isShuffled ? 'Shuffle On' : 'Shuffle Off'}
+                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer ${
                         isShuffled
-                          ? 'glass-button-primary text-[var(--color-accent)]'
+                          ? 'glass-button-primary text-white'
                           : 'glass-button text-white/60 hover:text-white'
                       }`}
                     >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                       </svg>
                     </button>
 
                     <button
                       onClick={prevTrack}
-                      className="w-11 h-11 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
+                      title="Previous Track"
+                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
                     >
-                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                      <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                       </svg>
                     </button>
 
                     <button
                       onClick={togglePlay}
-                      className="w-15 h-15 flex items-center justify-center rounded-full glass-button-primary text-white hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+                      title={isPlaying ? 'Pause' : 'Play'}
+                      className="w-16 h-16 p-0 flex items-center justify-center rounded-full glass-button-primary text-white hover:scale-105 active:scale-95 transition-transform cursor-pointer shadow-[0_10px_32px_rgba(250,45,72,0.38)]"
                     >
                       {isPlaying ? (
-                        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                        <svg className="w-7 h-7 block" viewBox="0 0 24 24" fill="currentColor">
+                          <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
+                          <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
                         </svg>
                       ) : (
-                        <svg className="w-7 h-7 ml-1" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M8 5v14l11-7z" />
+                        <svg className="w-7 h-7 block" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
                         </svg>
                       )}
                     </button>
 
                     <button
                       onClick={nextTrack}
-                      className="w-11 h-11 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
+                      title="Next Track"
+                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
                     >
-                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                      <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                       </svg>
                     </button>
 
                     <button
                       onClick={cycleRepeat}
-                      className={`w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer ${
+                      title={`Repeat: ${repeatMode}`}
+                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer ${
                         repeatMode !== 'off'
-                          ? 'glass-button-primary text-[var(--color-accent)]'
+                          ? 'glass-button-primary text-white'
                           : 'glass-button text-white/60 hover:text-white'
                       }`}
                     >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <polyline points="17 1 21 5 17 9" />
                         <path d="M3 11V9a4 4 0 0 1 4-4h14" />
                         <polyline points="7 23 3 19 7 15" />
@@ -655,11 +662,34 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                   {/* Volume & Feature Toggles Row */}
                   <div className="w-full flex items-center justify-between gap-3 mt-5 pt-3 border-t border-white/10">
-                    <div className="flex items-center gap-2">
-                      <button onClick={toggleMute} className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white cursor-pointer">
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                        </svg>
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        onClick={toggleMute}
+                        title={isMuted || volume === 0 ? 'Unmute Audio' : 'Mute Audio'}
+                        className={`w-9 h-9 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
+                          isMuted || volume === 0
+                            ? 'glass-button-primary text-rose-300'
+                            : 'glass-button text-white/85 hover:text-white'
+                        }`}
+                      >
+                        {isMuted || volume === 0 ? (
+                          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                            <line x1="22" y1="9" x2="16" y2="15" />
+                            <line x1="16" y1="9" x2="22" y2="15" />
+                          </svg>
+                        ) : volume < 0.4 ? (
+                          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                          </svg>
+                        )}
                       </button>
                       <input
                         type="range"
@@ -670,6 +700,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         onChange={(e) => setVolume(Number(e.target.value))}
                         className="w-20 sm:w-24"
                       />
+                      <span className="text-[11px] font-bold text-white/55 tabular-nums w-8">
+                        {Math.round((isMuted ? 0 : volume) * 100)}%
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-2">

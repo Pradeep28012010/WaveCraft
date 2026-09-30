@@ -174,17 +174,18 @@ export default function MiniPlayer() {
 
               <button
                 onClick={togglePlay}
-                className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center shadow-md active:scale-90 transition-transform"
+                className="w-9 h-9 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-md active:scale-90 transition-transform cursor-pointer"
               >
                 {isLoading ? (
-                  <div className="w-4 h-4 border-2 border-black/25 border-t-black rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white/25 border-t-white rounded-full animate-spin" />
                 ) : isPlaying ? (
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                  <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
+                    <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
+                  <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
                   </svg>
                 )}
               </button>
@@ -311,11 +312,11 @@ export default function MiniPlayer() {
                 whileTap={{ scale: 0.88 }}
                 onClick={toggleShuffle}
                 title="Shuffle"
-                className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
-                  isShuffled ? 'text-[var(--color-accent)] bg-white/10' : 'text-white/50 hover:text-white'
+                className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
+                  isShuffled ? 'glass-button-primary text-white' : 'text-white/50 hover:text-white'
                 }`}
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                 </svg>
               </motion.button>
@@ -325,9 +326,9 @@ export default function MiniPlayer() {
                 whileTap={{ scale: 0.88 }}
                 onClick={prevTrack}
                 title="Previous"
-                className="w-9 h-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-9 h-9 p-0 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                 </svg>
               </motion.button>
@@ -338,17 +339,18 @@ export default function MiniPlayer() {
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 onClick={togglePlay}
                 title={isPlaying ? 'Pause' : 'Play'}
-                className="w-11 h-11 flex items-center justify-center rounded-full bg-white text-black shadow-[0_0_24px_rgba(255,255,255,0.4)] cursor-pointer will-change-transform"
+                className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button-primary text-white cursor-pointer will-change-transform"
               >
                 {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : isPlaying ? (
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                  <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
+                    <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
+                  <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
                   </svg>
                 )}
               </motion.button>
@@ -358,9 +360,9 @@ export default function MiniPlayer() {
                 whileTap={{ scale: 0.88 }}
                 onClick={nextTrack}
                 title="Next"
-                className="w-9 h-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-9 h-9 p-0 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                 </svg>
               </motion.button>
@@ -370,11 +372,11 @@ export default function MiniPlayer() {
                 whileTap={{ scale: 0.88 }}
                 onClick={cycleRepeat}
                 title={`Repeat: ${repeatMode}`}
-                className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
-                  repeatMode !== 'off' ? 'text-[var(--color-accent)] bg-white/10' : 'text-white/50 hover:text-white'
+                className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
+                  repeatMode !== 'off' ? 'glass-button-primary text-white' : 'text-white/50 hover:text-white'
                 }`}
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   {repeatMode === 'one' ? (
                     <>
                       <path d="M3 11V9a4 4 0 0 1 4-4h14" />
@@ -408,7 +410,7 @@ export default function MiniPlayer() {
               onClick={() => setIsQueueOpen(!isQueueOpen)}
               title="Queue"
               className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
-                isQueueOpen ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+                isQueueOpen ? 'glass-button-primary text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
               }`}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -424,18 +426,29 @@ export default function MiniPlayer() {
             <div className="hidden sm:flex items-center gap-2 w-28">
               <button
                 onClick={toggleMute}
-                className="w-6 h-6 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer"
+                title={isMuted || volume === 0 ? 'Unmute Audio' : 'Mute Audio'}
+                className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer flex-shrink-0 ${
+                  isMuted || volume === 0
+                    ? 'text-rose-400 bg-rose-500/15'
+                    : 'text-white/75 hover:text-white'
+                }`}
               >
                 {isMuted || volume === 0 ? (
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <line x1="23" y1="9" x2="17" y2="15" />
-                    <line x1="17" y1="9" x2="23" y2="15" />
+                    <line x1="22" y1="9" x2="16" y2="15" />
+                    <line x1="16" y1="9" x2="22" y2="15" />
                   </svg>
-                ) : (
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                ) : volume < 0.4 ? (
+                  <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                     <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
                   </svg>
                 )}
               </button>

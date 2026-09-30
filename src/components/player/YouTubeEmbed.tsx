@@ -69,12 +69,18 @@ export default function YouTubeEmbed() {
   const spatialOrbitSpeed = useStudioStore((s) => s.spatialOrbitSpeed);
   const spatialRoomSize = useStudioStore((s) => s.spatialRoomSize);
   const spatialManualPos = useStudioStore((s) => s.spatialManualPos);
+  const subBassBoost = useStudioStore((s) => s.subBassBoost);
+  const harmonicDrive = useStudioStore((s) => s.harmonicDrive);
+  const stereoWidth = useStudioStore((s) => s.stereoWidth);
+  const reverbMix = useStudioStore((s) => s.reverbMix);
+  const trebleAir = useStudioStore((s) => s.trebleAir);
+  const preservePitch = useStudioStore((s) => s.preservePitch);
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
   const tickPomodoro = useStudioStore((s) => s.tickPomodoro);
   const sleepActive = useStudioStore((s) => s.sleepActive);
   const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
 
-  // Sync 10-band Equalizer gains + Studio FX + Vocal Stem Mode + 3D Spatial Radar in real time
+  // Sync 10-band Equalizer gains + Studio FX + Mastering Rack + Vocal Stem Mode + 3D Spatial Radar in real time
   useEffect(() => {
     syncHeadroomAndEQ(eqBands, fxMode);
     applyStudioFXToAudio(audioRef.current, fxMode, playbackSpeed || 1);
@@ -86,7 +92,13 @@ export default function YouTubeEmbed() {
     spatialOrbitAuto,
     spatialOrbitSpeed,
     spatialRoomSize,
-    spatialManualPos
+    spatialManualPos,
+    subBassBoost,
+    harmonicDrive,
+    stereoWidth,
+    reverbMix,
+    trebleAir,
+    preservePitch
   ]);
 
   // Global Focus Pomodoro Timer 1s ticker

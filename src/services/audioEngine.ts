@@ -10,7 +10,9 @@ const FX_EQ_OFFSETS: Record<StudioFXMode, number[]> = {
   'slowed-reverb': [2.2, 1.8, 1.0, 0, -0.4, 0, 0.5, 1.0, 1.2, 1.0],
   nightcore: [1.0, 1.0, 0.4, 0, 0.3, 0.8, 1.3, 1.7, 1.9, 2.0],
   'bass-cinema': [4.5, 3.8, 2.0, 0.5, 0, 0, 0.8, 1.4, 1.8, 2.0],
-  'vocal-stage': [0.5, 0.4, 0, 0.6, 1.8, 2.4, 2.2, 1.8, 1.4, 1.2]
+  'vocal-stage': [0.5, 0.4, 0, 0.6, 1.8, 2.4, 2.2, 1.8, 1.4, 1.2],
+  'lofi-tape': [2.4, 2.6, 1.6, 0.8, 0.2, -0.4, -1.2, -2.5, -4.2, -6.0],
+  'arena-live': [3.0, 2.6, 1.2, -0.5, 0.2, 1.0, 1.8, 2.2, 2.4, 2.2]
 };
 
 let ytPlayerInstance: any = null;
@@ -22,6 +24,9 @@ let audioCtx: AudioContext | null = null;
 let sourceNode: MediaElementAudioSourceNode | null = null;
 let preGainNode: GainNode | null = null;
 let eqFilters: BiquadFilterNode[] = [];
+let subBassRackNode: BiquadFilterNode | null = null;
+let trebleAirRackNode: BiquadFilterNode | null = null;
+let exciterWaveShaper: WaveShaperNode | null = null;
 let normalStemGain: GainNode | null = null;
 let karaokeStemGain: GainNode | null = null;
 let acapellaStemGain: GainNode | null = null;
@@ -42,6 +47,25 @@ let reverbWetGain: GainNode | null = null;
 let masterLimiter: DynamicsCompressorNode | null = null;
 let gainNode: GainNode | null = null;
 let analyserNode: AnalyserNode | null = null;
+let lastExciterDrive = -1;
+
+function createAnalogSaturationCurve(driveAmount: number): Float32Array<ArrayBuffer> {
+  const samples = 4096;
+  const curve = new Float32Array(new ArrayBuffer(samples * 4));
+  const k = Math.max(0, Math.min(1, driveAmount)) * 3.2;
+  if (k < 0.02) {
+    for (let i = 0; i < samples; i++) {
+      curve[i] = (i * 2) / (samples - 1) - 1;
+    }
+    return curve;
+  }
+  const norm = Math.tanh(1 + k);
+  for (let i = 0; i < samples; i++) {
+    const x = (i * 2) / (samples - 1) - 1;
+    curve[i] = Math.tanh(x * (1 + k)) / norm;
+  }
+  return curve;
+}
 
 export function setHtmlAudioElement(el: HTMLAudioElement | null): void {
   htmlAudioElement = el;
@@ -126,6 +150,7 @@ export function syncHeadroomAndEQ(eqBands: number[], fxMode: StudioFXMode): void
   if (!audioCtx || eqFilters.length === 0) return;
   const now = audioCtx.currentTime;
   const offsets = FX_EQ_OFFSETS[fxMode] || FX_EQ_OFFSETS.normal;
+  const studio = useStudioStore.getState();
 
   let maxPositiveBoostDb = 0;
   eqBands.forEach((db, idx) => {
@@ -136,21 +161,36 @@ export function syncHeadroomAndEQ(eqBands: number[], fxMode: StudioFXMode): void
     }
   });
 
-  // Extra headroom for wet spatial/reverb bus so summing never clips
+  if (subBassRackNode) {
+    subBassRackNode.gain.setTargetAtTime(studio.subBassBoost || 0, now, 0.035);
+  }
+  if (trebleAirRackNode) {
+    trebleAirRackNode.gain.setTargetAtTime(studio.trebleAir || 0, now, 0.035);
+  }
+
+  const effectiveDrive =
+    Math.min(1, (studio.harmonicDrive || 0) + (fxMode === 'lofi-tape' ? 0.32 : 0));
+  if (exciterWaveShaper && Math.abs(effectiveDrive - lastExciterDrive) > 0.015) {
+    lastExciterDrive = effectiveDrive;
+    exciterWaveShaper.curve = createAnalogSaturationCurve(effectiveDrive);
+  }
+
+  // Extra headroom for wet spatial/reverb bus + custom sub-bass/air boosts so summing never clips
   const wetExtraDb =
-    fxMode === 'slowed-reverb'
+    fxMode === 'slowed-reverb' || fxMode === 'arena-live'
       ? 1.5
       : fxMode === '8d-orbit'
       ? 1.0
       : fxMode === 'vocal-stage'
       ? 0.8
       : 0;
+  const rackBoostDb = Math.max(0, studio.subBassBoost || 0) * 0.45 + Math.max(0, studio.trebleAir || 0) * 0.25;
 
   // Attenuate pre-gain proportionally to positive boosts to preserve 100% clean dynamic range
-  const totalCompensationDb = maxPositiveBoostDb * 0.52 + wetExtraDb;
+  const totalCompensationDb = maxPositiveBoostDb * 0.52 + wetExtraDb + rackBoostDb;
   const headroomLinear = Math.pow(10, -totalCompensationDb / 20);
   if (preGainNode) {
-    preGainNode.gain.setTargetAtTime(Math.max(0.48, Math.min(1.0, headroomLinear)), now, 0.04);
+    preGainNode.gain.setTargetAtTime(Math.max(0.42, Math.min(1.0, headroomLinear)), now, 0.04);
   }
 }
 
@@ -300,7 +340,7 @@ export function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]
     reverbWetGain = audioCtx.createGain();
     reverbWetGain.gain.value = 0;
 
-    // 4. 10-Band Studio Graphic Equalizer (musical Q = 0.95 to avoid phase ringing)
+    // 4. 10-Band Studio Graphic Equalizer + Mastering Rack Filters (Sub-Bass Punch, Treble Air, Analog Tube Exciter)
     eqFilters = EQ_FREQUENCIES.map((freq, idx) => {
       const filter = audioCtx!.createBiquadFilter();
       if (idx === 0) filter.type = 'lowshelf';
@@ -312,13 +352,33 @@ export function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]
       return filter;
     });
 
-    // Wire series EQ chain: sourceNode -> preGainNode -> eqFilters...
+    subBassRackNode = audioCtx.createBiquadFilter();
+    subBassRackNode.type = 'lowshelf';
+    subBassRackNode.frequency.value = 54;
+    subBassRackNode.gain.value = useStudioStore.getState().subBassBoost || 0;
+
+    trebleAirRackNode = audioCtx.createBiquadFilter();
+    trebleAirRackNode.type = 'highshelf';
+    trebleAirRackNode.frequency.value = 11000;
+    trebleAirRackNode.gain.value = useStudioStore.getState().trebleAir || 0;
+
+    exciterWaveShaper = audioCtx.createWaveShaper();
+    exciterWaveShaper.oversample = '2x';
+    exciterWaveShaper.curve = createAnalogSaturationCurve(
+      useStudioStore.getState().harmonicDrive || 0
+    );
+
+    // Wire series EQ chain: sourceNode -> preGainNode -> eqFilters -> subBassRackNode -> trebleAirRackNode -> exciterWaveShaper
     sourceNode.connect(preGainNode);
     let prev: AudioNode = preGainNode;
     for (const f of eqFilters) {
       prev.connect(f);
       prev = f;
     }
+    prev.connect(subBassRackNode);
+    subBassRackNode.connect(trebleAirRackNode);
+    trebleAirRackNode.connect(exciterWaveShaper);
+    prev = exciterWaveShaper;
 
     // 5. REAL-TIME VOCAL REMOVER (KARAOKE) & ACAPELLA STEM ISOLATOR ENGINE
     const stemBusNode = audioCtx.createGain();
@@ -452,14 +512,20 @@ export function applyStudioFXToAudio(
   fxMode: StudioFXMode,
   baseSpeed: number
 ): void {
+  const studio = useStudioStore.getState();
   const effectiveSpeed =
     fxMode === 'slowed-reverb'
       ? 0.88
       : fxMode === 'nightcore'
       ? 1.18
+      : fxMode === 'lofi-tape'
+      ? 0.96
       : baseSpeed || 1;
 
-  const preservePitch = fxMode !== 'slowed-reverb' && fxMode !== 'nightcore';
+  const preservePitch =
+    fxMode === 'slowed-reverb' || fxMode === 'nightcore' || fxMode === 'lofi-tape'
+      ? false
+      : studio.preservePitch ?? true;
 
   if (audio) {
     try {
@@ -493,7 +559,6 @@ export function applyStudioFXToAudio(
     subAnchorGain
   ) {
     const now = audioCtx.currentTime;
-    const studio = useStudioStore.getState();
     const isSpatial3D = fxMode === '8d-orbit';
 
     // 0. Real-Time Vocal Stem Mode Crossfader (Normal vs Karaoke Instrumental vs Acapella Vocal)
@@ -554,26 +619,36 @@ export function applyStudioFXToAudio(
 
     const roomAmt = Math.max(0, Math.min(0.65, studio.spatialRoomSize ?? 0.26));
 
-    // 2. Binaural Haas 3D Stereo Widener (projects soundstage outside the headphones)
-    const widthAmount =
+    // 2. Binaural Haas 3D Stereo Widener (Preset + Custom Mastering Rack Stereo Width)
+    const presetWidth =
       fxMode === '8d-orbit'
         ? Math.min(0.45, 0.2 + roomAmt * 0.5)
+        : fxMode === 'arena-live'
+        ? 0.36
         : fxMode === 'vocal-stage'
         ? 0.16
         : fxMode === 'bass-cinema'
         ? 0.14
         : 0;
+    const customWidth = (studio.stereoWidth || 0) * 0.48;
+    const widthAmount = Math.min(0.55, Math.max(presetWidth, customWidth));
     spatialWidthGain.gain.setTargetAtTime(widthAmount, now, 0.08);
 
-    // 3. 3D Acoustic Concert Dome Reverb (gives the revolving sound source real spatial room depth!)
-    const wetAmount =
+    // 3. 3D Acoustic Concert Dome Reverb (Preset + Custom Mastering Rack Reverb Mix)
+    const presetWet =
       fxMode === 'slowed-reverb'
         ? 0.34
+        : fxMode === 'arena-live'
+        ? 0.38
         : fxMode === '8d-orbit'
         ? roomAmt
         : fxMode === 'vocal-stage'
         ? 0.15
+        : fxMode === 'lofi-tape'
+        ? 0.14
         : 0;
+    const customWet = studio.reverbMix || 0;
+    const wetAmount = Math.min(0.75, Math.max(presetWet, customWet));
     reverbWetGain.gain.setTargetAtTime(wetAmount, now, 0.08);
   }
 }

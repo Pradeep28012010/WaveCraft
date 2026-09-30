@@ -1,14 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GlassModal from '../ui/GlassModal';
 import GlassButton from '../ui/GlassButton';
-import { useLibraryStore } from '../../stores/libraryStore';
+import { useLibraryStore, normalizeQueryFingerprint } from '../../stores/libraryStore';
 import { searchTracks } from '../../services/youtube';
-import type { Track } from '../../types';
+import type { Track, Playlist } from '../../types';
 
 interface ImportPlaylistModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialMode?: 'live' | 'url' | 'text';
 }
 
 interface ImportQueryItem {
@@ -17,15 +18,22 @@ interface ImportQueryItem {
   videoId?: string;
 }
 
-export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistModalProps) {
+export default function ImportPlaylistModal({
+  isOpen,
+  onClose,
+  initialMode = 'live'
+}: ImportPlaylistModalProps) {
   const navigate = useNavigate();
   const createPlaylist = useLibraryStore((s) => s.createPlaylist);
   const addToPlaylist = useLibraryStore((s) => s.addToPlaylist);
+  const updatePlaylist = useLibraryStore((s) => s.updatePlaylist);
 
-  const [mode, setMode] = useState<'url' | 'text'>('url');
+  const [mode, setMode] = useState<'live' | 'url' | 'text'>(initialMode);
   const [urlInput, setUrlInput] = useState('');
   const [customName, setCustomName] = useState('');
   const [textInput, setTextInput] = useState('');
+  const [syncStrategy, setSyncStrategy] = useState<'append' | 'mirror'>('append');
+  const [syncIntervalMinutes, setSyncIntervalMinutes] = useState<number>(15);
   const [isImporting, setIsImporting] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [currentTrackLabel, setCurrentTrackLabel] = useState('');
@@ -35,26 +43,40 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
   const [errorMsg, setErrorMsg] = useState('');
   const abortRef = useRef(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setErrorMsg('');
+    }
+  }, [isOpen, initialMode]);
+
   const matchQueriesToTracks = async (
     queries: ImportQueryItem[],
     playlistName: string,
     coverUrl = '',
-    platform = 'External'
+    platform = 'External',
+    extraMeta?: Partial<Playlist>
   ) => {
     abortRef.current = false;
     setTotalCount(queries.length);
     setMatchedCount(0);
-    setStatusText(`Creating "${playlistName}" • Importing all ${queries.length} tracks in 320kbps...`);
+    setStatusText(
+      `Creating "${playlistName}" • Importing all ${queries.length} tracks in 320kbps...`
+    );
     setProgressPct(3);
 
     const newPlaylist = createPlaylist(
       playlistName,
-      `Imported ${queries.length} tracks from ${platform} via WaveCraft • 320kbps Studio HD`,
-      coverUrl
+      extraMeta?.isLiveSync
+        ? `Live Auto-Syncing Playlist from ${platform} • Updates automatically when original playlist changes`
+        : `Imported ${queries.length} tracks from ${platform} via WaveCraft • 320kbps Studio HD`,
+      coverUrl,
+      extraMeta
     );
 
     let completed = 0;
     let addedSoFar = 0;
+    const matchedFingerprints: string[] = [];
     const batchSize = 8;
 
     for (let i = 0; i < queries.length; i += batchSize) {
@@ -67,37 +89,41 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
           : ''
       );
 
-      const batchTracks = await Promise.all(
-        batch.map(async (q): Promise<Track | null> => {
+      const batchResults = await Promise.all(
+        batch.map(async (q): Promise<{ track: Track | null; fp: string }> => {
+          const fp = normalizeQueryFingerprint(q.title, q.artist);
           const searchStr = `${q.title} ${q.artist || ''}`.trim();
-          if (!searchStr) return null;
+          if (!searchStr) return { track: null, fp };
           try {
             const results = await searchTracks(searchStr);
             if (results && results.length > 0) {
-              return results[0];
+              return { track: results[0], fp };
             }
           } catch {}
 
-          // Fallback if YouTube playlist already provided a direct videoId
           if (q.videoId) {
             return {
-              id: `yt-${q.videoId}`,
-              title: q.title || 'Imported Track',
-              artist: q.artist || 'Unknown Artist',
-              album: playlistName,
-              duration: 210,
-              thumbnail: `https://i.ytimg.com/vi/${q.videoId}/hqdefault.jpg`,
-              thumbnailLarge: `https://i.ytimg.com/vi/${q.videoId}/maxresdefault.jpg`,
-              youtubeId: q.videoId
+              fp,
+              track: {
+                id: `yt-${q.videoId}`,
+                title: q.title || 'Imported Track',
+                artist: q.artist || 'Unknown Artist',
+                album: playlistName,
+                duration: 210,
+                thumbnail: `https://i.ytimg.com/vi/${q.videoId}/hqdefault.jpg`,
+                thumbnailLarge: `https://i.ytimg.com/vi/${q.videoId}/maxresdefault.jpg`,
+                youtubeId: q.videoId
+              }
             };
           }
-          return null;
+          return { track: null, fp };
         })
       );
 
-      batchTracks.forEach((track: Track | null) => {
+      batchResults.forEach(({ track, fp }) => {
         if (track) {
           addToPlaylist(newPlaylist.id, track);
+          matchedFingerprints.push(fp);
           addedSoFar++;
         }
       });
@@ -111,6 +137,13 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
       );
     }
 
+    if (extraMeta?.sourceUrl) {
+      updatePlaylist(newPlaylist.id, {
+        remoteFingerprints: matchedFingerprints,
+        lastSyncedAt: Date.now()
+      });
+    }
+
     setIsImporting(false);
     setStatusText('');
     setCurrentTrackLabel('');
@@ -121,16 +154,21 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
 
   const handleImportUrl = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!urlInput.trim()) return;
+    const cleanedUrl = urlInput.trim();
+    if (!cleanedUrl) return;
 
     setIsImporting(true);
     setErrorMsg('');
-    setStatusText('Fetching complete playlist tracklist (unlimited tracks)...');
+    setStatusText(
+      mode === 'live'
+        ? 'Connecting Live Sync Engine to source playlist...'
+        : 'Fetching complete playlist tracklist (unlimited tracks)...'
+    );
     setProgressPct(5);
 
     try {
       const res = await fetch(
-        `/api/music?action=import-playlist&url=${encodeURIComponent(urlInput.trim())}`
+        `/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`
       );
       const data = await res.json();
 
@@ -143,11 +181,23 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
         return;
       }
 
+      const isLive = mode === 'live';
+      const detectedPlatform = data.platform || 'External Link';
+
       await matchQueriesToTracks(
         data.queries,
-        customName.trim() || data.name || 'Imported Playlist',
+        customName.trim() || data.name || (isLive ? 'Live Synced Playlist' : 'Imported Playlist'),
         data.coverUrl || '',
-        data.platform || 'External Link'
+        detectedPlatform,
+        {
+          isLiveSync: isLive,
+          sourceUrl: cleanedUrl,
+          sourcePlatform: detectedPlatform,
+          syncStrategy: isLive ? syncStrategy : 'append',
+          syncIntervalMinutes: isLive ? syncIntervalMinutes : 15,
+          lastSyncedAt: Date.now(),
+          lastSyncDelta: 0
+        }
       );
     } catch {
       setErrorMsg('Failed to connect to playlist importer. Try pasting the song list instead.');
@@ -166,7 +216,6 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
     setIsImporting(true);
     setErrorMsg('');
 
-    // Import ALL lines with zero track limit
     const queries: ImportQueryItem[] = lines.map((line) => {
       const cleaned = line.replace(/^\d+[\.\)\-]\s*/, '').trim();
       const parts = cleaned.split(/\s+[-–—]\s+/);
@@ -185,23 +234,46 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
   };
 
   return (
-    <GlassModal isOpen={isOpen} onClose={onClose} title="Import External Playlist (Unlimited Tracks)">
+    <GlassModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        mode === 'live'
+          ? 'Connect Live Auto-Syncing Playlist'
+          : 'Import External Playlist (Unlimited Tracks)'
+      }
+    >
       <div className="flex flex-col gap-4 text-white">
-        {/* Mode Switcher */}
-        <div className="flex gap-2 p-1.5 rounded-2xl liquid-glass border border-white/15">
+        {/* 3-Way Mode Switcher */}
+        <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl liquid-glass border border-white/15">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('live');
+              setErrorMsg('');
+            }}
+            className={`py-2.5 px-2 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 ${
+              mode === 'live'
+                ? 'glass-button-emerald text-white shadow-lg'
+                : 'glass-button text-white/70 hover:text-white'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+            <span>Live Auto-Sync</span>
+          </button>
           <button
             type="button"
             onClick={() => {
               setMode('url');
               setErrorMsg('');
             }}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            className={`py-2.5 px-2 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap ${
               mode === 'url'
                 ? 'glass-button-primary text-white shadow-lg'
                 : 'glass-button text-white/70 hover:text-white'
             }`}
           >
-            🔗 Playlist Link (Spotify / YouTube / Saavn)
+            🔗 One-Time Link
           </button>
           <button
             type="button"
@@ -209,30 +281,51 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
               setMode('text');
               setErrorMsg('');
             }}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            className={`py-2.5 px-2 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap ${
               mode === 'text'
                 ? 'glass-button-primary text-white shadow-lg'
                 : 'glass-button text-white/70 hover:text-white'
             }`}
           >
-            📋 Paste Song List (Unlimited)
+            📋 Paste Song List
           </button>
         </div>
 
-        {/* Unlimited Tracks Info Pill */}
-        <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-400/25 text-[11px] text-emerald-200">
-          <span className="font-bold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Full Playlist Importer Active
-          </span>
-          <span className="text-emerald-300/80 font-semibold">Imports 100% of tracks • 320kbps HD</span>
-        </div>
+        {/* Dynamic Status / Mode Pill */}
+        {mode === 'live' ? (
+          <div className="p-3.5 rounded-2xl bg-emerald-500/12 border border-emerald-400/30 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-extrabold text-emerald-300 flex items-center gap-2 whitespace-nowrap">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                Live Playlist Auto-Sync Engine
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-200 whitespace-nowrap flex-shrink-0">
+                AUTO-UPDATING
+              </span>
+            </div>
+            <p className="text-[11px] text-white/70 leading-relaxed">
+              Stays connected to the original Spotify, YouTube, or JioSaavn playlist. Whenever new songs are added or updated at the source, WaveCraft automatically syncs only the delta in 320kbps HD.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-cyan-500/10 border border-cyan-400/25 text-[11px] text-cyan-200">
+            <span className="font-bold flex items-center gap-2 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              Full Playlist Importer Active
+            </span>
+            <span className="text-cyan-300/80 font-semibold whitespace-nowrap">
+              Imports 100% of tracks • 320kbps HD
+            </span>
+          </div>
+        )}
 
-        {mode === 'url' ? (
+        {mode === 'live' || mode === 'url' ? (
           <form onSubmit={handleImportUrl} className="flex flex-col gap-3.5">
             <div>
               <label className="text-xs font-semibold text-white/70 block mb-1.5">
-                Public Playlist or Album Link (Spotify, YouTube, JioSaavn)
+                {mode === 'live'
+                  ? 'Source Playlist URL to Monitor & Auto-Sync (Spotify, YouTube, JioSaavn)'
+                  : 'Public Playlist or Album Link (Spotify, YouTube, JioSaavn)'}
               </label>
               <input
                 type="url"
@@ -259,26 +352,93 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
               />
             </div>
 
+            {/* Live Sync Strategy & Interval Controls */}
+            {mode === 'live' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
+                <div>
+                  <label className="text-[11px] font-bold text-white/60 block mb-1.5">
+                    When Original Playlist Changes
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSyncStrategy('append')}
+                      className={`px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer text-left ${
+                        syncStrategy === 'append'
+                          ? 'glass-button-emerald text-white'
+                          : 'glass-button text-white/65 hover:text-white'
+                      }`}
+                    >
+                      <div className="whitespace-nowrap">➕ Auto-Append</div>
+                      <div className="text-[9px] text-white/55 font-normal truncate">
+                        Add new songs only
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSyncStrategy('mirror')}
+                      className={`px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer text-left ${
+                        syncStrategy === 'mirror'
+                          ? 'glass-button-emerald text-white'
+                          : 'glass-button text-white/65 hover:text-white'
+                      }`}
+                    >
+                      <div className="whitespace-nowrap">🪞 Exact Mirror</div>
+                      <div className="text-[9px] text-white/55 font-normal truncate">
+                        Match additions & removals
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-white/60 block mb-1.5">
+                    Auto-Sync Check Frequency
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { mins: 15, label: '15m Live' },
+                      { mins: 30, label: '30m Auto' },
+                      { mins: 60, label: 'Hourly' }
+                    ].map((opt) => (
+                      <button
+                        key={opt.mins}
+                        type="button"
+                        onClick={() => setSyncIntervalMinutes(opt.mins)}
+                        className={`py-2 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                          syncIntervalMinutes === opt.mins
+                            ? 'glass-button-cyan text-white'
+                            : 'glass-button text-white/65 hover:text-white'
+                        }`}
+                      >
+                        ⏱ {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Quick Presets to try */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-[11px] text-white/45">Quick sample links:</span>
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <span className="text-[11px] text-white/45 whitespace-nowrap">Quick sample charts:</span>
               <button
                 type="button"
                 onClick={() =>
                   setUrlInput('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M')
                 }
-                className="text-[11px] px-3 py-1 rounded-full glass-button text-emerald-300 hover:text-white cursor-pointer"
+                className="text-[11px] px-3 py-1 rounded-full glass-button text-emerald-300 hover:text-white cursor-pointer whitespace-nowrap"
               >
-                Global Top Hits (50+ Songs)
+                Global Top Hits (Live Chart)
               </button>
               <button
                 type="button"
                 onClick={() =>
                   setUrlInput('https://open.spotify.com/playlist/37i9dQZF1DX0XUfTFmNBRM')
                 }
-                className="text-[11px] px-3 py-1 rounded-full glass-button text-emerald-300 hover:text-white cursor-pointer"
+                className="text-[11px] px-3 py-1 rounded-full glass-button text-emerald-300 hover:text-white cursor-pointer whitespace-nowrap"
               >
-                Trending India Mix (50+ Songs)
+                Trending India Mix (Live Chart)
               </button>
             </div>
 
@@ -303,7 +463,7 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
                 )}
                 <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden p-0.5">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] via-fuchsia-500 to-cyan-400 transition-all duration-300"
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 transition-all duration-300"
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
@@ -314,9 +474,9 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
                       onClick={() => {
                         abortRef.current = true;
                       }}
-                      className="text-[11px] px-3 py-1 rounded-full glass-button text-amber-300 hover:text-white cursor-pointer"
+                      className="text-[11px] px-3 py-1 rounded-full glass-button text-amber-300 hover:text-white cursor-pointer whitespace-nowrap"
                     >
-                      Finish Now & Open ({matchedCount} tracks ready)
+                      Finish Initial Sync & Open ({matchedCount} tracks ready)
                     </button>
                   </div>
                 )}
@@ -328,7 +488,11 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
                 Cancel
               </GlassButton>
               <GlassButton type="submit" variant="primary" disabled={isImporting}>
-                {isImporting ? `Importing (${matchedCount}/${totalCount || '...'})` : 'Import All Tracks'}
+                {isImporting
+                  ? `Syncing (${matchedCount}/${totalCount || '...'})`
+                  : mode === 'live'
+                  ? '🔴 Connect & Sync Live Playlist'
+                  : 'Import All Tracks'}
               </GlassButton>
             </div>
           </form>
@@ -354,7 +518,7 @@ export default function ImportPlaylistModal({ isOpen, onClose }: ImportPlaylistM
                 <label className="text-xs font-semibold text-white/70">
                   Songs List (one song per line, e.g. "Song - Artist" • No limit)
                 </label>
-                <span className="text-[11px] text-white/50 font-semibold">
+                <span className="text-[11px] text-white/50 font-semibold whitespace-nowrap">
                   {textInput.split('\n').map((l) => l.trim()).filter(Boolean).length} tracks detected
                 </span>
               </div>
