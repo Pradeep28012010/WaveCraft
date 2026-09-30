@@ -280,47 +280,52 @@ export default function TopBar() {
                   ? '🎙️ Listening... say a song title, artist, or lyric line...'
                   : 'Search songs, artists, lyrics, or moods...'
               }
-              className="w-full liquid-glass rounded-full py-2.5 pl-11 pr-28 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/30 transition-all duration-300"
+              className="w-full liquid-glass rounded-full py-2.5 pl-11 pr-32 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/30 transition-all duration-300"
             />
-            {searchQuery ? (
+            <div className="absolute right-2.5 inset-y-0 flex items-center gap-2">
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  title="Clear search"
+                  className="w-7 h-7 rounded-full glass-button flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              ) : null}
               <button
-                onClick={handleClear}
-                className="absolute right-21 p-1 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                type="button"
+                onClick={toggleVoiceSearch}
+                title={
+                  isListeningVoice
+                    ? 'Stop Voice Search'
+                    : 'Voice / Lyric-Line Song Finder (Say a lyric or song title)'
+                }
+                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                  isListeningVoice
+                    ? 'glass-button-primary text-white animate-pulse'
+                    : 'glass-button text-white/75 hover:text-white'
+                }`}
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" y1="19" x2="12" y2="23" />
+                  <line x1="8" y1="23" x2="16" y2="23" />
                 </svg>
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={toggleVoiceSearch}
-              title={
-                isListeningVoice
-                  ? 'Stop Voice Search'
-                  : 'Voice / Lyric-Line Song Finder (Say a lyric or song title)'
-              }
-              className={`absolute right-12 w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                isListeningVoice
-                  ? 'bg-[var(--color-accent)] text-white animate-pulse shadow-[0_0_14px_var(--color-accent)]'
-                  : 'text-white/55 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setCommandPaletteOpen(true)}
-              title="Open Spotlight Command Palette (Ctrl+K)"
-              className="absolute right-3 px-2 py-0.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-[10px] font-extrabold text-white/70 hover:text-white transition-colors cursor-pointer"
-            >
-              ⌘K
-            </button>
+              <button
+                type="button"
+                onClick={() => setCommandPaletteOpen(true)}
+                title="Open Spotlight Command Palette (Ctrl+K)"
+                className="h-7 px-2.5 rounded-full glass-button flex items-center justify-center text-[11px] font-extrabold text-white/80 hover:text-white transition-colors cursor-pointer"
+              >
+                ⌘K
+              </button>
+            </div>
           </div>
 
           {/* Search Suggestions Dropdown */}

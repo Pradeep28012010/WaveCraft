@@ -210,7 +210,7 @@ function StudioFXModalContent() {
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-sm font-extrabold text-white">{mode.name}</span>
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                          className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap flex-shrink-0 ${
                             active
                               ? `bg-gradient-to-r ${mode.accent} text-white shadow`
                               : 'bg-white/10 text-white/60'
@@ -463,7 +463,7 @@ function StudioFXModalContent() {
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-sm font-extrabold text-white">{m.name}</span>
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                          className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap flex-shrink-0 ${
                             active
                               ? `bg-gradient-to-r ${m.accent} text-white shadow`
                               : 'bg-white/10 text-white/60'

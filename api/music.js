@@ -625,7 +625,17 @@ async function importExternalPlaylist(playlistUrl) {
 
           if (entity) {
             const name = entity.name || entity.title || 'Imported Playlist';
-            const coverUrl = entity.visualIdentity?.image?.[0]?.url || '';
+            const images = Array.isArray(entity.visualIdentity?.image)
+              ? [...entity.visualIdentity.image].sort(
+                  (a, b) => (b.maxWidth || b.width || 0) - (a.maxWidth || a.width || 0)
+                )
+              : [];
+            const rawCover = images[0]?.url || '';
+            const coverUrl = rawCover
+              .replace('ab67706f00000001', 'ab67706f00000003')
+              .replace('ab67706f00000002', 'ab67706f00000003')
+              .replace('ab67616d00004851', 'ab67616d0000b273')
+              .replace('ab67616d00001e02', 'ab67616d0000b273');
             const trackList = entity.trackList || [];
             const queries = trackList.map((t) => ({
               title: t.title,

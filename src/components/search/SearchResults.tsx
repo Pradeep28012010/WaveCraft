@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { searchTracks, getCachedSearch } from '../../services/youtube';
+import { searchTracks, getCachedSearch, getTrending, getCachedTrending } from '../../services/youtube';
 import { searchAlbums, searchArtists, getAlbumTracks } from '../../services/itunes';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -14,18 +14,48 @@ import GenreBrowser from './GenreBrowser';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import type { Track, AlbumResult, ArtistResult } from '../../types';
 
-const QUICK_SEARCHES = [
-  'Yeshanagula',
-  'Anirudh Ravichander',
-  'The Weeknd',
+const FALLBACK_LIVE_POOL = [
+  'Die With A Smile',
+  'Timeless - The Weeknd',
   'Arijit Singh',
-  'Imagine Dragons',
+  'Anirudh Ravichander',
+  'APT. - ROSÉ & Bruno Mars',
+  'Birds of a Feather',
+  'Espresso - Sabrina Carpenter',
+  'Aaj Ki Raat',
+  'Chuttamalle',
+  'Tauba Tauba',
+  'Travis Scott',
+  'AR Rahman',
+  'Taylor Swift',
+  'Kendrick Lamar',
   'Dua Lipa',
   'Coldplay',
-  'AR Rahman',
-  'Travis Scott',
-  'Taylor Swift'
+  'Diljit Dosanjh',
+  'Shreya Ghoshal',
+  'Post Malone',
+  'Imagine Dragons'
 ];
+
+function buildInitialTrendingPool(): string[] {
+  const cached = getCachedTrending();
+  if (cached && cached.length > 0) {
+    const items: string[] = [];
+    for (const t of cached) {
+      if (t.title && !items.includes(t.title)) items.push(t.title);
+      const primaryArtist = t.artist?.split(',')[0]?.trim();
+      if (primaryArtist && primaryArtist !== 'Unknown Artist' && !items.includes(primaryArtist)) {
+        items.push(primaryArtist);
+      }
+      if (items.length >= 12) break;
+    }
+    if (items.length >= 8) return items.slice(0, 12);
+  }
+  const minuteBucket = Math.floor(Date.now() / 60000);
+  const rotated = [...FALLBACK_LIVE_POOL];
+  const offset = minuteBucket % rotated.length;
+  return [...rotated.slice(offset), ...rotated.slice(0, offset)].slice(0, 12);
+}
 
 export default function SearchResults() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,12 +67,126 @@ export default function SearchResults() {
   const [artists, setArtists] = useState<ArtistResult[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(query && !getCachedSearch(query)));
 
+  // Live Trending Searches state (real chart data + frequent rotation)
+  const [trendingTerms, setTrendingTerms] = useState<string[]>(buildInitialTrendingPool);
+  const [allLiveTerms, setAllLiveTerms] = useState<string[]>(FALLBACK_LIVE_POOL);
+  const [isRefreshingTrends, setIsRefreshingTrends] = useState(false);
+  const [lastTrendUpdate, setLastTrendUpdate] = useState<string>('Just now');
+
   // Selected Album View state
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumResult | null>(null);
   const [albumTracks, setAlbumTracks] = useState<Track[]>([]);
   const [isAlbumLoading, setIsAlbumLoading] = useState<boolean>(false);
 
   const playTrack = usePlayerStore((state) => state.playTrack);
+
+  const fetchLiveTrendingSearches = useCallback(async (rotateOffset?: number) => {
+    setIsRefreshingTrends(true);
+    try {
+      const [saavnTrending, itunesGlobalRes, itunesIndiaRes] = await Promise.allSettled([
+        getTrending(),
+        fetch('https://itunes.apple.com/us/rss/topsongs/limit=15/json').then((r) =>
+          r.ok ? r.json() : null
+        ),
+        fetch('https://itunes.apple.com/in/rss/topsongs/limit=15/json').then((r) =>
+          r.ok ? r.json() : null
+        )
+      ]);
+
+      const discovered: string[] = [];
+      const addTerm = (raw?: string) => {
+        if (!raw) return;
+        const clean = raw
+          .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+          .replace(/&quot;/g, '"')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (
+          clean.length >= 3 &&
+          clean.length <= 34 &&
+          !/unknown|wavecraft/i.test(clean) &&
+          !discovered.some((d) => d.toLowerCase() === clean.toLowerCase())
+        ) {
+          discovered.push(clean);
+        }
+      };
+
+      if (saavnTrending.status === 'fulfilled' && Array.isArray(saavnTrending.value)) {
+        for (const t of saavnTrending.value) {
+          addTerm(t.title);
+          const firstArtist = t.artist?.split(',')[0]?.trim();
+          addTerm(firstArtist);
+        }
+      }
+
+      const parseItunesEntries = (res: PromiseSettledResult<any>) => {
+        if (res.status !== 'fulfilled' || !res.value?.feed?.entry) return;
+        const entries = Array.isArray(res.value.feed.entry) ? res.value.feed.entry : [];
+        for (const entry of entries) {
+          addTerm(entry?.['im:name']?.label);
+          addTerm(entry?.['im:artist']?.label);
+        }
+      };
+
+      parseItunesEntries(itunesGlobalRes);
+      parseItunesEntries(itunesIndiaRes);
+
+      for (const fallback of FALLBACK_LIVE_POOL) {
+        addTerm(fallback);
+      }
+
+      setAllLiveTerms(discovered);
+      const start =
+        rotateOffset !== undefined
+          ? rotateOffset % Math.max(1, discovered.length)
+          : Math.floor(Date.now() / 45000) % Math.max(1, discovered.length);
+      const rotated = [...discovered.slice(start), ...discovered.slice(0, start)].slice(0, 12);
+      setTrendingTerms(rotated);
+      setLastTrendUpdate(
+        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      );
+    } catch {
+      // keep existing pool
+    } finally {
+      setIsRefreshingTrends(false);
+    }
+  }, []);
+
+  // Fetch real live chart trends on mount and rotate every 30 seconds
+  useEffect(() => {
+    fetchLiveTrendingSearches();
+    let tick = 1;
+    const interval = setInterval(() => {
+      tick += 4;
+      setAllLiveTerms((pool) => {
+        if (pool.length > 10) {
+          const offset = tick % pool.length;
+          const nextSlice = [...pool.slice(offset), ...pool.slice(0, offset)].slice(0, 12);
+          setTrendingTerms(nextSlice);
+          setLastTrendUpdate(
+            new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          );
+        }
+        return pool;
+      });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchLiveTrendingSearches]);
+
+  const handleCycleLiveTrends = () => {
+    const randomOffset = Math.floor(Math.random() * Math.max(10, allLiveTerms.length));
+    if (allLiveTerms.length > 12) {
+      const nextSlice = [
+        ...allLiveTerms.slice(randomOffset),
+        ...allLiveTerms.slice(0, randomOffset)
+      ].slice(0, 12);
+      setTrendingTerms(nextSlice);
+      setLastTrendUpdate(
+        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      );
+    }
+    fetchLiveTrendingSearches(randomOffset);
+  };
 
   useEffect(() => {
     const clean = query.trim();
@@ -139,16 +283,36 @@ export default function SearchResults() {
     return (
       <div className="pb-24 pt-2 text-white space-y-10">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2">Search & Discover</h1>
-          <p className="text-sm text-white/55 mb-5">Trending searches right now</p>
-          <div className="flex flex-wrap gap-2.5">
-            {QUICK_SEARCHES.map((term) => (
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+            <h1 className="text-3xl font-extrabold tracking-tight">Search & Discover</h1>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass-button-emerald text-[11px] font-bold text-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                Live Global & India Charts • {lastTrendUpdate}
+              </span>
               <button
-                key={term}
-                onClick={() => handleQuickSearch(term)}
-                className="px-4 py-2 rounded-full glass-button text-xs font-semibold text-white/85 hover:text-white cursor-pointer"
+                type="button"
+                onClick={handleCycleLiveTrends}
+                className="px-3 py-1 rounded-full glass-button text-[11px] font-bold text-white/80 hover:text-white flex items-center gap-1.5 cursor-pointer"
+                title="Fetch & rotate latest live chart searches"
               >
-                {term}
+                <span className={isRefreshingTrends ? 'animate-spin inline-block' : ''}>↻</span>
+                <span>Refresh Live</span>
+              </button>
+            </div>
+          </div>
+          <p className="text-sm text-white/55 mb-5">
+            Trending searches right now — updated live from global & regional streaming charts
+          </p>
+          <div className="flex flex-wrap gap-2.5">
+            {trendingTerms.map((term, idx) => (
+              <button
+                key={`${term}-${idx}`}
+                onClick={() => handleQuickSearch(term)}
+                className="px-4 py-2 rounded-full glass-button text-xs font-semibold text-white/90 hover:text-white cursor-pointer flex items-center gap-1.5"
+              >
+                {idx < 3 && <span className="text-[var(--color-accent)] text-[11px]">🔥</span>}
+                <span>{term}</span>
               </button>
             ))}
           </div>

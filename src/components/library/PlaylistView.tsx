@@ -6,6 +6,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import TrackRow from '../ui/TrackRow';
 import GlassButton from '../ui/GlassButton';
 import CreatePlaylist from './CreatePlaylist';
+import { getHighResPlaylistCover } from './PlaylistCard';
 import { formatTime } from '../../utils/formatTime';
 
 export default function PlaylistView() {
@@ -53,14 +54,15 @@ export default function PlaylistView() {
   };
 
   const totalDuration = playlist.tracks.reduce((acc, track) => acc + (track.duration || 0), 0);
+  const hdCoverUrl = getHighResPlaylistCover(playlist);
 
   return (
     <div className="pb-24 pt-6 text-white min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row gap-8 items-end mb-8">
         <div className="w-48 h-48 md:w-60 md:h-60 flex-shrink-0 rounded-2xl shadow-2xl overflow-hidden bg-white/10 relative shadow-black/40">
-          {playlist.coverUrl ? (
-            <img src={playlist.coverUrl} alt={playlist.name} className="w-full h-full object-cover" />
+          {hdCoverUrl ? (
+            <img src={hdCoverUrl} alt={playlist.name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-6xl font-bold text-white shadow-inner">
               {playlist.name.charAt(0)}
@@ -91,7 +93,7 @@ export default function PlaylistView() {
       <div className="flex items-center gap-4 mb-8">
         <button 
           onClick={handlePlayAll}
-          className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+          className="w-14 h-14 rounded-full glass-button-primary text-white flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
           disabled={playlist.tracks.length === 0}
         >
           <svg className="w-7 h-7 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
@@ -101,11 +103,11 @@ export default function PlaylistView() {
           Shuffle
         </GlassButton>
         <div className="flex-grow" />
-        <button onClick={() => setIsEditModalOpen(true)} className="p-2 text-white/60 hover:text-white transition-colors" title="Edit Playlist">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+        <button onClick={() => setIsEditModalOpen(true)} className="w-10 h-10 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-colors cursor-pointer" title="Edit Playlist">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
         </button>
-        <button onClick={handleDelete} className="p-2 text-white/60 hover:text-red-400 transition-colors" title="Delete Playlist">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        <button onClick={handleDelete} className="w-10 h-10 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-red-400 transition-colors cursor-pointer" title="Delete Playlist">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
         </button>
       </div>
 

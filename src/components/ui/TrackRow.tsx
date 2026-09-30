@@ -279,25 +279,6 @@ const TrackRow = memo(({
               activeVisual ? 'scale-[1.06]' : 'scale-100'
             }`}
           />
-          <div
-            className={`absolute inset-0 bg-black/40 flex justify-center items-center transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              activeVisual ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <div
-              className={`w-7 h-7 rounded-full bg-[var(--color-accent)]/95 text-white flex items-center justify-center shadow-md transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                activeVisual ? 'scale-100' : 'scale-75'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
-                {isTrackPlaying ? (
-                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                ) : (
-                  <path d="M8 5v14l11-7z" />
-                )}
-              </svg>
-            </div>
-          </div>
         </div>
       )}
 
