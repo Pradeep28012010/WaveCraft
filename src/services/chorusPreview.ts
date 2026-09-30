@@ -23,15 +23,24 @@ let wasMainPlayerPlaying = false;
 let previewStartTimeSec = 48;
 let rafId = 0;
 
-const listeners = new Set<() => void>();
+const trackListeners = new Map<string, Set<() => void>>();
 
-function notify() {
-  listeners.forEach((fn) => fn());
+function notifyTrack(id: string | null) {
+  if (!id) return;
+  const set = trackListeners.get(id);
+  if (set) {
+    set.forEach((fn) => fn());
+  }
 }
 
 function updateState(partial: Partial<ChorusPreviewState>) {
+  const prevTrackId = previewState.trackId;
   previewState = { ...previewState, ...partial };
-  notify();
+  const nextTrackId = previewState.trackId;
+  notifyTrack(prevTrackId);
+  if (nextTrackId !== prevTrackId) {
+    notifyTrack(nextTrackId);
+  }
 }
 
 export function stopChorusPreview(resumeMain = true) {
@@ -183,17 +192,26 @@ export function useChorusPreview(trackId: string) {
 
   useEffect(() => {
     const sync = () => {
-      // Only trigger re-render if this track is or was the active preview track
-      setState((prev) => {
-        if (prev.trackId !== trackId && previewState.trackId !== trackId) {
-          return prev;
-        }
-        return { ...previewState };
-      });
+      setState({ ...previewState });
     };
-    listeners.add(sync);
+    let set = trackListeners.get(trackId);
+    if (!set) {
+      set = new Set();
+      trackListeners.set(trackId, set);
+    }
+    set.add(sync);
+    // Sync immediately in case previewState changed between render and effect
+    if (previewState.trackId === trackId) {
+      sync();
+    }
     return () => {
-      listeners.delete(sync);
+      const bucket = trackListeners.get(trackId);
+      if (bucket) {
+        bucket.delete(sync);
+        if (bucket.size === 0) {
+          trackListeners.delete(trackId);
+        }
+      }
     };
   }, [trackId]);
 

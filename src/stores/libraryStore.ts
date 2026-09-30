@@ -12,7 +12,17 @@ export function normalizeQueryFingerprint(title?: string, artist?: string): stri
     .replace(/[^a-z0-9]+/g, '')}`;
 }
 
+function buildLikedMap(tracks: Track[]): Record<string, boolean> {
+  const map: Record<string, boolean> = {};
+  for (let i = 0; i < tracks.length; i++) {
+    const id = tracks[i]?.id;
+    if (id) map[id] = true;
+  }
+  return map;
+}
+
 interface LibraryStore extends LibraryState {
+  likedIds: Record<string, boolean>;
   syncingPlaylistIds: Record<string, boolean>;
   loadFromStorage: () => Promise<void>;
   toggleLike: (trackOrId: Track | string) => void;
@@ -27,6 +37,7 @@ interface LibraryStore extends LibraryState {
   deletePlaylist: (id: string) => void;
   renamePlaylist: (id: string, name: string) => void;
   addToPlaylist: (playlistId: string, track: Track) => void;
+  addTracksToPlaylist: (playlistId: string, tracks: Track[]) => void;
   removeFromPlaylist: (playlistId: string, trackIndexOrId: number | string) => void;
   reorderPlaylistTrack: (playlistId: string, from: number, to: number) => void;
   updatePlaylistCover: (playlistId: string, coverUrl: string) => void;
@@ -42,6 +53,7 @@ interface LibraryStore extends LibraryState {
 
 export const useLibraryStore = create<LibraryStore>((set, get) => ({
   likedSongs: [],
+  likedIds: {},
   playlists: [],
   recentlyPlayed: [],
   playHistory: [],
@@ -57,20 +69,19 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         storage.getRecentlyPlayed(),
         storage.getPlayHistory()
       ]);
-      // Filter out any corrupted non-object entries in likedSongs
       const validLiked = (likedSongs || []).filter(
         (t: any) => t && typeof t === 'object' && t.id && t.title
       );
       const loadedPlaylists = (playlists || []) as Playlist[];
       set({
         likedSongs: validLiked,
+        likedIds: buildLikedMap(validLiked),
         playlists: loadedPlaylists,
         recentlyPlayed: recentlyPlayed || [],
         playHistory: playHistory || [],
         isLoading: false
       });
 
-      // Automatically check Live Sync Playlists in the background after startup
       if (loadedPlaylists.some((p) => p.isLiveSync && p.sourceUrl)) {
         setTimeout(() => {
           get().syncAllLivePlaylists().catch(() => {});
@@ -83,7 +94,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   toggleLike: (trackOrId) => {
-    const { likedSongs } = get();
+    const { likedSongs, likedIds } = get();
     const track: Track | null =
       typeof trackOrId === 'string'
         ? likedSongs.find((t) => t.id === trackOrId) || usePlayerStore.getState().currentTrack
@@ -91,16 +102,23 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
 
     if (!track || !track.id) return;
 
-    const alreadyLiked = likedSongs.some((t) => t.id === track.id);
+    const alreadyLiked = Boolean(likedIds[track.id]);
     const newLiked = alreadyLiked
       ? likedSongs.filter((t) => t.id !== track.id)
       : [track, ...likedSongs];
 
-    set({ likedSongs: newLiked });
+    const nextIds = { ...likedIds };
+    if (alreadyLiked) {
+      delete nextIds[track.id];
+    } else {
+      nextIds[track.id] = true;
+    }
+
+    set({ likedSongs: newLiked, likedIds: nextIds });
     storage.saveLikedSongs(newLiked);
   },
 
-  isLiked: (trackId) => get().likedSongs.some((t) => t && t.id === trackId),
+  isLiked: (trackId) => Boolean(get().likedIds[trackId]),
 
   createPlaylist: (name, description = '', coverUrl = '', extra = {}) => {
     const newPlaylist: Playlist = {
@@ -116,7 +134,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     };
     const newPlaylists = [...get().playlists, newPlaylist];
     set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists as any);
+    storage.savePlaylists(newPlaylists);
     return newPlaylist;
   },
 
@@ -125,13 +143,13 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
     );
     set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists as any);
+    storage.savePlaylists(newPlaylists);
   },
 
   deletePlaylist: (id) => {
     const newPlaylists = get().playlists.filter((p) => p.id !== id);
     set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists as any);
+    storage.savePlaylists(newPlaylists);
   },
 
   renamePlaylist: (id, name) => {
@@ -139,7 +157,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       p.id === id ? { ...p, name, updatedAt: Date.now() } : p
     );
     set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists as any);
+    storage.savePlaylists(newPlaylists);
   },
 
   syncLivePlaylist: async (playlistId, onProgress) => {
@@ -171,7 +189,6 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       const existingTracks = target.tracks || [];
       const prevFingerprints = target.remoteFingerprints || [];
 
-      // Map existing tracks by fingerprint and by title-only fallback so already-imported songs are reused with 0 API calls
       const fingerprintToTrack = new Map<string, Track>();
       const titleOnlyToTrack = new Map<string, Track>();
 
@@ -204,7 +221,6 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         }
       });
 
-      // Resolve only NEW songs added to the source playlist in parallel batches
       let newlyAddedCount = 0;
       const batchSize = 6;
       for (let i = 0; i < missingIndices.length; i += batchSize) {
@@ -264,7 +280,6 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         finalFingerprints = validRemote.map((r) => r.fp);
         removedCount = Math.max(0, existingTracks.length + newlyAddedCount - finalTracks.length);
       } else {
-        // Default 'append': Keep all existing tracks and append any newly discovered remote tracks
         const existingIds = new Set(existingTracks.map((t) => t.id));
         const newAdditions = validRemote.filter((r) => !existingIds.has(r.track.id));
         finalTracks = [...existingTracks, ...newAdditions.map((r) => r.track)];
@@ -326,7 +341,24 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       return p;
     });
     set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists as any);
+    storage.savePlaylists(newPlaylists);
+  },
+
+  addTracksToPlaylist: (playlistId, tracksToAdd) => {
+    if (!tracksToAdd.length) return;
+    const newPlaylists = get().playlists.map((p) => {
+      if (p.id === playlistId) {
+        return {
+          ...p,
+          tracks: [...p.tracks, ...tracksToAdd],
+          updatedAt: Date.now(),
+          coverUrl: p.coverUrl || tracksToAdd[0]?.thumbnail
+        };
+      }
+      return p;
+    });
+    set({ playlists: newPlaylists });
+    storage.savePlaylists(newPlaylists);
   },
 
   removeFromPlaylist: (playlistId, trackIndexOrId) => {
@@ -348,7 +380,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       return p;
     });
     set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists as any);
+    storage.savePlaylists(newPlaylists);
   },
 
   reorderPlaylistTrack: (playlistId, from, to) => {
@@ -366,7 +398,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       return p;
     });
     set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists as any);
+    storage.savePlaylists(newPlaylists);
   },
 
   updatePlaylistCover: (playlistId, coverUrl) => {
@@ -374,7 +406,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       p.id === playlistId ? { ...p, coverUrl, coverImage: coverUrl, updatedAt: Date.now() } : p
     );
     set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists as any);
+    storage.savePlaylists(newPlaylists);
   },
 
   addToRecentlyPlayed: (track) => {

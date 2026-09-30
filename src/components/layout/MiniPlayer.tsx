@@ -109,7 +109,7 @@ export default function MiniPlayer() {
 
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) =>
-    currentTrack ? s.likedSongs.some((item) => item.id === currentTrack.id) : false
+    currentTrack ? Boolean(s.likedIds[currentTrack.id]) : false
   );
 
   if (!currentTrack) return null;

@@ -5,7 +5,7 @@ import type { Track } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
-import { useOfflineVault } from '../../services/offlineVault';
+import { useTrackOfflineStatus } from '../../services/offlineVault';
 import {
   useChorusPreview,
   toggleChorusPreview,
@@ -16,15 +16,21 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 
 // Shared module-level hover coordinator so moving the cursor from one TrackRow
 // to another TrackRow bridges the 6px row gap and smoothly glides a single
-// 120fps spring highlight pill from track to track.
+// 120fps spring highlight pill from track to track with O(1) listener notifications.
 let activeHoveredRowId: string | null = null;
 let hoverLeaveTimer: ReturnType<typeof setTimeout> | null = null;
-const hoverListeners = new Set<() => void>();
+const hoverListeners = new Map<string, (hovered: boolean) => void>();
 
 function setSharedHoveredRow(id: string | null) {
   if (activeHoveredRowId === id) return;
+  const prevId = activeHoveredRowId;
   activeHoveredRowId = id;
-  hoverListeners.forEach((fn) => fn());
+  if (prevId) {
+    hoverListeners.get(prevId)?.(false);
+  }
+  if (id) {
+    hoverListeners.get(id)?.(true);
+  }
 }
 
 function useSharedTrackHover(rowId: string): {
@@ -35,13 +41,9 @@ function useSharedTrackHover(rowId: string): {
   const [isHovered, setIsHovered] = useState(() => activeHoveredRowId === rowId);
 
   useEffect(() => {
-    const sync = () => {
-      const next = activeHoveredRowId === rowId;
-      setIsHovered((prev) => (prev !== next ? next : prev));
-    };
-    hoverListeners.add(sync);
+    hoverListeners.set(rowId, setIsHovered);
     return () => {
-      hoverListeners.delete(sync);
+      hoverListeners.delete(rowId);
       if (activeHoveredRowId === rowId) {
         activeHoveredRowId = null;
       }
@@ -135,12 +137,10 @@ const TrackRow = memo(({
     propIsPlaying !== undefined ? propIsPlaying : s.currentTrack?.id === track.id && s.isPlaying
   );
   const liked = useLibraryStore((s) =>
-    propIsLiked !== undefined ? propIsLiked : s.likedSongs.some((item) => item.id === track.id)
+    propIsLiked !== undefined ? propIsLiked : Boolean(s.likedIds[track.id])
   );
-  const playlists = useLibraryStore((s) => s.playlists);
-  const { isOffline, savingIds, toggleOfflineTrack } = useOfflineVault();
-  const trackIsOffline = isOffline(track.id);
-  const isSavingOffline = Boolean(savingIds[track.id]);
+  const hasPlaylists = useLibraryStore((s) => s.playlists.length > 0);
+  const { trackIsOffline, isSavingOffline, toggleOfflineTrack } = useTrackOfflineStatus(track.id);
 
   useEffect(() => {
     if (!showPlaylistMenu) return;
@@ -410,7 +410,7 @@ const TrackRow = memo(({
           </button>
         )}
 
-        {playlists.length > 0 && (
+        {hasPlaylists && (
           <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
             <button
               ref={menuBtnRef}
@@ -447,7 +447,7 @@ const TrackRow = memo(({
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-white/45 px-2.5 py-1">
                     Add to Playlist
                   </div>
-                  {playlists.map((pl: any) => (
+                  {useLibraryStore.getState().playlists.map((pl) => (
                     <button
                       key={pl.id}
                       onClick={() => {

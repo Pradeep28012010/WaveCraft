@@ -9,7 +9,7 @@ import { useSettingsStore } from './stores/settingsStore';
 import { usePlayerStore } from './stores/playerStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useMediaSession } from './hooks/useMediaSession';
-import { searchTracks } from './services/youtube';
+import { searchTracks, getTrending } from './services/youtube';
 
 const SearchResults = lazy(() => import('./components/search/SearchResults'));
 const LibraryPage = lazy(() => import('./components/library/LibraryPage'));
@@ -31,10 +31,29 @@ function AppContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const handledPlayParam = useRef<string | null>(null);
 
-  // Initialize stores from IndexedDB on mount
+  // Initialize stores from IndexedDB on mount + idle pre-warm route chunks & trending feed
   useEffect(() => {
     loadLibrary();
     loadSettings();
+
+    const prewarm = () => {
+      getTrending().catch(() => {});
+      import('./components/library/LibraryPage').catch(() => {});
+      import('./components/search/SearchResults').catch(() => {});
+      import('./components/vibe/VibeDJPage').catch(() => {});
+      import('./components/galaxy/SonicGalaxyPage').catch(() => {});
+      import('./components/dj/DJConsolePage').catch(() => {});
+      import('./components/stats/StatsPage').catch(() => {});
+      import('./components/library/LikedSongs').catch(() => {});
+    };
+
+    if ('requestIdleCallback' in window) {
+      const id = (window as any).requestIdleCallback(prewarm, { timeout: 1500 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    } else {
+      const timer = setTimeout(prewarm, 900);
+      return () => clearTimeout(timer);
+    }
   }, [loadLibrary, loadSettings]);
 
   // Handle shared WaveCard deep-link (?play=Song+Artist)

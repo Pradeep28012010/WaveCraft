@@ -120,26 +120,48 @@ async function fetchDirectSaavnFallback(query: string): Promise<any[]> {
   return [];
 }
 
+const MAX_SEARCH_CACHE_ENTRIES = 120;
+const MAX_SUGGESTIONS_CACHE_ENTRIES = 150;
+
 const searchCache = new Map<string, Track[]>();
 const inFlightSearch = new Map<string, Promise<Track[]>>();
 const suggestionsCache = new Map<string, string[]>();
 let cachedTrending: Track[] | null = null;
 let inFlightTrending: Promise<Track[]> | null = null;
 
+function setBoundedCache<K, V>(map: Map<K, V>, key: K, value: V, maxEntries: number) {
+  if (map.has(key)) {
+    map.delete(key);
+  } else if (map.size >= maxEntries) {
+    const oldestKey = map.keys().next().value;
+    if (oldestKey !== undefined) {
+      map.delete(oldestKey);
+    }
+  }
+  map.set(key, value);
+}
+
 export function getCachedTrending(): Track[] | null {
   return cachedTrending;
 }
 
 export function getCachedSearch(query: string): Track[] | null {
-  return searchCache.get(query.trim().toLowerCase()) || null;
+  const cleanKey = query.trim().toLowerCase();
+  const hit = searchCache.get(cleanKey);
+  if (!hit) return null;
+  // Promote in LRU order
+  searchCache.delete(cleanKey);
+  searchCache.set(cleanKey, hit);
+  return hit;
 }
 
 export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
   const cleanKey = query.trim().toLowerCase();
   if (!cleanKey) return [];
 
-  if (searchCache.has(cleanKey)) {
-    return searchCache.get(cleanKey)!;
+  const cachedHit = getCachedSearch(cleanKey);
+  if (cachedHit) {
+    return cachedHit;
   }
   if (inFlightSearch.has(cleanKey)) {
     return inFlightSearch.get(cleanKey)!;
@@ -165,7 +187,7 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
 
         const combined = [...saavnTracks, ...uniqueYt];
         if (combined.length > 0) {
-          searchCache.set(cleanKey, combined);
+          setBoundedCache(searchCache, cleanKey, combined, MAX_SEARCH_CACHE_ENTRIES);
         }
         return combined;
       }
@@ -178,7 +200,7 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
       .map((item) => mapSaavnItemToTrack(item))
       .filter((t): t is Track => t !== null);
     if (tracks.length > 0) {
-      searchCache.set(cleanKey, tracks);
+      setBoundedCache(searchCache, cleanKey, tracks, MAX_SEARCH_CACHE_ENTRIES);
     }
     return tracks;
   })();
@@ -241,14 +263,19 @@ export async function getRelatedVideos(videoId: string): Promise<Track[]> {
 export async function searchSuggestions(query: string): Promise<string[]> {
   const key = query.trim().toLowerCase();
   if (!key) return [];
-  if (suggestionsCache.has(key)) return suggestionsCache.get(key)!;
+  if (suggestionsCache.has(key)) {
+    const hit = suggestionsCache.get(key)!;
+    suggestionsCache.delete(key);
+    suggestionsCache.set(key, hit);
+    return hit;
+  }
 
   try {
     const res = await fetch(`/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`);
     if (res.ok) {
       const data = await res.json();
       const sugs = data.suggestions || [];
-      suggestionsCache.set(key, sugs);
+      setBoundedCache(suggestionsCache, key, sugs, MAX_SUGGESTIONS_CACHE_ENTRIES);
       return sugs;
     }
   } catch {

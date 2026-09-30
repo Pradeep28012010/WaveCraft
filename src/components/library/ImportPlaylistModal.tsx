@@ -25,7 +25,7 @@ export default function ImportPlaylistModal({
 }: ImportPlaylistModalProps) {
   const navigate = useNavigate();
   const createPlaylist = useLibraryStore((s) => s.createPlaylist);
-  const addToPlaylist = useLibraryStore((s) => s.addToPlaylist);
+  const addTracksToPlaylist = useLibraryStore((s) => s.addTracksToPlaylist);
   const updatePlaylist = useLibraryStore((s) => s.updatePlaylist);
 
   const [mode, setMode] = useState<'live' | 'url' | 'text'>(initialMode);
@@ -120,13 +120,17 @@ export default function ImportPlaylistModal({
         })
       );
 
+      const batchTracksToAdd: Track[] = [];
       batchResults.forEach(({ track, fp }) => {
         if (track) {
-          addToPlaylist(newPlaylist.id, track);
+          batchTracksToAdd.push(track);
           matchedFingerprints.push(fp);
           addedSoFar++;
         }
       });
+      if (batchTracksToAdd.length > 0) {
+        addTracksToPlaylist(newPlaylist.id, batchTracksToAdd);
+      }
 
       completed += batch.length;
       const pct = Math.min(100, Math.round((completed / queries.length) * 100));

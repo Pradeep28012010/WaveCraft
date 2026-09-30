@@ -120,7 +120,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) =>
-    currentTrack ? s.likedSongs.some((t) => t.id === currentTrack.id) : false
+    currentTrack ? Boolean(s.likedIds[currentTrack.id]) : false
   );
 
   const showVisualizer = useSettingsStore((s) => s.showVisualizer);

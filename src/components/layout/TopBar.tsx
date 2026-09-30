@@ -1,11 +1,64 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { searchSuggestions } from '../../services/youtube';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useJamStore } from '../../stores/jamStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
+
+const formatClock = (sec: number) => {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
+const MobileSleepCountdown = memo(function MobileSleepCountdown() {
+  const sleepSeconds = useStudioStore((s) => s.sleepSeconds);
+  const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
+  if (sleepEndAtTrack) return null;
+  return <span className="text-[10px] tabular-nums">{formatClock(sleepSeconds)}</span>;
+});
+
+const PomodoroTimerPill = memo(function PomodoroTimerPill({
+  onOpenStudio
+}: {
+  onOpenStudio: () => void;
+}) {
+  const pomodoroMode = useStudioStore((s) => s.pomodoroMode);
+  const pomodoroSeconds = useStudioStore((s) => s.pomodoroSeconds);
+  return (
+    <button
+      onClick={onOpenStudio}
+      className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-extrabold text-amber-300 hover:bg-amber-500/30 transition-colors cursor-pointer tabular-nums"
+      title="Focus Pomodoro Timer Active"
+    >
+      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+      <span>
+        {pomodoroMode === 'focus' ? 'Focus' : 'Break'} {formatClock(pomodoroSeconds)}
+      </span>
+    </button>
+  );
+});
+
+const SleepTimerPill = memo(function SleepTimerPill({
+  onOpenStudio
+}: {
+  onOpenStudio: () => void;
+}) {
+  const sleepSeconds = useStudioStore((s) => s.sleepSeconds);
+  const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
+  return (
+    <button
+      onClick={onOpenStudio}
+      className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full bg-purple-500/20 border border-purple-400/40 text-xs font-extrabold text-purple-200 hover:bg-purple-500/30 transition-colors cursor-pointer tabular-nums"
+      title="Sleep Timer Active — Click to manage"
+    >
+      <span>🌙</span>
+      <span>{sleepEndAtTrack ? 'End of Track' : formatClock(sleepSeconds)}</span>
+    </button>
+  );
+});
 
 export default function TopBar() {
   const navigate = useNavigate();
@@ -27,11 +80,7 @@ export default function TopBar() {
   const vocalMode = useStudioStore((s) => s.vocalMode);
   const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
-  const pomodoroMode = useStudioStore((s) => s.pomodoroMode);
-  const pomodoroSeconds = useStudioStore((s) => s.pomodoroSeconds);
   const sleepActive = useStudioStore((s) => s.sleepActive);
-  const sleepSeconds = useStudioStore((s) => s.sleepSeconds);
-  const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
   const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
 
@@ -46,12 +95,6 @@ export default function TopBar() {
       : hasActiveAmbient
       ? 'Ambient Mix'
       : 'Studio FX';
-
-  const formatClock = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
 
   useEffect(() => {
     setSearchQuery(urlQuery);
@@ -226,9 +269,7 @@ export default function TopBar() {
           }`}
         >
           <span>{sleepActive ? '🌙' : '🎛️'}</span>
-          {sleepActive && !sleepEndAtTrack ? (
-            <span className="text-[10px] tabular-nums">{formatClock(sleepSeconds)}</span>
-          ) : null}
+          {sleepActive ? <MobileSleepCountdown /> : null}
         </button>
       </header>
     );
@@ -357,28 +398,12 @@ export default function TopBar() {
         <div className="flex items-center gap-2">
           {/* Active Focus Pomodoro Pill */}
           {pomodoroActive && (
-            <button
-              onClick={() => setStudioModalOpen(true)}
-              className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-extrabold text-amber-300 hover:bg-amber-500/30 transition-colors cursor-pointer tabular-nums"
-              title="Focus Pomodoro Timer Active"
-            >
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-              <span>
-                {pomodoroMode === 'focus' ? 'Focus' : 'Break'} {formatClock(pomodoroSeconds)}
-              </span>
-            </button>
+            <PomodoroTimerPill onOpenStudio={() => setStudioModalOpen(true)} />
           )}
 
           {/* Unified Active Sleep Timer Pill */}
           {sleepActive && (
-            <button
-              onClick={() => setStudioModalOpen(true)}
-              className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full bg-purple-500/20 border border-purple-400/40 text-xs font-extrabold text-purple-200 hover:bg-purple-500/30 transition-colors cursor-pointer tabular-nums"
-              title="Sleep Timer Active — Click to manage"
-            >
-              <span>🌙</span>
-              <span>{sleepEndAtTrack ? 'End of Track' : formatClock(sleepSeconds)}</span>
-            </button>
+            <SleepTimerPill onOpenStudio={() => setStudioModalOpen(true)} />
           )}
 
           {/* Active Jam Room Pill */}
