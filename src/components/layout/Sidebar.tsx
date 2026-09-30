@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
-import { useJamStore } from '../../stores/jamStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import CreatePlaylist from '../library/CreatePlaylist';
 import ImportPlaylistModal from '../library/ImportPlaylistModal';
@@ -12,14 +11,11 @@ export default function Sidebar() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const playlists = useLibraryStore((state) => state.playlists) || [];
-  const activeJamRoom = useJamStore((state) => state.roomCode);
   const { isPhone, isMobileDrawerOpen, setMobileDrawerOpen } = useDevicePreset();
 
   const navItems: Array<{
     name: string;
     path: string;
-    badge?: string;
-    badgeColor?: string;
     icon: React.ReactNode;
   }> = [
     {
@@ -34,8 +30,6 @@ export default function Sidebar() {
     {
       name: 'AI Vibe DJ',
       path: '/vibe',
-      badge: 'AI',
-      badgeColor: 'bg-[var(--color-accent)] text-white',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" />
@@ -45,8 +39,6 @@ export default function Sidebar() {
     {
       name: 'Dual-Deck DJ Booth',
       path: '/dj',
-      badge: 'MIX',
-      badgeColor: 'bg-rose-500/25 text-rose-300 border border-rose-400/30',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="8" cy="12" r="5" />
@@ -59,8 +51,6 @@ export default function Sidebar() {
     {
       name: 'Sonic Galaxy Map',
       path: '/galaxy',
-      badge: 'STARS',
-      badgeColor: 'bg-purple-500/25 text-purple-300 border border-purple-400/30',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="12" cy="12" r="3" />
@@ -72,10 +62,6 @@ export default function Sidebar() {
     {
       name: 'Live Jam Room',
       path: '/jam',
-      badge: activeJamRoom ? 'LIVE' : 'SYNC',
-      badgeColor: activeJamRoom
-        ? 'bg-emerald-500 text-black animate-pulse'
-        : 'bg-emerald-500/20 text-emerald-300',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -213,13 +199,6 @@ export default function Sidebar() {
                         </div>
                         <span className="text-sm truncate">{item.name}</span>
                       </div>
-                      {item.badge && (
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider flex-shrink-0 ${item.badgeColor}`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
                     </NavLink>
                   ))}
 
@@ -348,13 +327,6 @@ export default function Sidebar() {
                     </div>
                     {!collapsed && <span className="text-sm truncate">{item.name}</span>}
                   </div>
-                  {!collapsed && item.badge && (
-                    <span
-                      className={`relative z-10 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider flex-shrink-0 ${item.badgeColor}`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
                 </>
               )}
             </NavLink>

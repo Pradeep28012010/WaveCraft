@@ -15,12 +15,12 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    
+
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
     }
-    
+
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
@@ -29,33 +29,47 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
 
   let widthClass = 'w-full max-w-md';
   if (size === 'sm') widthClass = 'w-full max-w-sm';
-  if (size === 'lg') widthClass = 'w-full max-w-2xl';
+  if (size === 'lg') widthClass = 'w-full max-w-xl';
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9995] flex items-center justify-center p-4 sm:p-6">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/65 backdrop-blur-md"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`relative z-10 ${widthClass}`}
+            className={`relative z-10 ${widthClass} max-h-[88vh] flex flex-col`}
           >
-            <GlassCard variant="heavy" padding="lg" className="w-full">
+            <GlassCard
+              variant="heavy"
+              padding="lg"
+              className="w-full max-h-[88vh] flex flex-col overflow-hidden border border-white/20 shadow-[0_28px_80px_rgba(0,0,0,0.85)]"
+            >
               {title && (
-                <div className="mb-4 text-xl font-semibold text-white">
-                  {title}
+                <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-white/10 flex-shrink-0">
+                  <h2 className="text-base sm:text-lg font-extrabold text-white tracking-tight truncate">
+                    {title}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="w-8 h-8 p-0 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white cursor-pointer flex-shrink-0"
+                    title="Close"
+                  >
+                    ✕
+                  </button>
                 </div>
               )}
-              {children}
+              <div className="overflow-y-auto no-scrollbar pr-0.5">{children}</div>
             </GlassCard>
           </motion.div>
         </div>

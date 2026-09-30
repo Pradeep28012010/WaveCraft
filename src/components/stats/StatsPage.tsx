@@ -669,7 +669,7 @@ export default function StatsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {filteredBadges.map((badge) => {
             const tierMeta = TIER_STYLES[badge.tier];
             const remaining = Math.max(0, badge.target - badge.current);
@@ -678,17 +678,17 @@ export default function StatsPage() {
               <motion.div
                 key={badge.id}
                 whileHover={{ y: -3 }}
-                className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all ${
+                className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all overflow-hidden min-w-0 ${
                   badge.unlocked
                     ? 'liquid-glass border-white/25 shadow-xl'
                     : 'glass border-white/10 hover:border-white/20'
                 }`}
               >
-                <div className="flex flex-col gap-2.5">
+                <div className="flex flex-col gap-2.5 min-w-0">
                   {/* Top Header Row: Icon on Left, Tier + Status Pills on Right */}
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
                     <div
-                      className={`w-11 h-11 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 border ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 border ${
                         badge.unlocked
                           ? 'bg-gradient-to-br from-[var(--color-accent)]/30 via-purple-500/25 to-cyan-500/25 border-white/25 shadow-lg'
                           : 'bg-white/[0.06] border-white/10 opacity-80'
@@ -696,14 +696,14 @@ export default function StatsPage() {
                     >
                       {badge.icon}
                     </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border whitespace-nowrap flex-shrink-0 ${tierMeta.badgeClass}`}
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border whitespace-nowrap ${tierMeta.badgeClass}`}
                       >
                         {tierMeta.label}
                       </span>
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap flex-shrink-0 ${
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
                           badge.unlocked
                             ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/35'
                             : 'bg-white/10 text-white/65 border border-white/10'
@@ -724,8 +724,8 @@ export default function StatsPage() {
                 </div>
 
                 {/* Live Progress Bar & Counter (Single-line guaranteed) */}
-                <div className="pt-2.5 border-t border-white/10 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
+                <div className="pt-2.5 border-t border-white/10 space-y-1.5 min-w-0">
+                  <div className="flex items-center justify-between gap-2 text-[11px] font-bold min-w-0">
                     <span
                       className={`whitespace-nowrap truncate ${
                         badge.unlocked ? 'text-emerald-300' : 'text-white/70'

@@ -237,22 +237,23 @@ export default function ImportPlaylistModal({
     <GlassModal
       isOpen={isOpen}
       onClose={onClose}
+      size="lg"
       title={
         mode === 'live'
           ? 'Connect Live Auto-Syncing Playlist'
           : 'Import External Playlist (Unlimited Tracks)'
       }
     >
-      <div className="flex flex-col gap-4 text-white">
+      <div className="flex flex-col gap-3.5 text-white">
         {/* 3-Way Mode Switcher */}
-        <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl liquid-glass border border-white/15">
+        <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-white/[0.04] border border-white/12">
           <button
             type="button"
             onClick={() => {
               setMode('live');
               setErrorMsg('');
             }}
-            className={`py-2.5 px-2 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 ${
               mode === 'live'
                 ? 'glass-button-emerald text-white shadow-lg'
                 : 'glass-button text-white/70 hover:text-white'
@@ -267,13 +268,13 @@ export default function ImportPlaylistModal({
               setMode('url');
               setErrorMsg('');
             }}
-            className={`py-2.5 px-2 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+            className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 ${
               mode === 'url'
                 ? 'glass-button-primary text-white shadow-lg'
                 : 'glass-button text-white/70 hover:text-white'
             }`}
           >
-            🔗 One-Time Link
+            <span>🔗 One-Time Link</span>
           </button>
           <button
             type="button"
@@ -281,30 +282,30 @@ export default function ImportPlaylistModal({
               setMode('text');
               setErrorMsg('');
             }}
-            className={`py-2.5 px-2 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+            className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 ${
               mode === 'text'
                 ? 'glass-button-primary text-white shadow-lg'
                 : 'glass-button text-white/70 hover:text-white'
             }`}
           >
-            📋 Paste Song List
+            <span>📋 Paste Song List</span>
           </button>
         </div>
 
         {/* Dynamic Status / Mode Pill */}
         {mode === 'live' ? (
-          <div className="p-3.5 rounded-2xl bg-emerald-500/12 border border-emerald-400/30 flex flex-col gap-1.5">
+          <div className="px-3.5 py-2.5 rounded-2xl bg-emerald-500/12 border border-emerald-400/30 flex flex-col gap-1">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-extrabold text-emerald-300 flex items-center gap-2 whitespace-nowrap">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                 Live Playlist Auto-Sync Engine
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-200 whitespace-nowrap flex-shrink-0">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/35 text-[10px] font-extrabold text-emerald-200 whitespace-nowrap flex-shrink-0">
                 AUTO-UPDATING
               </span>
             </div>
-            <p className="text-[11px] text-white/70 leading-relaxed">
-              Stays connected to the original Spotify, YouTube, or JioSaavn playlist. Whenever new songs are added or updated at the source, WaveCraft automatically syncs only the delta in 320kbps HD.
+            <p className="text-[11px] text-white/70 leading-snug">
+              Stays linked to the original Spotify, YouTube, or JioSaavn playlist and automatically syncs new tracks in 320kbps HD whenever the source updates.
             </p>
           </div>
         ) : (
@@ -320,9 +321,9 @@ export default function ImportPlaylistModal({
         )}
 
         {mode === 'live' || mode === 'url' ? (
-          <form onSubmit={handleImportUrl} className="flex flex-col gap-3.5">
+          <form onSubmit={handleImportUrl} className="flex flex-col gap-3">
             <div>
-              <label className="text-xs font-semibold text-white/70 block mb-1.5">
+              <label className="text-xs font-semibold text-white/75 block mb-1">
                 {mode === 'live'
                   ? 'Source Playlist URL to Monitor & Auto-Sync (Spotify, YouTube, JioSaavn)'
                   : 'Public Playlist or Album Link (Spotify, YouTube, JioSaavn)'}
@@ -334,12 +335,12 @@ export default function ImportPlaylistModal({
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 placeholder="https://open.spotify.com/playlist/... or YouTube playlist link"
-                className="w-full glass-input rounded-xl p-3 text-sm text-white placeholder:text-white/35"
+                className="w-full glass-input rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/35"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-white/70 block mb-1.5">
+              <label className="text-xs font-semibold text-white/75 block mb-1">
                 Custom Playlist Name (optional)
               </label>
               <input
@@ -348,80 +349,87 @@ export default function ImportPlaylistModal({
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder="Leave blank to use original playlist title"
-                className="w-full glass-input rounded-xl p-3 text-sm text-white placeholder:text-white/35"
+                className="w-full glass-input rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/35"
               />
             </div>
 
-            {/* Live Sync Strategy & Interval Controls */}
+            {/* Live Sync Strategy & Interval Controls (Clean full-width layout, zero pill clipping) */}
             {mode === 'live' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
-                <div>
-                  <label className="text-[11px] font-bold text-white/60 block mb-1.5">
+              <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/12 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-white/80">
                     When Original Playlist Changes
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setSyncStrategy('append')}
-                      className={`px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer text-left ${
-                        syncStrategy === 'append'
-                          ? 'glass-button-emerald text-white'
-                          : 'glass-button text-white/65 hover:text-white'
-                      }`}
-                    >
-                      <div className="whitespace-nowrap">➕ Auto-Append</div>
-                      <div className="text-[9px] text-white/55 font-normal truncate">
-                        Add new songs only
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSyncStrategy('mirror')}
-                      className={`px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer text-left ${
-                        syncStrategy === 'mirror'
-                          ? 'glass-button-emerald text-white'
-                          : 'glass-button text-white/65 hover:text-white'
-                      }`}
-                    >
-                      <div className="whitespace-nowrap">🪞 Exact Mirror</div>
-                      <div className="text-[9px] text-white/55 font-normal truncate">
-                        Match additions & removals
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold text-white/60 block mb-1.5">
-                    Auto-Sync Check Frequency
-                  </label>
-                  <div className="grid grid-cols-3 gap-1.5">
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-white/50 font-medium mr-1">Check every:</span>
                     {[
-                      { mins: 15, label: '15m Live' },
-                      { mins: 30, label: '30m Auto' },
-                      { mins: 60, label: 'Hourly' }
+                      { mins: 15, label: '15m' },
+                      { mins: 30, label: '30m' },
+                      { mins: 60, label: '1h' }
                     ].map((opt) => (
                       <button
                         key={opt.mins}
                         type="button"
                         onClick={() => setSyncIntervalMinutes(opt.mins)}
-                        className={`py-2 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer border whitespace-nowrap ${
                           syncIntervalMinutes === opt.mins
-                            ? 'glass-button-cyan text-white'
-                            : 'glass-button text-white/65 hover:text-white'
+                            ? 'bg-cyan-500/25 border-cyan-400/50 text-cyan-200 shadow-sm'
+                            : 'bg-white/[0.05] border-white/10 text-white/60 hover:text-white'
                         }`}
                       >
-                        ⏱ {opt.label}
+                        {opt.label}
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setSyncStrategy('append')}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-0.5 ${
+                      syncStrategy === 'append'
+                        ? 'bg-emerald-500/20 border-emerald-400/50 text-white shadow-md'
+                        : 'bg-white/[0.04] border-white/10 text-white/70 hover:text-white hover:bg-white/[0.08]'
+                    }`}
+                  >
+                    <div className="text-xs font-extrabold flex items-center justify-between">
+                      <span>➕ Auto-Append Songs</span>
+                      {syncStrategy === 'append' && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      )}
+                    </div>
+                    <div className="text-[11px] text-white/55">
+                      Keep existing tracks & add new ones
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSyncStrategy('mirror')}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-0.5 ${
+                      syncStrategy === 'mirror'
+                        ? 'bg-emerald-500/20 border-emerald-400/50 text-white shadow-md'
+                        : 'bg-white/[0.04] border-white/10 text-white/70 hover:text-white hover:bg-white/[0.08]'
+                    }`}
+                  >
+                    <div className="text-xs font-extrabold flex items-center justify-between">
+                      <span>🪞 Exact Mirror Sync</span>
+                      {syncStrategy === 'mirror' && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      )}
+                    </div>
+                    <div className="text-[11px] text-white/55">
+                      Match exact additions & removals
+                    </div>
+                  </button>
                 </div>
               </div>
             )}
 
             {/* Quick Presets to try */}
-            <div className="flex flex-wrap items-center gap-2 pt-0.5">
-              <span className="text-[11px] text-white/45 whitespace-nowrap">Quick sample charts:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] text-white/45 whitespace-nowrap">Sample charts:</span>
               <button
                 type="button"
                 onClick={() =>
@@ -429,7 +437,7 @@ export default function ImportPlaylistModal({
                 }
                 className="text-[11px] px-3 py-1 rounded-full glass-button text-emerald-300 hover:text-white cursor-pointer whitespace-nowrap"
               >
-                Global Top Hits (Live Chart)
+                Global Top Hits (50+ Songs)
               </button>
               <button
                 type="button"
@@ -438,7 +446,7 @@ export default function ImportPlaylistModal({
                 }
                 className="text-[11px] px-3 py-1 rounded-full glass-button text-emerald-300 hover:text-white cursor-pointer whitespace-nowrap"
               >
-                Trending India Mix (Live Chart)
+                Trending India Mix (50+ Songs)
               </button>
             </div>
 
@@ -449,7 +457,7 @@ export default function ImportPlaylistModal({
             )}
 
             {isImporting && (
-              <div className="p-4 rounded-2xl liquid-glass border border-white/20 space-y-2.5">
+              <div className="p-3.5 rounded-2xl liquid-glass border border-white/20 space-y-2">
                 <div className="flex justify-between items-center text-xs font-bold text-white">
                   <span className="truncate pr-2">{statusText}</span>
                   <span className="px-2 py-0.5 rounded-full bg-white/15 text-[11px] tabular-nums flex-shrink-0">
@@ -461,7 +469,7 @@ export default function ImportPlaylistModal({
                     🎵 Matching: <span className="text-white/90 font-semibold">{currentTrackLabel}</span>
                   </p>
                 )}
-                <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden p-0.5">
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden p-0.5">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 transition-all duration-300"
                     style={{ width: `${progressPct}%` }}
@@ -483,7 +491,7 @@ export default function ImportPlaylistModal({
               </div>
             )}
 
-            <div className="flex justify-end gap-2.5 mt-2">
+            <div className="flex justify-end gap-2.5 pt-1">
               <GlassButton type="button" variant="ghost" onClick={onClose} disabled={isImporting}>
                 Cancel
               </GlassButton>
@@ -491,7 +499,7 @@ export default function ImportPlaylistModal({
                 {isImporting
                   ? `Syncing (${matchedCount}/${totalCount || '...'})`
                   : mode === 'live'
-                  ? '🔴 Connect & Sync Live Playlist'
+                  ? 'Connect & Sync Live Playlist'
                   : 'Import All Tracks'}
               </GlassButton>
             </div>
@@ -499,7 +507,7 @@ export default function ImportPlaylistModal({
         ) : (
           <form onSubmit={handleImportText} className="flex flex-col gap-3.5">
             <div>
-              <label className="text-xs font-semibold text-white/70 block mb-1.5">
+              <label className="text-xs font-semibold text-white/75 block mb-1">
                 Playlist Name
               </label>
               <input
@@ -509,13 +517,13 @@ export default function ImportPlaylistModal({
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder="My Complete Imported Vibe"
-                className="w-full glass-input rounded-xl p-3 text-sm text-white placeholder:text-white/35"
+                className="w-full glass-input rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/35"
               />
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-white/70">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-white/75">
                   Songs List (one song per line, e.g. "Song - Artist" • No limit)
                 </label>
                 <span className="text-[11px] text-white/50 font-semibold whitespace-nowrap">
@@ -523,7 +531,7 @@ export default function ImportPlaylistModal({
                 </span>
               </div>
               <textarea
-                rows={6}
+                rows={5}
                 required
                 disabled={isImporting}
                 value={textInput}
@@ -534,7 +542,7 @@ export default function ImportPlaylistModal({
             </div>
 
             {isImporting && (
-              <div className="p-4 rounded-2xl liquid-glass border border-white/20 space-y-2.5">
+              <div className="p-3.5 rounded-2xl liquid-glass border border-white/20 space-y-2">
                 <div className="flex justify-between items-center text-xs font-bold text-white">
                   <span className="truncate pr-2">{statusText}</span>
                   <span className="px-2 py-0.5 rounded-full bg-white/15 text-[11px] tabular-nums flex-shrink-0">
@@ -546,7 +554,7 @@ export default function ImportPlaylistModal({
                     🎵 Matching: <span className="text-white/90 font-semibold">{currentTrackLabel}</span>
                   </p>
                 )}
-                <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden p-0.5">
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden p-0.5">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] via-fuchsia-500 to-cyan-400 transition-all duration-300"
                     style={{ width: `${progressPct}%` }}
@@ -555,7 +563,7 @@ export default function ImportPlaylistModal({
               </div>
             )}
 
-            <div className="flex justify-end gap-2.5 mt-2">
+            <div className="flex justify-end gap-2.5 pt-1">
               <GlassButton type="button" variant="ghost" onClick={onClose} disabled={isImporting}>
                 Cancel
               </GlassButton>
