@@ -622,11 +622,38 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center px-6 text-white/50">
-            <p className="text-base font-bold text-white/85">{title}</p>
-            <p className="text-xs text-white/55 mt-1">{artist}</p>
-            <p className="text-xs text-white/40 mt-4 max-w-xs">
-              Instrumental / Studio Track — Enjoy the 320kbps studio audio & 3D visualizer.
-            </p>
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center mb-3 text-white/40">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+            </div>
+            <p className="text-base font-bold text-white/90">{title}</p>
+            <p className="text-xs text-white/60 mt-0.5">{artist}</p>
+            <div className="mt-4 px-4 py-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] max-w-sm">
+              <p className="text-xs font-semibold text-white/80">
+                No Verified Lyrics Available
+              </p>
+              <p className="text-[11px] text-white/45 mt-1 leading-relaxed">
+                WaveCraft strictly verifies track & artist data to prevent mismatched lyrics. Enjoy the 320kbps studio audio & 3D visualizer!
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setIsLoading(true);
+                getLyricsData(artist || '', title || '', activeDuration)
+                  .then((data) => setResult(data))
+                  .finally(() => setIsLoading(false));
+              }}
+              className="mt-4 px-4 py-1.5 rounded-full glass-button text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+              <span>Retry Search</span>
+            </button>
           </div>
         )}
       </div>
