@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { usePlayerStore } from './playerStore';
+import { useSettingsStore } from './settingsStore';
 import { setAmbientLayerVolume, stopAllAmbientLayers } from '../services/ambientSynth';
 
 export type StudioFXMode =
@@ -182,6 +183,7 @@ interface StudioState {
   setTrebleAir: (db: number) => void;
   setPreservePitch: (preserve: boolean) => void;
   resetMasteringRack: () => void;
+  resetToOriginal: () => void;
 
   setAmbientVolume: (id: AmbientLayerId, volume: number) => void;
   applyAmbientPreset: (preset: Partial<Record<AmbientLayerId, number>>) => void;
@@ -408,6 +410,38 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       preservePitch: true
     });
     saveStudioPrefsSync(get());
+  },
+  resetToOriginal: () => {
+    stopAllAmbientLayers();
+    set({
+      fxMode: 'normal',
+      vocalMode: 'normal',
+      spatialOrbitAuto: false,
+      spatialOrbitSpeed: 0.145,
+      spatialRoomSize: 0,
+      spatialManualPos: { x: 0, z: 0 },
+      subBassBoost: 0,
+      harmonicDrive: 0,
+      stereoWidth: 0,
+      reverbMix: 0,
+      trebleAir: 0,
+      preservePitch: true,
+      ambientVolumes: {
+        rain: 0,
+        vinyl: 0,
+        waves: 0,
+        binaural: 0,
+        campfire: 0,
+        cafe: 0
+      }
+    });
+    saveStudioPrefsSync(get());
+
+    // Reset playback speed back to 1.0x (unaltered original tempo)
+    usePlayerStore.getState().setPlaybackSpeed(1.0);
+
+    // Reset Equalizer back to 0dB Flat reference
+    useSettingsStore.getState().setEqualizerPreset('Flat');
   },
 
   setAmbientVolume: (id, volume) => {

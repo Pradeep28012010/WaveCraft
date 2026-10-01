@@ -63,6 +63,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
   const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
   const setFxMode = useStudioStore((s) => s.setFxMode);
+  const resetToOriginal = useStudioStore((s) => s.resetToOriginal);
   const setAmbientVolume = useStudioStore((s) => s.setAmbientVolume);
   const stopAllAmbient = useStudioStore((s) => s.stopAllAmbient);
   const startPomodoro = useStudioStore((s) => s.startPomodoro);
@@ -140,11 +141,11 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
       {
         id: 'fx-normal',
         category: 'Studio Audio FX',
-        title: 'Reset Audio FX to 320k Studio Master',
-        subtitle: 'Restore bit-accurate flat 1.0x studio playback',
-        badge: fxMode === 'normal' ? 'ACTIVE' : 'FLAT',
-        icon: '✨',
-        run: () => setFxMode('normal')
+        title: 'Reset Audio to Original Master',
+        subtitle: 'Restore bit-accurate flat 1.0x studio playback with zero effects',
+        badge: fxMode === 'normal' ? 'ACTIVE' : 'ORIGINAL',
+        icon: '↺',
+        run: () => resetToOriginal()
       },
       {
         id: 'amb-rain',

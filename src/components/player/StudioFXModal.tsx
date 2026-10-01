@@ -114,7 +114,7 @@ function StudioFXModalContent() {
     setReverbMix,
     setTrebleAir,
     setPreservePitch,
-    resetMasteringRack,
+    resetToOriginal,
     setAmbientVolume,
     applyAmbientPreset,
     stopAllAmbient,
@@ -291,31 +291,31 @@ function StudioFXModalContent() {
     Math.abs(trebleAir) > 0.1 ||
     playbackSpeed !== 1;
 
+  const isAltered =
+    fxMode !== 'normal' ||
+    vocalMode !== 'normal' ||
+    hasCustomRack ||
+    hasAnyAmbient ||
+    spatialOrbitAuto ||
+    (spatialManualPos && (Math.abs(spatialManualPos.x) > 0.05 || Math.abs(spatialManualPos.z) > 0.05)) ||
+    playbackSpeed !== 1;
+
   const handleResetAllDSP = () => {
-    setFxMode('normal');
-    setVocalMode('normal');
-    resetMasteringRack();
-    setPlaybackSpeed(1);
-    stopAllAmbient();
+    resetToOriginal();
     setIsBypassed(false);
   };
 
   // 1-Click Acoustic Preset Handler with parameter synchronization
   const handleSelectPreset = (modeId: StudioFXMode) => {
     setIsBypassed(false);
+    if (modeId === 'normal') {
+      handleResetAllDSP();
+      return;
+    }
     setFxMode(modeId);
 
     // Sync physical rack faders so user sees parameters adjust in real time
     switch (modeId) {
-      case 'normal':
-        setSubBassBoost(0);
-        setHarmonicDrive(0);
-        setStereoWidth(0);
-        setReverbMix(0);
-        setTrebleAir(0);
-        setPlaybackSpeed(1);
-        setVocalMode('normal');
-        break;
       case 'slowed-reverb':
         setPlaybackSpeed(0.88);
         setPreservePitch(false);
@@ -443,17 +443,29 @@ function StudioFXModalContent() {
                 <span>{isBypassed ? '⚠️ BYPASS (A)' : '🎛️ MASTER (B)'}</span>
               </button>
 
-              {/* Master Reset */}
-              {(fxMode !== 'normal' || vocalMode !== 'normal' || hasCustomRack || hasAnyAmbient) && (
-                <button
-                  type="button"
-                  onClick={handleResetAllDSP}
-                  className="px-3.5 h-10 rounded-2xl glass-button text-xs font-black text-rose-300 hover:text-white cursor-pointer shadow-sm"
-                  title="Reset all DSP knobs, Stems, and Ambience to flat defaults"
-                >
-                  ↺ Reset
-                </button>
-              )}
+              {/* Master Reset to Original Audio Button */}
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
+                type="button"
+                onClick={handleResetAllDSP}
+                className={`px-3.5 sm:px-4 h-10 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm ${
+                  isAltered
+                    ? 'bg-gradient-to-r from-rose-500/25 via-red-500/20 to-pink-500/25 hover:from-rose-500/35 hover:to-pink-500/35 border-rose-400/50 text-rose-200 shadow-[0_0_18px_rgba(244,63,94,0.35)]'
+                    : 'bg-emerald-500/15 border-emerald-400/35 text-emerald-300 hover:bg-emerald-500/25'
+                }`}
+                title={
+                  isAltered
+                    ? 'Active audio modifications engaged: Click to reset all Studio FX, DSP, speed, and ambience to play original uncolored song'
+                    : 'Audio is currently playing as original bit-accurate 320k flat audio'
+                }
+              >
+                <span className="text-sm">↺</span>
+                <span>{isAltered ? 'Reset to Original' : 'Original Sound'}</span>
+                {isAltered && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
+                )}
+              </motion.button>
 
               {/* Close Button */}
               <button
@@ -507,13 +519,28 @@ function StudioFXModalContent() {
         <div className="flex-1 overflow-y-auto no-scrollbar p-5 sm:p-7 space-y-7">
           {/* ================= 2A. ACOUSTIC HARDWARE PEDALS RACK ================= */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-black uppercase tracking-widest text-white/80 flex items-center gap-2">
                 <span>🎛️ Acoustic Mastering Pedals (1-Click DSP Engines)</span>
               </span>
-              <span className="text-[11px] text-white/45 font-bold">
-                Click any stompbox to engage instant mastering profile
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-white/45 font-bold hidden sm:inline">
+                  Click any stompbox to engage instant mastering profile
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetAllDSP}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-black tracking-wider transition-all cursor-pointer flex items-center gap-1 border ${
+                    isAltered
+                      ? 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-400/40 text-rose-300 shadow-sm'
+                      : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
+                  }`}
+                  title="Reset all effects to play original track"
+                >
+                  <span>↺</span>
+                  <span>Reset to Original</span>
+                </button>
+              </div>
             </div>
 
             {/* 8 Machined Stompbox Cards Grid */}
@@ -598,13 +625,12 @@ function StudioFXModalContent() {
                     {hasCustomRack && (
                       <button
                         type="button"
-                        onClick={() => {
-                          resetMasteringRack();
-                          setPlaybackSpeed(1);
-                        }}
-                        className="px-2.5 py-1 rounded-xl glass-button text-[11px] font-bold text-white/70 hover:text-white"
+                        onClick={handleResetAllDSP}
+                        className="px-2.5 py-1 rounded-xl glass-button text-[11px] font-bold text-white/70 hover:text-white cursor-pointer flex items-center gap-1"
+                        title="Reset all effects and faders to play original track"
                       >
-                        Reset Strip
+                        <span>↺</span>
+                        <span>Reset to Original</span>
                       </button>
                     )}
                   </div>
