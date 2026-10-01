@@ -636,7 +636,7 @@ function AppShowcase() {
       <div className="sticky top-0 h-screen flex items-center overflow-hidden">
         {/* Header */}
         <div className="absolute top-16 left-8 lg:left-16 z-10">
-          <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/35">
+          <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/60">
             Explore
           </span>
           <h2 className="text-3xl lg:text-4xl font-extrabold text-white mt-1 tracking-tight">

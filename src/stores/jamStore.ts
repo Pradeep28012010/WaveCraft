@@ -24,6 +24,26 @@ export interface JamMessage {
   createdAt: number;
 }
 
+export interface JamRoomSnapshot {
+  roomCode: string;
+  hostName?: string;
+  userId?: string;
+  userName?: string;
+  members?: JamMember[];
+  reaction?: JamReaction;
+  reactions?: JamReaction[];
+  message?: JamMessage;
+  messages?: JamMessage[];
+  eventType?: 'add-track' | 'play-track' | 'toggle-play' | 'sync-state' | string;
+  addedTrack?: Track;
+  currentTrack?: Track | null;
+  queue?: Track[];
+  isPlaying?: boolean;
+  currentTime?: number;
+  playNow?: boolean;
+  sentAt?: number;
+}
+
 interface JamStore {
   roomCode: string | null;
   isHost: boolean;
@@ -70,17 +90,17 @@ const getInitialUserName = () => {
 };
 
 let bc: BroadcastChannel | null = null;
-let pollInterval: any = null;
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 let sseSource: EventSource | null = null;
 let isApplyingRemoteState = false;
 let lastCollaborativeTrackSwitchAt = 0;
-let latestRemoteRoomSnapshot: any = null;
+let latestRemoteRoomSnapshot: JamRoomSnapshot | null = null;
 
 function getRelayTopic(roomCode: string) {
   return `wavecraft_jam_v2_${roomCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')}`;
 }
 
-async function publishRealtimeEvent(roomCode: string, eventPayload: any) {
+async function publishRealtimeEvent(roomCode: string, eventPayload: JamRoomSnapshot) {
   try {
     bc?.postMessage(eventPayload);
   } catch {}
@@ -155,7 +175,7 @@ export const useJamStore = create<JamStore>((set, get) => {
       .slice(-40);
   };
 
-  const applyRoomPayload = (room: any) => {
+  const applyRoomPayload = (room: JamRoomSnapshot) => {
     const activeRoomCode = get().roomCode;
     if (!room || !activeRoomCode || room.roomCode !== activeRoomCode) return;
 

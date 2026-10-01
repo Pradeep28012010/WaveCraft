@@ -500,7 +500,7 @@ function StudioFXModalContent() {
                     onChange={(e) => setSubBassBoost(parseFloat(e.target.value))}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-[10px] text-white/40 font-semibold">
+                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
                     <span>0 dB (Flat)</span>
                     <span>+4.5 dB (Club)</span>
                     <span>+9 dB (SubMax)</span>
@@ -524,7 +524,7 @@ function StudioFXModalContent() {
                     onChange={(e) => setHarmonicDrive(parseFloat(e.target.value))}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-[10px] text-white/40 font-semibold">
+                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
                     <span>Clean Digital</span>
                     <span>Warm Tape</span>
                     <span>Rich Saturation</span>
@@ -548,7 +548,7 @@ function StudioFXModalContent() {
                     onChange={(e) => setStereoWidth(parseFloat(e.target.value))}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-[10px] text-white/40 font-semibold">
+                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
                     <span>100% Stereo</span>
                     <span>Haas Stage</span>
                     <span>3D Panoramic</span>
@@ -572,7 +572,7 @@ function StudioFXModalContent() {
                     onChange={(e) => setReverbMix(parseFloat(e.target.value))}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-[10px] text-white/40 font-semibold">
+                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
                     <span>Dry Studio</span>
                     <span>Warm Plate</span>
                     <span>Lush Cathedral</span>
@@ -596,7 +596,7 @@ function StudioFXModalContent() {
                     onChange={(e) => setTrebleAir(parseFloat(e.target.value))}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-[10px] text-white/40 font-semibold">
+                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
                     <span>-6dB (Lo-Fi)</span>
                     <span>0dB (Flat)</span>
                     <span>+6dB (Silk Air)</span>

@@ -70,7 +70,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         storage.getPlayHistory()
       ]);
       const validLiked = (likedSongs || []).filter(
-        (t: any) => t && typeof t === 'object' && t.id && t.title
+        (t: unknown): t is Track => Boolean(t && typeof t === 'object' && 'id' in t && 'title' in t)
       );
       const loadedPlaylists = (playlists || []) as Playlist[];
       set({
@@ -153,11 +153,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   renamePlaylist: (id, name) => {
-    const newPlaylists = get().playlists.map((p) =>
-      p.id === id ? { ...p, name, updatedAt: Date.now() } : p
-    );
-    set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists);
+    get().updatePlaylist(id, { name });
   },
 
   syncLivePlaylist: async (playlistId, onProgress) => {
@@ -329,84 +325,50 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   addToPlaylist: (playlistId, track) => {
-    const newPlaylists = get().playlists.map((p) => {
-      if (p.id === playlistId) {
-        return {
-          ...p,
-          tracks: [...p.tracks, track],
-          updatedAt: Date.now(),
-          coverUrl: p.coverUrl || track.thumbnail
-        };
-      }
-      return p;
+    const pl = get().playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    get().updatePlaylist(playlistId, {
+      tracks: [...pl.tracks, track],
+      coverUrl: pl.coverUrl || track.thumbnail
     });
-    set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists);
   },
 
   addTracksToPlaylist: (playlistId, tracksToAdd) => {
     if (!tracksToAdd.length) return;
-    const newPlaylists = get().playlists.map((p) => {
-      if (p.id === playlistId) {
-        return {
-          ...p,
-          tracks: [...p.tracks, ...tracksToAdd],
-          updatedAt: Date.now(),
-          coverUrl: p.coverUrl || tracksToAdd[0]?.thumbnail
-        };
-      }
-      return p;
+    const pl = get().playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    get().updatePlaylist(playlistId, {
+      tracks: [...pl.tracks, ...tracksToAdd],
+      coverUrl: pl.coverUrl || tracksToAdd[0]?.thumbnail
     });
-    set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists);
   },
 
   removeFromPlaylist: (playlistId, trackIndexOrId) => {
-    const newPlaylists = get().playlists.map((p) => {
-      if (p.id === playlistId) {
-        const newTracks = [...p.tracks];
-        if (typeof trackIndexOrId === 'number') {
-          newTracks.splice(trackIndexOrId, 1);
-        } else {
-          const idx = newTracks.findIndex((t) => t.id === trackIndexOrId);
-          if (idx !== -1) newTracks.splice(idx, 1);
-        }
-        return {
-          ...p,
-          tracks: newTracks,
-          updatedAt: Date.now()
-        };
-      }
-      return p;
-    });
-    set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists);
+    const pl = get().playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    const newTracks = [...pl.tracks];
+    if (typeof trackIndexOrId === 'number') {
+      newTracks.splice(trackIndexOrId, 1);
+    } else {
+      const idx = newTracks.findIndex((t) => t.id === trackIndexOrId);
+      if (idx !== -1) newTracks.splice(idx, 1);
+    }
+    get().updatePlaylist(playlistId, { tracks: newTracks });
   },
 
   reorderPlaylistTrack: (playlistId, from, to) => {
-    const newPlaylists = get().playlists.map((p) => {
-      if (p.id === playlistId) {
-        const newTracks = [...p.tracks];
-        const [moved] = newTracks.splice(from, 1);
-        newTracks.splice(to, 0, moved);
-        return {
-          ...p,
-          tracks: newTracks,
-          updatedAt: Date.now()
-        };
-      }
-      return p;
-    });
-    set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists);
+    const pl = get().playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    const newTracks = [...pl.tracks];
+    const [moved] = newTracks.splice(from, 1);
+    if (moved) {
+      newTracks.splice(to, 0, moved);
+      get().updatePlaylist(playlistId, { tracks: newTracks });
+    }
   },
 
   updatePlaylistCover: (playlistId, coverUrl) => {
-    const newPlaylists = get().playlists.map((p) =>
-      p.id === playlistId ? { ...p, coverUrl, coverImage: coverUrl, updatedAt: Date.now() } : p
-    );
-    set({ playlists: newPlaylists });
-    storage.savePlaylists(newPlaylists);
+    get().updatePlaylist(playlistId, { coverUrl, coverImage: coverUrl });
   },
 
   addToRecentlyPlayed: (track) => {

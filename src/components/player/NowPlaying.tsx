@@ -403,13 +403,22 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   </div>
 
                   <div className="flex items-center gap-4">
-                    <button onClick={prevTrack} className="text-white/75 hover:text-white cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={prevTrack}
+                      aria-label="Previous track"
+                      title="Previous track"
+                      className="text-white/75 hover:text-white cursor-pointer"
+                    >
                       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                       </svg>
                     </button>
                     <button
+                      type="button"
                       onClick={togglePlay}
+                      aria-label={isPlaying ? 'Pause' : 'Play'}
+                      title={isPlaying ? 'Pause' : 'Play'}
                       className="w-12 h-12 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
                     >
                       {isPlaying ? (
@@ -423,7 +432,13 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         </svg>
                       )}
                     </button>
-                    <button onClick={nextTrack} className="text-white/75 hover:text-white cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={nextTrack}
+                      aria-label="Next track"
+                      title="Next track"
+                      className="text-white/75 hover:text-white cursor-pointer"
+                    >
                       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                       </svg>
@@ -567,7 +582,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </div>
 
                     <button
+                      type="button"
                       onClick={() => toggleLike(currentTrack)}
+                      aria-label={isLiked ? 'Unlike track' : 'Like track'}
+                      title={isLiked ? 'Unlike' : 'Like'}
                       className={`w-10 h-10 p-0 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer ${
                         isLiked
                           ? 'glass-button-primary text-[var(--color-accent)] scale-105'

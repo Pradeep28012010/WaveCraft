@@ -218,6 +218,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
                 <button
                   onClick={onClose}
+                  aria-label="Close Queue"
                   className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer flex-shrink-0"
                   title="Close Queue"
                 >
@@ -377,6 +378,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button
                         onClick={() => toggleLike(currentTrack)}
+                        aria-label={isCurrentLiked ? 'Unlike Track' : 'Like Track'}
                         className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                           isCurrentLiked
                             ? 'glass-button-primary text-white'
@@ -397,6 +399,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
                       <button
                         onClick={togglePlay}
+                        aria-label={isPlaying ? 'Pause' : 'Play'}
                         className="w-8 h-8 rounded-full glass-button-primary text-white flex items-center justify-center hover:scale-105 transition-transform cursor-pointer"
                         title={isPlaying ? 'Pause' : 'Play'}
                       >
@@ -502,6 +505,8 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                               <img
                                 src={track.thumbnail || DEFAULT_THUMBNAIL}
                                 alt={track.title}
+                                loading="lazy"
+                                decoding="async"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                                 }}
@@ -522,13 +527,13 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                               <p className="text-xs font-bold text-white/90 group-hover:text-white truncate transition-colors">
                                 {track.title}
                               </p>
-                              <p className="text-[11px] text-white/50 truncate mt-0.5">
+                              <p className="text-[11px] text-white/65 truncate mt-0.5">
                                 {track.artist}
                               </p>
                             </div>
 
                             {/* Duration Readout (hidden on hover to reveal reorder controls) */}
-                            <span className="text-[11px] font-medium text-white/40 tabular-nums group-hover:hidden pr-1">
+                            <span className="text-[11px] font-medium text-white/60 tabular-nums group-hover:hidden pr-1">
                               {formatTime(track.duration || 210)}
                             </span>
 
@@ -536,9 +541,11 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                             <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
                               {idx > 0 && (
                                 <button
+                                  type="button"
                                   onClick={() => handleMoveToTop(actualIndex)}
+                                  aria-label="Play Next (Move to Top)"
                                   title="Play Next (Move to Top)"
-                                  className="w-6 h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-[var(--color-accent)] flex items-center justify-center transition-colors cursor-pointer"
+                                  className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-[var(--color-accent)] flex items-center justify-center transition-colors cursor-pointer"
                                 >
                                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
                                     <polyline points="17 11 12 6 7 11" />
@@ -549,10 +556,12 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                               )}
 
                               <button
+                                type="button"
                                 onClick={() => canMoveUp && reorderQueue(actualIndex, actualIndex - 1)}
                                 disabled={!canMoveUp}
+                                aria-label="Move track up"
                                 title="Move Up"
-                                className="w-6 h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
+                                className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
                               >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
                                   <polyline points="18 15 12 9 6 15" />
@@ -560,10 +569,12 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                               </button>
 
                               <button
+                                type="button"
                                 onClick={() => canMoveDown && reorderQueue(actualIndex, actualIndex + 1)}
                                 disabled={!canMoveDown}
+                                aria-label="Move track down"
                                 title="Move Down"
-                                className="w-6 h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
+                                className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
                               >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
                                   <polyline points="6 9 12 15 18 9" />
@@ -571,9 +582,11 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                               </button>
 
                               <button
+                                type="button"
                                 onClick={() => removeFromQueue(actualIndex)}
+                                aria-label="Remove from Queue"
                                 title="Remove from Queue"
-                                className="w-6 h-6 rounded-lg hover:bg-rose-500/20 text-white/55 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+                                className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-rose-500/20 text-white/55 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
                               >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
                                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -613,6 +626,8 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                           <img
                             src={track.thumbnail || DEFAULT_THUMBNAIL}
                             alt={track.title}
+                            loading="lazy"
+                            decoding="async"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                             }}
@@ -622,7 +637,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                             <p className="text-xs font-bold text-white/75 group-hover:text-white truncate">
                               {track.title}
                             </p>
-                            <p className="text-[11px] text-white/45 truncate mt-0.5">
+                            <p className="text-[11px] text-white/60 truncate mt-0.5">
                               {track.artist}
                             </p>
                           </div>

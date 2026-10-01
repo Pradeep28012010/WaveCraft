@@ -15,7 +15,24 @@ const FX_EQ_OFFSETS: Record<StudioFXMode, number[]> = {
   'arena-live': [3.0, 2.6, 1.2, -0.5, 0.2, 1.0, 1.8, 2.2, 2.4, 2.2]
 };
 
-let ytPlayerInstance: any = null;
+export interface YouTubePlayerInstance {
+  playVideo?: () => void;
+  pauseVideo?: () => void;
+  seekTo?: (seconds: number, allowSeekAhead?: boolean) => void;
+  setVolume?: (volume: number) => void;
+  setPlaybackRate?: (rate: number) => void;
+  getCurrentTime?: () => number;
+  getDuration?: () => number;
+  getPlayerState?: () => number;
+  destroy?: () => void;
+  mute?: () => void;
+  unMute?: () => void;
+  isMuted?: () => boolean;
+  loadVideoById?: (videoId: string | { videoId: string; startSeconds?: number }, startSeconds?: number) => void;
+  cueVideoById?: (videoId: string | { videoId: string; startSeconds?: number }, startSeconds?: number) => void;
+}
+
+let ytPlayerInstance: YouTubePlayerInstance | null = null;
 let htmlAudioElement: HTMLAudioElement | null = null;
 let activeEngine: 'audio' | 'youtube' = 'audio';
 
@@ -71,11 +88,11 @@ export function setHtmlAudioElement(el: HTMLAudioElement | null): void {
   htmlAudioElement = el;
 }
 
-export function setYtPlayerInstance(player: any): void {
+export function setYtPlayerInstance(player: YouTubePlayerInstance | null): void {
   ytPlayerInstance = player;
 }
 
-export function getPlayer(): any {
+export function getPlayer(): YouTubePlayerInstance | null {
   return ytPlayerInstance;
 }
 

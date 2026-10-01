@@ -67,10 +67,10 @@ export default function TopBar() {
   const [searchQuery, setSearchQuery] = useState(urlQuery);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const debounceTimer = useRef<any>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isListeningVoice, setIsListeningVoice] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<{ stop: () => void; abort: () => void } | null>(null);
 
   const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
   const { isPhone, toggleMobileDrawer } = useDevicePreset();
@@ -99,6 +99,19 @@ export default function TopBar() {
   useEffect(() => {
     setSearchQuery(urlQuery);
   }, [urlQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
+      }
+    };
+  }, []);
 
   const toggleVoiceSearch = () => {
     if (isListeningVoice) {
@@ -214,7 +227,9 @@ export default function TopBar() {
             />
             {searchQuery && (
               <button
+                type="button"
                 onClick={handleClear}
+                aria-label="Clear search query"
                 className="absolute right-8 p-1 rounded-full text-white/60 hover:text-white"
               >
                 ✕
@@ -223,6 +238,7 @@ export default function TopBar() {
             <button
               type="button"
               onClick={toggleVoiceSearch}
+              aria-label="Voice search"
               title="Voice / Lyric-Line Song Finder"
               className={`absolute right-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
                 isListeningVoice
@@ -262,6 +278,7 @@ export default function TopBar() {
         {/* Right: Studio FX & Sleep Timer Hub Button */}
         <button
           onClick={() => setStudioModalOpen(true)}
+          aria-label="Open Studio FX & Sleep Timer Hub"
           className={`h-10 px-3 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 flex-shrink-0 border ${
             fxMode !== 'normal' || vocalMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
               ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-lg'
@@ -282,6 +299,7 @@ export default function TopBar() {
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => navigate(-1)}
+            aria-label="Go back"
             title="Back"
             className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white cursor-pointer"
           >
@@ -291,6 +309,7 @@ export default function TopBar() {
           </button>
           <button
             onClick={() => navigate(1)}
+            aria-label="Go forward"
             title="Forward"
             className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white cursor-pointer"
           >
@@ -328,6 +347,7 @@ export default function TopBar() {
                 <button
                   type="button"
                   onClick={handleClear}
+                  aria-label="Clear search query"
                   title="Clear search"
                   className="w-7 h-7 rounded-full glass-button flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer"
                 >
@@ -340,6 +360,7 @@ export default function TopBar() {
               <button
                 type="button"
                 onClick={toggleVoiceSearch}
+                aria-label={isListeningVoice ? 'Stop voice search' : 'Start voice search'}
                 title={
                   isListeningVoice
                     ? 'Stop Voice Search'
