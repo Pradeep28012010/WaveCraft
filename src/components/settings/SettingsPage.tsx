@@ -2,6 +2,7 @@ import React from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { clearAllData } from '../../services/storage';
+import { useOfflineVault } from '../../services/offlineVault';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
@@ -60,8 +61,12 @@ export default function SettingsPage() {
     settings.setEqualizerBands(nextBands);
   };
 
-  const handleVerticalDrag = (index: number, e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+  const handleVerticalDrag = (
+    index: number,
+    e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>
+  ) => {
+    const target = e.currentTarget;
+    const rect = target.getBoundingClientRect();
     const updateFromClientY = (clientY: number) => {
       const relY = Math.max(0, Math.min(rect.height, clientY - rect.top));
       const ratio = 1 - relY / rect.height; // 1 at top (+12dB), 0 at bottom (-12dB)
@@ -69,15 +74,28 @@ export default function SettingsPage() {
       handleBandChange(index, db);
     };
 
-    updateFromClientY(e.clientY);
+    const initialY = 'touches' in e ? e.touches[0]?.clientY ?? 0 : e.clientY;
+    updateFromClientY(initialY);
 
-    const onMove = (moveEvent: MouseEvent) => updateFromClientY(moveEvent.clientY);
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    if ('touches' in e) {
+      const onTouchMove = (moveEvt: TouchEvent) => {
+        if (moveEvt.touches[0]) updateFromClientY(moveEvt.touches[0].clientY);
+      };
+      const onTouchEnd = () => {
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+      };
+      window.addEventListener('touchmove', onTouchMove, { passive: true });
+      window.addEventListener('touchend', onTouchEnd);
+    } else {
+      const onMove = (moveEvent: MouseEvent) => updateFromClientY(moveEvent.clientY);
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    }
   };
 
   const handleExport = () => {
@@ -104,6 +122,35 @@ export default function SettingsPage() {
   };
 
   const presetOptions = Object.keys(EQ_PRESETS).map((k) => ({ value: k, label: k }));
+
+  const { offlineTracks, toggleOfflineTrack, removeTrackOffline } = useOfflineVault();
+  const [isBulkDownloading, setIsBulkDownloading] = React.useState(false);
+  const [bulkProgress, setBulkProgress] = React.useState({ current: 0, total: 0 });
+
+  const handleDownloadAllLiked = async () => {
+    if (isBulkDownloading || library.likedSongs.length === 0) return;
+    const unCached = library.likedSongs.filter(
+      (t) => !offlineTracks.some((ot) => ot.id === t.id)
+    );
+    if (unCached.length === 0) {
+      alert('All liked songs are already saved in the Offline Vault!');
+      return;
+    }
+    setIsBulkDownloading(true);
+    setBulkProgress({ current: 0, total: unCached.length });
+    for (let i = 0; i < unCached.length; i++) {
+      await toggleOfflineTrack(unCached[i]);
+      setBulkProgress({ current: i + 1, total: unCached.length });
+    }
+    setIsBulkDownloading(false);
+  };
+
+  const handleClearOfflineVault = async () => {
+    if (!window.confirm(`Remove all ${offlineTracks.length} tracks from Offline Vault?`)) return;
+    for (const t of offlineTracks) {
+      await removeTrackOffline(t.id);
+    }
+  };
 
   return (
     <div className="w-full max-w-4xl mx-auto pt-2 pb-28 flex flex-col gap-8 text-white">
@@ -175,7 +222,8 @@ export default function SettingsPage() {
                   {/* Interactive Vertical Slider Track */}
                   <div
                     onMouseDown={(e) => handleVerticalDrag(idx, e)}
-                    className="relative w-6 sm:w-9 flex-1 bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 rounded-full cursor-ns-resize flex justify-center overflow-hidden"
+                    onTouchStart={(e) => handleVerticalDrag(idx, e)}
+                    className="relative w-6 sm:w-9 flex-1 bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 rounded-full cursor-ns-resize flex justify-center overflow-hidden touch-none"
                   >
                     {/* Center 0dB Reference Line */}
                     <div className="absolute left-0 right-0 top-1/2 h-px bg-white/20 pointer-events-none" />
@@ -308,8 +356,47 @@ export default function SettingsPage() {
         </GlassCard>
       </section>
 
-      {/* Storage & Backup */}
+      {/* Storage, Offline Vault & Backup */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Offline 320kbps Audio Vault Management */}
+        <GlassCard variant="liquid" padding="md" className="flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>⚡ Offline Audio Vault</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-black text-emerald-300">
+                  {offlineTracks.length} Saved
+                </span>
+              </h3>
+              <span className="text-xs font-mono font-bold text-white/60">
+                ~{(offlineTracks.length * 6.8).toFixed(1)} MB
+              </span>
+            </div>
+            <p className="text-xs text-white/55 mt-1 leading-relaxed">
+              Cached 320kbps audio files stored locally in browser storage for instant 0ms latency offline listening.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2.5 mt-6">
+            <button
+              type="button"
+              onClick={handleDownloadAllLiked}
+              disabled={isBulkDownloading || library.likedSongs.length === 0}
+              className="flex-1 min-w-[150px] py-2 px-3 rounded-xl glass-button-primary text-xs font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <span>{isBulkDownloading ? `Saving (${bulkProgress.current}/${bulkProgress.total})...` : `Download Liked (${library.likedSongs.length})`}</span>
+            </button>
+            {offlineTracks.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearOfflineVault}
+                className="py-2 px-3 rounded-xl glass-button text-xs font-bold text-rose-300 hover:bg-rose-500/20 cursor-pointer"
+              >
+                Clear Vault
+              </button>
+            )}
+          </div>
+        </GlassCard>
+
         <GlassCard variant="liquid" padding="md" className="flex flex-col justify-between">
           <div>
             <h3 className="text-lg font-bold text-white">Library Backup & Reset</h3>

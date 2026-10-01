@@ -96,6 +96,21 @@ export default function TopBar() {
       ? 'Ambient Mix'
       : 'Studio FX';
 
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     setSearchQuery(urlQuery);
   }, [urlQuery]);
@@ -275,6 +290,17 @@ export default function TopBar() {
           )}
         </div>
 
+        {/* Offline Mode Badge */}
+        {!isOnline && (
+          <span
+            className="h-10 px-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-[11px] font-black flex items-center gap-1.5 flex-shrink-0 animate-pulse"
+            title="Offline Mode — Playing from Vault"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span>Vault</span>
+          </span>
+        )}
+
         {/* Right: Studio FX & Sleep Timer Hub Button */}
         <button
           onClick={() => setStudioModalOpen(true)}
@@ -417,6 +443,17 @@ export default function TopBar() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {/* Offline Mode Indicator */}
+          {!isOnline && (
+            <span
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-extrabold text-amber-200 animate-pulse flex-shrink-0"
+              title="No internet connection — Playing tracks saved in Offline Vault"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span>Offline • Vault Ready</span>
+            </span>
+          )}
+
           {/* Active Focus Pomodoro Pill */}
           {pomodoroActive && (
             <PomodoroTimerPill onOpenStudio={() => setStudioModalOpen(true)} />
