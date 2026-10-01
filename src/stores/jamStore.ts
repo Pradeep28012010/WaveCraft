@@ -256,17 +256,18 @@ export const useJamStore = create<JamStore>((set, get) => {
     const player = usePlayerStore.getState();
 
     // 3. Collaborative "add-track"
-    if (room.eventType === 'add-track' && room.addedTrack) {
-      const exists = player.queue.some((t) => t.id === room.addedTrack.id);
+    const addedTrack = room.addedTrack;
+    if (room.eventType === 'add-track' && addedTrack) {
+      const exists = player.queue.some((t) => t.id === addedTrack.id);
       if (!exists) {
-        player.addToQueue(room.addedTrack);
+        player.addToQueue(addedTrack);
       }
       if (!player.currentTrack || room.playNow) {
         isApplyingRemoteState = true;
         lastCollaborativeTrackSwitchAt = Date.now();
         player.playTrack(
-          room.addedTrack,
-          exists ? player.queue : [...player.queue, room.addedTrack],
+          addedTrack,
+          exists ? player.queue : [...player.queue, addedTrack],
           0
         );
         setTimeout(() => {
@@ -277,18 +278,19 @@ export const useJamStore = create<JamStore>((set, get) => {
     }
 
     // 4. Collaborative "play-track" with synchronized rendezvous
-    if (room.eventType === 'play-track' && room.currentTrack) {
+    const playCurrentTrack = room.currentTrack;
+    if (room.eventType === 'play-track' && playCurrentTrack) {
       isApplyingRemoteState = true;
       lastCollaborativeTrackSwitchAt = Date.now();
       const nextQueue =
         Array.isArray(room.queue) && room.queue.length > 0
           ? room.queue
-          : player.queue.some((t) => t.id === room.currentTrack.id)
+          : player.queue.some((t) => t.id === playCurrentTrack.id)
           ? player.queue
-          : [...player.queue, room.currentTrack];
+          : [...player.queue, playCurrentTrack];
       const idx = Math.max(
         0,
-        nextQueue.findIndex((t: Track) => t.id === room.currentTrack.id)
+        nextQueue.findIndex((t: Track) => t.id === playCurrentTrack.id)
       );
 
       const delayMs = room.rendezvousAt
@@ -297,10 +299,10 @@ export const useJamStore = create<JamStore>((set, get) => {
 
       if (delayMs > 15 && delayMs < 1500) {
         setTimeout(() => {
-          player.playTrack(room.currentTrack, nextQueue, idx);
+          player.playTrack(playCurrentTrack, nextQueue, idx);
         }, delayMs);
       } else {
-        player.playTrack(room.currentTrack, nextQueue, idx);
+        player.playTrack(playCurrentTrack, nextQueue, idx);
       }
 
       setTimeout(() => {
@@ -340,23 +342,24 @@ export const useJamStore = create<JamStore>((set, get) => {
     }
 
     // 7. Host overrides
+    const curTrack = room.currentTrack;
     if (get().isHost) {
       if (
-        room.currentTrack &&
+        curTrack &&
         (!player.currentTrack ||
           (room.trackOverrideAt &&
             room.trackOverrideAt > lastCollaborativeTrackSwitchAt &&
             Date.now() - room.trackOverrideAt < 6000 &&
-            player.currentTrack.id !== room.currentTrack.id))
+            player.currentTrack.id !== curTrack.id))
       ) {
         isApplyingRemoteState = true;
         lastCollaborativeTrackSwitchAt = room.trackOverrideAt || Date.now();
         const q =
           Array.isArray(room.queue) && room.queue.length > 0
             ? room.queue
-            : [room.currentTrack];
-        const idx = Math.max(0, q.findIndex((t: Track) => t.id === room.currentTrack.id));
-        player.playTrack(room.currentTrack, q, idx);
+            : [curTrack];
+        const idx = Math.max(0, q.findIndex((t: Track) => t.id === curTrack.id));
+        player.playTrack(curTrack, q, idx);
         setTimeout(() => {
           isApplyingRemoteState = false;
         }, 250);
@@ -365,20 +368,20 @@ export const useJamStore = create<JamStore>((set, get) => {
     }
 
     // 8. Guest UltraSync Alignment with Host Anchor
-    if (!get().isHost && room.currentTrack) {
+    if (!get().isHost && curTrack) {
       isApplyingRemoteState = true;
       try {
-        const trackChanged = player.currentTrack?.id !== room.currentTrack.id;
+        const trackChanged = player.currentTrack?.id !== curTrack.id;
         if (trackChanged) {
           const nextQueue =
             Array.isArray(room.queue) && room.queue.length > 0
               ? room.queue
-              : [room.currentTrack];
+              : [curTrack];
           const idx = Math.max(
             0,
-            nextQueue.findIndex((t: Track) => t.id === room.currentTrack.id)
+            nextQueue.findIndex((t: Track) => t.id === curTrack.id)
           );
-          player.playTrack(room.currentTrack, nextQueue, idx);
+          player.playTrack(curTrack, nextQueue, idx);
         }
 
         if (room.isPlaying && !player.isPlaying) {
@@ -393,7 +396,7 @@ export const useJamStore = create<JamStore>((set, get) => {
         } else if (typeof room.currentTime === 'number') {
           // Fallback anchor synthesized from snapshot
           const fallbackAnchor: JamAudioAnchor = {
-            trackId: room.currentTrack.id,
+            trackId: curTrack.id,
             position: room.currentTime,
             hostEpoch: room.updatedAt || Date.now(),
             playbackRate: 1.0,
@@ -492,7 +495,7 @@ export const useJamStore = create<JamStore>((set, get) => {
       trackId: player.currentTrack.id,
       position: precisePos,
       hostEpoch: Date.now(),
-      playbackRate: player.playbackRate || 1.0,
+      playbackRate: player.playbackSpeed || 1.0,
       isPlaying: player.isPlaying,
       syncVersion: ++syncSeq
     };
@@ -787,7 +790,7 @@ export const useJamStore = create<JamStore>((set, get) => {
         trackId: player.currentTrack?.id || '',
         position: preciseTime,
         hostEpoch: now,
-        playbackRate: player.playbackRate || 1.0,
+        playbackRate: player.playbackSpeed || 1.0,
         isPlaying: player.isPlaying,
         syncVersion: ++syncSeq
       };
@@ -975,7 +978,7 @@ export const useJamStore = create<JamStore>((set, get) => {
         trackId: player.currentTrack?.id || '',
         position: currentPos,
         hostEpoch: now,
-        playbackRate: player.playbackRate || 1.0,
+        playbackRate: player.playbackSpeed || 1.0,
         isPlaying: nextPlaying,
         syncVersion: ++syncSeq
       };

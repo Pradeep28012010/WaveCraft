@@ -7,9 +7,8 @@
  * and echo when multiple devices play together in the same room.
  */
 
-import { getPreciseAudioTime, setPlaybackRateSteering, seekToTime, getHtmlAudioElement } from './audioEngine';
+import { getPreciseAudioTime, setPlaybackRateSteering, seekToTime } from './audioEngine';
 import { usePlayerStore } from '../stores/playerStore';
-import type { Track } from '../types';
 
 export interface JamAudioAnchor {
   trackId: string;

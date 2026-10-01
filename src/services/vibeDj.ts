@@ -2,6 +2,7 @@ import type { Track } from '../types';
 import type { VisualizerStyle } from '../components/visualizer/Visualizer';
 import { searchTracks } from './youtube';
 import { useStudioStore, type StudioFXMode } from '../stores/studioStore';
+import { usePlayerStore } from '../stores/playerStore';
 
 export interface VibeBlueprint {
   title: string;
@@ -435,7 +436,7 @@ export async function generateVibeMix(
     try {
       useStudioStore.getState().setFxMode(spec.fxMode);
       if (spec.suggestedSpeed) {
-        useStudioStore.getState().setPlaybackSpeed(spec.suggestedSpeed);
+        usePlayerStore.getState().setPlaybackSpeed(spec.suggestedSpeed);
       }
     } catch {}
   }

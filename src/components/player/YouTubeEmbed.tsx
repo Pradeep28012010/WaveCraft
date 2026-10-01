@@ -323,8 +323,8 @@ export default function YouTubeEmbed() {
       // 2. Fallback to YouTube engine if youtubeId is present
       if (track?.youtubeId && ytPlayer && window.ytPlayerReady) {
         setActiveEngine('youtube');
-        ytPlayer.loadVideoById(track.youtubeId);
-        if (state.isPlaying) ytPlayer.playVideo();
+        ytPlayer.loadVideoById?.(track.youtubeId);
+        if (state.isPlaying) ytPlayer.playVideo?.();
       } else if (track && resolvingTrackIdRef.current !== track.id) {
         // 3. Dynamically search & resolve stream if track had no valid stream
         resolvingTrackIdRef.current = track.id;
@@ -333,13 +333,13 @@ export default function YouTubeEmbed() {
             const match = found.find((t) => t.audioUrl || t.youtubeId);
             if (match && usePlayerStore.getState().currentTrack?.id === track.id) {
               if (match.audioUrl) {
-                setActiveEngine('audio');
-                audio.src = match.audioUrl;
-                audio.play().catch(() => setIsLoading(false));
+                 setActiveEngine('audio');
+                 audio.src = match.audioUrl;
+                 audio.play().catch(() => setIsLoading(false));
               } else if (match.youtubeId && getPlayer() && window.ytPlayerReady) {
                 setActiveEngine('youtube');
-                getPlayer().loadVideoById(match.youtubeId);
-                getPlayer().playVideo();
+                getPlayer()?.loadVideoById?.(match.youtubeId);
+                getPlayer()?.playVideo?.();
               }
             } else {
               setIsLoading(false);
@@ -532,8 +532,8 @@ export default function YouTubeEmbed() {
       const ytPlayer = getPlayer();
       if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.loadVideoById === 'function') {
         ytPlayer.loadVideoById(track.youtubeId);
-        if (shouldPlay) ytPlayer.playVideo();
-        else ytPlayer.pauseVideo();
+        if (shouldPlay) ytPlayer.playVideo?.();
+        else ytPlayer.pauseVideo?.();
       }
       return;
     }
@@ -615,12 +615,14 @@ export default function YouTubeEmbed() {
       } else {
         audio.pause();
       }
-    } else if (getActiveEngine() === 'youtube' && getPlayer() && window.ytPlayerReady) {
+    } else if (getActiveEngine() === 'youtube' && window.ytPlayerReady) {
       const ytPlayer = getPlayer();
-      if (isPlaying && typeof ytPlayer.playVideo === 'function') {
-        ytPlayer.playVideo();
-      } else if (!isPlaying && typeof ytPlayer.pauseVideo === 'function') {
-        ytPlayer.pauseVideo();
+      if (ytPlayer) {
+        if (isPlaying && typeof ytPlayer.playVideo === 'function') {
+          ytPlayer.playVideo();
+        } else if (!isPlaying && typeof ytPlayer.pauseVideo === 'function') {
+          ytPlayer.pauseVideo();
+        }
       }
     }
   }, [isPlaying]);
@@ -656,7 +658,7 @@ export default function YouTubeEmbed() {
         typeof ytPlayer.getCurrentTime === 'function'
       ) {
         const current = ytPlayer.getCurrentTime() || 0;
-        const duration = ytPlayer.getDuration() || currentTrack?.duration || 1;
+        const duration = ytPlayer.getDuration?.() || currentTrack?.duration || 1;
         if (duration > 0) {
           setProgress((current / duration) * 100, current);
           setDuration(duration);

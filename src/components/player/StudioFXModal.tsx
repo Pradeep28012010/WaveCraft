@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -91,7 +91,6 @@ function StudioFXModalContent() {
     vocalMode,
     spatialOrbitAuto,
     spatialOrbitSpeed,
-    spatialRoomSize,
     spatialManualPos,
     subBassBoost,
     harmonicDrive,
@@ -101,7 +100,6 @@ function StudioFXModalContent() {
     preservePitch,
     ambientVolumes,
     pomodoroActive,
-    pomodoroMode,
     pomodoroSeconds,
     completedSessions,
     setFxMode,
