@@ -4,6 +4,8 @@ import { usePlayerStore } from './playerStore';
 import { unlockAudioEngine } from '../components/player/YouTubeEmbed';
 import { getPreciseAudioTime, seekToTime } from '../services/audioEngine';
 import { jamSyncEngine, type JamAudioAnchor } from '../services/jamSyncEngine';
+import { jamWebRtc } from '../services/jamWebRtc';
+import { searchTracks } from '../services/youtube';
 
 export interface JamReaction {
   id: string;
@@ -36,7 +38,20 @@ export interface JamRoomSnapshot {
   reactions?: JamReaction[];
   message?: JamMessage;
   messages?: JamMessage[];
-  eventType?: 'add-track' | 'play-track' | 'toggle-play' | 'sync-state' | 'sync-anchor' | 'sync-ping' | 'sync-pong' | string;
+  eventType?:
+    | 'add-track'
+    | 'play-track'
+    | 'toggle-play'
+    | 'sync-state'
+    | 'sync-anchor'
+    | 'sync-ping'
+    | 'sync-pong'
+    | 'sync-beep'
+    | 'webrtc-signal'
+    | 'p2p-ping'
+    | 'p2p-pong'
+    | 'p2p-anchor'
+    | string;
   addedTrack?: Track;
   currentTrack?: Track | null;
   queue?: Track[];
@@ -54,6 +69,7 @@ export interface JamRoomSnapshot {
   guestId?: string;
   rendezvousAt?: number;
   serverTime?: number;
+  signal?: any;
 }
 
 interface JamStore {
@@ -79,6 +95,7 @@ interface JamStore {
   togglePlayInJam: () => Promise<void>;
   skipTrackInJam: () => Promise<void>;
   syncNow: () => void;
+  triggerSyncClick: () => void;
 }
 
 const getInitialUserId = () => {
@@ -106,28 +123,49 @@ let pollInterval: ReturnType<typeof setInterval> | null = null;
 let hostPulseInterval: ReturnType<typeof setInterval> | null = null;
 let guestPingInterval: ReturnType<typeof setInterval> | null = null;
 let sseSource: EventSource | null = null;
+let serverSseSource: EventSource | null = null;
 let isApplyingRemoteState = false;
 let lastCollaborativeTrackSwitchAt = 0;
 let latestRemoteRoomSnapshot: JamRoomSnapshot | null = null;
 let syncSeq = 1;
+let lastRelayPulseAt = 0;
 
 function getRelayTopic(roomCode: string) {
   return `wavecraft_jam_v2_${roomCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')}`;
 }
 
 function publishRealtimeEvent(roomCode: string, eventPayload: JamRoomSnapshot) {
+  // 1. Direct WebRTC P2P DataChannel (1ms - 4ms latency on LAN / Wi-Fi)
+  if (jamWebRtc.isConnected()) {
+    jamWebRtc.send(eventPayload);
+  }
+
+  // 2. Local-tab BroadcastChannel
   try {
     bc?.postMessage(eventPayload);
   } catch {}
 
-  try {
-    const topic = getRelayTopic(roomCode);
-    fetch(`https://ntfy.sh/${topic}`, {
-      method: 'POST',
-      body: JSON.stringify(eventPayload),
-      headers: { 'Title': 'JamSync', 'Priority': 'high' }
-    }).catch(() => {});
-  } catch {}
+  // 3. Local API server broadcast (via SSE to all room clients)
+  fetch(`/api/music?action=jam&op=sync&room=${encodeURIComponent(roomCode)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(eventPayload)
+  }).catch(() => {});
+
+  // 4. Cloud Relay (throttled to max 1 per 6s for continuous pulses, instant for actions)
+  const isHighFreqPulse = eventPayload.eventType === 'sync-anchor' || eventPayload.eventType === 'sync-ping';
+  const now = Date.now();
+  if (!isHighFreqPulse || now - lastRelayPulseAt > 6500) {
+    if (isHighFreqPulse) lastRelayPulseAt = now;
+    try {
+      const topic = getRelayTopic(roomCode);
+      fetch(`https://ntfy.sh/${topic}`, {
+        method: 'POST',
+        body: JSON.stringify(eventPayload),
+        headers: { 'Title': 'JamSync', 'Priority': 'high' }
+      }).catch(() => {});
+    } catch {}
+  }
 }
 
 export const useJamStore = create<JamStore>((set, get) => {
@@ -197,9 +235,49 @@ export const useJamStore = create<JamStore>((set, get) => {
 
     latestRemoteRoomSnapshot = room;
 
-    // 1. High-Precision Micro-NTP Handshake Routing
+    // WebRTC Signal Forwarding
+    if (room.eventType === 'webrtc-signal' && room.signal) {
+      jamWebRtc.handleRemoteSignal(room.signal);
+      return;
+    }
+
+    // Direct P2P Micro-NTP Handshake
+    if (room.eventType === 'p2p-ping' && get().isHost) {
+      jamWebRtc.send({
+        roomCode: activeRoomCode,
+        eventType: 'p2p-pong',
+        clientSendEpoch: room.clientSendEpoch,
+        hostReceiveEpoch: Date.now()
+      });
+      return;
+    }
+
+    if (room.eventType === 'p2p-pong' && !get().isHost) {
+      if (typeof room.clientSendEpoch === 'number' && typeof room.hostReceiveEpoch === 'number') {
+        jamSyncEngine.handlePingPongResponse(
+          room.clientSendEpoch,
+          room.hostReceiveEpoch,
+          room.hostReceiveEpoch,
+          Date.now(),
+          true
+        );
+      }
+      return;
+    }
+
+    if (room.eventType === 'p2p-anchor' && room.syncAnchor && !get().isHost) {
+      jamSyncEngine.updateAnchor(room.syncAnchor);
+      return;
+    }
+
+    // Dual-Device Acoustic Sync Click Beep
+    if (room.eventType === 'sync-beep' && room.rendezvousAt) {
+      jamSyncEngine.playAcousticSyncBeep(room.rendezvousAt);
+      return;
+    }
+
+    // Standard Micro-NTP Ping-Pong Routing
     if (room.eventType === 'sync-ping' && get().isHost && room.guestId) {
-      // Host immediately replies with ping response containing host epochs
       publishRealtimeEvent(activeRoomCode, {
         roomCode: activeRoomCode,
         eventType: 'sync-pong',
@@ -217,13 +295,14 @@ export const useJamStore = create<JamStore>((set, get) => {
           room.clientSendEpoch,
           room.hostReceiveEpoch,
           room.hostSendEpoch || room.hostReceiveEpoch,
-          Date.now()
+          Date.now(),
+          false
         );
       }
       return;
     }
 
-    // 2. Continuous Sub-Millisecond Audio Sync Anchor
+    // Continuous Sub-Millisecond Audio Sync Anchor
     if (room.syncAnchor && !get().isHost) {
       jamSyncEngine.updateAnchor(room.syncAnchor);
     }
@@ -293,42 +372,54 @@ export const useJamStore = create<JamStore>((set, get) => {
         nextQueue.findIndex((t: Track) => t.id === playCurrentTrack.id)
       );
 
+      if (room.syncAnchor) {
+        jamSyncEngine.updateAnchor(room.syncAnchor);
+      }
+
+      // Immediately pass track to playerStore so YouTubeEmbed can set audio.src & pre-buffer.
+      // YouTubeEmbed will delay actual audio.play() until rendezvousAt for acoustic lockstep.
+      player.playTrack(playCurrentTrack, nextQueue, idx);
+
+      setTimeout(() => {
+        isApplyingRemoteState = false;
+      }, 350);
+      return;
+    }
+
+    // 5. Collaborative "toggle-play" with synchronized rendezvous
+    if (room.eventType === 'toggle-play' && typeof room.isPlaying === 'boolean') {
+      isApplyingRemoteState = true;
+      lastCollaborativeTrackSwitchAt = Date.now();
+
+      if (room.syncAnchor && !get().isHost) {
+        jamSyncEngine.updateAnchor(room.syncAnchor);
+      }
+
+      const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
       const delayMs = room.rendezvousAt
-        ? Math.max(0, room.rendezvousAt - jamSyncEngine.getSynchronizedHostEpoch())
+        ? Math.max(0, room.rendezvousAt - hostNow)
         : 0;
 
-      if (delayMs > 15 && delayMs < 1500) {
-        setTimeout(() => {
-          player.playTrack(playCurrentTrack, nextQueue, idx);
-        }, delayMs);
+      const executeToggle = () => {
+        if (room.isPlaying && !player.isPlaying) {
+          player.resume();
+        } else if (!room.isPlaying && player.isPlaying) {
+          player.pause();
+          if (!get().isHost) {
+            jamSyncEngine.stopPLL();
+          }
+        }
+      };
+
+      if (delayMs > 10 && delayMs < 1500) {
+        setTimeout(executeToggle, delayMs);
       } else {
-        player.playTrack(playCurrentTrack, nextQueue, idx);
+        executeToggle();
       }
 
       setTimeout(() => {
         isApplyingRemoteState = false;
       }, 250);
-      return;
-    }
-
-    // 5. Collaborative "toggle-play"
-    if (room.eventType === 'toggle-play' && typeof room.isPlaying === 'boolean') {
-      isApplyingRemoteState = true;
-      lastCollaborativeTrackSwitchAt = Date.now();
-      if (room.isPlaying && !player.isPlaying) {
-        player.resume();
-        if (room.syncAnchor && !get().isHost) {
-          jamSyncEngine.updateAnchor(room.syncAnchor);
-        }
-      } else if (!room.isPlaying && player.isPlaying) {
-        player.pause();
-        if (!get().isHost) {
-          jamSyncEngine.stopPLL();
-        }
-      }
-      setTimeout(() => {
-        isApplyingRemoteState = false;
-      }, 200);
       return;
     }
 
@@ -394,7 +485,6 @@ export const useJamStore = create<JamStore>((set, get) => {
         if (room.syncAnchor) {
           jamSyncEngine.updateAnchor(room.syncAnchor);
         } else if (typeof room.currentTime === 'number') {
-          // Fallback anchor synthesized from snapshot
           const fallbackAnchor: JamAudioAnchor = {
             trackId: curTrack.id,
             position: room.currentTime,
@@ -423,12 +513,62 @@ export const useJamStore = create<JamStore>((set, get) => {
     if (bc) {
       bc.onmessage = (ev) => {
         if (ev.data && ev.data.roomCode === get().roomCode) {
+          jamSyncEngine.setTransport('broadcast');
           applyRoomPayload(ev.data);
         }
       };
     }
 
-    // 2. Cross-device EventSource (SSE) relay for instant global sync
+    // 2. WebRTC Peer-to-Peer DataChannel (1ms - 4ms latency on same Wi-Fi)
+    jamWebRtc.init(
+      get().userId,
+      get().isHost,
+      (data) => {
+        jamSyncEngine.setTransport('webrtc-p2p');
+        applyRoomPayload(data);
+      },
+      (status) => {
+        if (status === 'connected') {
+          jamSyncEngine.setTransport('webrtc-p2p');
+        }
+      },
+      (signal) => {
+        publishRealtimeEvent(roomCode, {
+          roomCode,
+          eventType: 'webrtc-signal',
+          signal
+        } as any);
+      }
+    );
+
+    // 3. Local API Server SSE Stream
+    if (serverSseSource) {
+      try {
+        serverSseSource.close();
+      } catch {}
+      serverSseSource = null;
+    }
+    if (typeof EventSource !== 'undefined') {
+      try {
+        const es = new EventSource(
+          `/api/music?action=jam&op=stream&room=${encodeURIComponent(roomCode)}`
+        );
+        es.onmessage = (ev) => {
+          try {
+            const data = JSON.parse(ev.data);
+            if (data && data.roomCode === get().roomCode) {
+              if (!jamWebRtc.isConnected()) {
+                jamSyncEngine.setTransport('server-sse');
+              }
+              applyRoomPayload(data);
+            }
+          } catch {}
+        };
+        serverSseSource = es;
+      } catch {}
+    }
+
+    // 4. Cross-device EventSource (SSE) relay fallback
     if (sseSource) {
       try {
         sseSource.close();
@@ -438,24 +578,6 @@ export const useJamStore = create<JamStore>((set, get) => {
 
     const topic = getRelayTopic(roomCode);
 
-    // Fetch recent buffered messages on topic
-    fetch(`https://ntfy.sh/${topic}/json?poll=1&since=10m`)
-      .then(async (res) => {
-        if (!res.ok) return;
-        const text = await res.text();
-        const lines = text.split('\n').filter(Boolean);
-        for (const line of lines) {
-          try {
-            const env = JSON.parse(line);
-            if (env.event === 'message' && env.message) {
-              const payload = JSON.parse(env.message);
-              applyRoomPayload(payload);
-            }
-          } catch {}
-        }
-      })
-      .catch(() => {});
-
     if (typeof EventSource !== 'undefined') {
       try {
         const es = new EventSource(`https://ntfy.sh/${topic}/sse`);
@@ -464,6 +586,9 @@ export const useJamStore = create<JamStore>((set, get) => {
             const data = JSON.parse(ev.data);
             const inner = data.message ? JSON.parse(data.message) : data;
             if (inner && inner.roomCode === get().roomCode) {
+              if (!jamWebRtc.isConnected() && !serverSseSource) {
+                jamSyncEngine.setTransport('relay');
+              }
               applyRoomPayload(inner);
             }
           } catch {}
@@ -476,6 +601,16 @@ export const useJamStore = create<JamStore>((set, get) => {
   const sendSyncPing = () => {
     const { roomCode, isHost, userId } = get();
     if (!roomCode || isHost) return;
+
+    if (jamWebRtc.isConnected()) {
+      jamWebRtc.send({
+        roomCode,
+        eventType: 'p2p-ping',
+        clientSendEpoch: Date.now()
+      });
+      return;
+    }
+
     publishRealtimeEvent(roomCode, {
       roomCode,
       eventType: 'sync-ping',
@@ -500,6 +635,17 @@ export const useJamStore = create<JamStore>((set, get) => {
       syncVersion: ++syncSeq
     };
 
+    // If P2P DataChannel is open, stream directly to peer with zero server overhead
+    if (jamWebRtc.isConnected()) {
+      jamWebRtc.send({
+        roomCode,
+        eventType: 'p2p-anchor',
+        syncAnchor: anchor,
+        updatedAt: anchor.hostEpoch
+      });
+      return;
+    }
+
     publishRealtimeEvent(roomCode, {
       roomCode,
       eventType: 'sync-anchor',
@@ -518,19 +664,19 @@ export const useJamStore = create<JamStore>((set, get) => {
       connectRealtimeStreams(currentCode);
     }
 
-    // 1. High-frequency 400ms Audio Anchor Pulse for Host
+    // 1. High-frequency 60ms Audio Anchor Pulse for Host
     hostPulseInterval = setInterval(() => {
       if (get().isHost) {
         broadcastHostAnchorPulse();
       }
-    }, 400);
+    }, 60);
 
-    // 2. High-frequency 1600ms micro-NTP ping for Guest
+    // 2. High-frequency micro-NTP ping for Guest
     guestPingInterval = setInterval(() => {
       if (!get().isHost) {
         sendSyncPing();
       }
-    }, 1600);
+    }, 1000);
 
     // 3. Fallback server state sync
     pollInterval = setInterval(async () => {
@@ -552,7 +698,7 @@ export const useJamStore = create<JamStore>((set, get) => {
           }
         }
       } catch {}
-    }, 2000);
+    }, 2500);
   };
 
   return {
@@ -676,12 +822,19 @@ export const useJamStore = create<JamStore>((set, get) => {
         clearInterval(guestPingInterval);
         guestPingInterval = null;
       }
+      if (serverSseSource) {
+        try {
+          serverSseSource.close();
+        } catch {}
+        serverSseSource = null;
+      }
       if (sseSource) {
         try {
           sseSource.close();
         } catch {}
         sseSource = null;
       }
+      jamWebRtc.cleanup();
       jamSyncEngine.stopPLL();
 
       if (roomCode && userId) {
@@ -714,73 +867,64 @@ export const useJamStore = create<JamStore>((set, get) => {
         sender: userName,
         createdAt: now
       };
+
       set((s) => ({ reactions: mergeReactions([...s.reactions, reaction]) }));
 
       publishRealtimeEvent(roomCode, {
         roomCode,
         eventType: 'react',
-        userId,
-        userName,
-        reaction
+        reaction,
+        updatedAt: now
       });
 
       try {
-        const res = await fetch(
+        await fetch(
           `/api/music?action=jam&op=react&room=${encodeURIComponent(roomCode)}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: reaction.id, emoji, userId, userName })
+            body: JSON.stringify({ emoji, userId, userName, id: reaction.id })
           }
         );
-        if (res.ok) {
-          const data = await res.json();
-          applyRoomPayload(data);
-        }
       } catch {}
     },
 
     sendMessage: async (text) => {
-      const clean = text.trim();
       const { roomCode, userId, userName } = get();
-      if (!clean || !roomCode) return;
+      if (!roomCode || !text.trim()) return;
 
       const now = Date.now();
-      const message: JamMessage = {
-        id: `msg-${now}-${Math.random().toString(36).slice(2, 7)}`,
+      const msg: JamMessage = {
+        id: `chat-${now}-${Math.random().toString(36).slice(2, 7)}`,
         sender: userName,
-        text: clean.slice(0, 240),
+        text: text.trim().slice(0, 240),
         createdAt: now
       };
-      set((s) => ({ messages: mergeMessages([...s.messages, message]) }));
+
+      set((s) => ({ messages: mergeMessages([...s.messages, msg]) }));
 
       publishRealtimeEvent(roomCode, {
         roomCode,
         eventType: 'chat',
-        userId,
-        userName,
-        message
+        message: msg,
+        updatedAt: now
       });
 
       try {
-        const res = await fetch(
+        await fetch(
           `/api/music?action=jam&op=chat&room=${encodeURIComponent(roomCode)}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: message.id, text: message.text, userId, userName })
+            body: JSON.stringify({ text: msg.text, userId, userName, id: msg.id })
           }
         );
-        if (res.ok) {
-          const data = await res.json();
-          applyRoomPayload(data);
-        }
       } catch {}
     },
 
     pushHostState: async () => {
-      const { roomCode, userId, userName } = get();
-      if (!roomCode) return;
+      const { roomCode, isHost, userId, userName } = get();
+      if (!roomCode || !isHost) return;
 
       const player = usePlayerStore.getState();
       const now = Date.now();
@@ -804,69 +948,57 @@ export const useJamStore = create<JamStore>((set, get) => {
         currentTrack: player.currentTrack,
         isPlaying: player.isPlaying,
         currentTime: preciseTime,
-        syncAnchor,
         queue: player.queue.slice(0, 30),
-        members: mergeMembers(get().members),
-        reactions: get().reactions,
-        messages: get().messages.slice(-25),
+        syncAnchor,
         updatedAt: now
       };
 
       publishRealtimeEvent(roomCode, payload);
-
-      try {
-        const res = await fetch(
-          `/api/music?action=jam&op=sync&room=${encodeURIComponent(roomCode)}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          applyRoomPayload(data);
-        }
-      } catch {}
     },
 
-    addTrackToJam: async (track, playNow = false) => {
+    addTrackToJam: async (track, shouldPlay = false) => {
       unlockAudioEngine();
-      const { roomCode, isHost, userId, userName } = get();
+      const { roomCode, userId, userName, isHost } = get();
       const player = usePlayerStore.getState();
 
-      const alreadyInQueue = player.queue.some((t) => t.id === track.id);
-      if (!alreadyInQueue) {
-        player.addToQueue(track);
+      let playableTrack = track;
+      if (!playableTrack.audioUrl && playableTrack.title) {
+        try {
+          const res = await searchTracks(`${playableTrack.title} ${playableTrack.artist}`);
+          const match = res.find((t) => t.audioUrl);
+          if (match && match.audioUrl) {
+            playableTrack = { ...playableTrack, audioUrl: match.audioUrl };
+          }
+        } catch {}
       }
-
-      const shouldStartPlayback = !player.currentTrack || playNow;
-      if (shouldStartPlayback) {
-        lastCollaborativeTrackSwitchAt = Date.now();
-        const updatedQueue = usePlayerStore.getState().queue;
-        const idx = Math.max(0, updatedQueue.findIndex((t) => t.id === track.id));
-        player.playTrack(track, updatedQueue.length > 0 ? updatedQueue : [track], idx);
-      }
-
-      if (!roomCode) return;
 
       const now = Date.now();
       const sysMsg: JamMessage = {
         id: `sys-add-${now}-${Math.random().toString(36).slice(2, 6)}`,
         sender: 'WaveJam',
-        text: `🎵 ${userName} ${shouldStartPlayback ? 'started playing' : 'queued'} "${track.title}"`,
+        text: `🎵 ${userName} ${shouldPlay ? 'started playing' : 'added'} "${playableTrack.title}"`,
         isSystem: true,
         createdAt: now
       };
+
       set((s) => ({ messages: mergeMessages([...s.messages, sysMsg]) }));
+
+      if (shouldPlay) {
+        await get().playTrackInJam(playableTrack);
+        return;
+      }
+
+      player.addToQueue(playableTrack);
+
+      if (!roomCode) return;
 
       publishRealtimeEvent(roomCode, {
         roomCode,
         eventType: 'add-track',
         userId,
         userName,
-        addedTrack: track,
-        playNow: shouldStartPlayback,
+        addedTrack: playableTrack,
+        playNow: shouldPlay,
         currentTrack: usePlayerStore.getState().currentTrack,
         isPlaying: usePlayerStore.getState().isPlaying,
         currentTime: getPreciseAudioTime(),
@@ -876,18 +1008,14 @@ export const useJamStore = create<JamStore>((set, get) => {
       });
 
       try {
-        const res = await fetch(
+        await fetch(
           `/api/music?action=jam&op=add-track&room=${encodeURIComponent(roomCode)}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ track, playNow: shouldStartPlayback, userId, userName })
+            body: JSON.stringify({ track: playableTrack, playNow: shouldPlay, userId, userName })
           }
         );
-        if (res.ok) {
-          const data = await res.json();
-          applyRoomPayload(data);
-        }
       } catch {}
 
       if (isHost) {
@@ -900,29 +1028,44 @@ export const useJamStore = create<JamStore>((set, get) => {
       const { roomCode, userId, userName } = get();
       const player = usePlayerStore.getState();
 
-      lastCollaborativeTrackSwitchAt = Date.now();
-      const nextQueue = player.queue.some((t) => t.id === track.id)
-        ? player.queue
-        : [...player.queue, track];
-      const idx = Math.max(0, nextQueue.findIndex((t) => t.id === track.id));
-      player.playTrack(track, nextQueue, idx);
+      // Resolve 320k direct stream if missing so both devices play on Web Audio
+      let playableTrack = track;
+      if (!playableTrack.audioUrl && playableTrack.title) {
+        try {
+          const found = await searchTracks(`${playableTrack.title} ${playableTrack.artist}`);
+          const match = found.find((t) => t.audioUrl);
+          if (match && match.audioUrl) {
+            playableTrack = { ...playableTrack, audioUrl: match.audioUrl };
+          }
+        } catch {}
+      }
 
-      if (!roomCode) return;
+      lastCollaborativeTrackSwitchAt = Date.now();
+      const nextQueue = player.queue.some((t) => t.id === playableTrack.id)
+        ? player.queue
+        : [...player.queue, playableTrack];
+      const idx = Math.max(0, nextQueue.findIndex((t) => t.id === playableTrack.id));
+
+      if (!roomCode) {
+        player.playTrack(playableTrack, nextQueue, idx);
+        return;
+      }
 
       const now = Date.now();
-      const rendezvousAt = now + 240; // Synchronized kickoff epoch
+      // Synchronized kickoff rendezvous (480ms allows network delivery + pre-buffering)
+      const rendezvousAt = now + 480;
 
       const sysMsg: JamMessage = {
         id: `sys-play-${now}-${Math.random().toString(36).slice(2, 6)}`,
         sender: 'WaveJam',
-        text: `▶️ ${userName} switched the room track to "${track.title}"`,
+        text: `▶️ ${userName} switched room track to "${playableTrack.title}"`,
         isSystem: true,
         createdAt: now
       };
       set((s) => ({ messages: mergeMessages([...s.messages, sysMsg]) }));
 
       const syncAnchor: JamAudioAnchor = {
-        trackId: track.id,
+        trackId: playableTrack.id,
         position: 0,
         hostEpoch: rendezvousAt,
         playbackRate: 1.0,
@@ -931,12 +1074,14 @@ export const useJamStore = create<JamStore>((set, get) => {
         rendezvousAt
       };
 
+      jamSyncEngine.updateAnchor(syncAnchor);
+
       publishRealtimeEvent(roomCode, {
         roomCode,
         eventType: 'play-track',
         userId,
         userName,
-        currentTrack: track,
+        currentTrack: playableTrack,
         isPlaying: true,
         currentTime: 0,
         trackOverrideAt: now,
@@ -947,20 +1092,9 @@ export const useJamStore = create<JamStore>((set, get) => {
         updatedAt: now
       });
 
-      try {
-        const res = await fetch(
-          `/api/music?action=jam&op=play-track&room=${encodeURIComponent(roomCode)}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ track, userId, userName, syncAnchor, rendezvousAt })
-          }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          applyRoomPayload(data);
-        }
-      } catch {}
+      // Set the track on player immediately so local YouTubeEmbed also sets audio.src, pre-buffers,
+      // and holds audio.play() until rendezvousAt for simultaneous kickoff.
+      player.playTrack(playableTrack, nextQueue, idx);
     },
 
     togglePlayInJam: async () => {
@@ -968,20 +1102,30 @@ export const useJamStore = create<JamStore>((set, get) => {
       const { roomCode, userId, userName } = get();
       const player = usePlayerStore.getState();
       const nextPlaying = !player.isPlaying;
-      player.togglePlay();
 
-      if (!roomCode) return;
+      if (!roomCode) {
+        player.togglePlay();
+        return;
+      }
+
       const now = Date.now();
       const currentPos = getPreciseAudioTime();
+      // Synchronized rendezvous: 100ms for pause, 280ms for resume
+      const rendezvousAt = now + (nextPlaying ? 280 : 100);
 
       const syncAnchor: JamAudioAnchor = {
         trackId: player.currentTrack?.id || '',
         position: currentPos,
-        hostEpoch: now,
+        hostEpoch: nextPlaying ? rendezvousAt : now,
         playbackRate: player.playbackSpeed || 1.0,
         isPlaying: nextPlaying,
-        syncVersion: ++syncSeq
+        syncVersion: ++syncSeq,
+        rendezvousAt: nextPlaying ? rendezvousAt : undefined
       };
+
+      if (!get().isHost) {
+        jamSyncEngine.updateAnchor(syncAnchor);
+      }
 
       publishRealtimeEvent(roomCode, {
         roomCode,
@@ -990,24 +1134,20 @@ export const useJamStore = create<JamStore>((set, get) => {
         userName,
         isPlaying: nextPlaying,
         currentTime: currentPos,
+        rendezvousAt,
         syncAnchor,
         trackOverrideAt: now,
         updatedAt: now
       });
 
-      try {
-        await fetch(`/api/music?action=jam&op=sync&room=${encodeURIComponent(roomCode)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            userName,
-            isPlaying: nextPlaying,
-            currentTime: currentPos,
-            syncAnchor
-          })
-        });
-      } catch {}
+      const waitMs = Math.max(0, rendezvousAt - Date.now());
+      setTimeout(() => {
+        if (nextPlaying) {
+          player.resume();
+        } else {
+          player.pause();
+        }
+      }, waitMs);
     },
 
     skipTrackInJam: async () => {
@@ -1020,6 +1160,19 @@ export const useJamStore = create<JamStore>((set, get) => {
         await get().playTrackInJam(candidate);
       } else {
         player.nextTrack();
+      }
+    },
+
+    triggerSyncClick: () => {
+      const { roomCode } = get();
+      const clickEpoch = jamSyncEngine.getSynchronizedHostEpoch() + 180;
+      jamSyncEngine.playAcousticSyncBeep(clickEpoch);
+      if (roomCode) {
+        publishRealtimeEvent(roomCode, {
+          roomCode,
+          eventType: 'sync-beep',
+          rendezvousAt: clickEpoch
+        });
       }
     },
 

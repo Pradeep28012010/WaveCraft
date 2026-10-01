@@ -23,6 +23,7 @@ import {
   unlockAudioEngine,
   seekToTime
 } from '../../services/audioEngine';
+import { jamSyncEngine } from '../../services/jamSyncEngine';
 import type { Track } from '../../types';
 
 declare global {
@@ -487,22 +488,39 @@ export default function YouTubeEmbed() {
 
       if (audio.src !== targetUrl) {
         audio.src = targetUrl;
+        audio.load();
       }
       applyStudioFXToAudio(audio, useStudioStore.getState().fxMode, playbackSpeed || 1);
 
       if (shouldPlay) {
-        resumeAudioContextIfNeeded();
-        audio
-          .play()
-          .then(() => {
-            setSmoothOutputGain(audio, getTargetOutputGain(), 0.03);
-          })
-          .catch((err) => {
-            setIsLoading(false);
-            if (err?.name === 'NotAllowedError') {
-              usePlayerStore.getState().pause();
-            }
-          });
+        const activeAnchor = jamSyncEngine.getActiveAnchor();
+        const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
+        const waitMs =
+          activeAnchor?.rendezvousAt && activeAnchor.rendezvousAt > hostNow
+            ? activeAnchor.rendezvousAt - hostNow
+            : 0;
+
+        const executePlay = () => {
+          resumeAudioContextIfNeeded();
+          audio
+            .play()
+            .then(() => {
+              setSmoothOutputGain(audio, getTargetOutputGain(), 0.03);
+              jamSyncEngine.clearRendezvous();
+            })
+            .catch((err) => {
+              setIsLoading(false);
+              if (err?.name === 'NotAllowedError') {
+                usePlayerStore.getState().pause();
+              }
+            });
+        };
+
+        if (waitMs > 15 && waitMs < 2500) {
+          setTimeout(executePlay, waitMs);
+        } else {
+          executePlay();
+        }
       }
     };
 
@@ -532,8 +550,24 @@ export default function YouTubeEmbed() {
       const ytPlayer = getPlayer();
       if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.loadVideoById === 'function') {
         ytPlayer.loadVideoById(track.youtubeId);
-        if (shouldPlay) ytPlayer.playVideo?.();
-        else ytPlayer.pauseVideo?.();
+        if (shouldPlay) {
+          const activeAnchor = jamSyncEngine.getActiveAnchor();
+          const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
+          const waitMs =
+            activeAnchor?.rendezvousAt && activeAnchor.rendezvousAt > hostNow
+              ? activeAnchor.rendezvousAt - hostNow
+              : 0;
+          if (waitMs > 15 && waitMs < 2500) {
+            setTimeout(() => {
+              ytPlayer.playVideo?.();
+              jamSyncEngine.clearRendezvous();
+            }, waitMs);
+          } else {
+            ytPlayer.playVideo?.();
+          }
+        } else {
+          ytPlayer.pauseVideo?.();
+        }
       }
       return;
     }
@@ -594,23 +628,40 @@ export default function YouTubeEmbed() {
       if (isPlaying) {
         if (!audio.src && currentTrack.audioUrl) {
           audio.src = currentTrack.audioUrl;
+          audio.load();
         }
-        resumeAudioContextIfNeeded();
         if (audio.paused) {
           if (hasWebAudioGain()) {
             setSmoothOutputGain(audio, 0.001, 0.008);
           }
-          audio
-            .play()
-            .then(() => {
-              setSmoothOutputGain(audio, getTargetOutputGain(), 0.03);
-            })
-            .catch((err) => {
-              setIsLoading(false);
-              if (err?.name === 'NotAllowedError') {
-                usePlayerStore.getState().pause();
-              }
-            });
+          const activeAnchor = jamSyncEngine.getActiveAnchor();
+          const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
+          const waitMs =
+            activeAnchor?.rendezvousAt && activeAnchor.rendezvousAt > hostNow
+              ? activeAnchor.rendezvousAt - hostNow
+              : 0;
+
+          const executeResume = () => {
+            resumeAudioContextIfNeeded();
+            audio
+              .play()
+              .then(() => {
+                setSmoothOutputGain(audio, getTargetOutputGain(), 0.03);
+                jamSyncEngine.clearRendezvous();
+              })
+              .catch((err) => {
+                setIsLoading(false);
+                if (err?.name === 'NotAllowedError') {
+                  usePlayerStore.getState().pause();
+                }
+              });
+          };
+
+          if (waitMs > 15 && waitMs < 2500) {
+            setTimeout(executeResume, waitMs);
+          } else {
+            executeResume();
+          }
         }
       } else {
         audio.pause();
@@ -619,9 +670,23 @@ export default function YouTubeEmbed() {
       const ytPlayer = getPlayer();
       if (ytPlayer) {
         if (isPlaying && typeof ytPlayer.playVideo === 'function') {
-          ytPlayer.playVideo();
+          const activeAnchor = jamSyncEngine.getActiveAnchor();
+          const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
+          const waitMs =
+            activeAnchor?.rendezvousAt && activeAnchor.rendezvousAt > hostNow
+              ? activeAnchor.rendezvousAt - hostNow
+              : 0;
+
+          if (waitMs > 15 && waitMs < 2500) {
+            setTimeout(() => {
+              ytPlayer.playVideo?.();
+              jamSyncEngine.clearRendezvous();
+            }, waitMs);
+          } else {
+            ytPlayer.playVideo?.();
+          }
         } else if (!isPlaying && typeof ytPlayer.pauseVideo === 'function') {
-          ytPlayer.pauseVideo();
+          ytPlayer.pauseVideo?.();
         }
       }
     }

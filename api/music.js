@@ -131,6 +131,10 @@ export default async function handler(req, res) {
       if (!roomCode) {
         return res.status(400).json({ error: 'Room code required' });
       }
+      const op = url.searchParams.get('op') || (req.method === 'POST' ? 'sync' : 'get');
+      if (op === 'stream') {
+        return handleJamRoomSseStream(req, res, roomCode);
+      }
       const result = await handleJamRoomRequest(req, url, roomCode);
       return res.status(200).json(result);
     }
@@ -143,6 +147,56 @@ export default async function handler(req, res) {
 }
 
 const jamRooms = new Map();
+const roomSubscribers = new Map();
+
+function broadcastToRoom(roomCode, data) {
+  const subs = roomSubscribers.get(roomCode);
+  if (!subs || subs.size === 0) return;
+  const msg = `data: ${JSON.stringify(data)}\n\n`;
+  for (const client of subs) {
+    try {
+      if (typeof client.write === 'function') {
+        client.write(msg);
+      }
+    } catch {
+      subs.delete(client);
+    }
+  }
+}
+
+function handleJamRoomSseStream(req, res, roomCode) {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  if (!roomSubscribers.has(roomCode)) {
+    roomSubscribers.set(roomCode, new Set());
+  }
+  const subs = roomSubscribers.get(roomCode);
+  subs.add(res);
+
+  res.write(': connected\n\n');
+  const room = jamRooms.get(roomCode);
+  if (room) {
+    res.write(`data: ${JSON.stringify(room)}\n\n`);
+  }
+
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(': ping\n\n');
+    } catch {
+      clearInterval(keepAlive);
+      subs.delete(res);
+    }
+  }, 15000);
+
+  req.on?.('close', () => {
+    clearInterval(keepAlive);
+    subs.delete(res);
+  });
+}
 
 async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -305,6 +359,13 @@ async function handleJamRoomRequest(req, url, roomCode) {
       isSystem: true,
       createdAt: now
     });
+  } else if (op === 'signal' && body.signal) {
+    broadcastToRoom(roomCode, {
+      eventType: 'webrtc-signal',
+      roomCode,
+      signal: body.signal
+    });
+    return { ok: true };
   } else if (op === 'play-track' && body.track) {
     if (!room.queue.some((t) => t.id === body.track.id)) {
       room.queue.push(body.track);
@@ -315,12 +376,17 @@ async function handleJamRoomRequest(req, url, roomCode) {
     room.trackOverrideAt = now;
     room.stateVersion = (room.stateVersion || 1) + 1;
     room.updatedAt = now;
+    if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
+    if (body.rendezvousAt) room.rendezvousAt = body.rendezvousAt;
   }
 
-  return {
+  const payload = {
     ...room,
+    eventType: op,
     serverTime: now
   };
+  broadcastToRoom(roomCode, payload);
+  return payload;
 }
 
 async function fetchSaavnSearch(query, count = 25) {
