@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useOfflineVault } from '../../services/offlineVault';
+import { computeSmartPlaylists, type SmartPlaylistDef } from '../../services/smartPlaylists';
+import { exportFullLibraryJSON } from '../../utils/playlistExport';
 import PlaylistCard from './PlaylistCard';
 import CreatePlaylist from './CreatePlaylist';
 import ImportPlaylistModal from './ImportPlaylistModal';
@@ -14,6 +16,9 @@ export default function LibraryPage() {
   const playlists = useLibraryStore((state) => state.playlists);
   const likedSongs = useLibraryStore((state) => state.likedSongs);
   const recentlyPlayed = useLibraryStore((state) => state.recentlyPlayed);
+  const playHistory = useLibraryStore((state) => state.playHistory);
+  const createPlaylist = useLibraryStore((state) => state.createPlaylist);
+  const addTracksToPlaylist = useLibraryStore((state) => state.addTracksToPlaylist);
   const syncAllLivePlaylists = useLibraryStore((state) => state.syncAllLivePlaylists);
   const syncingPlaylistIds = useLibraryStore((state) => state.syncingPlaylistIds);
   const playTrack = usePlayerStore((state) => state.playTrack);
@@ -21,13 +26,29 @@ export default function LibraryPage() {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importInitialMode, setImportInitialMode] = useState<'live' | 'url' | 'text'>('live');
+  const [importInitialMode, setImportInitialMode] = useState<'live' | 'url' | 'text' | 'file'>('live');
   const [showOfflineVault, setShowOfflineVault] = useState(false);
+  const [savedBanner, setSavedBanner] = useState('');
 
   const livePlaylistsCount = playlists.filter((p) => p.isLiveSync && p.sourceUrl).length;
   const isAnySyncing = Object.values(syncingPlaylistIds).some(Boolean);
 
-  const openImportModal = (mode: 'live' | 'url' | 'text') => {
+  const smartPlaylists = useMemo(
+    () => computeSmartPlaylists(likedSongs, recentlyPlayed, playHistory, playlists),
+    [likedSongs, recentlyPlayed, playHistory, playlists]
+  );
+
+  const handleSaveSmartPlaylist = (smart: SmartPlaylistDef) => {
+    const newPl = createPlaylist(
+      smart.name,
+      `${smart.description} (Saved from WaveCraft Smart Playlists)`
+    );
+    addTracksToPlaylist(newPl.id, smart.tracks);
+    setSavedBanner(`Saved "${smart.name}" with ${smart.tracks.length} tracks to your playlists!`);
+    setTimeout(() => setSavedBanner(''), 3500);
+  };
+
+  const openImportModal = (mode: 'live' | 'url' | 'text' | 'file') => {
     setImportInitialMode(mode);
     setIsImportModalOpen(true);
   };
@@ -60,6 +81,14 @@ export default function LibraryPage() {
           >
             <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
             <span>Live Sync Playlist</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => exportFullLibraryJSON(playlists, likedSongs)}
+            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-white/80 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            title="Export full library backup (playlists & liked songs) to JSON"
+          >
+            <span>📦 Backup JSON</span>
           </button>
           <GlassButton size="sm" onClick={() => openImportModal('url')}>
             ↓ Import Playlist
@@ -177,6 +206,94 @@ export default function LibraryPage() {
             </div>
           )}
         </GlassCard>
+      )}
+
+      {/* Toast Notification Banner */}
+      {savedBanner && (
+        <div className="mb-6 p-3 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center justify-between">
+          <span>✨ {savedBanner}</span>
+          <button onClick={() => setSavedBanner('')} className="text-white/60 hover:text-white cursor-pointer">✕</button>
+        </div>
+      )}
+
+      {/* Smart Dynamic Playlists Shelf */}
+      {smartPlaylists.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/[0.08] border border-white/15 text-[10px] font-extrabold uppercase tracking-widest text-rose-300 mb-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                INTELLIGENT AUTO-CURATION
+              </div>
+              <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                Smart Playlists
+              </h2>
+            </div>
+            <span className="text-xs text-white/50 hidden sm:block">
+              Auto-generated from your listening stream & history
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {smartPlaylists.map((smart) => (
+              <GlassCard
+                key={smart.id}
+                variant="liquid"
+                padding="md"
+                className="relative overflow-hidden flex flex-col justify-between group hover:border-white/30 transition-all border border-white/12"
+              >
+                <div>
+                  {/* Visual Header with Luxury Gradient & Badge */}
+                  <div
+                    className={`w-full h-28 rounded-2xl bg-gradient-to-br ${smart.gradient} p-3.5 flex flex-col justify-between shadow-lg relative overflow-hidden`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded-full bg-black/45 border border-white/20 text-[9px] font-black uppercase tracking-wider text-white">
+                        {smart.badge}
+                      </span>
+                      <span className="text-xl drop-shadow">{smart.icon}</span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-black text-white drop-shadow-md truncate">
+                        {smart.name}
+                      </h3>
+                      <p className="text-[10px] text-white/80 font-medium truncate drop-shadow">
+                        {smart.tagline}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-white/60 mt-3 line-clamp-2 leading-relaxed">
+                    {smart.description}
+                  </p>
+                  <span className="text-[11px] font-bold text-white/45 block mt-1">
+                    {smart.tracks.length} tracks
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-white/10">
+                  <GlassButton
+                    variant="primary"
+                    size="sm"
+                    className="flex-1 text-xs font-bold"
+                    onClick={() => playTrack(smart.tracks[0], smart.tracks, 0)}
+                  >
+                    ▶ Play
+                  </GlassButton>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveSmartPlaylist(smart)}
+                    className="px-3 py-2 rounded-full glass-button text-xs font-bold text-white/75 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+                    title="Clone into your custom playlists"
+                  >
+                    + Save
+                  </button>
+                </div>
+              </GlassCard>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="flex items-center justify-between mb-5">
