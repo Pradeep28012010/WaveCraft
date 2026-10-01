@@ -88,6 +88,33 @@ export function setHtmlAudioElement(el: HTMLAudioElement | null): void {
   htmlAudioElement = el;
 }
 
+export function getHtmlAudioElement(): HTMLAudioElement | null {
+  return htmlAudioElement;
+}
+
+export function getPreciseAudioTime(): number {
+  if (activeEngine === 'audio' && htmlAudioElement) {
+    return htmlAudioElement.currentTime;
+  }
+  if (ytPlayerInstance && typeof ytPlayerInstance.getCurrentTime === 'function') {
+    return ytPlayerInstance.getCurrentTime() || 0;
+  }
+  return usePlayerStore.getState().currentTime || 0;
+}
+
+export function setPlaybackRateSteering(rate: number): void {
+  const clamped = Math.max(0.5, Math.min(2.0, rate));
+  if (activeEngine === 'audio' && htmlAudioElement) {
+    try {
+      htmlAudioElement.playbackRate = clamped;
+    } catch {}
+  } else if (ytPlayerInstance && typeof ytPlayerInstance.setPlaybackRate === 'function') {
+    try {
+      ytPlayerInstance.setPlaybackRate(clamped);
+    } catch {}
+  }
+}
+
 export function setYtPlayerInstance(player: YouTubePlayerInstance | null): void {
   ytPlayerInstance = player;
 }

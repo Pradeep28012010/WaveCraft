@@ -5,6 +5,7 @@ import { useJamStore } from '../../stores/jamStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { searchTracks } from '../../services/youtube';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
+import { jamSyncEngine, type SyncTelemetry } from '../../services/jamSyncEngine';
 import type { Track } from '../../types';
 import GlassCard from '../ui/GlassCard';
 import TrackRow from '../ui/TrackRow';
@@ -105,8 +106,16 @@ export default function JamRoomPage() {
   const [songResults, setSongResults] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [chatInput, setChatInput] = useState('');
+  const [telemetry, setTelemetry] = useState<SyncTelemetry>(jamSyncEngine.getTelemetrySnapshot());
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const stageCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Subscribe to real-time UltraSync phase and latency telemetry
+  useEffect(() => {
+    return jamSyncEngine.subscribeTelemetry((t) => {
+      setTelemetry(t);
+    });
+  }, []);
 
   // Auto-join if ?room=WAVE-XXXX is in the URL
   useEffect(() => {
@@ -566,6 +575,61 @@ export default function JamRoomPage() {
                 >
                   Leave Lounge
                 </motion.button>
+              </div>
+            </div>
+
+            {/* UltraSync™ Real-Time Acoustic Phase Lock & Latency Nudge Bar */}
+            <div className="relative z-10 mt-4 p-3 rounded-2xl bg-black/50 border border-white/12 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {telemetry.syncState === 'locked' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black shadow-[0_0_12px_rgba(52,211,153,0.35)]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                    ULTRASYNC™ PHASE LOCKED (±{Math.abs(telemetry.phaseDeltaMs)}ms)
+                  </span>
+                ) : telemetry.syncState === 'fine-steer' || telemetry.syncState === 'fast-steer' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black shadow-[0_0_12px_rgba(6,182,212,0.35)]">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-spin border-2 border-cyan-400 border-t-transparent" />
+                    MICRO-STEERING PHASE ({telemetry.phaseDeltaMs > 0 ? `+${telemetry.phaseDeltaMs}` : telemetry.phaseDeltaMs}ms)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-300 text-xs font-black">
+                    <span className="w-2 h-2 rounded-full bg-purple-400" />
+                    {isHost ? '👑 BROADCASTING CLOCK ANCHOR' : '⚡ PHASE-LOCKING AUDIO STREAM'}
+                  </span>
+                )}
+
+                <span className="text-[11px] font-mono text-white/50 hidden sm:inline">
+                  RTT: <strong className="text-white">{Math.round(telemetry.rttMs)}ms</strong> • Skew: <strong className="text-white">{telemetry.clockOffsetMs > 0 ? `+${telemetry.clockOffsetMs}` : telemetry.clockOffsetMs}ms</strong>
+                </span>
+              </div>
+
+              {/* Hardware Speaker / Bluetooth Latency Nudge */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-white/50 font-bold hidden md:inline">Speaker Offset:</span>
+                <button
+                  type="button"
+                  onClick={() => jamSyncEngine.setUserLatencyOffsetMs(telemetry.userLatencyOffsetMs - 5)}
+                  className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white text-[11px] font-bold cursor-pointer transition-colors"
+                  title="Nudge audio -5ms earlier"
+                >
+                  -5ms
+                </button>
+                <button
+                  type="button"
+                  onClick={() => jamSyncEngine.setUserLatencyOffsetMs(0)}
+                  className="px-2.5 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 text-emerald-300 text-[11px] font-mono font-bold cursor-pointer transition-colors"
+                  title="Reset speaker offset to 0ms"
+                >
+                  {telemetry.userLatencyOffsetMs > 0 ? `+${telemetry.userLatencyOffsetMs}` : telemetry.userLatencyOffsetMs}ms
+                </button>
+                <button
+                  type="button"
+                  onClick={() => jamSyncEngine.setUserLatencyOffsetMs(telemetry.userLatencyOffsetMs + 5)}
+                  className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white text-[11px] font-bold cursor-pointer transition-colors"
+                  title="Nudge audio +5ms later"
+                >
+                  +5ms
+                </button>
               </div>
             </div>
 

@@ -246,6 +246,7 @@ async function handleJamRoomRequest(req, url, roomCode) {
       }
       if (typeof body.isPlaying === 'boolean') room.isPlaying = body.isPlaying;
       if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
+      if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
     }
 
     if (Array.isArray(body.queue)) {
@@ -315,7 +316,10 @@ async function handleJamRoomRequest(req, url, roomCode) {
     room.updatedAt = now;
   }
 
-  return room;
+  return {
+    ...room,
+    serverTime: now
+  };
 }
 
 async function fetchSaavnSearch(query, count = 25) {
