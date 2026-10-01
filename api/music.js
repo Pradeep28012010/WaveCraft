@@ -49,15 +49,17 @@ export default async function handler(req, res) {
       res.setHeader('Cache-Control', 'public, max-age=180, s-maxage=300, stale-while-revalidate=600');
       if (cached) return res.status(200).json(cached);
 
-      const [saavnRes, ytRes] = await Promise.allSettled([
-        fetchSaavnSearch(q, 20),
+      const [saavnRes, itunesRes, ytRes] = await Promise.allSettled([
+        fetchSaavnSearch(q, 25),
+        fetchItunesSearch(q, 25),
         fetchYouTubeSearch(q)
       ]);
       const payload = {
         saavn: saavnRes.status === 'fulfilled' ? saavnRes.value : [],
+        itunes: itunesRes.status === 'fulfilled' ? itunesRes.value : [],
         youtube: ytRes.status === 'fulfilled' ? ytRes.value : []
       };
-      if (payload.saavn.length > 0 || payload.youtube.length > 0) {
+      if (payload.saavn.length > 0 || payload.itunes.length > 0 || payload.youtube.length > 0) {
         setCached(cacheKey, payload, 300_000);
       }
       return res.status(200).json(payload);
@@ -316,22 +318,71 @@ async function handleJamRoomRequest(req, url, roomCode) {
   return room;
 }
 
-async function fetchSaavnSearch(query, count = 20) {
+async function fetchSaavnSearch(query, count = 25) {
   if (!query) return [];
-  const apiUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=${count}&p=1&q=${encodeURIComponent(query)}`;
-  const r = await fetchWithTimeout(
-    apiUrl,
-    {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json'
-      }
-    },
-    2000
-  );
-  if (!r.ok) return [];
-  const data = await r.json();
-  return data.results || [];
+  const cleanQ = query.trim();
+  const apiUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=${count}&p=1&q=${encodeURIComponent(cleanQ)}`;
+  try {
+    const r = await fetchWithTimeout(
+      apiUrl,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json'
+        }
+      },
+      2500
+    );
+    if (!r.ok) return [];
+    const data = await r.json();
+    let results = Array.isArray(data.results) ? data.results : [];
+
+    // If search results are sparse, query autocomplete to find exact matching tracks
+    if (results.length < 3) {
+      try {
+        const autoUrl = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&api_version=4&ctx=web6dot0&query=${encodeURIComponent(cleanQ)}`;
+        const autoRes = await fetchWithTimeout(autoUrl, { headers: { 'Accept': 'application/json' } }, 1800);
+        if (autoRes.ok) {
+          const autoData = await autoRes.json();
+          const autoSongs = autoData?.songs?.data || [];
+          const existingIds = new Set(results.map((r) => r.id));
+          for (const s of autoSongs) {
+            if (s && s.id && !existingIds.has(s.id)) {
+              results.push(s);
+              existingIds.add(s.id);
+            }
+          }
+        }
+      } catch {}
+    }
+
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+async function fetchItunesSearch(query, count = 25) {
+  if (!query) return [];
+  const cleanQ = query.trim();
+  const url = `https://itunes.apple.com/search?term=${encodeURIComponent(cleanQ)}&entity=song&limit=${count}&media=music`;
+  try {
+    const r = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json'
+        }
+      },
+      2500
+    );
+    if (!r.ok) return [];
+    const data = await r.json();
+    return Array.isArray(data.results) ? data.results : [];
+  } catch {
+    return [];
+  }
 }
 
 async function fetchSaavnTrending(lang = 'english') {
@@ -355,6 +406,11 @@ async function fetchSaavnTrending(lang = 'english') {
 
 async function fetchYouTubeSearch(query) {
   if (!query) return [];
+  const clean = query.trim();
+  const ytQuery = /song|remix|official|audio|music|album/i.test(clean) || clean.split(/\s+/).length > 2
+    ? clean
+    : `${clean} official audio`;
+
   const r = await fetchWithTimeout(
     'https://www.youtube.com/youtubei/v1/search?prettyPrint=false',
     {
@@ -369,10 +425,10 @@ async function fetchYouTubeSearch(query) {
             gl: 'US'
           }
         },
-        query: `${query} song`
+        query: ytQuery
       })
     },
-    1400
+    2500
   );
   if (!r.ok) return [];
   const data = await r.json();

@@ -160,6 +160,124 @@ export function getCachedSearch(query: string): Track[] | null {
   return hit;
 }
 
+function mapItunesItemToTrack(item: any, fallbackAudioUrl = '', fallbackYtId = ''): Track {
+  const art = item.artworkUrl100
+    ? item.artworkUrl100.replace('100x100bb', '600x600bb').replace('100x100', '600x600')
+    : DEFAULT_THUMBNAIL;
+  return {
+    id: `itunes_${item.trackId}`,
+    title: decodeHtmlEntities(item.trackName || 'Unknown Title'),
+    artist: decodeHtmlEntities(item.artistName || 'Unknown Artist'),
+    album: decodeHtmlEntities(item.collectionName || 'Single'),
+    duration: Math.round((Number(item.trackTimeMillis) || 210000) / 1000),
+    thumbnail: art,
+    thumbnailLarge: art,
+    thumbnailUrl: art,
+    audioUrl: fallbackAudioUrl || item.previewUrl || '',
+    youtubeId: fallbackYtId,
+    year: item.releaseDate ? new Date(item.releaseDate).getFullYear() : undefined,
+    quality: '320kbps Studio AAC'
+  };
+}
+
+async function fetchDirectItunesFallback(query: string): Promise<Track[]> {
+  try {
+    const res = await fetch(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(query.trim())}&entity=song&limit=25&media=music`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data.results)) return [];
+    return data.results.map((item: any) => mapItunesItemToTrack(item));
+  } catch {
+    return [];
+  }
+}
+
+function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
+  const q = rawQuery.toLowerCase().trim();
+  const qTokens = q.split(/\s+/).filter(Boolean);
+
+  const getScore = (track: Track): number => {
+    let score = 0;
+    const title = (track.title || '').toLowerCase().trim();
+    const artist = (track.artist || '').toLowerCase().trim();
+    const cleanTitle = title.replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ').trim();
+
+    // 1. Exact match on title
+    if (cleanTitle === q) score += 1200;
+    else if (title === q) score += 1000;
+    // 2. Starts with query
+    else if (cleanTitle.startsWith(q)) score += 600;
+    else if (title.startsWith(q)) score += 500;
+    // 3. Whole query contained in title
+    else if (cleanTitle.includes(q)) score += 350;
+    else if (title.includes(q)) score += 300;
+
+    // 4. Exact artist match or starts with
+    if (artist === q) score += 800;
+    else if (artist.startsWith(q)) score += 400;
+    else if (artist.includes(q)) score += 250;
+
+    // 5. Query contains artist name
+    if (q.includes(artist) && artist.length > 2) score += 300;
+
+    // 6. Token matching: every token matched in title or artist
+    const matchedTokens = qTokens.filter((tok) => cleanTitle.includes(tok) || artist.includes(tok));
+    score += matchedTokens.length * 80;
+    if (matchedTokens.length === qTokens.length) score += 250;
+
+    // 7. Audio stream quality bonus (has direct 320k playable audio)
+    if (track.audioUrl) score += 100;
+    if (track.youtubeId) score += 40;
+
+    // 8. Sensible track duration (between 1.5 and 7 minutes)
+    if (track.duration && track.duration >= 90 && track.duration <= 450) {
+      score += 40;
+    }
+
+    // 9. Negative penalty for karaoke/covers/sound effects unless specifically asked for
+    if (!/cover|karaoke|instrumental|remix/i.test(q)) {
+      if (/karaoke|tribute|cover|backing\s*track|instrumental\s*version/i.test(title)) {
+        score -= 300;
+      }
+    }
+
+    return score;
+  };
+
+  return [...tracks].sort((a, b) => getScore(b) - getScore(a));
+}
+
+function deduplicateAndEnrichTracks(tracks: Track[]): Track[] {
+  const seen = new Map<string, Track>();
+
+  for (const track of tracks) {
+    const normTitle = track.title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 18);
+    const normArtist = (track.artist || '').split(',')[0].toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+    const key = `${normTitle}__${normArtist}`;
+
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, { ...track });
+    } else {
+      // Merge best attributes: keep direct audioUrl from whoever has it
+      if (!existing.audioUrl && track.audioUrl) {
+        existing.audioUrl = track.audioUrl;
+      }
+      if (!existing.youtubeId && track.youtubeId) {
+        existing.youtubeId = track.youtubeId;
+      }
+      if ((!existing.thumbnailLarge || existing.thumbnailLarge.includes('hqdefault')) && track.thumbnailLarge) {
+        existing.thumbnail = track.thumbnail;
+        existing.thumbnailLarge = track.thumbnailLarge;
+      }
+    }
+  }
+
+  return Array.from(seen.values());
+}
+
 export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
   const cleanKey = query.trim().toLowerCase();
   if (!cleanKey) return [];
@@ -178,6 +296,7 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
       if (res.ok) {
         const data = await res.json();
         const saavnItems: any[] = data.saavn || [];
+        const itunesItems: any[] = data.itunes || [];
         const ytItems: any[] = data.youtube || [];
 
         const firstYtId = ytItems[0]?.videoId || '';
@@ -185,29 +304,47 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
           .map((item, idx) => mapSaavnItemToTrack(item, ytItems[idx]?.videoId || firstYtId))
           .filter((t): t is Track => t !== null);
 
+        const firstSaavnAudio = saavnTracks[0]?.audioUrl || '';
+        const itunesTracks = itunesItems.map((item, idx) =>
+          mapItunesItemToTrack(item, saavnTracks[idx]?.audioUrl || firstSaavnAudio, ytItems[idx]?.videoId || firstYtId)
+        );
+
         const ytTracks = ytItems.map(mapYouTubeItemToTrack);
 
-        const seenTitles = new Set(saavnTracks.map((t) => t.title.toLowerCase().slice(0, 18)));
-        const uniqueYt = ytTracks.filter((t) => !seenTitles.has(t.title.toLowerCase().slice(0, 18)));
+        // Combine all 3 high-grade sources: iTunes + JioSaavn + YouTube
+        const combined = [...itunesTracks, ...saavnTracks, ...ytTracks];
+        const enriched = deduplicateAndEnrichTracks(combined);
+        const ranked = rankTracksByRelevance(enriched, query);
 
-        const combined = [...saavnTracks, ...uniqueYt];
-        if (combined.length > 0) {
-          setBoundedCache(searchCache, cleanKey, combined, MAX_SEARCH_CACHE_ENTRIES);
+        if (ranked.length > 0) {
+          setBoundedCache(searchCache, cleanKey, ranked, MAX_SEARCH_CACHE_ENTRIES);
+          return ranked;
         }
-        return combined;
       }
     } catch (err) {
-      console.warn('Primary /api/music search failed, trying fallback:', err);
+      console.warn('Primary /api/music search failed, trying multi-source client fallback:', err);
     }
 
-    const fallbackItems = await fetchDirectSaavnFallback(query);
-    const tracks = fallbackItems
+    // Multi-source direct fallback in the browser
+    const [itunesFallback, saavnFallback] = await Promise.allSettled([
+      fetchDirectItunesFallback(query),
+      fetchDirectSaavnFallback(query)
+    ]);
+
+    const itunesList = itunesFallback.status === 'fulfilled' ? itunesFallback.value : [];
+    const saavnRaw = saavnFallback.status === 'fulfilled' ? saavnFallback.value : [];
+    const saavnList = saavnRaw
       .map((item) => mapSaavnItemToTrack(item))
       .filter((t): t is Track => t !== null);
-    if (tracks.length > 0) {
-      setBoundedCache(searchCache, cleanKey, tracks, MAX_SEARCH_CACHE_ENTRIES);
+
+    const fallbackCombined = [...itunesList, ...saavnList];
+    const enrichedFallback = deduplicateAndEnrichTracks(fallbackCombined);
+    const rankedFallback = rankTracksByRelevance(enrichedFallback, query);
+
+    if (rankedFallback.length > 0) {
+      setBoundedCache(searchCache, cleanKey, rankedFallback, MAX_SEARCH_CACHE_ENTRIES);
     }
-    return tracks;
+    return rankedFallback;
   })();
 
   inFlightSearch.set(cleanKey, requestPromise);
