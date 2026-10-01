@@ -135,6 +135,10 @@ export function hasWebAudioGain(): boolean {
   return Boolean(audioCtx && gainNode);
 }
 
+export function getAudioContext(): AudioContext | null {
+  return audioCtx;
+}
+
 export function resumeAudioContextIfNeeded(): void {
   if (audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume().catch(() => {});

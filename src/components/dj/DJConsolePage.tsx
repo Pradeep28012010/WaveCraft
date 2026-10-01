@@ -7,6 +7,8 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { searchTracks } from '../../services/youtube';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
+import { playScratchSound, playNeedleDrop } from '../../utils/vinylScratch';
+import { getAudioContext } from '../../services/audioEngine';
 import GlassCard from '../ui/GlassCard';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
@@ -163,6 +165,43 @@ export default function DJConsolePage() {
   // Dual-Deck Waveform Canvas ref
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Turntable Vinyl Scratch & Drag State
+  const [scratchAngleA, setScratchAngleA] = useState(0);
+  const [isScratchingA, setIsScratchingA] = useState(false);
+  const dragRefA = useRef<{
+    isDragging: boolean;
+    centerX: number;
+    centerY: number;
+    lastAngle: number;
+    lastTime: number;
+    hasMoved: boolean;
+  }>({
+    isDragging: false,
+    centerX: 0,
+    centerY: 0,
+    lastAngle: 0,
+    lastTime: 0,
+    hasMoved: false
+  });
+
+  const [scratchAngleB, setScratchAngleB] = useState(0);
+  const [isScratchingB, setIsScratchingB] = useState(false);
+  const dragRefB = useRef<{
+    isDragging: boolean;
+    centerX: number;
+    centerY: number;
+    lastAngle: number;
+    lastTime: number;
+    hasMoved: boolean;
+  }>({
+    isDragging: false,
+    centerX: 0,
+    centerY: 0,
+    lastAngle: 0,
+    lastTime: 0,
+    hasMoved: false
+  });
+
   const metaA = useMemo(() => getTrackMeta(currentTrackA), [currentTrackA]);
   const metaB = useMemo(() => getTrackMeta(trackB), [trackB]);
   const liveBpmA = Math.round(metaA.bpm * (playbackSpeedA || 1));
@@ -288,21 +327,21 @@ export default function DJConsolePage() {
     } catch {}
   };
 
-  // Sync Crossfader between Deck A and Deck B
+  // Sync Continuous Equal-Power Crossfader between Deck A and Deck B
   useEffect(() => {
-    const norm = (crossfader + 1) / 2; // 0 (Deck A) to 1 (Deck B)
+    const norm = (crossfader + 1) / 2; // 0 (100% Deck A) to 1 (100% Deck B)
     const volA = Math.cos(norm * 0.5 * Math.PI);
     const volB = Math.sin(norm * 0.5 * Math.PI);
 
-    if (isPlayingB || isAutomixing) {
-      setVolumeA(Math.max(0.02, Math.min(1, volA)));
-    }
+    // Apply smooth equal-power volume curve to Deck A
+    setVolumeA(Math.max(0.01, Math.min(1, volA)));
+
     if (gainBRef.current && ctxBRef.current) {
-      gainBRef.current.gain.setTargetAtTime(volB, ctxBRef.current.currentTime, 0.04);
+      gainBRef.current.gain.setTargetAtTime(volB, ctxBRef.current.currentTime, 0.035);
     } else if (audioBRef.current) {
       audioBRef.current.volume = Math.max(0, Math.min(1, volB));
     }
-  }, [crossfader, isPlayingB, isAutomixing, setVolumeA]);
+  }, [crossfader, setVolumeA]);
 
   // Sync Deck A 3-Band EQ & Kill Switches directly to the 10-Band Master Web Audio Equalizer!
   useEffect(() => {
@@ -499,6 +538,149 @@ export default function DJConsolePage() {
     rafId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(rafId);
   }, []);
+
+  // --- Deck A Platter Scratch & Drag Handlers ---
+  const handlePlatterPointerDownA = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+
+    dragRefA.current = {
+      isDragging: true,
+      centerX,
+      centerY,
+      lastAngle: angle,
+      lastTime: performance.now(),
+      hasMoved: false
+    };
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+    playNeedleDrop(getAudioContext());
+  };
+
+  const handlePlatterPointerMoveA = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRefA.current.isDragging) return;
+    const { centerX, centerY, lastAngle, lastTime } = dragRefA.current;
+    const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+    let deltaAngle = angle - lastAngle;
+    if (deltaAngle > 180) deltaAngle -= 360;
+    if (deltaAngle < -180) deltaAngle += 360;
+
+    const now = performance.now();
+    const dt = Math.max(8, now - lastTime);
+
+    if (Math.abs(deltaAngle) > 1.2 || dragRefA.current.hasMoved) {
+      dragRefA.current.hasMoved = true;
+      setIsScratchingA(true);
+      setScratchAngleA((prev) => prev + deltaAngle);
+
+      const velocity = (Math.abs(deltaAngle) / dt) * 12;
+      playScratchSound(velocity, deltaAngle >= 0 ? 1 : -1, getAudioContext());
+
+      // Scrub Deck A playback position proportionally (~1.8 seconds per full revolution)
+      const seekDelta = (deltaAngle / 360) * 1.8;
+      seekToA(Math.max(0, Math.min(durationA || 210, currentTimeA + seekDelta)));
+
+      dragRefA.current.lastAngle = angle;
+      dragRefA.current.lastTime = now;
+    }
+  };
+
+  const handlePlatterPointerUpA = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRefA.current.isDragging) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+    const hadMoved = dragRefA.current.hasMoved;
+    dragRefA.current.isDragging = false;
+    dragRefA.current.hasMoved = false;
+    setIsScratchingA(false);
+
+    if (!hadMoved) {
+      unlockAudioEngine();
+      togglePlayA();
+    }
+  };
+
+  // --- Deck B Platter Scratch & Drag Handlers ---
+  const handlePlatterPointerDownB = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+
+    dragRefB.current = {
+      isDragging: true,
+      centerX,
+      centerY,
+      lastAngle: angle,
+      lastTime: performance.now(),
+      hasMoved: false
+    };
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+    playNeedleDrop(ctxBRef.current || getAudioContext());
+  };
+
+  const handlePlatterPointerMoveB = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRefB.current.isDragging) return;
+    const { centerX, centerY, lastAngle, lastTime } = dragRefB.current;
+    const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+    let deltaAngle = angle - lastAngle;
+    if (deltaAngle > 180) deltaAngle -= 360;
+    if (deltaAngle < -180) deltaAngle += 360;
+
+    const now = performance.now();
+    const dt = Math.max(8, now - lastTime);
+
+    if (Math.abs(deltaAngle) > 1.2 || dragRefB.current.hasMoved) {
+      dragRefB.current.hasMoved = true;
+      setIsScratchingB(true);
+      setScratchAngleB((prev) => prev + deltaAngle);
+
+      const velocity = (Math.abs(deltaAngle) / dt) * 12;
+      playScratchSound(velocity, deltaAngle >= 0 ? 1 : -1, ctxBRef.current || getAudioContext());
+
+      if (audioBRef.current) {
+        const seekDelta = (deltaAngle / 360) * 1.8;
+        audioBRef.current.currentTime = Math.max(
+          0,
+          Math.min(durationB || 210, audioBRef.current.currentTime + seekDelta)
+        );
+        setCurrentTimeB(audioBRef.current.currentTime);
+      }
+
+      dragRefB.current.lastAngle = angle;
+      dragRefB.current.lastTime = now;
+    }
+  };
+
+  const handlePlatterPointerUpB = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRefB.current.isDragging) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+    const hadMoved = dragRefB.current.hasMoved;
+    dragRefB.current.isDragging = false;
+    dragRefB.current.hasMoved = false;
+    setIsScratchingB(false);
+
+    if (!hadMoved) {
+      togglePlayB();
+    }
+  };
+
+  // Lock Deck A BPM to Deck B BPM
+  const handleSyncDeckAToB = () => {
+    const targetBpm = liveBpmB;
+    const baseA = metaA.bpm || 124;
+    const nextSpeed = Math.max(0.8, Math.min(1.25, Number((targetBpm / baseA).toFixed(2))));
+    setPlaybackSpeedA(nextSpeed);
+    setBpmLocked(true);
+  };
 
   const togglePlayB = () => {
     const audio = audioBRef.current;
@@ -824,17 +1006,25 @@ export default function DJConsolePage() {
 
               {/* Rotating Vinyl Platter */}
               <div
-                onClick={() => {
-                  unlockAudioEngine();
-                  togglePlayA();
+                onPointerDown={handlePlatterPointerDownA}
+                onPointerMove={handlePlatterPointerMoveA}
+                onPointerUp={handlePlatterPointerUpA}
+                onPointerCancel={handlePlatterPointerUpA}
+                style={{
+                  touchAction: 'none',
+                  transform: isScratchingA ? `rotate(${scratchAngleA}deg)` : undefined
                 }}
-                title="Click platter to Spin / Pause Deck A"
-                className={`relative w-44 h-44 rounded-full vinyl-disc border-2 border-rose-500/40 shadow-[0_0_45px_rgba(244,63,94,0.28)] flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-[1.02] ${
-                  isPlayingA ? 'animate-[spin_3.8s_linear_infinite]' : ''
+                title="Drag or touch to Scratch / Click to Spin or Pause Deck A"
+                className={`relative w-44 h-44 rounded-full vinyl-disc border-2 border-rose-500/40 shadow-[0_0_45px_rgba(244,63,94,0.28)] flex items-center justify-center cursor-grab active:cursor-grabbing transition-[box-shadow,border-color] duration-200 hover:scale-[1.02] ${
+                  isScratchingA
+                    ? 'ring-2 ring-rose-400 shadow-[0_0_55px_rgba(244,63,94,0.7)]'
+                    : isPlayingA
+                    ? 'animate-[spin_3.8s_linear_infinite]'
+                    : ''
                 }`}
               >
                 {/* Vinyl Label Artwork */}
-                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-rose-300/50 shadow-inner">
+                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-rose-300/50 shadow-inner pointer-events-none">
                   <img
                     src={currentTrackA?.thumbnail || DEFAULT_THUMBNAIL}
                     alt={currentTrackA?.title || 'Deck A'}
@@ -936,7 +1126,7 @@ export default function DJConsolePage() {
             </div>
 
             {/* Pitch Tempo Slider */}
-            <div className="flex items-center gap-3 bg-black/30 px-3.5 py-2 rounded-2xl border border-white/10">
+            <div className="flex items-center gap-2 bg-black/30 px-3.5 py-2 rounded-2xl border border-white/10 flex-wrap sm:flex-nowrap">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/55">
                 TEMPO
               </span>
@@ -951,11 +1141,20 @@ export default function DJConsolePage() {
               />
               <button
                 onClick={() => setPlaybackSpeedA(1)}
-                className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[10px] font-extrabold text-rose-300 cursor-pointer transition-colors"
+                className="px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[10px] font-extrabold text-rose-300 cursor-pointer transition-colors"
                 title="Reset Tempo to 1.00x"
               >
                 {((playbackSpeedA || 1) * 100).toFixed(0)}%
               </button>
+              {trackB && (
+                <button
+                  onClick={handleSyncDeckAToB}
+                  className="px-2 py-1 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-[10px] font-extrabold text-rose-200 cursor-pointer transition-colors border border-rose-400/30 whitespace-nowrap"
+                  title={`Match Deck B Tempo (${liveBpmB} BPM)`}
+                >
+                  Sync B
+                </button>
+              )}
             </div>
           </div>
         </GlassCard>
@@ -1259,14 +1458,25 @@ export default function DJConsolePage() {
 
               {/* Rotating Vinyl Platter */}
               <div
-                onClick={togglePlayB}
-                title="Click platter to Spin / Pause Deck B"
-                className={`relative w-44 h-44 rounded-full vinyl-disc border-2 border-cyan-400/40 shadow-[0_0_45px_rgba(6,182,212,0.28)] flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-[1.02] ${
-                  isPlayingB ? 'animate-[spin_3.8s_linear_infinite]' : ''
+                onPointerDown={handlePlatterPointerDownB}
+                onPointerMove={handlePlatterPointerMoveB}
+                onPointerUp={handlePlatterPointerUpB}
+                onPointerCancel={handlePlatterPointerUpB}
+                style={{
+                  touchAction: 'none',
+                  transform: isScratchingB ? `rotate(${scratchAngleB}deg)` : undefined
+                }}
+                title="Drag or touch to Scratch / Click to Spin or Pause Deck B"
+                className={`relative w-44 h-44 rounded-full vinyl-disc border-2 border-cyan-400/40 shadow-[0_0_45px_rgba(6,182,212,0.28)] flex items-center justify-center cursor-grab active:cursor-grabbing transition-[box-shadow,border-color] duration-200 hover:scale-[1.02] ${
+                  isScratchingB
+                    ? 'ring-2 ring-cyan-400 shadow-[0_0_55px_rgba(6,182,212,0.7)]'
+                    : isPlayingB
+                    ? 'animate-[spin_3.8s_linear_infinite]'
+                    : ''
                 }`}
               >
                 {/* Vinyl Label Artwork */}
-                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-cyan-300/50 shadow-inner">
+                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-cyan-300/50 shadow-inner pointer-events-none">
                   <img
                     src={trackB?.thumbnail || DEFAULT_THUMBNAIL}
                     alt={trackB?.title || 'Deck B'}
@@ -1385,7 +1595,7 @@ export default function DJConsolePage() {
             </div>
 
             {/* Pitch Tempo Slider */}
-            <div className="flex items-center gap-3 bg-black/30 px-3.5 py-2 rounded-2xl border border-white/10">
+            <div className="flex items-center gap-2 bg-black/30 px-3.5 py-2 rounded-2xl border border-white/10 flex-wrap sm:flex-nowrap">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/55">
                 TEMPO
               </span>
@@ -1406,10 +1616,17 @@ export default function DJConsolePage() {
                   setSpeedB(1);
                   setBpmLocked(false);
                 }}
-                className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[10px] font-extrabold text-cyan-300 cursor-pointer transition-colors"
+                className="px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[10px] font-extrabold text-cyan-300 cursor-pointer transition-colors"
                 title="Reset Tempo to 1.00x"
               >
                 {(speedB * 100).toFixed(0)}%
+              </button>
+              <button
+                onClick={handleSyncBpm}
+                className="px-2 py-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-[10px] font-extrabold text-cyan-200 cursor-pointer transition-colors border border-cyan-400/30 whitespace-nowrap"
+                title={`Match Deck A Tempo (${liveBpmA} BPM)`}
+              >
+                Sync A
               </button>
             </div>
           </div>
