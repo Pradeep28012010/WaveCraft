@@ -205,9 +205,6 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
   const [result, setResult] = useState<LyricsResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userScrolling, setUserScrolling] = useState(false);
-  const [isCustomSearch, setIsCustomSearch] = useState(false);
-  const [customTitle, setCustomTitle] = useState('');
-  const [customArtist, setCustomArtist] = useState('');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -625,104 +622,11 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center px-6 text-white/50">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center mb-3 text-white/40">
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18V5l12-2v13" />
-                <circle cx="6" cy="18" r="3" />
-                <circle cx="18" cy="16" r="3" />
-              </svg>
-            </div>
-            <p className="text-base font-bold text-white/90">{title}</p>
-            <p className="text-xs text-white/60 mt-0.5">{artist}</p>
-            <div className="mt-4 px-4 py-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] max-w-sm">
-              <p className="text-xs font-semibold text-white/80">
-                No Verified Lyrics Available
-              </p>
-              <p className="text-[11px] text-white/45 mt-1 leading-relaxed">
-                WaveCraft strictly verifies track & artist data to prevent mismatched lyrics. Enjoy the 320kbps studio audio & 3D visualizer!
-              </p>
-            </div>
-            <div className="flex items-center gap-2 mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLoading(true);
-                  getLyricsData(artist || '', title || '', activeDuration)
-                    .then((data) => setResult(data))
-                    .finally(() => setIsLoading(false));
-                }}
-                className="px-3.5 py-1.5 rounded-full glass-button text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="23 4 23 10 17 10" />
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                </svg>
-                <span>Retry</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCustomSearch(!isCustomSearch);
-                  if (!customTitle) setCustomTitle(title || '');
-                  if (!customArtist) setCustomArtist(artist || '');
-                }}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  isCustomSearch
-                    ? 'glass-button-primary text-white'
-                    : 'glass-button text-white/80 hover:text-white'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <span>Search Alternate Title</span>
-              </button>
-            </div>
-
-            {isCustomSearch && (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!customTitle.trim()) return;
-                  setIsLoading(true);
-                  try {
-                    const data = await getLyricsData(
-                      customArtist.trim() || artist || '',
-                      customTitle.trim(),
-                      activeDuration
-                    );
-                    setResult(data);
-                    if (data) setIsCustomSearch(false);
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                className="mt-3.5 w-full max-w-sm flex flex-col gap-2 p-3 rounded-2xl liquid-glass border border-white/15"
-              >
-                <input
-                  type="text"
-                  placeholder="Song Title (e.g. Massa Massa)"
-                  value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded-xl bg-white/10 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)]"
-                />
-                <input
-                  type="text"
-                  placeholder="Artist / Composer (e.g. A.R. Rahman)"
-                  value={customArtist}
-                  onChange={(e) => setCustomArtist(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded-xl bg-white/10 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)]"
-                />
-                <button
-                  type="submit"
-                  disabled={isLoading || !customTitle.trim()}
-                  className="w-full py-1.5 rounded-xl glass-button-primary text-xs font-bold text-white transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  {isLoading ? 'Searching...' : 'Find Lyrics'}
-                </button>
-              </form>
-            )}
+            <p className="text-base font-bold text-white/85">{title}</p>
+            <p className="text-xs text-white/55 mt-1">{artist}</p>
+            <p className="text-xs text-white/40 mt-4 max-w-xs">
+              Instrumental / Studio Track — Enjoy the 320kbps studio audio & 3D visualizer.
+            </p>
           </div>
         )}
       </div>
