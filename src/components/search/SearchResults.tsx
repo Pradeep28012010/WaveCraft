@@ -83,15 +83,7 @@ export default function SearchResults() {
   const fetchLiveTrendingSearches = useCallback(async (rotateOffset?: number) => {
     setIsRefreshingTrends(true);
     try {
-      const [saavnTrending, itunesGlobalRes, itunesIndiaRes] = await Promise.allSettled([
-        getTrending(),
-        fetch('https://itunes.apple.com/us/rss/topsongs/limit=15/json').then((r) =>
-          r.ok ? r.json() : null
-        ),
-        fetch('https://itunes.apple.com/in/rss/topsongs/limit=15/json').then((r) =>
-          r.ok ? r.json() : null
-        )
-      ]);
+      const ytTrending = await getTrending().catch(() => [] as Track[]);
 
       const discovered: string[] = [];
       const addTerm = (raw?: string) => {
@@ -111,25 +103,13 @@ export default function SearchResults() {
         }
       };
 
-      if (saavnTrending.status === 'fulfilled' && Array.isArray(saavnTrending.value)) {
-        for (const t of saavnTrending.value) {
+      if (Array.isArray(ytTrending)) {
+        for (const t of ytTrending) {
           addTerm(t.title);
-          const firstArtist = t.artist?.split(',')[0]?.trim();
+          const firstArtist = t.artist?.split(/[,&/]/)[0]?.trim();
           addTerm(firstArtist);
         }
       }
-
-      const parseItunesEntries = (res: PromiseSettledResult<any>) => {
-        if (res.status !== 'fulfilled' || !res.value?.feed?.entry) return;
-        const entries = Array.isArray(res.value.feed.entry) ? res.value.feed.entry : [];
-        for (const entry of entries) {
-          addTerm(entry?.['im:name']?.label);
-          addTerm(entry?.['im:artist']?.label);
-        }
-      };
-
-      parseItunesEntries(itunesGlobalRes);
-      parseItunesEntries(itunesIndiaRes);
 
       for (const fallback of FALLBACK_LIVE_POOL) {
         addTerm(fallback);

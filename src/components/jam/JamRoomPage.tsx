@@ -5,6 +5,7 @@ import { useJamStore } from '../../stores/jamStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { searchTracks } from '../../services/youtube';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
+import { jamSyncEngine, type SyncTelemetry } from '../../services/jamSyncEngine';
 import type { Track } from '../../types';
 import GlassCard from '../ui/GlassCard';
 import TrackRow from '../ui/TrackRow';
@@ -90,7 +91,8 @@ export default function JamRoomPage() {
     playTrackInJam,
     togglePlayInJam,
     skipTrackInJam,
-    syncNow
+    syncNow,
+    triggerSyncClick
   } = useJamStore();
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -105,8 +107,16 @@ export default function JamRoomPage() {
   const [songResults, setSongResults] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [chatInput, setChatInput] = useState('');
+  const [telemetry, setTelemetry] = useState<SyncTelemetry>(jamSyncEngine.getTelemetrySnapshot());
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const stageCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Subscribe to real-time UltraSync phase and latency telemetry
+  useEffect(() => {
+    return jamSyncEngine.subscribeTelemetry((t) => {
+      setTelemetry(t);
+    });
+  }, []);
 
   // Auto-join if ?room=WAVE-XXXX is in the URL
   useEffect(() => {
@@ -569,6 +579,126 @@ export default function JamRoomPage() {
               </div>
             </div>
 
+            {/* UltraSync™ Real-Time Acoustic Phase Lock, Transport & Hardware Calibration Bar */}
+            <div className="relative z-10 mt-4 p-3 rounded-2xl bg-black/50 border border-white/12 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Transport Status Badge */}
+                {telemetry.transport === 'webrtc-p2p' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black shadow-[0_0_12px_rgba(52,211,153,0.35)]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                    ⚡ WEBRTC P2P ({Math.max(1, Math.round(telemetry.rttMs))}ms)
+                  </span>
+                ) : telemetry.transport === 'server-sse' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                    🌐 SERVER SSE ({Math.max(1, Math.round(telemetry.rttMs))}ms)
+                  </span>
+                ) : telemetry.transport === 'broadcast' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/40 text-teal-300 text-xs font-black">
+                    <span className="w-2 h-2 rounded-full bg-teal-400" />
+                    📻 LOCAL BROADCAST (0ms)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-300 text-xs font-black">
+                    <span className="w-2 h-2 rounded-full bg-purple-400" />
+                    ☁️ CLOUD RELAY ({Math.max(1, Math.round(telemetry.rttMs))}ms)
+                  </span>
+                )}
+
+                {/* Phase Lock State Pill */}
+                {telemetry.syncState === 'locked' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black shadow-[0_0_12px_rgba(52,211,153,0.35)]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                    PHASE LOCKED (±{Math.abs(telemetry.phaseDeltaMs)}ms)
+                  </span>
+                ) : telemetry.syncState === 'fine-steer' || telemetry.syncState === 'fast-steer' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black shadow-[0_0_12px_rgba(6,182,212,0.35)]">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-spin border-2 border-cyan-400 border-t-transparent" />
+                    MICRO-STEERING ({telemetry.phaseDeltaMs > 0 ? `+${telemetry.phaseDeltaMs}` : telemetry.phaseDeltaMs}ms)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-300 text-xs font-black">
+                    <span className="w-2 h-2 rounded-full bg-purple-400" />
+                    {isHost ? '👑 BROADCASTING ANCHOR' : '⚡ PHASE-LOCKING'}
+                  </span>
+                )}
+
+                {/* Acoustic Test Click Verification Button */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                  onClick={() => triggerSyncClick()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 text-xs font-black transition-colors cursor-pointer"
+                  title="Play 880Hz acoustic test click on all devices to verify zero-latency lockstep"
+                >
+                  <span>🎯 Test Sync Click</span>
+                </motion.button>
+              </div>
+
+              {/* Hardware Speaker / Bluetooth Latency Calibration Presets */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-white/50 font-bold hidden xl:inline">Hardware Offset:</span>
+                <button
+                  type="button"
+                  onClick={() => jamSyncEngine.setUserLatencyOffsetMs(0)}
+                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
+                    telemetry.userLatencyOffsetMs === 0
+                      ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/70'
+                  }`}
+                  title="Zero latency compensation for phone or laptop built-in speakers"
+                >
+                  Speaker (0ms)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => jamSyncEngine.setUserLatencyOffsetMs(45)}
+                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
+                    telemetry.userLatencyOffsetMs === 45
+                      ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-300'
+                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/70'
+                  }`}
+                  title="Bluetooth speaker A2DP latency compensation (+45ms)"
+                >
+                  Bluetooth (+45ms)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => jamSyncEngine.setUserLatencyOffsetMs(70)}
+                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
+                    telemetry.userLatencyOffsetMs === 70
+                      ? 'bg-purple-500/20 border-purple-400/50 text-purple-300'
+                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/70'
+                  }`}
+                  title="True Wireless Stereo earbud latency compensation (+70ms)"
+                >
+                  TWS (+70ms)
+                </button>
+                <div className="flex items-center gap-1 ml-1">
+                  <button
+                    type="button"
+                    onClick={() => jamSyncEngine.setUserLatencyOffsetMs(telemetry.userLatencyOffsetMs - 5)}
+                    className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 text-[10px] font-bold cursor-pointer"
+                    title="Nudge audio -5ms earlier"
+                  >
+                    -5
+                  </button>
+                  <span className="text-[10px] font-mono text-emerald-300 font-bold px-1 min-w-[36px] text-center">
+                    {telemetry.userLatencyOffsetMs > 0 ? `+${telemetry.userLatencyOffsetMs}` : telemetry.userLatencyOffsetMs}ms
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => jamSyncEngine.setUserLatencyOffsetMs(telemetry.userLatencyOffsetMs + 5)}
+                    className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 text-[10px] font-bold cursor-pointer"
+                    title="Nudge audio +5ms later"
+                  >
+                    +5
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Center Now Playing Turntable Stage + Crowd Reaction Cannon */}
             <div className="relative z-10 mt-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
               {currentTrack ? (
@@ -583,6 +713,8 @@ export default function JamRoomPage() {
                       <img
                         src={currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL}
                         alt={currentTrack.title}
+                        loading="lazy"
+                        decoding="async"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                         }}

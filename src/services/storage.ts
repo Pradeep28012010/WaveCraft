@@ -173,6 +173,17 @@ export async function clearAllData(): Promise<void> {
       (k) => typeof k === 'string' && k.startsWith('wavecraft_')
     );
     await Promise.all(wavecraftKeys.map((k) => del(k as IDBValidKey)));
+
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const toRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('wavecraft_')) {
+          toRemove.push(k);
+        }
+      }
+      toRemove.forEach((k) => localStorage.removeItem(k));
+    }
   } catch (error) {
     console.error('Error clearing data:', error);
   }

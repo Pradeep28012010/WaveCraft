@@ -7,7 +7,7 @@ interface GlassModalProps {
   onClose: () => void;
   title?: string;
   children: ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 const MODAL_TRANSITION = {
@@ -73,6 +73,7 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
   let widthClass = 'w-full max-w-md';
   if (size === 'sm') widthClass = 'w-full max-w-sm';
   if (size === 'lg') widthClass = 'w-full max-w-xl';
+  if (size === 'xl') widthClass = 'w-full max-w-2xl';
 
   if (typeof document === 'undefined') return null;
 

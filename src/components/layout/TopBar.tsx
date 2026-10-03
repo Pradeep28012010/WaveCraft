@@ -68,6 +68,7 @@ export default function TopBar() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequestIdRef = useRef(0);
 
   const [isListeningVoice, setIsListeningVoice] = useState(false);
   const recognitionRef = useRef<{ stop: () => void; abort: () => void } | null>(null);
@@ -77,7 +78,6 @@ export default function TopBar() {
   const roomCode = useJamStore((s) => s.roomCode);
 
   const fxMode = useStudioStore((s) => s.fxMode);
-  const vocalMode = useStudioStore((s) => s.vocalMode);
   const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
   const sleepActive = useStudioStore((s) => s.sleepActive);
@@ -86,15 +86,26 @@ export default function TopBar() {
 
   const hasActiveAmbient = Object.values(ambientVolumes).some((v) => v > 0.01);
   const activeFxLabel =
-    vocalMode === 'karaoke'
-      ? 'Karaoke Mode'
-      : vocalMode === 'acapella'
-      ? 'Acapella Mode'
-      : fxMode !== 'normal'
+    fxMode !== 'normal'
       ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
       : hasActiveAmbient
       ? 'Ambient Mix'
       : 'Studio FX';
+
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     setSearchQuery(urlQuery);
@@ -160,31 +171,55 @@ export default function TopBar() {
     const val = e.target.value;
     setSearchQuery(val);
 
+    const reqId = ++searchRequestIdRef.current;
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
+    const trimmed = val.trim();
+    if (!trimmed) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      navigate('/search', { replace: true });
+      return;
+    }
+
     debounceTimer.current = setTimeout(async () => {
-      if (val.trim().length > 0) {
-        navigate(`/search?q=${encodeURIComponent(val.trim())}`);
-        const sugs = await searchSuggestions(val.trim());
-        setSuggestions(sugs.slice(0, 5));
-      } else {
-        setSuggestions([]);
+      if (reqId !== searchRequestIdRef.current) return;
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
+      try {
+        const sugs = await searchSuggestions(trimmed);
+        if (reqId === searchRequestIdRef.current) {
+          setSuggestions(sugs.slice(0, 5));
+          setShowSuggestions(true);
+        }
+      } catch {
+        if (reqId === searchRequestIdRef.current) {
+          setSuggestions([]);
+        }
       }
     }, 180);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
+    if (e.key === 'Enter') {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       setShowSuggestions(false);
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      if (searchQuery.trim()) {
+        navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`, { replace: true });
+      } else {
+        navigate('/search', { replace: true });
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
     }
   };
 
   const handleClear = () => {
+    searchRequestIdRef.current++;
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
     setSearchQuery('');
     setSuggestions([]);
-    navigate('/search');
+    setShowSuggestions(false);
+    navigate('/search', { replace: true });
   };
 
   // Phone UI Preset Header (clean, thumb-friendly, zero horizontal crowding)
@@ -218,7 +253,9 @@ export default function TopBar() {
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={handleKeyDown}
-              onFocus={() => setShowSuggestions(true)}
+              onFocus={() => {
+                if (searchQuery.trim().length > 0) setShowSuggestions(true);
+              }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
               placeholder={
                 isListeningVoice ? '🎙️ Say a song or lyric...' : 'Search songs, lyrics, moods...'
@@ -255,7 +292,7 @@ export default function TopBar() {
             </button>
           </div>
 
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && searchQuery.trim().length > 0 && suggestions.length > 0 && (
             <div className="absolute left-0 right-0 top-11 glass-heavy rounded-2xl p-1.5 shadow-2xl border border-white/15 z-50">
               {suggestions.map((sug, i) => (
                 <button
@@ -275,12 +312,23 @@ export default function TopBar() {
           )}
         </div>
 
+        {/* Offline Mode Badge */}
+        {!isOnline && (
+          <span
+            className="h-10 px-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-[11px] font-black flex items-center gap-1.5 flex-shrink-0 animate-pulse"
+            title="Offline Mode — Playing from Vault"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span>Vault</span>
+          </span>
+        )}
+
         {/* Right: Studio FX & Sleep Timer Hub Button */}
         <button
           onClick={() => setStudioModalOpen(true)}
           aria-label="Open Studio FX & Sleep Timer Hub"
           className={`h-10 px-3 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 flex-shrink-0 border ${
-            fxMode !== 'normal' || vocalMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
+            fxMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
               ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-lg'
               : 'liquid-glass border-white/15 text-white/90'
           }`}
@@ -333,7 +381,9 @@ export default function TopBar() {
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={handleKeyDown}
-              onFocus={() => setShowSuggestions(true)}
+              onFocus={() => {
+                if (searchQuery.trim().length > 0) setShowSuggestions(true);
+              }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
               placeholder={
                 isListeningVoice
@@ -391,7 +441,7 @@ export default function TopBar() {
           </div>
 
           {/* Search Suggestions Dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && searchQuery.trim().length > 0 && suggestions.length > 0 && (
             <div className="absolute left-0 right-0 top-13 glass-heavy rounded-2xl p-2 shadow-2xl border border-white/15 z-50">
               {suggestions.map((sug, i) => (
                 <button
@@ -417,6 +467,17 @@ export default function TopBar() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {/* Offline Mode Indicator */}
+          {!isOnline && (
+            <span
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-extrabold text-amber-200 animate-pulse flex-shrink-0"
+              title="No internet connection — Playing tracks saved in Offline Vault"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span>Offline • Vault Ready</span>
+            </span>
+          )}
+
           {/* Active Focus Pomodoro Pill */}
           {pomodoroActive && (
             <PomodoroTimerPill onOpenStudio={() => setStudioModalOpen(true)} />

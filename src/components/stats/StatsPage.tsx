@@ -54,7 +54,6 @@ export default function StatsPage() {
   const { playHistory = [], recentlyPlayed = [], likedSongs = [], playlists = [] } = useLibraryStore();
   const playTrack = usePlayerStore((s) => s.playTrack);
   const fxMode = useStudioStore((s) => s.fxMode);
-  const vocalMode = useStudioStore((s) => s.vocalMode);
   const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
   const completedSessions = useStudioStore((s) => s.completedSessions);
   const equalizerPreset = useSettingsStore((s) => s.equalizerPreset);
@@ -158,7 +157,6 @@ export default function StatsPage() {
   const hasAmbientActive = Object.values(ambientVolumes || {}).some((v) => v > 0);
   const dspFeaturesUsed =
     (fxMode !== 'normal' ? 1 : 0) +
-    (vocalMode !== 'normal' ? 1 : 0) +
     (hasCustomEQ ? 1 : 0) +
     (hasAmbientActive ? 1 : 0) +
     (totalListens >= 3 ? 1 : 0);

@@ -1,128 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   useStudioStore,
   STUDIO_FX_MODES,
-  AMBIENT_LAYERS,
-  type AmbientLayerId,
-  type VocalStemMode
+  type StudioFXMode
 } from '../../stores/studioStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useSleepTimer } from '../../hooks/useSleepTimer';
-import { getAudioFrequencyData } from '../../services/audioEngine';
-
-const VOCAL_STEM_MODES: Array<{
-  id: VocalStemMode;
-  name: string;
-  icon: string;
-  badge: string;
-  desc: string;
-  accent: string;
-}> = [
-  {
-    id: 'normal',
-    name: 'Full Studio Mix',
-    icon: '🎚️',
-    badge: 'VOCALS + INST',
-    desc: 'Original bit-accurate 320kbps stereo master with full lead vocals and instrumentation.',
-    accent: 'from-emerald-400 to-teal-500'
-  },
-  {
-    id: 'karaoke',
-    name: 'Karaoke Vocal Remover',
-    icon: '🎤',
-    badge: 'INSTRUMENTAL',
-    desc: 'Strips center-panned lead vocals in real time via Mid/Side phase cancellation while preserving <155Hz sub-bass.',
-    accent: 'from-rose-500 to-pink-600'
-  },
-  {
-    id: 'acapella',
-    name: 'Acapella Vocal Isolate',
-    icon: '✨',
-    badge: 'LEAD VOCAL',
-    desc: 'Spotlights human vocal fundamentals & 1.65kHz formant harmonics while attenuating deep sub-bass and cymbals.',
-    accent: 'from-violet-500 to-fuchsia-600'
-  }
-];
-
-const AMBIENT_SCENE_PRESETS: Array<{
-  id: string;
-  label: string;
-  icon: string;
-  mix: Partial<Record<AmbientLayerId, number>>;
-}> = [
-  {
-    id: 'rainy-vinyl',
-    label: 'Rainy Vinyl Loft',
-    icon: '🌧️',
-    mix: { rain: 0.5, vinyl: 0.35 }
-  },
-  {
-    id: 'campfire-coast',
-    label: 'Coastal Campfire',
-    icon: '🔥',
-    mix: { campfire: 0.55, waves: 0.28 }
-  },
-  {
-    id: 'study-cafe',
-    label: 'Deep Focus Cafe',
-    icon: '☕',
-    mix: { cafe: 0.45, binaural: 0.35, rain: 0.22 }
-  },
-  {
-    id: 'ocean-sleep',
-    label: 'Ocean Sleep Sanctuary',
-    icon: '🌊',
-    mix: { waves: 0.55, rain: 0.25 }
-  }
-];
-
-type StudioTab = 'all' | 'mastering' | 'spatial' | 'ambient';
+import { getAudioFrequencyData, setLiveSpatialPan } from '../../services/audioEngine';
 
 function StudioFXModalContent() {
   const {
     fxMode,
-    vocalMode,
     spatialOrbitAuto,
     spatialOrbitSpeed,
     spatialRoomSize,
     spatialManualPos,
     subBassBoost,
-    harmonicDrive,
-    stereoWidth,
     reverbMix,
-    trebleAir,
-    preservePitch,
-    ambientVolumes,
-    pomodoroActive,
-    pomodoroMode,
-    pomodoroSeconds,
-    completedSessions,
     setFxMode,
-    setVocalMode,
     setSpatialOrbitAuto,
     setSpatialOrbitSpeed,
     setSpatialRoomSize,
     setSpatialManualPos,
     setSubBassBoost,
-    setHarmonicDrive,
-    setStereoWidth,
     setReverbMix,
-    setTrebleAir,
-    setPreservePitch,
-    resetMasteringRack,
-    setAmbientVolume,
-    applyAmbientPreset,
-    stopAllAmbient,
-    setStudioModalOpen,
-    startPomodoro,
-    stopPomodoro
+    resetToOriginal,
+    setStudioModalOpen
   } = useStudioStore();
 
   const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const playbackSpeed = usePlayerStore((s) => s.playbackSpeed);
-  const setPlaybackSpeed = usePlayerStore((s) => s.setPlaybackSpeed);
 
   const {
     isActive: sleepActive,
@@ -133,13 +41,43 @@ function StudioFXModalContent() {
     setEndAtTrack
   } = useSleepTimer();
 
-  const [activeTab, setActiveTab] = useState<StudioTab>('all');
   const radarRef = useRef<HTMLDivElement>(null);
+  const orbDotRef = useRef<HTMLDivElement>(null);
+  const stageZoneRef = useRef<HTMLDivElement>(null);
+  const azimuthRef = useRef<HTMLDivElement>(null);
+  const distanceRef = useRef<HTMLDivElement>(null);
+  const leftEarRef = useRef<HTMLDivElement>(null);
+  const rightEarRef = useRef<HTMLDivElement>(null);
   const spectrumCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDraggingRadar, setIsDraggingRadar] = useState(false);
-  const [liveOrbitAngle, setLiveOrbitAngle] = useState(0);
+  const orbitAngleRef = useRef(0);
 
-  // Live 60fps Real-Time Mastering Spectrum & Stereo Level Telemetry Canvas
+  const updateRadarVisuals = (x: number, z: number) => {
+    if (orbDotRef.current) {
+      orbDotRef.current.style.transform = `translate(${x * 72}px, ${z * 72}px)`;
+    }
+    const azDeg = Math.round(((Math.atan2(x, -z) * 180) / Math.PI + 360) % 360);
+    const dist = (Math.hypot(x, z) * 2.5).toFixed(2);
+    const lEar = Math.round(Math.min(100, Math.max(18, 72 - x * 38)));
+    const rEar = Math.round(Math.min(100, Math.max(18, 72 + x * 38)));
+
+    if (azimuthRef.current) azimuthRef.current.textContent = `${azDeg}°`;
+    if (distanceRef.current) distanceRef.current.textContent = `${dist} m`;
+    if (leftEarRef.current) leftEarRef.current.textContent = `${lEar}%`;
+    if (rightEarRef.current) rightEarRef.current.textContent = `${rEar}%`;
+    if (stageZoneRef.current) {
+      const label =
+        azDeg >= 315 || azDeg < 45
+          ? 'Front Center Stage'
+          : azDeg < 135
+          ? 'Right Acoustic Wing'
+          : azDeg < 225
+          ? 'Rear Surround Halo'
+          : 'Left Acoustic Wing';
+      stageZoneRef.current.textContent = label;
+    }
+  };
+
+  // High-Definition 60fps Real-Time Spectrum Analyzer Canvas
   useEffect(() => {
     const canvas = spectrumCanvasRef.current;
     if (!canvas) return;
@@ -147,44 +85,68 @@ function StudioFXModalContent() {
     if (!ctx) return;
 
     const freqData = new Uint8Array(64);
+    const peakBars = new Float32Array(32);
     let raf = 0;
     let phase = 0;
 
     const renderSpectrum = () => {
-      phase += 0.045;
+      phase += 0.04;
       const hasLive = getAudioFrequencyData(freqData);
       const w = canvas.width;
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
 
-      const barCount = 36;
+      // Subtle horizontal dB reference grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.lineWidth = 1;
+      [-12, -24, -36].forEach((db) => {
+        const y = h * (1 - (db + 48) / 48);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      });
+
+      const barCount = 32;
       const gap = 3;
       const barW = (w - gap * (barCount - 1)) / barCount;
 
       for (let i = 0; i < barCount; i++) {
         let norm = 0.08;
         if (hasLive) {
-          const bin = Math.min(freqData.length - 1, Math.floor((i / barCount) * 42));
+          const bin = Math.min(freqData.length - 1, Math.floor((i / barCount) * 44));
           norm = Math.max(0.08, freqData[bin] / 255);
         } else if (isPlaying) {
           norm =
-            0.18 +
-            0.35 * Math.abs(Math.sin(phase + i * 0.28)) * Math.cos(phase * 0.6 - i * 0.12);
+            0.15 +
+            0.38 * Math.abs(Math.sin(phase + i * 0.25)) * Math.cos(phase * 0.7 - i * 0.15);
+        }
+
+        if (norm > peakBars[i]) {
+          peakBars[i] = norm;
+        } else {
+          peakBars[i] = Math.max(0.08, peakBars[i] - 0.015);
         }
 
         const barH = Math.max(4, norm * (h - 6));
         const x = i * (barW + gap);
         const y = h - barH;
 
+        // Audiophile multi-spectrum gradient (Sub Cyan -> Mid Purple -> Peak Coral)
         const grad = ctx.createLinearGradient(0, h, 0, 0);
-        grad.addColorStop(0, 'rgba(250, 45, 72, 0.85)');
-        grad.addColorStop(0.55, 'rgba(168, 85, 247, 0.9)');
-        grad.addColorStop(1, 'rgba(34, 211, 238, 0.95)');
+        grad.addColorStop(0, 'rgba(6, 182, 212, 0.85)');
+        grad.addColorStop(0.5, 'rgba(168, 85, 247, 0.95)');
+        grad.addColorStop(1, 'rgba(250, 45, 72, 1)');
 
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.roundRect(x, y, barW, barH, 2);
         ctx.fill();
+
+        // Glowing peak hold dot
+        const peakY = h - Math.max(4, peakBars[i] * (h - 6));
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x, Math.max(0, peakY - 2), barW, 2);
       }
 
       raf = requestAnimationFrame(renderSpectrum);
@@ -194,26 +156,38 @@ function StudioFXModalContent() {
     return () => cancelAnimationFrame(raf);
   }, [isPlaying]);
 
-  // Animate the live 360° orbit indicator on the radar pad when Auto-Orbit is active
+  // Real-Time 360° Orbit loop with zero React re-renders (direct DOM & WebAudio updates)
   useEffect(() => {
-    if (!spatialOrbitAuto) return;
+    if (!spatialOrbitAuto || fxMode !== '8d-orbit') return;
     let raf = 0;
     let last = performance.now();
+    const speed = spatialOrbitSpeed || 0.12;
+
     const loop = (now: number) => {
-      const dt = (now - last) / 1000;
+      const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
-      setLiveOrbitAngle((prev) => (prev + dt * spatialOrbitSpeed * Math.PI * 2) % (Math.PI * 2));
+      orbitAngleRef.current = (orbitAngleRef.current + dt * speed * Math.PI * 2) % (Math.PI * 2);
+      const angle = orbitAngleRef.current;
+      const ox = Math.sin(angle) * 0.78;
+      const oz = -Math.cos(angle) * 0.78;
+      setLiveSpatialPan(ox);
+      updateRadarVisuals(ox, oz);
       raf = requestAnimationFrame(loop);
     };
+
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [spatialOrbitAuto, spatialOrbitSpeed]);
+  }, [spatialOrbitAuto, spatialOrbitSpeed, fxMode]);
 
-  const formatClock = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
+  // Update pan and visuals when manual position changes
+  useEffect(() => {
+    if (fxMode === '8d-orbit' && !spatialOrbitAuto) {
+      const ox = spatialManualPos?.x ?? 0;
+      const oz = spatialManualPos?.z ?? 0;
+      setLiveSpatialPan(ox);
+      updateRadarVisuals(ox, oz);
+    }
+  }, [spatialManualPos, spatialOrbitAuto, fxMode]);
 
   const updateRadarPosFromPointer = (clientX: number, clientY: number) => {
     if (!radarRef.current) return;
@@ -235,1070 +209,440 @@ function StudioFXModalContent() {
       setSpatialOrbitAuto(false);
     }
     setSpatialManualPos({ x: dx, z: dz });
+    setLiveSpatialPan(dx);
+    updateRadarVisuals(dx, dz);
   };
 
-  const orbX = spatialOrbitAuto ? Math.sin(liveOrbitAngle) * 0.78 : spatialManualPos.x;
-  const orbZ = spatialOrbitAuto ? -Math.cos(liveOrbitAngle) * 0.78 : spatialManualPos.z;
-  const azimuthDeg = Math.round(((Math.atan2(orbX, -orbZ) * 180) / Math.PI + 360) % 360);
-  const distanceMeters = (Math.hypot(orbX, orbZ) * 2.5).toFixed(2);
-  const leftEarLevel = Math.round(Math.min(100, Math.max(18, 72 - orbX * 38)));
-  const rightEarLevel = Math.round(Math.min(100, Math.max(18, 72 + orbX * 38)));
-  const stageZoneLabel =
-    azimuthDeg >= 315 || azimuthDeg < 45
+  const initialOrbX = spatialOrbitAuto ? Math.sin(orbitAngleRef.current) * 0.78 : (spatialManualPos?.x ?? 0);
+  const initialOrbZ = spatialOrbitAuto ? -Math.cos(orbitAngleRef.current) * 0.78 : (spatialManualPos?.z ?? 0);
+  const initialAzimuthDeg = Math.round(((Math.atan2(initialOrbX, -initialOrbZ) * 180) / Math.PI + 360) % 360);
+  const initialDistanceMeters = (Math.hypot(initialOrbX, initialOrbZ) * 2.5).toFixed(2);
+  const initialLeftEarLevel = Math.round(Math.min(100, Math.max(18, 72 - initialOrbX * 38)));
+  const initialRightEarLevel = Math.round(Math.min(100, Math.max(18, 72 + initialOrbX * 38)));
+  const initialStageZoneLabel =
+    initialAzimuthDeg >= 315 || initialAzimuthDeg < 45
       ? 'Front Center Stage'
-      : azimuthDeg < 135
+      : initialAzimuthDeg < 135
       ? 'Right Acoustic Wing'
-      : azimuthDeg < 225
+      : initialAzimuthDeg < 225
       ? 'Rear Surround Halo'
       : 'Left Acoustic Wing';
 
-  const hasAnyAmbient = Object.values(ambientVolumes).some((v) => v > 0.01);
-  const hasCustomRack =
-    subBassBoost > 0 ||
-    harmonicDrive > 0.01 ||
-    stereoWidth > 0.01 ||
-    reverbMix > 0.01 ||
-    Math.abs(trebleAir) > 0.1 ||
-    playbackSpeed !== 1;
-
-  const handleResetAllDSP = () => {
-    setFxMode('normal');
-    setVocalMode('normal');
-    resetMasteringRack();
-    setPlaybackSpeed(1);
-    stopAllAmbient();
+  const formatClock = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   return (
-    <div className="fixed inset-0 z-[9990] flex items-center justify-center p-3 sm:p-6 select-none">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="studio-fx-modal-title"
+      className="fixed inset-0 z-[9990] flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+      style={{
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(28px)',
+        WebkitBackdropFilter: 'blur(28px)'
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setStudioModalOpen(false);
+      }}
+    >
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-        onClick={() => setStudioModalOpen(false)}
-        className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 10 }}
-        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+        exit={{ opacity: 0, scale: 0.95, y: 16 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+        className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl border border-white/20 shadow-2xl p-5 sm:p-7 text-white"
+        style={{
+          background: 'linear-gradient(135deg, rgba(22, 24, 34, 0.94) 0%, rgba(12, 14, 22, 0.98) 100%)',
+          backdropFilter: 'blur(32px)',
+          WebkitBackdropFilter: 'blur(32px)'
+        }}
         onClick={(e) => e.stopPropagation()}
-        className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto no-scrollbar rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-5 sm:p-7 text-white space-y-6"
       >
-        {/* ================= MASTERING WORKSTATION HEADER & LIVE SPECTRUM DECK ================= */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-white/12">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 text-[10px] font-extrabold uppercase tracking-widest text-[var(--color-accent)] whitespace-nowrap flex-shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-ping" />
-                WAVECRAFT 64-BIT DSP RACK
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 whitespace-nowrap flex-shrink-0">
-                -0.8 dBTP Brickwall Limiter
-              </span>
-              {vocalMode !== 'normal' && (
-                <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/40 text-[10px] font-extrabold text-purple-200 uppercase whitespace-nowrap flex-shrink-0">
-                  Stem: {vocalMode}
-                </span>
-              )}
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <span className="text-xl">🎛️</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-rose-100 to-cyan-200 bg-clip-text text-transparent">
-              Studio FX, Analog Mastering & 360° Spatial Audio
-            </h2>
-            <p className="text-xs text-white/55">
-              Zero-latency Web Audio signal chain with 2x oversampled tube warmth, HRTF 3D positioning, Mid/Side vocal stem isolation, and 6-channel procedural soundscapes.
-            </p>
+            <div>
+              <h2 id="studio-fx-modal-title" className="text-xl font-black tracking-tight">
+                Studio FX
+              </h2>
+              <p className="text-xs text-white/50 font-medium">
+                3D Spatial Audio & Live Concert Acoustic Engine
+              </p>
+            </div>
           </div>
 
-          {/* Right: Live 60fps Audio Spectrum Monitor + Reset All Button */}
-          <div className="flex items-center gap-3 self-start lg:self-center flex-shrink-0">
-            <div className="px-3.5 py-2 rounded-2xl bg-black/50 border border-white/15 flex items-center gap-3">
-              <div className="flex flex-col">
-                <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/45 whitespace-nowrap">
-                  LIVE OUTPUT SPECTRUM
-                </span>
-                <span className="text-xs font-black text-cyan-300 whitespace-nowrap">
-                  {STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio Master'}
-                </span>
-              </div>
-              <canvas
-                ref={spectrumCanvasRef}
-                width={140}
-                height={34}
-                className="w-[140px] h-[34px] block"
-              />
-            </div>
-
-            {(fxMode !== 'normal' || vocalMode !== 'normal' || hasCustomRack || hasAnyAmbient) && (
+          <div className="flex items-center gap-2">
+            {fxMode !== 'normal' && (
               <button
-                onClick={handleResetAllDSP}
-                className="px-3.5 h-10 rounded-full glass-button text-xs font-extrabold text-rose-300 hover:text-white cursor-pointer whitespace-nowrap flex-shrink-0"
-                title="Bypass and reset all Studio FX, Mastering Knobs, Stems & Ambient Layers"
+                type="button"
+                onClick={resetToOriginal}
+                className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold text-white/80 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
               >
-                ↺ Reset All
+                <span>↺</span>
+                <span>Reset Master</span>
               </button>
             )}
 
             <button
+              type="button"
               onClick={() => setStudioModalOpen(false)}
-              className="w-10 h-10 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white cursor-pointer flex-shrink-0"
-              title="Close Studio Rack"
+              aria-label="Close Studio FX"
+              className="w-9 h-9 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer text-sm font-bold"
             >
               ✕
             </button>
           </div>
         </div>
 
-        {/* ================= MODULE NAVIGATION PILLS ================= */}
-        <div className="flex flex-wrap items-center justify-between gap-2 p-1.5 rounded-2xl bg-black/40 border border-white/12">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {[
-              { id: 'all', label: '⚡ Full Studio Rack' },
-              { id: 'mastering', label: '🎛️ FX Modes & Analog Mastering' },
-              { id: 'spatial', label: '🪐 360° Spatial Radar & Vocal Stems' },
-              { id: 'ambient', label: '🌧️ Ambient Soundscapes & Timers' }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as StudioTab)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'glass-button-primary text-white'
-                    : 'text-white/65 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+        {/* 3 Core Modes: Studio Master, 3D Spatial Audio, Live Concert */}
+        <div className="mt-5">
+          <div className="text-xs font-bold uppercase tracking-wider text-white/50 mb-2.5">
+            Select Sound Mode
           </div>
-
-          <div className="hidden sm:flex items-center gap-2 pr-2 text-[11px] font-bold text-white/50 whitespace-nowrap">
-            <span>Speed: <strong className="text-white">{playbackSpeed}x</strong></span>
-            <span>•</span>
-            <span>Bass: <strong className="text-emerald-300">+{subBassBoost.toFixed(1)}dB</strong></span>
-            <span>•</span>
-            <span>Warmth: <strong className="text-amber-300">{Math.round(harmonicDrive * 100)}%</strong></span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {STUDIO_FX_MODES.map((mode) => {
+              const isSelected = fxMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => {
+                    setFxMode(mode.id as StudioFXMode);
+                    if (mode.id === '8d-orbit') {
+                      setSpatialOrbitAuto(true);
+                    }
+                  }}
+                  className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                    isSelected
+                      ? 'border-cyan-400/80 bg-white/10 shadow-[0_0_24px_rgba(6,182,212,0.3)]'
+                      : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-2xl">{mode.icon}</span>
+                    <span
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                        isSelected
+                          ? 'bg-cyan-400 text-black'
+                          : 'bg-white/10 text-white/60'
+                      }`}
+                    >
+                      {mode.badge}
+                    </span>
+                  </div>
+                  <div className="font-bold text-sm text-white">{mode.name}</div>
+                  <p className="text-[11px] text-white/55 line-clamp-2 mt-1 leading-snug">
+                    {mode.description}
+                  </p>
+                  {isSelected && (
+                    <motion.div
+                      layoutId="active-mode-indicator"
+                      className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* ================= DECK 1: 8 STUDIO FX PRESETS + ANALOG MASTERING RACK ================= */}
-        {(activeTab === 'all' || activeTab === 'mastering') && (
-          <div className="space-y-6">
-            {/* 8 1-Click Real-Time Audio FX Modes */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-extrabold uppercase tracking-wider text-white/90 flex items-center gap-2">
-                  <span>🎛️ 1-Click Mastering & Acoustic FX Presets</span>
-                  {fxMode !== 'normal' && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] glass-button-primary text-white whitespace-nowrap flex-shrink-0">
-                      ACTIVE
-                    </span>
-                  )}
-                </h3>
-                {fxMode !== 'normal' && (
-                  <button
-                    onClick={() => setFxMode('normal')}
-                    className="px-3 py-1 rounded-full glass-button text-xs font-bold text-white/75 hover:text-white cursor-pointer whitespace-nowrap flex-shrink-0"
-                  >
-                    Flat Reference
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {STUDIO_FX_MODES.map((mode) => {
-                  const active = fxMode === mode.id;
-                  return (
-                    <motion.button
-                      key={mode.id}
-                      whileHover={{ y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setFxMode(mode.id)}
-                      className={`text-left p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between gap-2 ${
-                        active
-                          ? 'liquid-glass border-white/35 shadow-[0_14px_34px_rgba(0,0,0,0.5)]'
-                          : 'bg-white/[0.035] border-white/10 hover:bg-white/[0.07] hover:border-white/20'
-                      }`}
-                    >
-                      {active && (
-                        <div
-                          className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${mode.accent}`}
-                        />
-                      )}
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-xl">{mode.icon}</span>
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap flex-shrink-0 ${
-                              active
-                                ? `bg-gradient-to-r ${mode.accent} text-white shadow`
-                                : 'bg-white/10 text-white/60'
-                            }`}
-                          >
-                            {mode.badge}
-                          </span>
-                        </div>
-                        <div className="text-sm font-extrabold text-white truncate">{mode.name}</div>
-                        <p className="text-[11px] text-white/55 leading-relaxed mt-1 line-clamp-2">
-                          {mode.description}
-                        </p>
-                      </div>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Real-Time Parametric Mastering & Tape Rack */}
-            <div className="p-5 rounded-3xl bg-white/[0.035] border border-white/15 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
-                    <span>🎚️ Custom Analog Mastering & Tempo Shifter Rack</span>
-                    {hasCustomRack && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] glass-button-emerald text-emerald-200 whitespace-nowrap flex-shrink-0">
-                        CUSTOM TUNED
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-xs text-white/50 mt-0.5">
-                    Dial in custom 54Hz Sub-Bass punch, 2x oversampled tube harmonics, Haas stereo width, hall reverb, and varispeed pitch shift.
-                  </p>
+        {/* Interactive Effect Controls Stage */}
+        <div className="mt-6 p-4 sm:p-5 rounded-2xl border border-white/10 bg-black/30 backdrop-blur-xl">
+          {fxMode === '8d-orbit' && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-cyan-400 text-lg">🪐</span>
+                  <span className="font-bold text-sm text-white">360° Binaural Spatial Radar</span>
                 </div>
-
-                {hasCustomRack && (
-                  <button
-                    onClick={() => {
-                      resetMasteringRack();
-                      setPlaybackSpeed(1);
-                    }}
-                    className="px-3 py-1 rounded-full glass-button text-xs font-bold text-white/75 hover:text-white cursor-pointer whitespace-nowrap flex-shrink-0"
-                  >
-                    Reset Rack Knobs
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                {/* 1. Sub-Bass Punch Enhancer */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-bold text-white/85 whitespace-nowrap">🔊 54Hz Sub-Bass Punch</span>
-                    <span className="font-extrabold text-rose-300 tabular-nums whitespace-nowrap flex-shrink-0">
-                      +{subBassBoost.toFixed(1)} dB
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="9"
-                    step="0.5"
-                    value={subBassBoost}
-                    onChange={(e) => setSubBassBoost(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
-                    <span>0 dB (Flat)</span>
-                    <span>+4.5 dB (Club)</span>
-                    <span>+9 dB (SubMax)</span>
-                  </div>
-                </div>
-
-                {/* 2. Analog Tube Harmonic Drive */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-bold text-white/85 whitespace-nowrap">🔥 Analog Tube Warmth</span>
-                    <span className="font-extrabold text-amber-300 tabular-nums whitespace-nowrap flex-shrink-0">
-                      {Math.round(harmonicDrive * 100)}% Drive
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.02"
-                    value={harmonicDrive}
-                    onChange={(e) => setHarmonicDrive(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
-                    <span>Clean Digital</span>
-                    <span>Warm Tape</span>
-                    <span>Rich Saturation</span>
-                  </div>
-                </div>
-
-                {/* 3. Binaural Stereo Field Expander */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-bold text-white/85 whitespace-nowrap">↔️ Binaural Stereo Width</span>
-                    <span className="font-extrabold text-cyan-300 tabular-nums whitespace-nowrap flex-shrink-0">
-                      {Math.round(stereoWidth * 100)}% Wide
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.02"
-                    value={stereoWidth}
-                    onChange={(e) => setStereoWidth(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
-                    <span>100% Stereo</span>
-                    <span>Haas Stage</span>
-                    <span>3D Panoramic</span>
-                  </div>
-                </div>
-
-                {/* 4. Cathedral Convolution Reverb Mix */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-bold text-white/85 whitespace-nowrap">🏛️ Hall Reverb Wet Mix</span>
-                    <span className="font-extrabold text-purple-300 tabular-nums whitespace-nowrap flex-shrink-0">
-                      {Math.round((reverbMix / 0.75) * 100)}% Hall
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="0.75"
-                    step="0.02"
-                    value={reverbMix}
-                    onChange={(e) => setReverbMix(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
-                    <span>Dry Studio</span>
-                    <span>Warm Plate</span>
-                    <span>Lush Cathedral</span>
-                  </div>
-                </div>
-
-                {/* 5. 11kHz Silk Air / Lo-Fi High Filter */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-bold text-white/85 whitespace-nowrap">✨ 11kHz Treble Silk / Cut</span>
-                    <span className="font-extrabold text-emerald-300 tabular-nums whitespace-nowrap flex-shrink-0">
-                      {trebleAir > 0 ? `+${trebleAir.toFixed(1)}` : trebleAir.toFixed(1)} dB
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-6"
-                    max="6"
-                    step="0.5"
-                    value={trebleAir}
-                    onChange={(e) => setTrebleAir(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-[10px] text-white/65 font-semibold">
-                    <span>-6dB (Lo-Fi)</span>
-                    <span>0dB (Flat)</span>
-                    <span>+6dB (Silk Air)</span>
-                  </div>
-                </div>
-
-                {/* 6. Fine Varispeed & Pitch-Lock Control */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-bold text-white/85 whitespace-nowrap">⚡ Varispeed & Pitch Lock</span>
-                    <button
-                      type="button"
-                      onClick={() => setPreservePitch(!preservePitch)}
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase whitespace-nowrap flex-shrink-0 cursor-pointer ${
-                        preservePitch
-                          ? 'glass-button-cyan text-cyan-200'
-                          : 'glass-button-purple text-purple-200'
-                      }`}
-                    >
-                      {preservePitch ? '🔒 Pitch Locked' : '📼 Tape Pitch Shift'}
-                    </button>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.70"
-                    max="1.35"
-                    step="0.01"
-                    value={playbackSpeed}
-                    onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex items-center justify-between text-[10px] text-white/55 font-bold">
-                    <button
-                      type="button"
-                      onClick={() => setPlaybackSpeed(0.88)}
-                      className="hover:text-white cursor-pointer"
-                    >
-                      0.88x Slow
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPlaybackSpeed(1.0)}
-                      className="text-white hover:text-cyan-300 cursor-pointer"
-                    >
-                      {playbackSpeed.toFixed(2)}x (Reset 1.0x)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPlaybackSpeed(1.18)}
-                      className="hover:text-white cursor-pointer"
-                    >
-                      1.18x Up
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= DECK 2: 360° HRTF SPATIAL RADAR + VOCAL STEM ISOLATOR ================= */}
-        {(activeTab === 'all' || activeTab === 'spatial') && (
-          <div className="space-y-6">
-            {/* Redesigned Holographic 360° HRTF Spatial Soundstage Workstation */}
-            <div
-              className={`p-5 sm:p-6 rounded-3xl border transition-all relative overflow-hidden ${
-                fxMode === '8d-orbit'
-                  ? 'bg-gradient-to-br from-cyan-500/[0.12] via-slate-900/80 to-indigo-600/[0.12] border-cyan-400/40 shadow-[0_20px_60px_rgba(6,182,212,0.18)]'
-                  : 'bg-white/[0.03] border-white/12'
-              }`}
-            >
-              {/* Top Header Bar */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 pb-4 mb-5 border-b border-white/10">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse" />
-                    <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
-                      360° HRTF Spatial Soundstage & Binaural Acoustic Dome
-                    </h3>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
-                        fxMode === '8d-orbit'
-                          ? 'bg-cyan-500/25 border border-cyan-400/45 text-cyan-200'
-                          : 'bg-white/10 border border-white/15 text-white/60'
-                      }`}
-                    >
-                      {fxMode === '8d-orbit'
-                        ? spatialOrbitAuto
-                          ? '● AUTO 360° ORBIT ACTIVE'
-                          : '● MANUAL 3D VECTOR LOCKED'
-                        : 'STANDBY • CLICK TO ENGAGE'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-white/55">
-                    Position the 3D sound emitter anywhere in a 360° binaural sphere around your ears while keeping &lt;95Hz sub-bass phase-locked in the center.
-                  </p>
-                </div>
-
-                {/* Segmented Trajectory Mode Switcher */}
-                <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/50 border border-white/12 self-start lg:self-center flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
-                      setSpatialOrbitAuto(true);
-                    }}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                      fxMode === '8d-orbit' && spatialOrbitAuto
-                        ? 'glass-button-cyan text-white shadow-md'
-                        : 'text-white/65 hover:text-white'
-                    }`}
-                  >
-                    <span>🔄 Auto 360° Orbit</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
-                      setSpatialOrbitAuto(false);
-                    }}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                      fxMode === '8d-orbit' && !spatialOrbitAuto
-                        ? 'glass-button-cyan text-white shadow-md'
-                        : 'text-white/65 hover:text-white'
-                    }`}
-                  >
-                    <span>🕹️ Manual 3D Pad</span>
-                  </button>
-                  {fxMode === '8d-orbit' && (
-                    <button
-                      type="button"
-                      onClick={() => setFxMode('normal')}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-300 hover:bg-rose-500/15 cursor-pointer transition-all whitespace-nowrap"
-                    >
-                      Bypass
-                    </button>
-                  )}
+                <div
+                  ref={stageZoneRef}
+                  className="text-xs font-semibold text-cyan-300 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20"
+                >
+                  {initialStageZoneLabel}
                 </div>
               </div>
 
-              {/* Main 2-Column Spatial Console Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-                {/* Left Column (5 cols): Holographic Radar Viewport + Live Binaural Ear Telemetry */}
-                <div className="lg:col-span-5 p-4 rounded-2xl bg-black/55 border border-white/12 flex flex-col items-center justify-between gap-3.5">
-                  {/* Top Radar Telemetry Strip */}
-                  <div className="w-full flex items-center justify-between gap-2 text-[11px]">
-                    <span className="font-extrabold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5 whitespace-nowrap">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                      {stageZoneLabel}
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-lg bg-white/[0.06] border border-white/10 font-mono font-bold text-white/85 tabular-nums whitespace-nowrap">
-                      {azimuthDeg}° AZ • {distanceMeters}m
-                    </span>
+              {/* 2D Interactive Radar Display */}
+              <div className="flex flex-col sm:flex-row items-center gap-5 my-3">
+                <div
+                  ref={radarRef}
+                  onPointerDown={(e) => {
+                    updateRadarPosFromPointer(e.clientX, e.clientY);
+                  }}
+                  onPointerMove={(e) => {
+                    if (e.buttons === 1) {
+                      updateRadarPosFromPointer(e.clientX, e.clientY);
+                    }
+                  }}
+                  className="relative w-48 h-48 rounded-full border-2 border-cyan-500/30 bg-black/60 shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center cursor-crosshair flex-shrink-0 touch-none select-none"
+                >
+                  {/* Concentric distance rings */}
+                  <div className="absolute inset-4 rounded-full border border-cyan-500/15 pointer-events-none" />
+                  <div className="absolute inset-10 rounded-full border border-cyan-500/20 pointer-events-none" />
+                  <div className="absolute inset-16 rounded-full border border-cyan-500/25 pointer-events-none" />
+
+                  {/* Crosshairs */}
+                  <div className="absolute inset-x-0 top-1/2 h-[1px] bg-cyan-500/15 pointer-events-none" />
+                  <div className="absolute inset-y-0 left-1/2 w-[1px] bg-cyan-500/15 pointer-events-none" />
+
+                  {/* Center Listener Head */}
+                  <div className="w-8 h-8 rounded-full bg-white/15 border border-white/40 flex items-center justify-center text-xs shadow-md z-10 pointer-events-none">
+                    🎧
                   </div>
 
-                  {/* Interactive 224x224 Holographic Soundfield Radar */}
+                  {/* Orbiting / Positioned Sound Source Dot */}
                   <div
-                    ref={radarRef}
-                    onPointerDown={(e) => {
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      setIsDraggingRadar(true);
-                      updateRadarPosFromPointer(e.clientX, e.clientY);
+                    ref={orbDotRef}
+                    className="absolute w-5 h-5 rounded-full bg-cyan-400 border-2 border-white shadow-[0_0_16px_rgba(6,182,212,1)] z-20 pointer-events-none transition-none"
+                    style={{
+                      left: 'calc(50% - 10px)',
+                      top: 'calc(50% - 10px)',
+                      transform: `translate(${initialOrbX * 72}px, ${initialOrbZ * 72}px)`
                     }}
-                    onPointerMove={(e) => {
-                      if (!isDraggingRadar) return;
-                      updateRadarPosFromPointer(e.clientX, e.clientY);
-                    }}
-                    onPointerUp={() => setIsDraggingRadar(false)}
-                    onPointerCancel={() => setIsDraggingRadar(false)}
-                    className="relative w-56 h-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.16)_0%,rgba(15,23,42,0.85)_62%,rgba(0,0,0,0.95)_100%)] border border-cyan-400/40 shadow-[inset_0_0_36px_rgba(34,211,238,0.18),0_12px_32px_rgba(0,0,0,0.65)] flex items-center justify-center cursor-crosshair touch-none overflow-hidden select-none"
-                  >
-                    {/* SVG Reticle Grid & Dynamic Acoustic Wavefront Beam */}
-                    <svg
-                      viewBox="0 0 224 224"
-                      className="absolute inset-0 w-full h-full pointer-events-none"
-                    >
-                      <defs>
-                        <linearGradient id="spatialBeamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="rgba(34, 211, 238, 0.48)" />
-                          <stop offset="100%" stopColor="rgba(59, 130, 246, 0.04)" />
-                        </linearGradient>
-                      </defs>
-                      {/* Concentric Distance Rings (0.8m, 1.6m, 2.4m) */}
-                      <circle cx="112" cy="112" r="84" fill="none" stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" />
-                      <circle cx="112" cy="112" r="56" fill="none" stroke="rgba(255,255,255,0.10)" />
-                      <circle cx="112" cy="112" r="28" fill="none" stroke="rgba(34,211,238,0.18)" />
-                      {/* Primary & Diagonal Crosshairs */}
-                      <line x1="112" y1="8" x2="112" y2="216" stroke="rgba(255,255,255,0.08)" />
-                      <line x1="8" y1="112" x2="216" y2="112" stroke="rgba(255,255,255,0.08)" />
-                      <line x1="38" y1="38" x2="186" y2="186" stroke="rgba(255,255,255,0.05)" />
-                      <line x1="186" y1="38" x2="38" y2="186" stroke="rgba(255,255,255,0.05)" />
-
-                      {/* Acoustic Wavefront Projection Cone from Emitter to Listener */}
-                      {(() => {
-                        const ex = 112 + orbX * 86;
-                        const ez = 112 + orbZ * 86;
-                        const angle = Math.atan2(112 - ez, 112 - ex);
-                        const spread = 0.42;
-                        const wx1 = ex + Math.cos(angle - spread) * 58;
-                        const wz1 = ez + Math.sin(angle - spread) * 58;
-                        const wx2 = ex + Math.cos(angle + spread) * 58;
-                        const wz2 = ez + Math.sin(angle + spread) * 58;
-                        return (
-                          <>
-                            <polygon
-                              points={`${ex},${ez} ${wx1},${wz1} ${wx2},${wz2}`}
-                              fill="url(#spatialBeamGrad)"
-                            />
-                            <line
-                              x1="112"
-                              y1="112"
-                              x2={ex}
-                              y2={ez}
-                              stroke="rgba(34, 211, 238, 0.65)"
-                              strokeWidth="1.5"
-                              strokeDasharray="3 3"
-                            />
-                          </>
-                        );
-                      })()}
-                    </svg>
-
-                    {/* Cardinal Degree Labels */}
-                    <span className="absolute top-2 text-[9px] font-black tracking-widest text-cyan-300/90 uppercase pointer-events-none">
-                      0° FRONT STAGE
-                    </span>
-                    <span className="absolute bottom-2 text-[9px] font-extrabold tracking-widest text-white/45 uppercase pointer-events-none">
-                      180° REAR HALO
-                    </span>
-                    <span className="absolute left-2.5 text-[9px] font-extrabold tracking-widest text-white/55 uppercase pointer-events-none">
-                      270° L
-                    </span>
-                    <span className="absolute right-2.5 text-[9px] font-extrabold tracking-widest text-white/55 uppercase pointer-events-none">
-                      90° R
-                    </span>
-
-                    {/* Center Listener Reference Node */}
-                    <div className="relative z-10 w-10 h-10 rounded-full bg-slate-900/90 border border-cyan-400/40 flex items-center justify-center text-sm shadow-[0_0_20px_rgba(34,211,238,0.25)] pointer-events-none">
-                      🎧
-                    </div>
-
-                    {/* Draggable / Orbiting 3D Sound Emitter Orb */}
-                    <div
-                      style={{
-                        transform: `translate3d(${(orbX * 86).toFixed(1)}px, ${(orbZ * 86).toFixed(1)}px, 0)`
-                      }}
-                      className="pointer-events-none absolute w-8 h-8 rounded-full bg-gradient-to-br from-cyan-300 via-sky-400 to-blue-600 border-2 border-white shadow-[0_0_28px_6px_rgba(34,211,238,0.9)] flex items-center justify-center will-change-transform z-20"
-                    >
-                      <span className="absolute inset-0 rounded-full border border-cyan-200 animate-ping opacity-75" />
-                      <span className="w-2 h-2 rounded-full bg-white" />
-                    </div>
-                  </div>
-
-                  {/* Bottom Binaural Ear ILD Level Meters */}
-                  <div className="w-full space-y-1.5 pt-1">
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10">
-                        <div className="flex items-center justify-between text-[10px] font-bold mb-1">
-                          <span className="text-white/60">L-EAR BINAURAL</span>
-                          <span className="text-cyan-300 tabular-nums">{leftEarLevel}%</span>
-                        </div>
-                        <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-150"
-                            style={{ width: `${leftEarLevel}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10">
-                        <div className="flex items-center justify-between text-[10px] font-bold mb-1">
-                          <span className="text-white/60">R-EAR BINAURAL</span>
-                          <span className="text-cyan-300 tabular-nums">{rightEarLevel}%</span>
-                        </div>
-                        <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-150"
-                            style={{ width: `${rightEarLevel}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] text-white/45 font-semibold px-1">
-                      <span>X: {(orbX * 2.5).toFixed(1)}m • Z: {(orbZ * 2.2).toFixed(1)}m</span>
-                      <span className="text-emerald-300/85">● &lt;95Hz Sub Phase-Locked</span>
-                    </div>
-                  </div>
+                  />
                 </div>
 
-                {/* Right Column (7 cols): Orbit Velocity, Dome Reflections & 6-Point Stage Matrix */}
-                <div className="lg:col-span-7 flex flex-col justify-between gap-4">
-                  {/* 1. 360° Orbit Angular Velocity Module */}
-                  <div className="p-4 rounded-2xl bg-black/45 border border-white/12 space-y-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
-                          <span>🔄 360° Orbit Angular Velocity</span>
+                {/* Radar Readout & Controls */}
+                <div className="flex-1 w-full space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                      <div className="text-white/50 text-[10px] uppercase font-bold">Azimuth</div>
+                      <div ref={azimuthRef} className="text-sm font-black text-cyan-300">{initialAzimuthDeg}°</div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                      <div className="text-white/50 text-[10px] uppercase font-bold">Distance</div>
+                      <div ref={distanceRef} className="text-sm font-black text-white">{initialDistanceMeters} m</div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                      <div className="text-white/50 text-[10px] uppercase font-bold">Left Ear</div>
+                      <div ref={leftEarRef} className="text-sm font-black text-cyan-400">{initialLeftEarLevel}%</div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                      <div className="text-white/50 text-[10px] uppercase font-bold">Right Ear</div>
+                      <div ref={rightEarRef} className="text-sm font-black text-indigo-400">{initialRightEarLevel}%</div>
+                    </div>
+                  </div>
+
+                  {/* Auto-Orbit Toggle Button */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs font-semibold text-white/80">Continuous 360° Orbit</span>
+                    <button
+                      type="button"
+                      onClick={() => setSpatialOrbitAuto(!spatialOrbitAuto)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer border ${
+                        spatialOrbitAuto
+                          ? 'bg-cyan-400 text-black border-cyan-300 shadow-md shadow-cyan-400/20'
+                          : 'bg-white/10 text-white/60 border-white/15 hover:bg-white/15'
+                      }`}
+                    >
+                      {spatialOrbitAuto ? 'Auto-Orbit: ON' : 'Manual Point'}
+                    </button>
+                  </div>
+
+                  {/* Orbit Speed Slider */}
+                  {spatialOrbitAuto && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-white/60">
+                        <span>Orbit Speed</span>
+                        <span className="font-mono text-cyan-300 font-bold">
+                          {((spatialOrbitSpeed || 0.12) * 10).toFixed(1)}x
                         </span>
-                        <p className="text-[11px] text-white/45">
-                          Controls how fast the 3D soundstage rotates around your head
-                        </p>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        {[
-                          { label: 'Slow 16s', val: 0.06 },
-                          { label: 'Med 8s', val: 0.12 },
-                          { label: 'Fast 3s', val: 0.32 }
-                        ].map((sp) => (
-                          <button
-                            key={sp.label}
-                            type="button"
-                            onClick={() => {
-                              if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
-                              setSpatialOrbitAuto(true);
-                              setSpatialOrbitSpeed(sp.val);
-                            }}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer whitespace-nowrap ${
-                              Math.abs(spatialOrbitSpeed - sp.val) < 0.025
-                                ? 'bg-cyan-500/25 border-cyan-400/50 text-cyan-200'
-                                : 'bg-white/[0.04] border-white/10 text-white/55 hover:text-white'
-                            }`}
-                          >
-                            {sp.label}
-                          </button>
-                        ))}
-                        <span className="px-2.5 py-0.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30 text-[11px] font-black text-cyan-300 tabular-nums whitespace-nowrap">
-                          {(1 / spatialOrbitSpeed).toFixed(1)}s / rev
-                        </span>
-                      </div>
+                      <input
+                        type="range"
+                        min="0.05"
+                        max="0.35"
+                        step="0.01"
+                        value={spatialOrbitSpeed || 0.12}
+                        onChange={(e) => setSpatialOrbitSpeed(parseFloat(e.target.value))}
+                        className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
+                      />
+                    </div>
+                  )}
+
+                  {/* Spatial Depth Slider */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-white/60">
+                      <span>Spatial Room Depth</span>
+                      <span className="font-mono text-white font-bold">
+                        {Math.round((spatialRoomSize || 0.26) * 100)}%
+                      </span>
                     </div>
                     <input
                       type="range"
                       min="0.05"
-                      max="0.35"
-                      step="0.01"
-                      value={spatialOrbitSpeed}
-                      onChange={(e) => {
-                        if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
-                        setSpatialOrbitSpeed(parseFloat(e.target.value));
-                      }}
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* 2. Concert Dome Acoustic Ambience Module */}
-                  <div className="p-4 rounded-2xl bg-black/45 border border-white/12 space-y-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
-                          <span>🏛️ Concert Dome Acoustic Reflections</span>
-                        </span>
-                        <p className="text-[11px] text-white/45">
-                          Early wall reflections & binaural air absorption depth
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {[
-                          { label: 'Booth 25%', val: 0.16 },
-                          { label: 'Hall 60%', val: 0.39 },
-                          { label: 'Dome 95%', val: 0.62 }
-                        ].map((rm) => (
-                          <button
-                            key={rm.label}
-                            type="button"
-                            onClick={() => {
-                              if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
-                              setSpatialRoomSize(rm.val);
-                            }}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer whitespace-nowrap ${
-                              Math.abs(spatialRoomSize - rm.val) < 0.05
-                                ? 'bg-cyan-500/25 border-cyan-400/50 text-cyan-200'
-                                : 'bg-white/[0.04] border-white/10 text-white/55 hover:text-white'
-                            }`}
-                          >
-                            {rm.label}
-                          </button>
-                        ))}
-                        <span className="px-2.5 py-0.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30 text-[11px] font-black text-cyan-300 tabular-nums whitespace-nowrap">
-                          {Math.round((spatialRoomSize / 0.65) * 100)}% Depth
-                        </span>
-                      </div>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
                       max="0.65"
-                      step="0.02"
-                      value={spatialRoomSize}
-                      onChange={(e) => {
-                        if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
-                        setSpatialRoomSize(parseFloat(e.target.value));
-                      }}
-                      className="w-full"
+                      step="0.01"
+                      value={spatialRoomSize || 0.26}
+                      onChange={(e) => setSpatialRoomSize(parseFloat(e.target.value))}
+                      className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
                     />
                   </div>
-
-                  {/* 3. 6-Point Acoustic Stage Position Matrix */}
-                  <div className="p-4 rounded-2xl bg-black/45 border border-white/12 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-white/90 uppercase tracking-wider">
-                        🎯 Quick 3D Acoustic Stage Positions
-                      </span>
-                      <span className="text-[10px] text-white/45 font-semibold">
-                        Click any zone to lock 3D vector
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                        { icon: '🎤', label: 'Front Row Stage', sub: '0° • 2.0m Center', x: 0, z: -0.82 },
-                        { icon: '🎸', label: 'Front Left Wing', sub: '310° • 2.1m Left', x: -0.65, z: -0.55 },
-                        { icon: '🎹', label: 'Front Right Wing', sub: '50° • 2.1m Right', x: 0.65, z: -0.55 },
-                        { icon: '🏛️', label: 'Left Balcony', sub: '270° • 2.2m Hard L', x: -0.85, z: 0 },
-                        { icon: '🏛️', label: 'Right Balcony', sub: '90° • 2.2m Hard R', x: 0.85, z: 0 },
-                        { icon: '🌌', label: 'Rear Surround Halo', sub: '180° • 2.0m Behind', x: 0, z: 0.82 }
-                      ].map((preset) => {
-                        const isSelected =
-                          fxMode === '8d-orbit' &&
-                          !spatialOrbitAuto &&
-                          Math.hypot(spatialManualPos.x - preset.x, spatialManualPos.z - preset.z) < 0.18;
-
-                        return (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => {
-                              if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
-                              setSpatialOrbitAuto(false);
-                              setSpatialManualPos({ x: preset.x, z: preset.z });
-                            }}
-                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 min-w-0 ${
-                              isSelected
-                                ? 'bg-cyan-500/20 border-cyan-400/55 text-white shadow-md'
-                                : 'bg-white/[0.04] border-white/10 text-white/75 hover:text-white hover:bg-white/[0.08]'
-                            }`}
-                          >
-                            <span className="text-base flex-shrink-0">{preset.icon}</span>
-                            <div className="min-w-0">
-                              <div className="text-[11px] font-extrabold truncate">{preset.label}</div>
-                              <div className="text-[9px] text-white/50 font-semibold truncate">
-                                {preset.sub}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Real-Time Vocal Remover (Karaoke) & Acapella Stem Isolator */}
-            <div className="space-y-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-extrabold uppercase tracking-wider text-white/90 flex items-center gap-2">
-                    <span>🎤 Real-Time Vocal Remover & Stem Isolator</span>
-                    {vocalMode !== 'normal' && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] glass-button-primary text-white whitespace-nowrap flex-shrink-0">
-                        {vocalMode.toUpperCase()}
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-xs text-white/50 mt-0.5">
-                    Zero-latency Web Audio Mid/Side phase cancellation & vocal formant isolation — works on any streaming track.
-                  </p>
-                </div>
-                {vocalMode !== 'normal' && (
-                  <button
-                    onClick={() => setVocalMode('normal')}
-                    className="px-3 py-1 rounded-full glass-button text-xs font-bold text-white/75 hover:text-white cursor-pointer whitespace-nowrap flex-shrink-0"
-                  >
-                    Restore Full Vocals
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {VOCAL_STEM_MODES.map((m) => {
-                  const active = vocalMode === m.id;
-                  return (
-                    <motion.button
-                      key={m.id}
-                      whileHover={{ y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setVocalMode(m.id)}
-                      className={`text-left p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
-                        active
-                          ? 'liquid-glass border-white/35 shadow-xl'
-                          : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08]'
-                      }`}
-                    >
-                      {active && (
-                        <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${m.accent}`} />
-                      )}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-lg">{m.icon}</span>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap flex-shrink-0 ${
-                            active
-                              ? `bg-gradient-to-r ${m.accent} text-white shadow`
-                              : 'bg-white/10 text-white/60'
-                          }`}
-                        >
-                          {m.badge}
-                        </span>
-                      </div>
-                      <div className="text-sm font-extrabold text-white truncate">{m.name}</div>
-                      <p className="text-xs text-white/60 leading-relaxed mt-1">{m.desc}</p>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= DECK 3: 6-CHANNEL AMBIENT SOUNDSCAPE MIXER & TIMERS ================= */}
-        {(activeTab === 'all' || activeTab === 'ambient') && (
-          <div className="space-y-6">
-            <div className="space-y-3.5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-extrabold uppercase tracking-wider text-white/90">
-                    🌧️ 6-Channel Procedural Ambient Soundscape Mixer
-                  </h3>
-                  <p className="text-xs text-white/50 mt-0.5">
-                    Synthesized live via Web Audio DSP — layer underneath your music or listen solo for deep study & sleep.
-                  </p>
-                </div>
-
-                {/* 1-Click Ambient Scene Presets */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {AMBIENT_SCENE_PRESETS.map((scene) => (
-                    <button
-                      key={scene.id}
-                      type="button"
-                      onClick={() => applyAmbientPreset(scene.mix)}
-                      className="px-3 py-1 rounded-full glass-button text-[11px] font-bold text-emerald-200 hover:text-white cursor-pointer whitespace-nowrap flex-shrink-0"
-                    >
-                      {scene.icon} {scene.label}
-                    </button>
-                  ))}
-                  {hasAnyAmbient && (
-                    <button
-                      onClick={stopAllAmbient}
-                      className="px-3 py-1 rounded-full glass-button-primary text-[11px] font-bold text-white cursor-pointer whitespace-nowrap flex-shrink-0"
-                    >
-                      Mute All
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {AMBIENT_LAYERS.map((layer) => {
-                  const vol = ambientVolumes[layer.id] || 0;
-                  const isLayerActive = vol > 0.01;
-                  return (
-                    <div
-                      key={layer.id}
-                      className={`p-4 rounded-2xl border transition-all ${
-                        isLayerActive
-                          ? 'bg-emerald-500/12 border-emerald-400/35 shadow-lg'
-                          : 'bg-white/[0.04] border-white/10'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-xl flex-shrink-0">{layer.icon}</span>
-                          <div className="min-w-0">
-                            <div className="text-xs font-extrabold text-white truncate">{layer.name}</div>
-                            <div className="text-[10px] text-white/50 truncate">{layer.subtitle}</div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            setAmbientVolume(layer.id as AmbientLayerId, isLayerActive ? 0 : 0.45)
-                          }
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                            isLayerActive
-                              ? 'glass-button-emerald text-emerald-200'
-                              : 'glass-button text-white/60 hover:text-white'
-                          }`}
-                        >
-                          {isLayerActive ? `${Math.round(vol * 100)}%` : 'OFF'}
-                        </button>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.02"
-                        value={vol}
-                        onChange={(e) =>
-                          setAmbientVolume(layer.id as AmbientLayerId, parseFloat(e.target.value))
-                        }
-                        className="w-full mt-1"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Focus Pomodoro & Sleep Timer */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/10">
-              {/* Focus Pomodoro Timer */}
-              <div className="p-5 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between gap-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-                      <span>⏱️ Focus Pomodoro Timer</span>
-                      {completedSessions > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] whitespace-nowrap flex-shrink-0">
-                          🔥 {completedSessions} Done
-                        </span>
-                      )}
-                    </h4>
-                    <p className="text-xs text-white/55 mt-0.5">
-                      25-minute deep work intervals with 5-minute recharge breaks.
-                    </p>
-                  </div>
-                  <div className="text-2xl font-black tabular-nums text-[var(--color-accent)] whitespace-nowrap flex-shrink-0">
-                    {formatClock(pomodoroSeconds)}
-                  </div>
-                </div>
-
+          {fxMode === 'arena-live' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {pomodoroActive ? (
-                    <button
-                      onClick={stopPomodoro}
-                      className="flex-1 py-2.5 rounded-xl glass-button-primary text-red-100 text-xs font-extrabold cursor-pointer"
-                    >
-                      Stop {pomodoroMode === 'focus' ? 'Focus' : 'Break'} Timer
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => startPomodoro('focus')}
-                        className="flex-1 py-2.5 rounded-xl glass-button-primary text-white text-xs font-extrabold cursor-pointer"
-                      >
-                        Start 25m Focus
-                      </button>
-                      <button
-                        onClick={() => startPomodoro('break')}
-                        className="px-4 py-2.5 rounded-xl glass-button text-white/85 hover:text-white text-xs font-bold cursor-pointer"
-                      >
-                        5m Break
-                      </button>
-                    </>
-                  )}
+                  <span className="text-amber-400 text-lg">🏟️</span>
+                  <span className="font-bold text-sm text-white">Live Concert Arena Acoustic Field</span>
+                </div>
+                <div className="text-xs font-semibold text-amber-300 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                  Stadium Atmosphere Active
                 </div>
               </div>
 
-              {/* Unified Sleep Fade-Out Timer */}
-              <div className="p-5 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between gap-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <h4 className="text-sm font-extrabold text-white">🌙 Sleep Fade-Out Timer</h4>
-                    <p className="text-xs text-white/55 mt-0.5">
-                      Smoothly fades out volume and pauses playback when your timer completes.
-                    </p>
+              <p className="text-xs text-white/60 leading-relaxed">
+                Recreates the physical acoustic energy of a 50,000-seat stadium tour with live crowd ambiance, acoustic hall reflections, and low-end arena kick.
+              </p>
+
+              {/* Sliders for Stadium Reverb & Arena Sub-Bass */}
+              <div className="space-y-3 pt-1">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-white/60">
+                    <span>Stadium Reverb & Hall Echo</span>
+                    <span className="font-mono text-amber-300 font-bold">
+                      {Math.round((reverbMix || 0.25) * 100)}%
+                    </span>
                   </div>
-                  {sleepActive && (
-                    <div className="text-base sm:text-xl font-black tabular-nums text-purple-300 whitespace-nowrap flex-shrink-0">
-                      {sleepEndAtTrack ? 'End of Song' : formatClock(sleepRemaining)}
-                    </div>
-                  )}
+                  <input
+                    type="range"
+                    min="0.05"
+                    max="0.75"
+                    step="0.02"
+                    value={reverbMix || 0.25}
+                    onChange={(e) => setReverbMix(parseFloat(e.target.value))}
+                    className="w-full accent-amber-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
+                  />
                 </div>
 
-                {sleepActive ? (
-                  <button
-                    onClick={stopSleepTimer}
-                    className="w-full py-2.5 rounded-xl glass-button-purple text-purple-200 text-xs font-extrabold cursor-pointer"
-                  >
-                    Cancel Sleep Timer ({sleepEndAtTrack ? 'End of Song' : formatClock(sleepRemaining)})
-                  </button>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {[15, 30, 45, 60].map((mins) => (
-                      <button
-                        key={mins}
-                        onClick={() => startSleepTimer(mins)}
-                        className="flex-1 py-2 rounded-xl glass-button text-xs font-bold text-white cursor-pointer"
-                      >
-                        {mins}m
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setEndAtTrack(true)}
-                      className="px-3 py-2 rounded-xl glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer"
-                    >
-                      End of Song
-                    </button>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-white/60">
+                    <span>Arena Sub-Bass Floor Punch</span>
+                    <span className="font-mono text-amber-300 font-bold">
+                      +{(subBassBoost || 3).toFixed(1)} dB
+                    </span>
                   </div>
-                )}
+                  <input
+                    type="range"
+                    min="0"
+                    max="8"
+                    step="0.5"
+                    value={subBassBoost || 3}
+                    onChange={(e) => setSubBassBoost(parseFloat(e.target.value))}
+                    className="w-full accent-amber-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Arena Presets */}
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-white/50 font-bold">Quick Stage:</span>
+                {[
+                  { label: 'Grand Arena', rev: 0.45, bass: 5 },
+                  { label: 'Festival Stadium', rev: 0.30, bass: 3.5 },
+                  { label: 'Live Concert Hall', rev: 0.15, bass: 2 }
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setReverbMix(preset.rev);
+                      setSubBassBoost(preset.bass);
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
             </div>
+          )}
+
+          {fxMode === 'normal' && (
+            <div className="py-6 text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl mx-auto shadow-lg shadow-emerald-500/10">
+                💎
+              </div>
+              <div className="font-bold text-base text-white">Original Studio Master Active</div>
+              <p className="text-xs text-white/50 max-w-sm mx-auto">
+                Streaming bit-accurate reference audio with zero coloration, original dynamic range, and pure headroom.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Real-Time Mastering Spectrum Visualizer */}
+        <div className="mt-5 space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-white/50 font-bold">
+            <span>Live Audio Spectrum</span>
+            <span className="font-mono text-[10px] text-cyan-400">32-Band Analyzer</span>
           </div>
-        )}
+          <div className="h-16 w-full rounded-2xl border border-white/10 bg-black/40 overflow-hidden p-1.5 shadow-inner">
+            <canvas
+              ref={spectrumCanvasRef}
+              width={600}
+              height={56}
+              className="w-full h-full block"
+            />
+          </div>
+        </div>
+
+        {/* Sleep Timer Quick Dock */}
+        <div className="mt-5 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">🌙</span>
+            <span className="text-xs font-bold text-white/80">Sleep Timer</span>
+            {sleepActive && (
+              <span className="text-xs font-mono font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30">
+                {sleepEndAtTrack ? 'End of song' : formatClock(sleepRemaining)}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {sleepActive ? (
+              <button
+                type="button"
+                onClick={stopSleepTimer}
+                className="px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            ) : (
+              <>
+                {[15, 30, 45, 60].map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => startSleepTimer(mins)}
+                    className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-bold text-white/75 hover:text-white transition cursor-pointer"
+                  >
+                    {mins}m
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setEndAtTrack(true)}
+                  className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-bold text-white/75 hover:text-white transition cursor-pointer"
+                >
+                  End of Song
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </motion.div>
     </div>
   );

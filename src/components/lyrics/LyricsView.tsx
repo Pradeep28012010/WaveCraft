@@ -1,8 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getLyricsData, type LyricsResult } from '../../services/lyrics';
+import {
+  getLyricsData,
+  getSavedLyricsOffset,
+  saveLyricsOffset,
+  type LyricsResult,
+  type LyricsCandidate
+} from '../../services/lyrics';
 import { usePlayerStore } from '../../stores/playerStore';
-import { useStudioStore } from '../../stores/studioStore';
 import { formatTime } from '../../utils/formatTime';
 import type { LyricLine } from '../../types';
 
@@ -20,9 +25,9 @@ const formatTimestamp = (seconds: number) => (seconds < 0 || isNaN(seconds) ? ''
  * Subscribes to `currentTime` independently so the 80-line lyrics list NEVER re-renders between lines!
  */
 const ActiveLineProgress = memo(
-  ({ startTime, endTime }: { startTime: number; endTime: number }) => {
+  ({ startTime, endTime, userOffset }: { startTime: number; endTime: number; userOffset: number }) => {
     const currentTime = usePlayerStore((s) => s.currentTime);
-    const syncTime = currentTime + 0.22;
+    const syncTime = currentTime + userOffset + 0.25;
     const duration = Math.max(1.2, endTime - startTime);
     const progress = Math.min(1, Math.max(0, (syncTime - startTime) / duration));
 
@@ -47,8 +52,10 @@ interface LyricRowProps {
   index: number;
   activeIndex: number;
   nextLineTime: number;
+  userOffset: number;
   onSelectLine: (time: number) => void;
   onShareLine?: (quote: string) => void;
+  onAlignToNow?: (time: number) => void;
   setRowRef: (index: number, el: HTMLDivElement | null) => void;
 }
 
@@ -63,8 +70,10 @@ const LyricRow = memo(
     index,
     activeIndex,
     nextLineTime,
+    userOffset,
     onSelectLine,
     onShareLine,
+    onAlignToNow,
     setRowRef
   }: LyricRowProps) => {
     const isCurrent = index === activeIndex;
@@ -139,6 +148,25 @@ const LyricRow = memo(
             </p>
 
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* One-Tap "Sync to Now" Alignment Button */}
+              {onAlignToNow && line.time >= 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAlignToNow(line.time);
+                  }}
+                  title="Snap timing: Click when you hear this line to sync all lyrics instantly"
+                  className="opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-full bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/30 text-[10px] font-bold text-amber-200 hover:text-white transition-all cursor-pointer flex items-center gap-1 flex-shrink-0 shadow-sm"
+                >
+                  <svg className="w-2.5 h-2.5 text-amber-300 fill-current" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2.5" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Sync Here</span>
+                </button>
+              )}
+
               {onShareLine && (
                 <button
                   type="button"
@@ -172,7 +200,13 @@ const LyricRow = memo(
             </div>
           </div>
 
-          {isCurrent && <ActiveLineProgress startTime={line.time} endTime={nextLineTime} />}
+          {isCurrent && (
+            <ActiveLineProgress
+              startTime={line.time}
+              endTime={nextLineTime}
+              userOffset={userOffset}
+            />
+          )}
         </motion.div>
 
         {isLongBridge && (
@@ -189,7 +223,13 @@ const LyricRow = memo(
     );
   },
   (prev, next) => {
-    if (prev.line !== next.line || prev.index !== next.index) return false;
+    if (
+      prev.line !== next.line ||
+      prev.index !== next.index ||
+      prev.userOffset !== next.userOffset
+    ) {
+      return false;
+    }
     if (prev.activeIndex === next.activeIndex) return true;
     // Only re-render if this row was or is within 3 lines of activeIndex!
     const prevDist = Math.min(Math.abs(prev.index - prev.activeIndex), 3);
@@ -205,6 +245,8 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
   const [result, setResult] = useState<LyricsResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userScrolling, setUserScrolling] = useState(false);
+  const [userOffset, setUserOffset] = useState<number>(0);
+  const [showSyncDrawer, setShowSyncDrawer] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -218,6 +260,15 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
   const seekTo = usePlayerStore((s) => s.seekTo);
 
   const activeDuration = duration || currentTrackDuration || 210;
+
+  // Load saved per-song offset whenever track changes
+  useEffect(() => {
+    if (artist && title) {
+      setUserOffset(getSavedLyricsOffset(artist, title));
+    } else {
+      setUserOffset(0);
+    }
+  }, [artist, title]);
 
   useEffect(() => {
     let isMounted = true;
@@ -244,7 +295,7 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
     return () => {
       isMounted = false;
     };
-  }, [artist, title]);
+  }, [artist, title, activeDuration]);
 
   const lines = useMemo(() => {
     const rawLines = result?.lines || [];
@@ -260,12 +311,12 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
     }));
   }, [result, activeDuration]);
 
-  // Subscribe ONLY to the computed `activeIndex` integer so LyricsView never re-renders between lyric lines!
+  // Subscribe ONLY to the computed `activeIndex` integer incorporating real-time userOffset!
   const activeIndex = usePlayerStore(
     useCallback(
       (s) => {
         if (lines.length === 0) return -1;
-        const syncTime = s.currentTime + 0.22;
+        const syncTime = s.currentTime + userOffset + 0.25;
         let idx = -1;
         for (let i = 0; i < lines.length; i++) {
           if (lines[i].time >= 0 && syncTime >= lines[i].time) {
@@ -276,7 +327,7 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
         }
         return idx;
       },
-      [lines]
+      [lines, userOffset]
     )
   );
 
@@ -294,6 +345,61 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
     },
     [seekTo]
   );
+
+  // Real-time offset adjustment & persistence
+  const handleAdjustOffset = useCallback(
+    (delta: number) => {
+      setUserOffset((prev) => {
+        const next = Math.round((prev + delta) * 10) / 10;
+        const clamped = Math.max(-30, Math.min(30, next));
+        saveLyricsOffset(artist || '', title || '', clamped);
+        return clamped;
+      });
+    },
+    [artist, title]
+  );
+
+  const handleSetOffset = useCallback(
+    (val: number) => {
+      const clamped = Math.max(-30, Math.min(30, Math.round(val * 10) / 10));
+      setUserOffset(clamped);
+      saveLyricsOffset(artist || '', title || '', clamped);
+    },
+    [artist, title]
+  );
+
+  const handleResetOffset = useCallback(() => {
+    setUserOffset(0);
+    saveLyricsOffset(artist || '', title || '', 0);
+  }, [artist, title]);
+
+  // One-tap Snap-to-Current-Vocal: snaps lyrics to exactly what the user is hearing right now!
+  const handleAlignToCurrentTime = useCallback(
+    (lineTime: number) => {
+      const currentAudioTime = usePlayerStore.getState().currentTime;
+      // syncTime = currentAudioTime + neededOffset + 0.25 = lineTime
+      const neededOffset = Math.round((lineTime - currentAudioTime - 0.25) * 10) / 10;
+      const clamped = Math.max(-30, Math.min(30, neededOffset));
+      setUserOffset(clamped);
+      saveLyricsOffset(artist || '', title || '', clamped);
+    },
+    [artist, title]
+  );
+
+  // Switch between candidates (e.g. Devanagari script vs Romanized album cut)
+  const handleSwitchCandidate = useCallback((cand: LyricsCandidate) => {
+    setResult((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        synced: cand.synced,
+        lyrics: cand.lyrics,
+        lines: cand.lines,
+        source: cand.source,
+        activeCandidateId: cand.id
+      };
+    });
+  }, []);
 
   // Native 120Hz/144Hz/240Hz requestAnimationFrame Spring Scroll Interpolator
   const animateScrollToActive = useCallback(() => {
@@ -369,82 +475,6 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
     };
   }, []);
 
-  // Live Microphone Sing-Along Karaoke Scorer State
-  const [singAlongActive, setSingAlongActive] = useState(false);
-  const [micLevel, setMicLevel] = useState(0);
-  const [vocalScore, setVocalScore] = useState(88);
-  const [vocalStreak, setVocalStreak] = useState(0);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const micCtxRef = useRef<AudioContext | null>(null);
-  const micRafRef = useRef<number>(0);
-
-  const toggleSingAlong = async () => {
-    if (singAlongActive) {
-      cancelAnimationFrame(micRafRef.current);
-      micStreamRef.current?.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = null;
-      micCtxRef.current?.close().catch(() => {});
-      micCtxRef.current = null;
-      setSingAlongActive(false);
-      setMicLevel(0);
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micStreamRef.current = stream;
-      const ctx = new window.AudioContext();
-      micCtxRef.current = ctx;
-      const src = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      src.connect(analyser);
-
-      const buf = new Uint8Array(analyser.frequencyBinCount);
-      setSingAlongActive(true);
-      setVocalScore(90);
-      setVocalStreak(1);
-
-      let frameCount = 0;
-      const loop = () => {
-        analyser.getByteFrequencyData(buf);
-        // Focus on human vocal fundamental & harmonic bins (approx 100Hz - 3kHz)
-        let sum = 0;
-        for (let i = 2; i < 42; i++) sum += buf[i];
-        const avg = sum / 40;
-        const norm = Math.min(100, Math.round((avg / 140) * 100));
-        setMicLevel(norm);
-
-        frameCount++;
-        if (frameCount % 35 === 0 && usePlayerStore.getState().isPlaying) {
-          if (norm > 18) {
-            setVocalStreak((s) => s + 1);
-            setVocalScore((sc) => Math.min(99, sc + 1));
-          }
-        }
-        micRafRef.current = requestAnimationFrame(loop);
-      };
-      micRafRef.current = requestAnimationFrame(loop);
-    } catch {
-      // Fallback if mic permission denied
-      setSingAlongActive(false);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      cancelAnimationFrame(micRafRef.current);
-      micStreamRef.current?.getTracks().forEach((t) => t.stop());
-      micCtxRef.current?.close().catch(() => {});
-    };
-  }, []);
-
-  const vocalMode = useStudioStore((s) => s.vocalMode);
-  const setVocalMode = useStudioStore((s) => s.setVocalMode);
-
-  const vocalGrade =
-    vocalScore >= 95 ? 'S+' : vocalScore >= 88 ? 'S' : vocalScore >= 80 ? 'A' : 'B';
-
   return (
     <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
       {/* Sleek Single-Row Spatial Studio Toolbar */}
@@ -468,79 +498,32 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
 
         {/* Unified Segmented Glass Control Dock */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* 1. Karaoke / Acapella Vocal Stem Switcher */}
+          {/* 1. Lyrics Sync Timing Calibration Button */}
           <button
             type="button"
-            onClick={() =>
-              setVocalMode(
-                vocalMode === 'normal'
-                  ? 'karaoke'
-                  : vocalMode === 'karaoke'
-                  ? 'acapella'
-                  : 'normal'
-              )
-            }
+            onClick={() => setShowSyncDrawer((prev) => !prev)}
             className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              vocalMode === 'karaoke'
-                ? 'glass-button-primary text-white'
-                : vocalMode === 'acapella'
-                ? 'glass-button-purple text-white'
+              showSyncDrawer || userOffset !== 0
+                ? 'glass-button-primary text-white shadow-[0_0_14px_rgba(255,255,255,0.2)]'
                 : 'glass-button text-white/80 hover:text-white'
             }`}
-            title="Cycle Real-Time Vocal Remover (Karaoke Instrumental) & Acapella Vocal Isolate"
+            title="Fine-tune lyrics synchronization timing & switch lyric cuts"
           >
             <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 10v3" />
-              <path d="M6 6v11" />
-              <path d="M10 3v18" />
-              <path d="M14 8v7" />
-              <path d="M18 5v13" />
-              <path d="M22 10v3" />
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
             </svg>
             <span>
-              {vocalMode === 'karaoke'
-                ? 'Karaoke On'
-                : vocalMode === 'acapella'
-                ? 'Acapella On'
-                : 'Karaoke'}
+              {userOffset !== 0
+                ? `${userOffset > 0 ? '+' : ''}${userOffset.toFixed(1)}s`
+                : 'Sync'}
             </span>
+            {userOffset !== 0 && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            )}
           </button>
 
-          {/* 2. Live Sing-Along Pitch & Energy Scorer */}
-          {singAlongActive && (
-            <div className="hidden md:flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full glass-button-emerald text-[10px] font-extrabold text-emerald-200">
-              <div className="w-10 h-1.5 bg-black/60 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-400 to-cyan-300 rounded-full transition-[width] duration-75"
-                  style={{ width: `${micLevel}%` }}
-                />
-              </div>
-              <span className="tabular-nums text-emerald-300">{vocalStreak}x</span>
-              <span className="px-1.5 py-0.5 rounded-full bg-emerald-400/25 border border-emerald-400/40 text-emerald-100 text-[10px] font-black tabular-nums">
-                {vocalGrade} {vocalScore}%
-              </span>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={toggleSingAlong}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              singAlongActive
-                ? 'glass-button-emerald text-emerald-200 font-extrabold'
-                : 'glass-button text-white/80 hover:text-white'
-            }`}
-            title="Sing along with your microphone for live vocal pitch & energy scoring"
-          >
-            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" x2="12" y1="19" y2="22" />
-            </svg>
-            <span>{singAlongActive ? 'Stop Mic' : 'Sing-Along'}</span>
-          </button>
-
-          {/* 3. Lyric Story Poster Studio */}
+          {/* Lyric Story Poster Studio */}
           {onShareLyric && (
             <button
               type="button"
@@ -563,6 +546,173 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
           )}
         </div>
       </div>
+
+      {/* Expandable Lyrics Sync Timing & Version Switcher Drawer */}
+      <AnimatePresence>
+        {showSyncDrawer && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="overflow-hidden border-b border-white/10 bg-black/50 backdrop-blur-2xl px-5 py-3 flex flex-col gap-2.5 flex-shrink-0 z-15 text-xs shadow-2xl"
+          >
+            {/* Top Row: Current Timing status & Quick Nudges */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-extrabold text-white/90">Sync Timing:</span>
+                <span
+                  className={`font-mono font-bold px-2 py-0.5 rounded-full tabular-nums text-[11px] ${
+                    userOffset === 0
+                      ? 'bg-white/10 text-white/70'
+                      : userOffset > 0
+                      ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40'
+                      : 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
+                  }`}
+                >
+                  {userOffset === 0
+                    ? '0.0s (In Sync)'
+                    : `${userOffset > 0 ? '+' : ''}${userOffset.toFixed(1)}s (${
+                        userOffset > 0 ? 'Advanced / Earlier' : 'Delayed / Later'
+                      })`}
+                </span>
+                <span className="text-[10px] text-white/50 hidden md:inline">
+                  • Hover any line and tap "Sync Here" to snap timing in 1 click
+                </span>
+              </div>
+
+              {/* Stepper Buttons */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleAdjustOffset(-1.0)}
+                  className="px-2 py-1 rounded-lg glass-button text-[11px] font-bold text-white/80 hover:text-white"
+                  title="Delay lyrics by 1.0 second"
+                >
+                  -1s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAdjustOffset(-0.5)}
+                  className="px-2 py-1 rounded-lg glass-button text-[11px] font-bold text-white/80 hover:text-white"
+                  title="Delay lyrics by 0.5 second"
+                >
+                  -0.5s
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetOffset}
+                  disabled={userOffset === 0}
+                  className="px-2.5 py-1 rounded-lg glass-button text-[11px] font-bold text-white/80 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Reset offset to default 0.0s"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAdjustOffset(0.5)}
+                  className="px-2 py-1 rounded-lg glass-button text-[11px] font-bold text-white/80 hover:text-white"
+                  title="Advance lyrics by 0.5 second (show earlier)"
+                >
+                  +0.5s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAdjustOffset(1.0)}
+                  className="px-2 py-1 rounded-lg glass-button text-[11px] font-bold text-white/80 hover:text-white"
+                  title="Advance lyrics by 1.0 second (show earlier)"
+                >
+                  +1s
+                </button>
+              </div>
+            </div>
+
+            {/* Middle Row: Quick Presets & Precision Slider */}
+            <div className="flex flex-wrap items-center gap-2 justify-between">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] uppercase font-bold text-white/45 tracking-wider">
+                  Presets:
+                </span>
+                {[-8, -5, -3, -1, 1, 3, 5, 8].map((sec) => (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => handleSetOffset(sec)}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                      userOffset === sec
+                        ? 'bg-[var(--color-accent)] text-white shadow-sm'
+                        : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white'
+                    }`}
+                  >
+                    {sec > 0 ? `+${sec}s` : `${sec}s`}
+                  </button>
+                ))}
+              </div>
+
+              {/* Fine Slider */}
+              <div className="flex items-center gap-2 w-full sm:w-52">
+                <span className="text-[10px] text-white/40">-15s</span>
+                <input
+                  type="range"
+                  min="-15"
+                  max="15"
+                  step="0.1"
+                  value={userOffset}
+                  onChange={(e) => handleSetOffset(parseFloat(e.target.value))}
+                  className="flex-1 accent-[var(--color-accent)] h-1 bg-white/20 rounded-lg cursor-pointer"
+                />
+                <span className="text-[10px] text-white/40">+15s</span>
+              </div>
+            </div>
+
+            {/* Bottom Row: Version & Script Switcher (Devanagari vs Romanized vs Album cut) */}
+            {result?.candidates && result.candidates.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
+                <span className="text-[10px] uppercase font-bold text-white/45 tracking-wider">
+                  Versions:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.candidates.map((cand) => {
+                    const isCandActive =
+                      String(cand.id) === String(result.activeCandidateId);
+                    return (
+                      <button
+                        key={cand.id}
+                        type="button"
+                        onClick={() => handleSwitchCandidate(cand)}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-tight transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isCandActive
+                            ? 'glass-button-primary text-white border-white/40 shadow-sm'
+                            : 'bg-white/[0.05] hover:bg-white/[0.12] text-white/70 hover:text-white border border-white/5'
+                        }`}
+                        title={`${cand.trackName} by ${cand.artistName} (${cand.duration ? `${cand.duration}s` : 'Unknown duration'})`}
+                      >
+                        <span>
+                          {cand.scriptType === 'Devanagari'
+                            ? '🇮🇳 Devanagari'
+                            : cand.scriptType === 'Native'
+                            ? '🌐 Native'
+                            : '🔤 Romanized'}
+                        </span>
+                        {cand.duration ? (
+                          <span className="opacity-60 tabular-nums">
+                            {formatTime(cand.duration)}
+                          </span>
+                        ) : null}
+                        {cand.durationDiff !== undefined && cand.durationDiff <= 5 && (
+                          <span className="px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-200 text-[9px] font-black">
+                            Match
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Scrollable Spatial Lyrics Viewport with True Alpha Feather Mask */}
       <div
@@ -613,8 +763,10 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
                   index={index}
                   activeIndex={activeIndex}
                   nextLineTime={nextLineTime}
+                  userOffset={userOffset}
                   onSelectLine={handleSelectLine}
                   onShareLine={onShareLyric}
+                  onAlignToNow={handleAlignToCurrentTime}
                   setRowRef={setRowRef}
                 />
               );

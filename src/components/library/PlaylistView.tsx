@@ -9,6 +9,7 @@ import GlassCard from '../ui/GlassCard';
 import CreatePlaylist from './CreatePlaylist';
 import { getHighResPlaylistCover } from './PlaylistCard';
 import { formatTime } from '../../utils/formatTime';
+import { exportToM3U8, exportToJSON } from '../../utils/playlistExport';
 
 export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
@@ -27,9 +28,21 @@ export default function PlaylistView() {
   const [syncResultBanner, setSyncResultBanner] = useState('');
   const [attachUrlInput, setAttachUrlInput] = useState('');
   const [showAttachSource, setShowAttachSource] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   const playlist = playlists.find((p) => p.id === id);
   const isSyncing = Boolean(id && syncingPlaylistIds[id]);
+
+  const handleCopyTrackList = () => {
+    if (!playlist || !playlist.tracks.length) return;
+    const text = playlist.tracks
+      .map((t, idx) => `${idx + 1}. ${t.artist} - ${t.title}`)
+      .join('\n');
+    navigator.clipboard.writeText(text);
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2200);
+  };
 
   // Auto-sync on mount & interval if Live Sync is enabled
   useEffect(() => {
@@ -338,7 +351,7 @@ export default function PlaylistView() {
                 required
                 value={attachUrlInput}
                 onChange={(e) => setAttachUrlInput(e.target.value)}
-                placeholder="Paste Spotify, YouTube, or JioSaavn playlist URL to keep this playlist live-synced..."
+                placeholder="Paste Spotify or YouTube playlist URL to keep this playlist live-synced..."
                 className="flex-1 w-full glass-input rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/40"
               />
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -372,6 +385,61 @@ export default function PlaylistView() {
           Shuffle
         </GlassButton>
         <div className="flex-grow" />
+
+        {/* Export Playlist Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowExportMenu((v) => !v)}
+            className="h-10 px-3.5 rounded-full glass-button flex items-center gap-1.5 text-xs font-bold text-white/80 hover:text-white transition-colors cursor-pointer"
+            title="Export Playlist"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span>Export</span>
+          </button>
+
+          {showExportMenu && (
+            <div
+              className="absolute right-0 top-12 z-30 w-56 rounded-2xl liquid-glass border border-white/20 p-2 shadow-2xl space-y-1 text-xs"
+              onClick={() => setShowExportMenu(false)}
+            >
+              <button
+                onClick={() => exportToM3U8(playlist)}
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <span className="text-base">🎵</span>
+                <div>
+                  <div className="font-bold">M3U8 Playlist (.m3u8)</div>
+                  <div className="text-[10px] text-white/50">For Apple, VLC & players</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => exportToJSON(playlist)}
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <span className="text-base">📦</span>
+                <div>
+                  <div className="font-bold">WaveCraft JSON (.json)</div>
+                  <div className="text-[10px] text-white/50">Full backup with metadata</div>
+                </div>
+              </button>
+
+              <button
+                onClick={handleCopyTrackList}
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <span className="text-base">📋</span>
+                <div>
+                  <div className="font-bold">{copyFeedback ? 'Copied to Clipboard!' : 'Copy Track List'}</div>
+                  <div className="text-[10px] text-white/50">Plain text song names</div>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+
         <button
           onClick={() => setIsEditModalOpen(true)}
           className="w-10 h-10 p-0 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-colors cursor-pointer"

@@ -1,13 +1,67 @@
 import type { LyricLine } from '../types';
 
+export interface LyricsCandidate {
+  id: string | number;
+  trackName: string;
+  artistName: string;
+  albumName?: string;
+  duration?: number;
+  synced: boolean;
+  lyrics: string;
+  lines: LyricLine[];
+  scriptType: 'Devanagari' | 'Latin' | 'Native';
+  durationDiff: number;
+  source: string;
+  score: number;
+}
+
 export interface LyricsResult {
   synced: boolean;
   lyrics: string;
   lines: LyricLine[];
   source: string;
+  candidates?: LyricsCandidate[];
+  activeCandidateId?: string | number;
 }
 
 const cache = new Map<string, LyricsResult | null>();
+
+export function getLyricsOffsetKey(artist: string, title: string): string {
+  const cleanTitle = extractCleanSongTitle(title).toLowerCase();
+  const cleanArtist = extractCleanArtist(artist).toLowerCase();
+  return `wavecraft_lrc_offset_${cleanArtist}__${cleanTitle}`;
+}
+
+export function getSavedLyricsOffset(artist: string, title: string): number {
+  try {
+    const key = getLyricsOffsetKey(artist, title);
+    const val = localStorage.getItem(key);
+    if (val !== null) {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && isFinite(parsed)) return parsed;
+    }
+  } catch {}
+  return 0;
+}
+
+export function saveLyricsOffset(artist: string, title: string, offset: number): void {
+  try {
+    const key = getLyricsOffsetKey(artist, title);
+    if (Math.abs(offset) < 0.05) {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, offset.toFixed(2));
+    }
+  } catch {}
+}
+
+export function detectScriptType(text: string): 'Devanagari' | 'Latin' | 'Native' {
+  if (/[\u0900-\u097F]/.test(text)) return 'Devanagari';
+  if (/[\u0600-\u06FF\u0750-\u077F]/.test(text)) return 'Native';
+  if (/[\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F]/.test(text)) return 'Native';
+  if (/[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/.test(text)) return 'Native';
+  return 'Latin';
+}
 
 export function parseLyrics(rawLyrics: string, totalDuration = 210): LyricLine[] {
   if (!rawLyrics) return [];
@@ -53,7 +107,7 @@ export function parseLyrics(rawLyrics: string, totalDuration = 210): LyricLine[]
   return result;
 }
 
-function extractCleanSongTitle(rawTitle: string): string {
+export function extractCleanSongTitle(rawTitle: string): string {
   let t = (rawTitle || '')
     .replace(/&quot;/g, '"')
     .replace(/&#039;|&amp;/g, ' ')
@@ -97,7 +151,7 @@ function extractCleanSongTitle(rawTitle: string): string {
   return t || rawTitle.trim();
 }
 
-function extractCleanArtist(rawArtist: string): string {
+export function extractCleanArtist(rawArtist: string): string {
   const first = (rawArtist || '')
     .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
     .split(',')[0]
@@ -122,7 +176,7 @@ export async function getLyricsData(
 ): Promise<LyricsResult | null> {
   const cleanTitle = extractCleanSongTitle(title);
   const cleanArtist = extractCleanArtist(artist);
-  const cacheKey = `v2__${cleanArtist.toLowerCase()}__${cleanTitle.toLowerCase()}`;
+  const cacheKey = `v3__${cleanArtist.toLowerCase()}__${cleanTitle.toLowerCase()}__${Math.round(duration)}`;
 
   if (cache.has(cacheKey)) {
     return cache.get(cacheKey) || null;
@@ -130,6 +184,8 @@ export async function getLyricsData(
 
   // 1. Direct fast browser query to LRCLIB (cleanTitle + cleanArtist, then cleanTitle only)
   const queriesToTry = cleanArtist ? [`${cleanTitle} ${cleanArtist}`, cleanTitle] : [cleanTitle];
+  const allCandidates: LyricsCandidate[] = [];
+
   for (const q of queriesToTry) {
     if (!q) continue;
     try {
@@ -138,39 +194,80 @@ export async function getLyricsData(
         const list = await r.json();
         if (Array.isArray(list) && list.length > 0) {
           const target = cleanTitle.toLowerCase();
-          const best =
-            list.find(
-              (i: any) =>
-                i.syncedLyrics &&
-                (i.trackName?.toLowerCase().includes(target) ||
-                  target.includes(i.trackName?.toLowerCase() || '___'))
-            ) ||
-            list.find((i: any) => i.syncedLyrics) ||
-            list.find(
-              (i: any) =>
-                i.plainLyrics &&
-                (i.trackName?.toLowerCase().includes(target) ||
-                  target.includes(i.trackName?.toLowerCase() || '___'))
-            ) ||
-            list[0];
+          for (const item of list) {
+            const raw = item.syncedLyrics || item.plainLyrics;
+            if (!raw || typeof raw !== 'string') continue;
+            if (allCandidates.some((c) => String(c.id) === String(item.id))) continue;
 
-          const raw = best?.syncedLyrics || best?.plainLyrics;
-          if (raw) {
-            const parsed: LyricsResult = {
-              synced: Boolean(best?.syncedLyrics),
+            let score = 0;
+            const isSynced = Boolean(item.syncedLyrics);
+            if (isSynced) score += 600;
+
+            const tName = (item.trackName || '').toLowerCase();
+            const aName = (item.artistName || '').toLowerCase();
+
+            if (tName === target) score += 350;
+            else if (tName.includes(target) || target.includes(tName)) score += 180;
+
+            if (cleanArtist && aName.includes(cleanArtist.toLowerCase())) score += 120;
+
+            // Penalize remixes, mashups, instrumental unless query explicitly mentions them
+            if (
+              /remix|mashup|sped up|slowed|lofi|acoustic|live|cover/i.test(tName) &&
+              !/remix|mashup|sped|slowed|lofi|acoustic|live|cover/i.test(target)
+            ) {
+              score -= 260;
+            }
+            if (/\(future bass\)|\(trap\)/i.test(tName)) score -= 150;
+            if (/pagalworld|mr-jatt|dj/i.test(tName + ' ' + aName)) score -= 50;
+
+            // Duration match scoring (punish video intro offsets that differ from audio duration)
+            const itemDur = item.duration ? Number(item.duration) : 0;
+            let durDiff = 0;
+            if (itemDur > 0 && duration > 0) {
+              durDiff = Math.abs(itemDur - duration);
+              score += Math.max(-250, 220 - durDiff * 9);
+            }
+
+            const parsedLines = parseLyrics(raw, duration);
+            const script = detectScriptType(raw);
+
+            allCandidates.push({
+              id: item.id,
+              trackName: item.trackName || cleanTitle,
+              artistName: item.artistName || cleanArtist,
+              albumName: item.albumName,
+              duration: itemDur,
+              synced: isSynced,
               lyrics: raw,
-              lines: parseLyrics(raw, duration),
-              source: best?.syncedLyrics ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics'
-            };
-            cache.set(cacheKey, parsed);
-            return parsed;
+              lines: parsedLines,
+              scriptType: script,
+              durationDiff: durDiff,
+              source: isSynced ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics',
+              score
+            });
           }
         }
       }
     } catch {}
   }
 
-  // 2. Fallback to backend /api/music?action=lyrics (Saavn official lyrics + lyrics.ovh)
+  if (allCandidates.length > 0) {
+    allCandidates.sort((a, b) => b.score - a.score);
+    const best = allCandidates[0];
+    const parsed: LyricsResult = {
+      synced: best.synced,
+      lyrics: best.lyrics,
+      lines: best.lines,
+      source: best.source,
+      candidates: allCandidates.slice(0, 8),
+      activeCandidateId: best.id
+    };
+    cache.set(cacheKey, parsed);
+    return parsed;
+  }
+
+  // 2. Fallback to backend /api/music?action=lyrics (LRCLIB targeted + lyrics.ovh)
   try {
     const res = await fetch(
       `/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`
@@ -182,7 +279,9 @@ export async function getLyricsData(
           synced: Boolean(data.synced),
           lyrics: data.lyrics,
           lines: parseLyrics(data.lyrics, duration),
-          source: data.source || 'Studio Lyrics'
+          source: data.source || 'Studio Lyrics',
+          candidates: [],
+          activeCandidateId: 'backend-fallback'
         };
         cache.set(cacheKey, parsed);
         return parsed;
