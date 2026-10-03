@@ -127,6 +127,8 @@ function buildUserArtistAffinity(): Map<string, number> {
  * 3. Strict normalized title deduplication (no duplicate versions/remixes of the same song)
  * 4. High artist diversity (max 2 tracks per artist)
  */
+const recsCache = new Map<string, { tracks: Track[]; time: number }>();
+
 export async function getSmartRecommendations(
   seedTrack: Track,
   existingQueue: Track[] = [],
@@ -138,30 +140,30 @@ export async function getSmartRecommendations(
   const cleanedAlbum = cleanAlbumName(seedTrack.album);
   const normSeedTitle = normalizeSongTitle(seedTrack.title);
 
+  // Check in-memory recommendation cache to save data & eliminate repeated network scraping
+  const cacheKey = `${primaryArtist.toLowerCase()}__${normSeedTitle.slice(0, 15)}`;
+  const cached = recsCache.get(cacheKey);
+  if (cached && Date.now() - cached.time < 900_000) {
+    const existingIds = new Set(existingQueue.map((t) => t.id));
+    return cached.tracks.filter((t) => !existingIds.has(t.id)).slice(0, limit);
+  }
+
   const similarPeers = getSimilarArtists(primaryArtist);
   const peer1 = similarPeers[0];
-  const peer2 = similarPeers[1] || similarPeers[0];
 
-  const queries: string[] = [
-    `${primaryArtist} top hits songs`,
-    `${peer1} top hits songs`,
-    `${peer2} top hits songs`
-  ];
+  // Single concise high-yield query to minimize network scraping
+  const query = peer1 && !peer1.toLowerCase().includes(primaryArtist.toLowerCase())
+    ? `${primaryArtist} ${peer1} hits songs`
+    : `${primaryArtist} top hits songs`;
 
-  if (secondaryArtist) {
-    queries.push(`${secondaryArtist} top hits`);
-  } else if (cleanedAlbum && cleanedAlbum.length > 2) {
-    queries.push(`${cleanedAlbum} songs`);
-  }
-
-  // Fetch candidate pools in parallel
-  const results = await Promise.allSettled(queries.map((q) => searchTracks(q)));
+  // Fetch candidate pool with a single data-efficient query
   const candidatePool: Track[] = [];
-  for (const res of results) {
-    if (res.status === 'fulfilled' && Array.isArray(res.value)) {
-      candidatePool.push(...res.value);
+  try {
+    const res = await searchTracks(query);
+    if (Array.isArray(res)) {
+      candidatePool.push(...res);
     }
-  }
+  } catch {}
 
   // Also include user's liked songs that match the vibe or artist
   const { likedSongs, recentlyPlayed } = useLibraryStore.getState();
@@ -292,6 +294,10 @@ export async function getSmartRecommendations(
         selected.push(item.track);
       }
     }
+  }
+
+  if (selected.length > 0) {
+    recsCache.set(cacheKey, { tracks: selected, time: Date.now() });
   }
 
   return selected;

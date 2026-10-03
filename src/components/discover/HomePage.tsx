@@ -79,6 +79,8 @@ export default function HomePage() {
   const [trendingTracks, setTrendingTracks] = useState<Track[]>(() => getCachedTrending() || []);
   const [newReleases, setNewReleases] = useState<AlbumResult[]>(() => getCachedNewReleases() || []);
   const [isLoading, setIsLoading] = useState<boolean>(() => !getCachedTrending());
+  const [activeTrendingCategory, setActiveTrendingCategory] = useState<string>('global');
+  const [isCategoryTrendingLoading, setIsCategoryTrendingLoading] = useState<boolean>(false);
   const [loadingMoodId, setLoadingMoodId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -88,7 +90,7 @@ export default function HomePage() {
       setIsLoading(true);
     }
 
-    getTrending()
+    getTrending('global')
       .then((trending) => {
         if (isMounted) {
           setTrendingTracks(trending);
@@ -128,6 +130,22 @@ export default function HomePage() {
       console.error('Failed to play mood:', err);
     } finally {
       setLoadingMoodId(null);
+    }
+  };
+
+  const handleSelectTrendingCategory = async (categoryKey: string) => {
+    if (categoryKey === activeTrendingCategory && trendingTracks.length > 0) return;
+    setActiveTrendingCategory(categoryKey);
+    setIsCategoryTrendingLoading(true);
+    try {
+      const tracks = await getTrending(categoryKey);
+      if (tracks && tracks.length > 0) {
+        setTrendingTracks(tracks);
+      }
+    } catch (err) {
+      console.error('Failed to change trending category:', err);
+    } finally {
+      setIsCategoryTrendingLoading(false);
     }
   };
 
@@ -269,7 +287,9 @@ export default function HomePage() {
       {/* Trending Section */}
       <TrendingSection
         tracks={trendingTracks}
-        isLoading={isLoading}
+        isLoading={isLoading || isCategoryTrendingLoading}
+        activeCategory={activeTrendingCategory}
+        onSelectCategory={handleSelectTrendingCategory}
         onPlayTrack={(track, allTracks) => playTrack(track, allTracks)}
       />
 

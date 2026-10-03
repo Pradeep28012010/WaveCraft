@@ -31,11 +31,12 @@ export interface YouTubePlayerInstance {
   isMuted?: () => boolean;
   loadVideoById?: (videoId: string | { videoId: string; startSeconds?: number }, startSeconds?: number) => void;
   cueVideoById?: (videoId: string | { videoId: string; startSeconds?: number }, startSeconds?: number) => void;
+  setPlaybackQuality?: (quality: string) => void;
 }
 
 let ytPlayerInstance: YouTubePlayerInstance | null = null;
 let htmlAudioElement: HTMLAudioElement | null = null;
-let activeEngine: 'audio' | 'youtube' = 'audio';
+let activeEngine: 'audio' | 'youtube' = 'youtube';
 
 // Web Audio API Studio Mastering Graph, True 360° HRTF 3D Spatial Stage, Vocal Stem Isolator & Visualizer Analyser
 let audioCtx: AudioContext | null = null;

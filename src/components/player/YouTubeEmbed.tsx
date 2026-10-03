@@ -145,7 +145,7 @@ export default function YouTubeEmbed() {
   useEffect(() => {
     if (!audioRef.current) {
       const audio = new Audio();
-      audio.preload = 'auto';
+      audio.preload = 'none';
       audio.crossOrigin = 'anonymous';
       audioRef.current = audio;
       setHtmlAudioElement(audio);
@@ -243,10 +243,10 @@ export default function YouTubeEmbed() {
       if (!containerRef.current || !window.YT || !window.YT.Player) return;
 
       const player = new window.YT.Player(containerRef.current, {
-        height: '200',
-        width: '200',
+        height: '1',
+        width: '1',
         playerVars: {
-          autoplay: 1,
+          autoplay: 0,
           controls: 0,
           disablekb: 1,
           fs: 0,
@@ -263,10 +263,19 @@ export default function YouTubeEmbed() {
             e.target.setVolume((state.volume ?? 0.8) * 100);
             if (state.isMuted) e.target.mute();
 
+            // Force minimal video quality for audio streaming data savings (144p)
+            try {
+              e.target.setPlaybackQuality?.('small');
+            } catch {}
+
             if (state.currentTrack?.youtubeId) {
               setActiveEngine('youtube');
-              e.target.loadVideoById(state.currentTrack.youtubeId);
-              if (state.isPlaying) e.target.playVideo();
+              if (state.isPlaying) {
+                e.target.loadVideoById(state.currentTrack.youtubeId);
+              } else {
+                // Cue only on refresh so data isn't consumed and audio doesn't start unexpectedly
+                e.target.cueVideoById(state.currentTrack.youtubeId);
+              }
             }
           },
           onStateChange: (e: any) => {
@@ -303,15 +312,22 @@ export default function YouTubeEmbed() {
               }
               usePlayerStore.getState().nextTrack();
             } else if (state === window.YT.PlayerState.PLAYING) {
-              usePlayerStore.getState().setIsLoading(false);
+              // Strictly synchronize store with actual playing status
+              usePlayerStore.setState({ isPlaying: true, isLoading: false });
               const dur = e.target.getDuration?.();
               if (dur && dur > 0) {
                 usePlayerStore.getState().setDuration(dur);
               }
+              // Keep video stream bandwidth minimal
+              try {
+                e.target.setPlaybackQuality?.('small');
+              } catch {}
+            } else if (state === window.YT.PlayerState.PAUSED) {
+              usePlayerStore.setState({ isPlaying: false, isLoading: false });
             } else if (state === window.YT.PlayerState.BUFFERING) {
               usePlayerStore.getState().setIsLoading(true);
             } else if (state === window.YT.PlayerState.CUED) {
-              usePlayerStore.getState().setIsLoading(false);
+              usePlayerStore.setState({ isPlaying: false, isLoading: false });
             }
           },
           onError: () => {
@@ -378,9 +394,14 @@ export default function YouTubeEmbed() {
 
     if (effectiveYtId) {
       track.youtubeId = effectiveYtId;
-      if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.loadVideoById === 'function') {
-        ytPlayer.loadVideoById(effectiveYtId);
+      if (ytPlayer && window.ytPlayerReady) {
         if (shouldPlay) {
+          if (typeof ytPlayer.loadVideoById === 'function') {
+            ytPlayer.loadVideoById(effectiveYtId);
+          }
+          try {
+            ytPlayer.setPlaybackQuality?.('small');
+          } catch {}
           const activeAnchor = jamSyncEngine.getActiveAnchor();
           const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
           const waitMs =
@@ -396,7 +417,12 @@ export default function YouTubeEmbed() {
             ytPlayer.playVideo?.();
           }
         } else {
-          ytPlayer.pauseVideo?.();
+          // Explicitly cue without auto-playing on page refresh or initial load
+          if (typeof ytPlayer.cueVideoById === 'function') {
+            ytPlayer.cueVideoById(effectiveYtId);
+          } else if (typeof ytPlayer.pauseVideo === 'function') {
+            ytPlayer.pauseVideo();
+          }
         }
       }
       return;
@@ -463,10 +489,26 @@ export default function YouTubeEmbed() {
       } else {
         audio.pause();
       }
-    } else if (getActiveEngine() === 'youtube' && window.ytPlayerReady) {
+    } else if (window.ytPlayerReady) {
+      setActiveEngine('youtube');
       const ytPlayer = getPlayer();
       if (ytPlayer) {
-        if (isPlaying && typeof ytPlayer.playVideo === 'function') {
+        if (isPlaying) {
+          const pState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+          const effectiveYtId =
+            currentTrack.youtubeId ||
+            (currentTrack.id.startsWith('yt_') ? currentTrack.id.replace('yt_', '') : '');
+
+          // If track was cued (e.g. on page refresh), promote it to load and play
+          if (pState === window.YT?.PlayerState?.CUED || pState === 5 || pState === -1) {
+            if (effectiveYtId && typeof ytPlayer.loadVideoById === 'function') {
+              ytPlayer.loadVideoById(effectiveYtId);
+              try {
+                ytPlayer.setPlaybackQuality?.('small');
+              } catch {}
+            }
+          }
+
           const activeAnchor = jamSyncEngine.getActiveAnchor();
           const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
           const waitMs =
@@ -482,8 +524,8 @@ export default function YouTubeEmbed() {
           } else {
             ytPlayer.playVideo?.();
           }
-        } else if (!isPlaying && typeof ytPlayer.pauseVideo === 'function') {
-          ytPlayer.pauseVideo?.();
+        } else if (typeof ytPlayer.pauseVideo === 'function') {
+          ytPlayer.pauseVideo();
         }
       }
     }
@@ -547,9 +589,9 @@ export default function YouTubeEmbed() {
         position: 'fixed',
         bottom: '-9999px',
         left: '-9999px',
-        width: '200px',
-        height: '200px',
-        opacity: 0.01,
+        width: '1px',
+        height: '1px',
+        opacity: 0.001,
         pointerEvents: 'none',
         zIndex: -1
       }}

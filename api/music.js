@@ -61,17 +61,30 @@ export default async function handler(req, res) {
     }
 
     if (action === 'trending') {
-      const cacheKey = 'trending:global';
+      const category = (url.searchParams.get('category') || 'global').toLowerCase();
+      const cacheKey = `trending:${category}`;
       const cached = getCached(cacheKey);
       res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=600, stale-while-revalidate=1200');
       if (cached) return res.status(200).json(cached);
 
-      const trendingTracks = await fetchYouTubeTrending();
+      const trendingData = await fetchSpotifyTrending(category);
+      const categoriesList = Object.entries(SPOTIFY_TRENDING_PLAYLISTS).map(([k, v]) => ({
+        key: k,
+        name: v.name,
+        genre: v.genre,
+        icon: v.icon
+      }));
+
       const payload = {
-        tracks: trendingTracks,
-        youtube: trendingTracks
+        tracks: trendingData.tracks,
+        youtube: trendingData.tracks,
+        playlistName: trendingData.playlistName,
+        coverUrl: trendingData.coverUrl,
+        activeCategory: category,
+        categories: categoriesList
       };
-      if (trendingTracks.length > 0) {
+
+      if (trendingData.tracks && trendingData.tracks.length > 0) {
         setCached(cacheKey, payload, 600_000);
       }
       return res.status(200).json(payload);
@@ -595,6 +608,182 @@ async function fetchYouTubeSearch(query, limit = 25) {
   }
 
   return tracks.slice(0, limit);
+}
+
+const SPOTIFY_TRENDING_PLAYLISTS = {
+  'global': {
+    id: '37i9dQZF1DXcBWIGoYBM5M',
+    name: 'Today’s Top Hits',
+    genre: 'Global Pop',
+    icon: '🌍'
+  },
+  'top-50-global': {
+    id: '37i9dQZEVXbMDoHDwVN2tF',
+    name: 'Top 50 Global',
+    genre: 'Global Charts',
+    icon: '🔥'
+  },
+  'india': {
+    id: '37i9dQZEVXbLZ52XmnySJg',
+    name: 'Top 50 India',
+    genre: 'All-India Charts',
+    icon: '🇮🇳'
+  },
+  'hindi': {
+    id: '37i9dQZF1DX0XUfTFmNBRM',
+    name: 'Hot Hits Hindi',
+    genre: 'Bollywood & Hindi',
+    icon: '✨'
+  },
+  'hiphop': {
+    id: '37i9dQZF1DX0XUsuxWHRQd',
+    name: 'RapCaviar',
+    genre: 'Hip-Hop & Trap',
+    icon: '🎤'
+  },
+  'pop': {
+    id: '37i9dQZF1DWUa8ZRTfalHk',
+    name: 'Pop Rising',
+    genre: 'Viral & Pop',
+    icon: '⚡'
+  },
+  'kpop': {
+    id: '37i9dQZF1DX9tPFwDMOaN1',
+    name: 'K-Pop ON! (온)',
+    genre: 'K-Pop',
+    icon: '🇰🇷'
+  },
+  'latin': {
+    id: '37i9dQZF1DX10zKzsJ2jva',
+    name: 'Viva Latino',
+    genre: 'Latin & Reggaeton',
+    icon: '💃'
+  },
+  'dance': {
+    id: '37i9dQZF1DX4dyzvuaRJ0n',
+    name: 'mint (EDM)',
+    genre: 'Dance & EDM',
+    icon: '🎧'
+  },
+  'rock': {
+    id: '37i9dQZF1DWXRqgorJj26U',
+    name: 'Rock Classics',
+    genre: 'Rock Anthems',
+    icon: '🎸'
+  },
+  'indie': {
+    id: '37i9dQZF1DX2Nc3B70tvx0',
+    name: 'Ultimate Indie',
+    genre: 'Indie & Alt',
+    icon: '🌿'
+  },
+  'country': {
+    id: '37i9dQZF1DX1lVhptIYRda',
+    name: 'Hot Country',
+    genre: 'Country Hits',
+    icon: '🤠'
+  },
+  'usa': {
+    id: '37i9dQZEVXbLRQDuF5jeBp',
+    name: 'Top 50 USA',
+    genre: 'USA Charts',
+    icon: '🇺🇸'
+  },
+  'uk': {
+    id: '37i9dQZEVXbLnolsZ8PSNw',
+    name: 'Top 50 UK',
+    genre: 'UK Charts',
+    icon: '🇬🇧'
+  },
+  'mood': {
+    id: '37i9dQZF1DX3rxVfibe1L0',
+    name: 'Mood Booster',
+    genre: 'Feel Good Pop',
+    icon: '☀️'
+  }
+};
+
+async function fetchSpotifyTrending(categoryKey = 'global') {
+  const cat = SPOTIFY_TRENDING_PLAYLISTS[categoryKey] || SPOTIFY_TRENDING_PLAYLISTS['global'];
+  const embedUrl = `https://open.spotify.com/embed/playlist/${cat.id}`;
+
+  try {
+    const r = await fetch(embedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    if (r.ok) {
+      const html = await r.text();
+      const idx = html.indexOf('__NEXT_DATA__');
+      if (idx !== -1) {
+        const start = html.indexOf('>', idx) + 1;
+        const end = html.indexOf('</script>', start);
+        const json = JSON.parse(html.slice(start, end));
+        const entity = json?.props?.pageProps?.state?.data?.entity;
+
+        if (entity && Array.isArray(entity.trackList)) {
+          const images = Array.isArray(entity.visualIdentity?.image)
+            ? [...entity.visualIdentity.image].sort((a, b) => (b.maxWidth || 0) - (a.maxWidth || 0))
+            : [];
+          const playlistCover =
+            images[0]?.url ||
+            'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80';
+
+          const mappedTracks = entity.trackList.slice(0, 40).map((t, index) => {
+            const tid = t.uid || (t.uri ? t.uri.replace('spotify:track:', '') : `s_${index}`);
+            const durSec = t.duration ? Math.round(t.duration / 1000) : 210;
+            return {
+              id: `sp_${tid}`,
+              title: t.title || 'Untitled',
+              artist: (t.subtitle || '').replace(/\u00a0/g, ' ') || 'Various Artists',
+              album: entity.name || cat.name,
+              duration: durSec,
+              thumbnail: playlistCover,
+              thumbnailLarge: playlistCover,
+              thumbnailUrl: playlistCover,
+              audioUrl: t.audioPreview?.url || undefined,
+              audioPreviewUrl: t.audioPreview?.url || undefined,
+              spotifyUri: t.uri || `spotify:track:${tid}`,
+              quality: 'Spotify Master'
+            };
+          });
+
+          // Pre-resolve YouTube IDs for the top 3 tracks in parallel for instant zero-latency playback
+          const topHits = await Promise.allSettled(
+            mappedTracks.slice(0, 3).map((tr) => fetchYouTubeSearch(`${tr.title} ${tr.artist}`, 1))
+          );
+          topHits.forEach((res, i) => {
+            if (res.status === 'fulfilled' && Array.isArray(res.value) && res.value[0]?.youtubeId) {
+              const matched = res.value[0];
+              mappedTracks[i].youtubeId = matched.youtubeId;
+              if (matched.thumbnail) {
+                mappedTracks[i].thumbnail = matched.thumbnail;
+                mappedTracks[i].thumbnailLarge = matched.thumbnailLarge || matched.thumbnail;
+                mappedTracks[i].thumbnailUrl = matched.thumbnail;
+              }
+            }
+          });
+
+          return {
+            tracks: mappedTracks,
+            playlistName: entity.name || cat.name,
+            coverUrl: playlistCover
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`Spotify trending fetch error for ${categoryKey}:`, err);
+  }
+
+  // Fallback to curated YouTube smash hits if Spotify network unreachable
+  const fallback = await fetchYouTubeTrending();
+  return {
+    tracks: fallback,
+    playlistName: cat.name,
+    coverUrl: fallback[0]?.thumbnail || ''
+  };
 }
 
 const TOP_GLOBAL_TRENDING_SEEDS = [

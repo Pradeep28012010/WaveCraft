@@ -91,7 +91,6 @@ const searchCache = new Map<string, Track[]>();
 const inFlightSearch = new Map<string, Promise<Track[]>>();
 const suggestionsCache = new Map<string, string[]>();
 let cachedTrending: Track[] | null = null;
-let inFlightTrending: Promise<Track[]> | null = null;
 
 function setBoundedCache<K, V>(map: Map<K, V>, key: K, value: V, maxEntries: number) {
   if (map.has(key)) {
@@ -394,39 +393,59 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
   }
 }
 
-export async function getTrending(_region = 'US'): Promise<Track[]> {
-  if (cachedTrending && cachedTrending.length > 0) {
-    return cachedTrending;
-  }
-  if (inFlightTrending) {
-    return inFlightTrending;
-  }
+export interface SpotifyCategory {
+  key: string;
+  name: string;
+  genre: string;
+  icon: string;
+}
 
-  inFlightTrending = (async () => {
-    try {
-      const res = await fetch('/api/music?action=trending');
-      if (res.ok) {
-        const data = await res.json();
-        const tracks: Track[] = data.tracks || data.youtube || [];
-        if (tracks.length > 0) {
-          cachedTrending = tracks;
-          return tracks;
-        }
-      }
-    } catch (err) {
-      console.warn('Trending fetch error, falling back to search:', err);
-    }
+export const SPOTIFY_TRENDING_CATEGORIES: SpotifyCategory[] = [
+  { key: 'global', name: 'Today’s Top Hits', genre: 'Global Pop', icon: '🌍' },
+  { key: 'top-50-global', name: 'Top 50 Global', genre: 'Global Charts', icon: '🔥' },
+  { key: 'india', name: 'Top 50 India', genre: 'All-India Charts', icon: '🇮🇳' },
+  { key: 'hindi', name: 'Hot Hits Hindi', genre: 'Bollywood & Hindi', icon: '✨' },
+  { key: 'hiphop', name: 'RapCaviar', genre: 'Hip-Hop & Trap', icon: '🎤' },
+  { key: 'pop', name: 'Pop Rising', genre: 'Viral & Pop', icon: '⚡' },
+  { key: 'kpop', name: 'K-Pop ON!', genre: 'K-Pop', icon: '🇰🇷' },
+  { key: 'latin', name: 'Viva Latino', genre: 'Latin & Reggaeton', icon: '💃' },
+  { key: 'dance', name: 'mint (EDM)', genre: 'Dance & EDM', icon: '🎧' },
+  { key: 'rock', name: 'Rock Classics', genre: 'Rock Anthems', icon: '🎸' },
+  { key: 'indie', name: 'Ultimate Indie', genre: 'Indie & Alt', icon: '🌿' },
+  { key: 'country', name: 'Hot Country', genre: 'Country Hits', icon: '🤠' },
+  { key: 'usa', name: 'Top 50 USA', genre: 'USA Charts', icon: '🇺🇸' },
+  { key: 'uk', name: 'Top 50 UK', genre: 'UK Charts', icon: '🇬🇧' },
+  { key: 'mood', name: 'Mood Booster', genre: 'Feel Good', icon: '☀️' }
+];
 
-    const fallback = await searchTracks('top global hits 2025');
-    if (fallback.length > 0) cachedTrending = fallback;
-    return fallback;
-  })();
+const trendingCategoryCache = new Map<string, Track[]>();
+
+export async function getTrending(category = 'global'): Promise<Track[]> {
+  const cached = trendingCategoryCache.get(category);
+  if (cached && cached.length > 0) {
+    return cached;
+  }
 
   try {
-    return await inFlightTrending;
-  } finally {
-    inFlightTrending = null;
+    const res = await fetch(`/api/music?action=trending&category=${encodeURIComponent(category)}`);
+    if (res.ok) {
+      const data = await res.json();
+      const tracks: Track[] = data.tracks || data.youtube || [];
+      if (tracks.length > 0) {
+        trendingCategoryCache.set(category, tracks);
+        if (category === 'global') cachedTrending = tracks;
+        return tracks;
+      }
+    }
+  } catch (err) {
+    console.warn('Trending fetch error, falling back to search:', err);
   }
+
+  const fallback = await searchTracks('top global hits 2025');
+  if (fallback.length > 0) {
+    trendingCategoryCache.set(category, fallback);
+  }
+  return fallback;
 }
 
 export async function getVideoDetails(videoId: string): Promise<Track | null> {
