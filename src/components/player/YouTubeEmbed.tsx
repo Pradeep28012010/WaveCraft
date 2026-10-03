@@ -3,7 +3,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore } from '../../stores/studioStore';
-import { searchTracks } from '../../services/youtube';
+import { searchTracks, findStrictTrackMatch } from '../../services/youtube';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
 import { getOfflineAudioObjectUrl, isTrackOffline } from '../../services/offlineVault';
 import {
@@ -331,7 +331,7 @@ export default function YouTubeEmbed() {
         resolvingTrackIdRef.current = track.id;
         searchTracks(`${track.title} ${track.artist}`)
           .then((found) => {
-            const match = found.find((t) => t.audioUrl || t.youtubeId);
+            const match = findStrictTrackMatch(track.title, track.artist, found, track.duration);
             if (match && usePlayerStore.getState().currentTrack?.id === track.id) {
               if (match.audioUrl) {
                  setActiveEngine('audio');
@@ -576,7 +576,7 @@ export default function YouTubeEmbed() {
     setIsLoading(true);
     searchTracks(`${track.title} ${track.artist}`)
       .then((results) => {
-        const best = results.find((r) => r.audioUrl || r.youtubeId);
+        const best = findStrictTrackMatch(track.title, track.artist, results, track.duration);
         if (best && usePlayerStore.getState().currentTrack?.id === track.id) {
           track.audioUrl = best.audioUrl;
           track.youtubeId = best.youtubeId;

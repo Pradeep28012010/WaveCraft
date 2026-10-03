@@ -482,6 +482,8 @@ async function fetchYouTubeSearch(query) {
     ? clean
     : `${clean} official audio`;
 
+  const wantsInstrumental = /\b(instrumental|karaoke|backing|piano|flute|guitar|bgm|violin|ringtone)\b/i.test(clean);
+
   const r = await fetchWithTimeout(
     'https://www.youtube.com/youtubei/v1/search?prettyPrint=false',
     {
@@ -518,9 +520,18 @@ async function fetchYouTubeSearch(query) {
       else if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
       if (seconds < 45 || seconds > 900) continue;
 
+      const title = v.title?.runs?.[0]?.text || 'Unknown Title';
+
+      // Discard ringtones, whatsapp status clips, sound effects if user didn't ask
+      if (!wantsInstrumental) {
+        if (/\b(ringtone|whatsapp\s*status|shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i.test(title)) {
+          continue;
+        }
+      }
+
       videos.push({
         videoId: v.videoId,
-        title: v.title?.runs?.[0]?.text || 'Unknown Title',
+        title,
         author:
           v.ownerText?.runs?.[0]?.text ||
           v.longBylineText?.runs?.[0]?.text ||
@@ -531,6 +542,18 @@ async function fetchYouTubeSearch(query) {
       });
     }
   }
+
+  // If user didn't ask for instrumental, demote instrumental/karaoke below vocal tracks
+  if (!wantsInstrumental) {
+    videos.sort((a, b) => {
+      const aInst = /\b(instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|piano\s*(?:cover|version)|flute|guitar\s*cover|bgm)\b/i.test(a.title);
+      const bInst = /\b(instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|piano\s*(?:cover|version)|flute|guitar\s*cover|bgm)\b/i.test(b.title);
+      if (aInst && !bInst) return 1;
+      if (!aInst && bInst) return -1;
+      return 0;
+    });
+  }
+
   return videos.slice(0, 15);
 }
 

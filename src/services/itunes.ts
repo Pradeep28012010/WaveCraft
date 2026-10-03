@@ -1,6 +1,6 @@
 import type { ArtistResult, AlbumResult, Track } from '../types';
 import { DEFAULT_THUMBNAIL } from '../utils/constants';
-import { searchTracks } from './youtube';
+import { searchTracks, findStrictTrackMatch } from './youtube';
 
 const ITUNES_API = 'https://itunes.apple.com';
 const artCache = new Map<string, string | null>();
@@ -51,28 +51,22 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
       const usedPlayableIds = new Set<string>();
       const mappedTracks: Track[] = itunesSongs.map((item: any, idx: number) => {
         const trackTitle: string = item.trackName;
-        const normTitle = trackTitle
-          .toLowerCase()
-          .replace(/[\(\[].*?[\)\]]/g, '')
-          .trim();
+        const itemDuration = item.trackTimeMillis ? Math.round(item.trackTimeMillis / 1000) : 210;
+        const availablePlayable = playableTracks.filter((pt) => !usedPlayableIds.has(pt.id));
 
-        // Find matching 320kbps stream from playableTracks
-        const matched = playableTracks.find((pt) => {
-          const ptNorm = pt.title
-            .toLowerCase()
-            .replace(/[\(\[].*?[\)\]]/g, '')
-            .trim();
-          return (
-            ptNorm === normTitle ||
-            ptNorm.includes(normTitle) ||
-            normTitle.includes(ptNorm)
-          );
-        });
+        // Find strictly verified matching 320kbps stream from playableTracks
+        const matched = findStrictTrackMatch(
+          trackTitle,
+          item.artistName || album.artist || '',
+          availablePlayable,
+          itemDuration
+        );
 
         if (matched) {
           usedPlayableIds.add(matched.id);
           return {
             ...matched,
+            title: trackTitle,
             album: album.title || album.name || matched.album,
             thumbnail: matched.thumbnail || album.coverUrl || DEFAULT_THUMBNAIL,
             thumbnailLarge: matched.thumbnailLarge || album.coverUrl || DEFAULT_THUMBNAIL

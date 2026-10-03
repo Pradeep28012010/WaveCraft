@@ -194,14 +194,236 @@ async function fetchDirectItunesFallback(query: string): Promise<Track[]> {
   }
 }
 
+/**
+ * Normalize a track title for fuzzy comparison:
+ * strips parenthetical suffixes, pipe segments, common prefixes, and lowercases.
+ */
+function normalizeForMatch(raw: string): string {
+  return (raw || '')
+    .toLowerCase()
+    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+    .replace(/\|.*$/, '')
+    .replace(
+      /^(?:full\s+video\s+song|full\s+video|video\s+song|lyrical|official|audio)\s*[:\-–—]?\s*/i,
+      ''
+    )
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Find the best-matching YouTube video for a given track by comparing
+ * normalized title + artist text similarity instead of array position.
+ */
+function findBestYouTubeMatch(
+  trackTitle: string,
+  trackArtist: string,
+  trackDuration: number,
+  ytItems: any[]
+): string {
+  if (ytItems.length === 0) return '';
+
+  const normTitle = normalizeForMatch(trackTitle);
+  const normArtist = normalizeForMatch(trackArtist);
+  const titleTokens = normTitle.split(/\s+/).filter((t) => t.length > 1);
+
+  const isTargetInstrumental = /\b(instrumental|karaoke|backing|piano|flute|guitar|bgm)\b/i.test(trackTitle);
+
+  let bestId = '';
+  let bestScore = -Infinity;
+
+  for (const yt of ytItems) {
+    const ytNormTitle = normalizeForMatch(yt.title || '');
+    const ytNormAuthor = normalizeForMatch(yt.author || '');
+    const ytCombined = `${ytNormTitle} ${ytNormAuthor}`;
+
+    // Reject instrumental / karaoke videos when searching for vocal tracks
+    const isYtInstrumental = /\b(instrumental|karaoke|backing\s*track|piano\s*(?:cover|version)|flute|guitar\s*cover|violin|cover\s*version|minus\s*one|no\s*vocal|ringtone|bgm)\b/i.test(
+      ytCombined
+    );
+    if (!isTargetInstrumental && isYtInstrumental) {
+      continue;
+    }
+
+    let score = 0;
+
+    // Exact normalized title match
+    if (ytNormTitle === normTitle) score += 500;
+    else if (ytNormTitle.startsWith(normTitle) || normTitle.startsWith(ytNormTitle)) score += 350;
+    else if (ytNormTitle.includes(normTitle) || normTitle.includes(ytNormTitle)) score += 250;
+
+    // Token overlap scoring
+    const matchedTokens = titleTokens.filter((tok) => ytCombined.includes(tok));
+    score += matchedTokens.length * 70;
+    if (titleTokens.length > 0 && matchedTokens.length === titleTokens.length) score += 200;
+
+    // Artist match
+    if (normArtist && ytCombined.includes(normArtist)) score += 180;
+
+    // Duration proximity bonus (closer duration = better match)
+    const ytDur = Number(yt.lengthSeconds) || 0;
+    if (ytDur > 0 && trackDuration > 0) {
+      const diff = Math.abs(ytDur - trackDuration);
+      if (diff <= 5) score += 150;
+      else if (diff <= 15) score += 80;
+      else if (diff <= 30) score += 30;
+      else if (diff > 60) score -= 120;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestId = yt.videoId;
+    }
+  }
+
+  // Strictly require high-confidence score (>= 220). Never fallback to random ytItems[0]!
+  return bestScore >= 220 ? bestId : '';
+}
+
+/**
+ * Find the best-matching Saavn audioUrl for a given iTunes track by comparing
+ * normalized title + artist text similarity instead of array position.
+ */
+function findBestSaavnAudioMatch(
+  trackTitle: string,
+  trackArtist: string,
+  trackDuration: number,
+  saavnTracks: Track[]
+): string {
+  if (saavnTracks.length === 0) return '';
+
+  const normTitle = normalizeForMatch(trackTitle);
+  const normArtist = normalizeForMatch(trackArtist);
+  const titleTokens = normTitle.split(/\s+/).filter((t) => t.length > 1);
+
+  const isTargetInstrumental = /\b(instrumental|karaoke|backing|piano|flute|guitar|bgm)\b/i.test(trackTitle);
+
+  let bestUrl = '';
+  let bestScore = -Infinity;
+
+  for (const st of saavnTracks) {
+    if (!st.audioUrl) continue;
+
+    const stNormTitle = normalizeForMatch(st.title);
+    const stNormArtist = normalizeForMatch(st.artist);
+    const stCombined = `${stNormTitle} ${stNormArtist}`;
+
+    const isSaavnInstrumental = /\b(instrumental|karaoke|backing|piano|flute|guitar|bgm|minus\s*one)\b/i.test(stCombined);
+    if (!isTargetInstrumental && isSaavnInstrumental) {
+      continue;
+    }
+
+    let score = 0;
+
+    if (stNormTitle === normTitle) score += 500;
+    else if (stNormTitle.startsWith(normTitle) || normTitle.startsWith(stNormTitle)) score += 350;
+    else if (stNormTitle.includes(normTitle) || normTitle.includes(stNormTitle)) score += 250;
+
+    const matchedTokens = titleTokens.filter((tok) => stCombined.includes(tok));
+    score += matchedTokens.length * 70;
+    if (titleTokens.length > 0 && matchedTokens.length === titleTokens.length) score += 200;
+
+    if (normArtist && stCombined.includes(normArtist)) score += 180;
+
+    const diff = Math.abs((st.duration || 0) - trackDuration);
+    if (diff <= 5) score += 120;
+    else if (diff <= 15) score += 60;
+    else if (diff > 60) score -= 100;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestUrl = st.audioUrl;
+    }
+  }
+
+  // Require high-confidence score (>= 220). Never guess randomly!
+  return bestScore >= 220 ? bestUrl : '';
+}
+
+/**
+ * Strict verification helper to resolve audio for on-the-fly tracks
+ * (e.g. from albums or unlinked queue items) without picking the wrong song.
+ */
+export function findStrictTrackMatch(
+  targetTitle: string,
+  targetArtist: string,
+  candidates: Track[],
+  targetDuration = 0
+): Track | null {
+  if (!candidates || candidates.length === 0) return null;
+
+  const normTargetTitle = normalizeForMatch(targetTitle);
+  const normTargetArtist = normalizeForMatch(targetArtist);
+  const targetTokens = normTargetTitle.split(/\s+/).filter((t) => t.length > 1);
+  const isTargetInstrumental = /\b(instrumental|karaoke|bgm|piano|flute|guitar)\b/i.test(targetTitle);
+
+  let bestMatch: Track | null = null;
+  let bestScore = -Infinity;
+
+  for (const cand of candidates) {
+    const candTitle = normalizeForMatch(cand.title);
+    const candArtist = normalizeForMatch(cand.artist);
+    const candCombined = `${candTitle} ${candArtist}`;
+    const isCandInstrumental = /\b(instrumental|karaoke|bgm|piano|flute|guitar|cover)\b/i.test(cand.title);
+
+    // Reject instrumental if target is vocal
+    if (!isTargetInstrumental && isCandInstrumental) {
+      continue;
+    }
+
+    let score = 0;
+
+    // Exact title match
+    if (candTitle === normTargetTitle) score += 600;
+    else if (candTitle.startsWith(normTargetTitle) || normTargetTitle.startsWith(candTitle)) score += 350;
+    else if (candTitle.includes(normTargetTitle) || normTargetTitle.includes(candTitle)) score += 200;
+
+    // Token matching
+    const matchedTokens = targetTokens.filter((tok) => candCombined.includes(tok));
+    score += matchedTokens.length * 70;
+    if (targetTokens.length > 0 && matchedTokens.length === targetTokens.length) score += 200;
+
+    // Artist matching
+    if (normTargetArtist && candCombined.includes(normTargetArtist)) score += 150;
+
+    // Duration match
+    if (targetDuration > 0 && cand.duration > 0) {
+      const diff = Math.abs(cand.duration - targetDuration);
+      if (diff <= 5) score += 150;
+      else if (diff <= 15) score += 80;
+      else if (diff <= 35) score += 30;
+      else if (diff > 60) score -= 120;
+    }
+
+    // Has playable stream bonus
+    if (cand.audioUrl) score += 60;
+    if (cand.youtubeId) score += 30;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = cand;
+    }
+  }
+
+  return bestScore >= 200 ? bestMatch : null;
+}
+
 function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
   const q = rawQuery.toLowerCase().trim();
   const qTokens = q.split(/\s+/).filter(Boolean);
+
+  // Detect if the user explicitly wants instrumental/karaoke/cover/remix
+  const wantsInstrumental = /\b(instrumental|karaoke|backing\s*track|piano|flute|guitar|bgm|violin|sax)\b/i.test(q);
+  const wantsCover = /\bcover\b/i.test(q);
+  const wantsRemix = /\b(remix|mashup)\b/i.test(q);
+  const wantsLofi = /\b(lofi|lo-fi|slowed|reverb|8d)\b/i.test(q);
 
   const getScore = (track: Track): number => {
     let score = 0;
     const title = (track.title || '').toLowerCase().trim();
     const artist = (track.artist || '').toLowerCase().trim();
+    const combined = `${title} ${artist}`;
     const cleanTitle = title.replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ').trim();
 
     // 1. Exact match on title
@@ -236,11 +458,51 @@ function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
       score += 40;
     }
 
-    // 9. Negative penalty for karaoke/covers/sound effects unless specifically asked for
-    if (!/cover|karaoke|instrumental|remix/i.test(q)) {
-      if (/karaoke|tribute|cover|backing\s*track|instrumental\s*version/i.test(title)) {
+    // 9. Comprehensive instrumental / non-vocal content filter
+    // Heavily penalize instrumental/karaoke/covers/sound effects/ringtones UNLESS user explicitly asked
+    if (!wantsInstrumental) {
+      if (
+        /\b(instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|vocal\s*cut|piano\s*(?:cover|version)|flute\s*(?:cover|version)|guitar\s*(?:cover|version)|violin\s*(?:cover|version)|sax\s*(?:cover|version)|bgm|theme\s*music|background\s*score|shehnai|sitar|veena|bansuri)\b/i.test(
+          title
+        )
+      ) {
+        score -= 900;
+      }
+    }
+    if (!wantsCover) {
+      if (/\b(tribute|cover\s+by|covered\s+by|cover\s+version)\b/i.test(title)) {
+        score -= 500;
+      }
+      if (/\bcover\b/i.test(title) && !/\bcover\s*art|discover|uncover/i.test(title)) {
         score -= 300;
       }
+    }
+    if (!wantsRemix) {
+      if (/\b(remix|mashup|bootleg)\b/i.test(title)) {
+        score -= 250;
+      }
+    }
+    if (!wantsLofi) {
+      if (/\b(lofi|lo-fi|slowed|reverb|8d\s*audio|sped\s*up|nightcore|daycore)\b/i.test(title)) {
+        score -= 400;
+      }
+    }
+
+    // 10. Hard penalty for ringtones, sound effects, ASMR, and junk
+    if (
+      /\b(ringtone|sound\s*effect|sfx|notification|alarm|asmr|status|whatsapp\s*status|short\s*audio)\b/i.test(
+        combined
+      )
+    ) {
+      score -= 1200;
+    }
+    // Very short tracks (< 60s) are likely ringtones/previews
+    if (track.duration && track.duration < 60) {
+      score -= 400;
+    }
+    // Very long tracks (> 15 min) are likely compilations/mixes
+    if (track.duration && track.duration > 900) {
+      score -= 200;
     }
 
     return score;
@@ -253,21 +515,33 @@ function deduplicateAndEnrichTracks(tracks: Track[]): Track[] {
   const seen = new Map<string, Track>();
 
   for (const track of tracks) {
-    const normTitle = track.title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 18);
-    const normArtist = (track.artist || '').split(',')[0].toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
-    const key = `${normTitle}__${normArtist}`;
+    const normTitle = normalizeForMatch(track.title);
+    const normArtist = normalizeForMatch((track.artist || '').split(',')[0]);
+    const isInst = /\b(instrumental|karaoke|bgm|piano|flute|guitar|remix|lofi)\b/i.test(track.title);
+    const key = `${normTitle}__${normArtist}__${isInst ? 'inst' : 'vocal'}`;
 
     const existing = seen.get(key);
     if (!existing) {
       seen.set(key, { ...track });
     } else {
+      // Do not merge if durations differ drastically (> 35s) — they are different versions!
+      if (existing.duration && track.duration && Math.abs(existing.duration - track.duration) > 35) {
+        seen.set(`${key}_${Math.round(track.duration / 30)}`, { ...track });
+        continue;
+      }
+
       // Merge best attributes: keep direct audioUrl from whoever has it
       if (!existing.audioUrl && track.audioUrl) {
         existing.audioUrl = track.audioUrl;
       }
-      if (!existing.youtubeId && track.youtubeId) {
+
+      // If existing had an unverified youtubeId, but track is a direct YouTube result, take genuine ID
+      if (track.id.startsWith('yt_') && track.youtubeId) {
+        existing.youtubeId = track.youtubeId;
+      } else if (!existing.youtubeId && track.youtubeId) {
         existing.youtubeId = track.youtubeId;
       }
+
       if ((!existing.thumbnailLarge || existing.thumbnailLarge.includes('hqdefault')) && track.thumbnailLarge) {
         existing.thumbnail = track.thumbnail;
         existing.thumbnailLarge = track.thumbnailLarge;
@@ -299,15 +573,29 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
         const itunesItems: any[] = data.itunes || [];
         const ytItems: any[] = data.youtube || [];
 
-        const firstYtId = ytItems[0]?.videoId || '';
+        // Map Saavn tracks: find the best-matching YouTube video for each by title/artist similarity
         const saavnTracks = saavnItems
-          .map((item, idx) => mapSaavnItemToTrack(item, ytItems[idx]?.videoId || firstYtId))
+          .map((item) => {
+            const title = decodeHtmlEntities(item.title || '');
+            const primaryArtists = item?.more_info?.artistMap?.primary_artists
+              ?.map((a: any) => a.name)
+              .filter(Boolean)
+              .join(', ') || '';
+            const duration = Number(item?.more_info?.duration) || 210;
+            const matchedYtId = findBestYouTubeMatch(title, primaryArtists, duration, ytItems);
+            return mapSaavnItemToTrack(item, matchedYtId);
+          })
           .filter((t): t is Track => t !== null);
 
-        const firstSaavnAudio = saavnTracks[0]?.audioUrl || '';
-        const itunesTracks = itunesItems.map((item, idx) =>
-          mapItunesItemToTrack(item, saavnTracks[idx]?.audioUrl || firstSaavnAudio, ytItems[idx]?.videoId || firstYtId)
-        );
+        // Map iTunes tracks: find the best-matching Saavn audioUrl AND YouTube video for each
+        const itunesTracks = itunesItems.map((item) => {
+          const title = item.trackName || '';
+          const artist = item.artistName || '';
+          const duration = Math.round((Number(item.trackTimeMillis) || 210000) / 1000);
+          const matchedAudioUrl = findBestSaavnAudioMatch(title, artist, duration, saavnTracks);
+          const matchedYtId = findBestYouTubeMatch(title, artist, duration, ytItems);
+          return mapItunesItemToTrack(item, matchedAudioUrl, matchedYtId);
+        });
 
         const ytTracks = ytItems.map(mapYouTubeItemToTrack);
 
