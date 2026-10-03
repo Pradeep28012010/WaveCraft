@@ -5,18 +5,8 @@ import { useLibraryStore } from '../stores/libraryStore';
 export function useKeyboardShortcuts() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Never intercept browser shortcuts like Ctrl+R (Refresh), Cmd+R, Ctrl+S, Ctrl+L, etc.
-      if (e.ctrlKey || e.metaKey || e.altKey) {
-        return;
-      }
-
       const target = e.target as HTMLElement;
-      if (
-        !target ||
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
         return;
       }
 

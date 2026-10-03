@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
-import { useStudioStore } from '../../stores/studioStore';
 import { getTrending, getCachedTrending, searchTracks } from '../../services/youtube';
 import { getNewReleases, getCachedNewReleases } from '../../services/itunes';
 import GlassCard from '../ui/GlassCard';
@@ -63,7 +62,7 @@ const HorizontalScroll = ({
       </div>
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto no-scrollbar pt-4 pb-6 px-5 -mx-5 -mt-2"
+        className="flex gap-5 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 pt-1 px-1"
       >
         {children}
       </div>
@@ -79,8 +78,6 @@ export default function HomePage() {
   const [trendingTracks, setTrendingTracks] = useState<Track[]>(() => getCachedTrending() || []);
   const [newReleases, setNewReleases] = useState<AlbumResult[]>(() => getCachedNewReleases() || []);
   const [isLoading, setIsLoading] = useState<boolean>(() => !getCachedTrending());
-  const [activeTrendingCategory, setActiveTrendingCategory] = useState<string>('global');
-  const [isCategoryTrendingLoading, setIsCategoryTrendingLoading] = useState<boolean>(false);
   const [loadingMoodId, setLoadingMoodId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -90,7 +87,7 @@ export default function HomePage() {
       setIsLoading(true);
     }
 
-    getTrending('global')
+    getTrending()
       .then((trending) => {
         if (isMounted) {
           setTrendingTracks(trending);
@@ -133,22 +130,6 @@ export default function HomePage() {
     }
   };
 
-  const handleSelectTrendingCategory = async (categoryKey: string) => {
-    if (categoryKey === activeTrendingCategory && trendingTracks.length > 0) return;
-    setActiveTrendingCategory(categoryKey);
-    setIsCategoryTrendingLoading(true);
-    try {
-      const tracks = await getTrending(categoryKey);
-      if (tracks && tracks.length > 0) {
-        setTrendingTracks(tracks);
-      }
-    } catch (err) {
-      console.error('Failed to change trending category:', err);
-    } finally {
-      setIsCategoryTrendingLoading(false);
-    }
-  };
-
   const featuredTrack = trendingTracks[0];
 
   return (
@@ -173,7 +154,7 @@ export default function HomePage() {
             <p className="text-white/65 text-sm sm:text-base mt-3 leading-relaxed">
               Stream full-length songs in 320kbps studio quality with spatial glass aesthetics, time-synced lyrics, real-time audio visualizers, and zero ads.
             </p>
-            <div className="flex flex-wrap items-center gap-3 mt-6">
+            <div className="flex flex-wrap items-center gap-3.5 mt-6">
               <button
                 onClick={() => {
                   if (trendingTracks.length > 0) {
@@ -182,7 +163,7 @@ export default function HomePage() {
                     handlePlayMood('hero', 'top global hits');
                   }
                 }}
-                className="px-6 py-3 rounded-full glass-button-primary text-white font-bold text-sm flex items-center gap-2.5 cursor-pointer"
+                className="px-6 py-3 rounded-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-sm flex items-center gap-2.5 shadow-xl shadow-[var(--color-accent)]/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
@@ -191,25 +172,10 @@ export default function HomePage() {
               </button>
 
               <button
-                onClick={() => navigate('/vibe')}
-                className="px-5 py-3 rounded-full glass-button text-sm font-bold text-white flex items-center gap-2 cursor-pointer"
+                onClick={() => navigate('/search')}
+                className="px-5 py-3 rounded-full glass-button text-sm font-semibold text-white/90 hover:text-white"
               >
-                <span>✨ AI Vibe DJ</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/jam')}
-                className="px-5 py-3 rounded-full glass-button-emerald text-sm font-bold flex items-center gap-2 cursor-pointer"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>Live Jam Room</span>
-              </button>
-
-              <button
-                onClick={() => useStudioStore.getState().setStudioModalOpen(true)}
-                className="px-5 py-3 rounded-full glass-button-purple text-sm font-bold flex items-center gap-2 cursor-pointer"
-              >
-                <span>🎛️ Studio FX & Ambient Focus</span>
+                Explore Catalog
               </button>
             </div>
           </div>
@@ -252,7 +218,7 @@ export default function HomePage() {
                 key={`${track.id}-${i}`}
                 padding="sm"
                 hover
-                className="min-w-[175px] max-w-[175px] flex-shrink-0 snap-start group cursor-pointer hover:border-white/25 transition-colors duration-300"
+                className="min-w-[175px] max-w-[175px] flex-shrink-0 snap-start group cursor-pointer"
                 onClick={() =>
                   playTrack(
                     track,
@@ -261,22 +227,22 @@ export default function HomePage() {
                   )
                 }
               >
-                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5 shadow-md">
+                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5">
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                     alt={track.title}
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                    className="w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center">
-                    <div className="w-11 h-11 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
+                  <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-lg">
                       <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
                   </div>
                 </div>
-                <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{track.title}</h3>
+                <h3 className="font-bold text-sm truncate text-white">{track.title}</h3>
                 <p className="text-xs text-white/55 truncate mt-0.5">{track.artist}</p>
               </GlassCard>
             );
@@ -287,9 +253,7 @@ export default function HomePage() {
       {/* Trending Section */}
       <TrendingSection
         tracks={trendingTracks}
-        isLoading={isLoading || isCategoryTrendingLoading}
-        activeCategory={activeTrendingCategory}
-        onSelectCategory={handleSelectTrendingCategory}
+        isLoading={isLoading}
         onPlayTrack={(track, allTracks) => playTrack(track, allTracks)}
       />
 
@@ -302,12 +266,12 @@ export default function HomePage() {
               key={mood.id}
               padding="md"
               hover
-              className={`min-w-[215px] max-w-[215px] flex-shrink-0 snap-start cursor-pointer relative overflow-hidden group ${mood.colorClass}`}
+              className={`min-w-[215px] max-w-[215px] flex-shrink-0 snap-start cursor-pointer relative overflow-hidden ${mood.colorClass}`}
               onClick={() => handlePlayMood(mood.id, mood.query || mood.searchQuery)}
             >
               <div className="flex items-center justify-between mb-4">
-                <span className="text-4xl drop-shadow group-hover:scale-110 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">{mood.emoji}</span>
-                <div className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
+                <span className="text-4xl drop-shadow">{mood.emoji}</span>
+                <div className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center text-white">
                   {isMoodLoading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
@@ -341,27 +305,27 @@ export default function HomePage() {
                 key={album.id}
                 padding="sm"
                 hover
-                className="min-w-[180px] max-w-[180px] flex-shrink-0 snap-start group cursor-pointer hover:border-white/25 transition-colors duration-300"
+                className="min-w-[180px] max-w-[180px] flex-shrink-0 snap-start group cursor-pointer"
                 onClick={() =>
                   navigate(`/search?q=${encodeURIComponent(`${album.title || album.name} ${album.artist}`)}`)
                 }
               >
-                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5 shadow-md">
+                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5">
                   <img
                     src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                     alt={album.title || album.name}
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                    className="w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center">
-                    <div className="w-11 h-11 rounded-full bg-white/25 backdrop-blur-md text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-full bg-white/25 backdrop-blur-md text-white flex items-center justify-center">
                       <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
                   </div>
                 </div>
-                <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{album.title || album.name}</h3>
+                <h3 className="font-bold text-sm truncate text-white">{album.title || album.name}</h3>
                 <p className="text-xs text-white/55 truncate mt-0.5">{album.artist}</p>
               </GlassCard>
             ))}

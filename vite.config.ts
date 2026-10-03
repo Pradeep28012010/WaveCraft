@@ -62,30 +62,12 @@ export default defineConfig({
   build: {
     target: 'esnext',
     cssMinify: true,
-    chunkSizeWarningLimit: 650,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('framer-motion')) return 'vendor-motion';
-            if (id.includes('zustand') || id.includes('idb-keyval')) return 'vendor-storage';
-            if (id.includes('react') || id.includes('scheduler')) return 'vendor-react';
-          }
-          if (
-            id.includes('/components/player/StudioFXModal') ||
-            id.includes('/components/layout/CommandPalette')
-          ) {
-            return 'studio-workstation';
-          }
-          if (
-            id.includes('/components/player/NowPlaying') ||
-            id.includes('/components/player/QueuePanel') ||
-            id.includes('/components/player/WaveCardModal') ||
-            id.includes('/components/lyrics/LyricsView') ||
-            id.includes('/components/visualizer/Visualizer')
-          ) {
-            return 'player-fullscreen';
-          }
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-storage': ['zustand', 'idb-keyval']
         }
       }
     }

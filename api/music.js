@@ -122,198 +122,11 @@ export default async function handler(req, res) {
       return res.status(200).json(imported);
     }
 
-    if (action === 'jam') {
-      res.setHeader('Cache-Control', 'no-store, max-age=0');
-      const roomCode = (url.searchParams.get('room') || '').trim().toUpperCase();
-      if (!roomCode) {
-        return res.status(400).json({ error: 'Room code required' });
-      }
-      const result = await handleJamRoomRequest(req, url, roomCode);
-      return res.status(200).json(result);
-    }
-
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('API error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
-}
-
-const jamRooms = new Map();
-
-async function readJsonBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body;
-  if (typeof req.body === 'string' && req.body.trim()) {
-    try {
-      return JSON.parse(req.body);
-    } catch {
-      return {};
-    }
-  }
-  return new Promise((resolve) => {
-    let raw = '';
-    req.on?.('data', (chunk) => {
-      raw += chunk;
-      if (raw.length > 250_000) req.destroy?.();
-    });
-    req.on?.('end', () => {
-      if (!raw) return resolve({});
-      try {
-        resolve(JSON.parse(raw));
-      } catch {
-        resolve({});
-      }
-    });
-    req.on?.('error', () => resolve({}));
-  });
-}
-
-async function handleJamRoomRequest(req, url, roomCode) {
-  const now = Date.now();
-  // Clean up expired rooms (> 2 hours idle)
-  for (const [key, rm] of jamRooms.entries()) {
-    if (now - rm.updatedAt > 7_200_000) jamRooms.delete(key);
-  }
-
-  const op = url.searchParams.get('op') || (req.method === 'POST' ? 'sync' : 'get');
-  const body = req.method === 'POST' ? await readJsonBody(req) : {};
-
-  const userId = body.userId || url.searchParams.get('userId');
-  const userName = body.userName || url.searchParams.get('userName');
-
-  let room = jamRooms.get(roomCode);
-  if (!room) {
-    const isCreatingOrSyncingHost = op === 'sync' || Boolean(body.hostName);
-    room = {
-      roomCode,
-      hostId: isCreatingOrSyncingHost ? userId || 'host' : 'host',
-      hostName: body.hostName || (isCreatingOrSyncingHost ? userName : null) || 'DJ Host',
-      currentTrack: null,
-      isPlaying: false,
-      currentTime: 0,
-      updatedAt: now,
-      trackOverrideAt: 0,
-      stateVersion: 1,
-      queue: [],
-      guestTracks: [],
-      members: [],
-      reactions: [],
-      messages: []
-    };
-    jamRooms.set(roomCode, room);
-  }
-
-  if (op === 'leave' && userId) {
-    room.members = room.members.filter((m) => m.id !== userId);
-    return room;
-  }
-
-  if (userId && userName) {
-    const existing = room.members.find((m) => m.id === userId);
-    if (existing) {
-      existing.name = userName;
-      existing.lastSeen = now;
-    } else {
-      room.members.push({ id: userId, name: userName, lastSeen: now });
-      room.messages.push({
-        id: `sys-${now}-${Math.random().toString(36).slice(2, 6)}`,
-        sender: 'WaveJam',
-        text: `🎧 ${userName} joined the Jam!`,
-        isSystem: true,
-        createdAt: now
-      });
-    }
-  }
-
-  // Prune members inactive for > 25s
-  room.members = room.members.filter((m) => now - m.lastSeen < 25_000);
-  // Keep reactions from last 20s
-  room.reactions = room.reactions.filter((r) => now - r.createdAt < 20_000).slice(-20);
-  // Keep last 40 chat messages
-  room.messages = (room.messages || []).slice(-40);
-
-  if (op === 'sync') {
-    if (body.hostName) room.hostName = body.hostName;
-    if (userId) room.hostId = userId;
-
-    // Only accept host currentTrack if a collaborative play-track didn't just override it in the last 4s
-    const recentOverride = room.trackOverrideAt && now - room.trackOverrideAt < 4000;
-    if (!recentOverride) {
-      if (body.currentTrack !== undefined && (body.currentTrack || !room.currentTrack)) {
-        room.currentTrack = body.currentTrack;
-      }
-      if (typeof body.isPlaying === 'boolean') room.isPlaying = body.isPlaying;
-      if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
-    }
-
-    if (Array.isArray(body.queue)) {
-      const merged = [...body.queue];
-      for (const gt of room.guestTracks || []) {
-        if (!merged.some((t) => t.id === gt.id)) {
-          merged.push(gt);
-        }
-      }
-      room.queue = merged.slice(0, 40);
-    }
-    room.updatedAt = now;
-  } else if (op === 'react') {
-    const emoji = body.emoji || url.searchParams.get('emoji') || '🔥';
-    const sender = userName || 'Listener';
-    const reactionId = body.id || `${now}-${Math.random().toString(36).slice(2, 6)}`;
-    if (!room.reactions.some((r) => r.id === reactionId)) {
-      room.reactions.push({
-        id: reactionId,
-        emoji,
-        sender,
-        createdAt: now
-      });
-    }
-  } else if (op === 'chat' && body.text) {
-    const msgId = body.id || `${now}-${Math.random().toString(36).slice(2, 6)}`;
-    if (!room.messages.some((m) => m.id === msgId)) {
-      room.messages.push({
-        id: msgId,
-        sender: userName || 'Listener',
-        text: String(body.text).slice(0, 240),
-        createdAt: now
-      });
-    }
-  } else if (op === 'add-track' && body.track) {
-    const exists = room.queue.some((t) => t.id === body.track.id);
-    if (!exists) {
-      room.queue.push(body.track);
-    }
-    if (!room.guestTracks.some((t) => t.id === body.track.id)) {
-      room.guestTracks.push(body.track);
-    }
-    if (!room.currentTrack || body.playNow) {
-      room.currentTrack = body.track;
-      room.isPlaying = true;
-      room.currentTime = 0;
-      room.trackOverrideAt = now;
-    }
-    room.stateVersion = (room.stateVersion || 1) + 1;
-    room.updatedAt = now;
-    room.messages.push({
-      id: `sys-${now}-${Math.random().toString(36).slice(2, 6)}`,
-      sender: 'WaveJam',
-      text: `🎵 ${userName || 'A listener'} ${body.playNow ? 'started playing' : 'queued'} "${body.track.title}"`,
-      isSystem: true,
-      createdAt: now
-    });
-  } else if (op === 'play-track' && body.track) {
-    if (!room.queue.some((t) => t.id === body.track.id)) {
-      room.queue.push(body.track);
-    }
-    room.currentTrack = body.track;
-    room.isPlaying = true;
-    room.currentTime = 0;
-    room.trackOverrideAt = now;
-    room.stateVersion = (room.stateVersion || 1) + 1;
-    room.updatedAt = now;
-  }
-
-  return room;
 }
 
 async function fetchSaavnSearch(query, count = 20) {
@@ -408,180 +221,69 @@ async function fetchYouTubeSearch(query) {
 }
 
 function cleanSongTitle(rawTitle) {
-  let t = (rawTitle || '')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;|&amp;/g, ' ')
-    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ');
-
-  const pipeParts = t
-    .split('|')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (pipeParts.length > 0) {
-    t =
-      /^(full\s+video|lyrical|video\s+song|official|4k|8k|audio)/i.test(pipeParts[0]) &&
-      pipeParts[0].length < 18 &&
-      pipeParts[1]
-        ? pipeParts[1]
-        : pipeParts[0];
-  }
-
-  t = t
-    .replace(
-      /^(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|official\s+music\s+video|official\s+video|official\s+audio|4k\s+video|8k\s+video|audio\s+song|audio)\s*[:\-–—]?\s*/i,
-      ''
-    )
-    .replace(
-      /\s+(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|full\s+audio|8k\s+video|4k\s+video|hd\s+video|official\s+video|official\s+audio|video)\b.*$/i,
-      ''
-    )
-    .replace(/\s*[-–—]\s*(?:from|feat|ft|telugu|hindi|tamil|malayalam|kannada)\b.*$/i, '')
+  return (rawTitle || '')
+    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
     .replace(/feat\..*/gi, '')
     .replace(/ft\..*/gi, '')
+    .replace(/-\s*from.*/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
-
-  if (t.includes(' - ')) {
-    const dashParts = t.split(' - ').map((s) => s.trim()).filter(Boolean);
-    if (dashParts.length >= 2) {
-      t = dashParts[0];
-    }
-  }
-
-  return t || (rawTitle || '').trim();
-}
-
-function cleanArtistName(rawArtist) {
-  const first = (rawArtist || '')
-    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
-    .split(',')[0]
-    .split('&')[0]
-    .split(/feat\.|ft\./i)[0]
-    .trim();
-
-  if (
-    /t-series|aditya|sony\s*music|zee\s*music|saregama|think\s*music|lahari|junglee|tips|yrf|mythri|hombale|vevo|wavecraft|unknown|official|channel|records|films|movies/i.test(
-      first
-    )
-  ) {
-    return '';
-  }
-  return first;
-}
-
-function pickBestLrcMatch(list, cleanTitle) {
-  if (!Array.isArray(list) || list.length === 0) return null;
-  const target = cleanTitle.toLowerCase();
-
-  // 1. Exact or substring title match with syncedLyrics
-  const exactSynced = list.find(
-    (item) =>
-      item.syncedLyrics &&
-      (item.trackName?.toLowerCase().includes(target) ||
-        target.includes(item.trackName?.toLowerCase() || '___'))
-  );
-  if (exactSynced) return exactSynced;
-
-  // 2. Any result with syncedLyrics
-  const anySynced = list.find((item) => item.syncedLyrics);
-  if (anySynced) return anySynced;
-
-  // 3. Exact or substring title match with plainLyrics
-  const exactPlain = list.find(
-    (item) =>
-      item.plainLyrics &&
-      (item.trackName?.toLowerCase().includes(target) ||
-        target.includes(item.trackName?.toLowerCase() || '___'))
-  );
-  if (exactPlain) return exactPlain;
-
-  // 4. First result with plainLyrics
-  return list.find((item) => item.plainLyrics) || null;
 }
 
 async function fetchMultiSourceLyrics(rawTitle, rawArtist) {
-  const cleanTitle = cleanSongTitle(rawTitle);
-  const primaryArtist = cleanArtistName(rawArtist);
+  const cleanTitle = cleanSongTitle(rawTitle) || rawTitle;
+  const primaryArtist = (rawArtist || '').split(',')[0].split('&')[0].split('-')[0].trim();
 
-  // 1. Try LRCLIB with cleanTitle + primaryArtist (if artist is not a label/channel)
-  if (primaryArtist) {
-    try {
-      const lrcUrl1 = `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`)}`;
-      const r1 = await fetchWithTimeout(
-        lrcUrl1,
-        { headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' } },
-        2500
-      );
-      if (r1.ok) {
-        const list = await r1.json();
-        const best = pickBestLrcMatch(list, cleanTitle);
-        if (best && (best.syncedLyrics || best.plainLyrics)) {
-          return {
-            synced: Boolean(best.syncedLyrics),
-            lyrics: best.syncedLyrics || best.plainLyrics,
-            source: best.syncedLyrics ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics'
-          };
-        }
-      }
-    } catch {}
-  }
-
-  // 2. Try LRCLIB with cleanTitle ONLY (handles label channels like "T-Series Telugu" or composer vs singer mismatches!)
-  if (cleanTitle) {
-    try {
-      const lrcUrl2 = `https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle)}`;
-      const r2 = await fetchWithTimeout(
-        lrcUrl2,
-        { headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' } },
-        2500
-      );
-      if (r2.ok) {
-        const list = await r2.json();
-        const best = pickBestLrcMatch(list, cleanTitle);
-        if (best && (best.syncedLyrics || best.plainLyrics)) {
-          return {
-            synced: Boolean(best.syncedLyrics),
-            lyrics: best.syncedLyrics || best.plainLyrics,
-            source: best.syncedLyrics ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics'
-          };
-        }
-      }
-    } catch {}
-  }
-
-  // 3. Try JioSaavn Official Lyrics API if available
+  // 1. Try LRCLIB with track_name + artist_name
   try {
-    const searchRes = await fetchSaavnSearch(`${cleanTitle} ${primaryArtist}`.trim(), 5);
-    const withLyrics = searchRes.find((item) => item.more_info?.has_lyrics === 'true' || item.more_info?.lyrics_id);
-    if (withLyrics?.id) {
-      const saavnLyricsUrl = `https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=web6dot0&api_version=4&_format=json&_marker=0&lyrics_id=${withLyrics.id}`;
-      const lrRes = await fetchWithTimeout(saavnLyricsUrl, {}, 2000);
-      if (lrRes.ok) {
-        const lrData = await lrRes.json();
-        if (lrData?.lyrics) {
-          const formatted = lrData.lyrics
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<[^>]+>/g, '')
-            .trim();
-          if (formatted.length > 40) {
-            return {
-              synced: false,
-              lyrics: formatted,
-              source: 'Studio Lyrics'
-            };
-          }
+    const lrcUrl1 = `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`;
+    const r1 = await fetch(lrcUrl1, {
+      headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' }
+    });
+    if (r1.ok) {
+      const list = await r1.json();
+      if (Array.isArray(list) && list.length > 0) {
+        const best = list.find((item) => item.syncedLyrics) || list.find((item) => item.plainLyrics);
+        if (best && (best.syncedLyrics || best.plainLyrics)) {
+          return {
+            synced: Boolean(best.syncedLyrics),
+            lyrics: best.syncedLyrics || best.plainLyrics,
+            source: 'WaveSync • Time-Synced'
+          };
         }
       }
     }
   } catch {}
 
-  // 4. Try plain lyrics lookup (lyrics.ovh)
-  if (primaryArtist && cleanTitle) {
-    try {
-      const ovhRes = await fetchWithTimeout(
-        `https://api.lyrics.ovh/v1/${encodeURIComponent(primaryArtist)}/${encodeURIComponent(cleanTitle)}`,
-        {},
-        2000
+  // 2. Try general query search
+  try {
+    const lrcUrl2 = `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`)}`;
+    const r2 = await fetch(lrcUrl2, {
+      headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' }
+    });
+    if (r2.ok) {
+      const list = await r2.json();
+      if (Array.isArray(list) && list.length > 0) {
+        const titleLower = cleanTitle.toLowerCase();
+        const match =
+          list.find((item) => item.trackName?.toLowerCase().includes(titleLower) && item.syncedLyrics) ||
+          list.find((item) => item.trackName?.toLowerCase().includes(titleLower) && item.plainLyrics);
+        if (match && (match.syncedLyrics || match.plainLyrics)) {
+          return {
+            synced: Boolean(match.syncedLyrics),
+            lyrics: match.syncedLyrics || match.plainLyrics,
+            source: 'WaveSync Lyrics'
+          };
+        }
+      }
+    }
+  } catch {}
+
+  // 3. Try plain lyrics lookup
+  try {
+    if (primaryArtist && cleanTitle) {
+      const ovhRes = await fetch(
+        `https://api.lyrics.ovh/v1/${encodeURIComponent(primaryArtist)}/${encodeURIComponent(cleanTitle)}`
       );
       if (ovhRes.ok) {
         const ovhData = await ovhRes.json();
@@ -593,8 +295,74 @@ async function fetchMultiSourceLyrics(rawTitle, rawArtist) {
           };
         }
       }
-    } catch {}
-  }
+    }
+  } catch {}
+
+  // 4. Fallback: Official Liner Notes
+  try {
+    const ytSearchRes = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00' } },
+        query: `${cleanTitle} ${primaryArtist} lyrics`
+      })
+    });
+    if (ytSearchRes.ok) {
+      const ytData = await ytSearchRes.json();
+      const contents =
+        ytData?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer
+          ?.contents?.[0]?.itemSectionRenderer?.contents || [];
+      const videoIds = contents
+        .filter((c) => c.videoRenderer?.videoId)
+        .slice(0, 3)
+        .map((c) => c.videoRenderer.videoId);
+
+      let fallbackDesc = '';
+      for (const vid of videoIds) {
+        const nextRes = await fetch('https://www.youtube.com/youtubei/v1/next?prettyPrint=false', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00' } },
+            videoId: vid
+          })
+        });
+        if (!nextRes.ok) continue;
+        const nextData = await nextRes.json();
+        const items =
+          nextData?.contents?.twoColumnWatchNextResults?.results?.results?.contents || [];
+        const sec = items.find((c) => c.videoSecondaryInfoRenderer)?.videoSecondaryInfoRenderer;
+        const desc = sec?.attributedDescription?.content || '';
+        if (desc && desc.length > 120) {
+          // Clean hashtags and URLs from description
+          const cleanedDesc = desc
+            .split('\n')
+            .filter(
+              (line) =>
+                !line.trim().startsWith('http') &&
+                !line.trim().startsWith('#') &&
+                !line.toLowerCase().includes('subscribe') &&
+                !line.toLowerCase().includes('follow us')
+            )
+            .join('\n')
+            .trim();
+          if (cleanedDesc.length > 80) {
+            fallbackDesc = cleanedDesc;
+            if (desc.toLowerCase().includes('lyrics')) break;
+          }
+        }
+      }
+
+      if (fallbackDesc) {
+        return {
+          synced: false,
+          lyrics: fallbackDesc,
+          source: 'Studio Liner Notes'
+        };
+      }
+    }
+  } catch {}
 
   return { synced: false, lyrics: null, source: null };
 }
@@ -602,7 +370,7 @@ async function fetchMultiSourceLyrics(rawTitle, rawArtist) {
 async function importExternalPlaylist(playlistUrl) {
   if (!playlistUrl) return { error: 'Missing playlist URL' };
 
-  // 1. Spotify Playlist / Album / Track Link — Fetch ALL tracks (Embed + Web API pagination for >100 tracks)
+  // 1. External Playlist or Album Link (Type A)
   if (playlistUrl.includes('spotify.com')) {
     const typeMatch = playlistUrl.match(/spotify\.com\/(playlist|album|track)\/([a-zA-Z0-9]+)/);
     if (typeMatch) {
@@ -621,68 +389,16 @@ async function importExternalPlaylist(playlistUrl) {
           const end = html.indexOf('</script>', start);
           const json = JSON.parse(html.slice(start, end));
           const entity = json?.props?.pageProps?.state?.data?.entity;
-          const accessToken = json?.props?.pageProps?.state?.settings?.session?.accessToken;
-
           if (entity) {
             const name = entity.name || entity.title || 'Imported Playlist';
-            const images = Array.isArray(entity.visualIdentity?.image)
-              ? [...entity.visualIdentity.image].sort(
-                  (a, b) => (b.maxWidth || b.width || 0) - (a.maxWidth || a.width || 0)
-                )
-              : [];
-            const rawCover = images[0]?.url || '';
-            const coverUrl = rawCover
-              .replace('ab67706f00000001', 'ab67706f00000003')
-              .replace('ab67706f00000002', 'ab67706f00000003')
-              .replace('ab67616d00004851', 'ab67616d0000b273')
-              .replace('ab67616d00001e02', 'ab67616d0000b273');
+            const coverUrl = entity.visualIdentity?.image?.[0]?.url || '';
             const trackList = entity.trackList || [];
-            const queries = trackList.map((t) => ({
+            const queries = trackList.slice(0, 30).map((t) => ({
               title: t.title,
               artist: (t.subtitle || '').replace(/\u00a0/g, ' ')
             }));
-
-            // If playlist has more than 100 tracks and we have an anonymous session token, paginate through ALL remaining tracks!
-            if (entityType === 'playlist' && accessToken && trackList.length >= 100) {
-              try {
-                let nextOffset = trackList.length;
-                let keepFetching = true;
-                while (keepFetching && nextOffset < 1000) {
-                  const apiRes = await fetch(
-                    `https://api.spotify.com/v1/playlists/${id}/tracks?offset=${nextOffset}&limit=100`,
-                    {
-                      headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                      }
-                    }
-                  );
-                  if (!apiRes.ok) break;
-                  const pageData = await apiRes.json();
-                  const items = pageData?.items || [];
-                  if (items.length === 0) break;
-                  for (const item of items) {
-                    const tr = item?.track;
-                    if (tr?.name) {
-                      const artists = Array.isArray(tr.artists)
-                        ? tr.artists.map((a) => a.name).filter(Boolean).join(', ')
-                        : '';
-                      queries.push({
-                        title: tr.name,
-                        artist: artists
-                      });
-                    }
-                  }
-                  nextOffset += items.length;
-                  if (!pageData.next || items.length < 100) {
-                    keepFetching = false;
-                  }
-                }
-              } catch {}
-            }
-
             return {
-              platform: 'Spotify',
+              platform: 'External Link',
               name,
               coverUrl,
               queries
@@ -693,19 +409,16 @@ async function importExternalPlaylist(playlistUrl) {
     }
   }
 
-  // 2. YouTube / YouTube Music Playlist Link — Fetch ALL tracks + follow continuation tokens for >100 song playlists
+  // 2. External Playlist Link (Type B)
   if (playlistUrl.includes('youtube.com') || playlistUrl.includes('youtu.be')) {
     const listMatch = playlistUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/);
     if (listMatch) {
       const listId = listMatch[1];
-      const ytClientContext = {
-        client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' }
-      };
       const r = await fetch('https://www.youtube.com/youtubei/v1/browse?prettyPrint=false', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          context: ytClientContext,
+          context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00' } },
           browseId: `VL${listId}`
         })
       });
@@ -714,63 +427,24 @@ async function importExternalPlaylist(playlistUrl) {
         const title =
           data?.header?.playlistHeaderRenderer?.title?.simpleText ||
           data?.metadata?.playlistMetadataRenderer?.title ||
-          'Imported YouTube Playlist';
+          'Imported Playlist';
         const tabs = data?.contents?.twoColumnBrowseResultsRenderer?.tabs || [];
-        let contents =
+        const contents =
           tabs[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer
             ?.contents?.[0]?.playlistVideoListRenderer?.contents || [];
 
         const queries = [];
-        const extractFromItems = (items) => {
-          let token = null;
-          for (const item of items) {
-            const pv = item.playlistVideoRenderer;
-            if (pv && pv.videoId) {
-              queries.push({
-                title: pv.title?.runs?.[0]?.text || '',
-                artist: pv.shortBylineText?.runs?.[0]?.text || '',
-                videoId: pv.videoId
-              });
-            }
-            const cont =
-              item.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
-            if (cont) token = cont;
-          }
-          return token;
-        };
-
-        let nextToken = extractFromItems(contents);
-        let pageCount = 0;
-
-        // Follow continuation pages so playlists with 100 to 1000+ songs import every single track
-        while (nextToken && pageCount < 10) {
-          pageCount++;
-          try {
-            const contRes = await fetch(
-              'https://www.youtube.com/youtubei/v1/browse?prettyPrint=false',
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  context: ytClientContext,
-                  continuation: nextToken
-                })
-              }
-            );
-            if (!contRes.ok) break;
-            const contData = await contRes.json();
-            const actions = contData?.onResponseReceivedActions || [];
-            const appendedItems =
-              actions[0]?.appendContinuationItemsAction?.continuationItems || [];
-            if (appendedItems.length === 0) break;
-            nextToken = extractFromItems(appendedItems);
-          } catch {
-            break;
-          }
+        for (const item of contents.slice(0, 30)) {
+          const pv = item.playlistVideoRenderer;
+          if (!pv) continue;
+          queries.push({
+            title: pv.title?.runs?.[0]?.text || '',
+            artist: pv.shortBylineText?.runs?.[0]?.text || '',
+            videoId: pv.videoId
+          });
         }
-
         return {
-          platform: 'YouTube',
+          platform: 'External Link',
           name: title,
           coverUrl: queries[0]?.videoId
             ? `https://i.ytimg.com/vi/${queries[0].videoId}/hqdefault.jpg`
@@ -779,39 +453,6 @@ async function importExternalPlaylist(playlistUrl) {
         };
       }
     }
-  }
-
-  // 3. JioSaavn Featured Playlist or Album Link
-  if (playlistUrl.includes('jiosaavn.com')) {
-    try {
-      const tokenMatch = playlistUrl.match(/\/(featured|album|s\/playlist)\/[^/]+\/([^/?#]+)/);
-      const token = tokenMatch ? tokenMatch[2] : playlistUrl.split('/').filter(Boolean).pop();
-      const type = playlistUrl.includes('/album/') ? 'album' : 'playlist';
-      if (token) {
-        const saavnApi = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(token)}&type=${type}&p=1&n=500&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0`;
-        const sr = await fetch(saavnApi, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          }
-        });
-        if (sr.ok) {
-          const sdata = await sr.json();
-          const list = sdata?.list || sdata?.songs || [];
-          if (Array.isArray(list) && list.length > 0) {
-            const queries = list.map((item) => ({
-              title: (item.title || item.song || '').replace(/&quot;/g, '"'),
-              artist: (item.more_info?.artistMap?.primary_artists?.[0]?.name || item.subtitle || '').replace(/&quot;/g, '"')
-            }));
-            return {
-              platform: 'JioSaavn',
-              name: (sdata.title || sdata.listname || 'Imported Saavn Playlist').replace(/&quot;/g, '"'),
-              coverUrl: (sdata.image || '').replace('150x150', '500x500'),
-              queries
-            };
-          }
-        }
-      }
-    } catch {}
   }
 
   return { error: 'Could not parse playlist link. Make sure the playlist is public.' };

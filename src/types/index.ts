@@ -26,15 +26,6 @@ export interface Playlist {
   updatedAt: number;
   isSmartPlaylist?: boolean;
   folder?: string;
-  // Live Auto-Sync Playlist fields
-  isLiveSync?: boolean;
-  sourceUrl?: string;
-  sourcePlatform?: string;
-  syncStrategy?: 'append' | 'mirror';
-  syncIntervalMinutes?: number;
-  lastSyncedAt?: number;
-  lastSyncDelta?: number;
-  remoteFingerprints?: string[];
 }
 
 export interface PlayerState {
@@ -69,7 +60,7 @@ export interface SettingsState {
   crossfadeDuration: number;
   audioQuality: 'auto' | 'high' | 'medium' | 'low';
   showVisualizer: boolean;
-  visualizerStyle: 'bars' | 'wave' | 'blob' | 'circular' | 'particles' | 'nebula' | 'starfield';
+  visualizerStyle: 'bars' | 'wave' | 'blob' | 'circular' | 'particles';
   equalizerPreset: string;
   equalizerBands: number[];
   autoplay: boolean;

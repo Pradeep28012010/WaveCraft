@@ -12,11 +12,10 @@
   --color-text-tertiary: rgba(255, 255, 255, 0.42);
   --color-accent: #fa2d48;
   --color-accent-hover: #ff4760;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
   --radius-full: 9999px;
 }
 
@@ -30,7 +29,6 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
   }
 }
 
@@ -60,352 +58,109 @@
   scrollbar-width: none;
 }
 
-/* 120fps Hardware-Accelerated Spatial Glass System */
-.gpu-layer {
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
-  will-change: transform, opacity;
+/* WaveCraft Spatial Glass Utility System */
+.glass {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.085) 0%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 12px 32px -8px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
 }
 
-@layer components {
-  .glass {
-    background: linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.085) 0%,
-      rgba(255, 255, 255, 0.03) 100%
-    );
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--radius-lg);
-    box-shadow:
-      0 12px 32px -8px rgba(0, 0, 0, 0.45),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
-  }
+.glass-heavy {
+  background: linear-gradient(
+    160deg,
+    rgba(28, 28, 38, 0.72) 0%,
+    rgba(14, 14, 22, 0.82) 100%
+  );
+  backdrop-filter: blur(48px) saturate(210%);
+  -webkit-backdrop-filter: blur(48px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
+}
 
-  .glass-heavy {
-    background: linear-gradient(
-      160deg,
-      rgba(26, 27, 42, 0.86) 0%,
-      rgba(13, 14, 24, 0.92) 100%
-    );
-    -webkit-backdrop-filter: blur(32px) saturate(190%);
-    backdrop-filter: blur(32px) saturate(190%);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: var(--radius-lg);
-    box-shadow:
-      0 20px 50px rgba(0, 0, 0, 0.65),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
-  }
+.glass-light {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
 
-  .glass-light {
-    background: rgba(255, 255, 255, 0.04);
-    -webkit-backdrop-filter: blur(14px) saturate(150%);
-    backdrop-filter: blur(14px) saturate(150%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--radius-md);
-  }
+.liquid-glass {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.13) 0%,
+    rgba(255, 255, 255, 0.04) 55%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  backdrop-filter: blur(44px) saturate(200%);
+  -webkit-backdrop-filter: blur(44px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 16px 40px -8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 1px 0 rgba(255, 255, 255, 0.06);
+}
 
-  .liquid-glass {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.12) 0%,
-      rgba(255, 255, 255, 0.04) 55%,
-      rgba(255, 255, 255, 0.075) 100%
-    );
-    -webkit-backdrop-filter: blur(24px) saturate(185%);
-    backdrop-filter: blur(24px) saturate(185%);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: var(--radius-lg);
-    box-shadow:
-      0 16px 40px -8px rgba(0, 0, 0, 0.5),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
-  }
+.glass-button {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.11) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: var(--color-text-primary);
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: pointer;
+}
 
-  .glass-button {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.14) 0%,
-      rgba(255, 255, 255, 0.05) 55%,
-      rgba(255, 255, 255, 0.09) 100%
-    );
-    -webkit-backdrop-filter: blur(24px) saturate(190%);
-    backdrop-filter: blur(24px) saturate(190%);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 22px -4px rgba(0, 0, 0, 0.42),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
-    color: var(--color-text-primary);
-    white-space: nowrap;
-    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    cursor: pointer;
-  }
+.glass-button:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.09) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
 
-  .glass-button:hover:not(:disabled) {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.22) 0%,
-      rgba(255, 255, 255, 0.09) 55%,
-      rgba(255, 255, 255, 0.14) 100%
-    );
-    border-color: rgba(255, 255, 255, 0.34);
-    box-shadow:
-      0 12px 28px -4px rgba(0, 0, 0, 0.52),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.38),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.1);
-    transform: translate3d(0, -1px, 0);
-  }
+.glass-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
 
-  .glass-button:active:not(:disabled) {
-    transform: scale3d(0.96, 0.96, 1);
-  }
+.glass-input {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  outline: none;
+  transition: all 0.2s ease;
+}
 
-  /* Translucent Rose-Tinted Liquid Glass Primary Button (Exact same glass material, never opaque!) */
-  .glass-button-primary {
-    background: linear-gradient(
-      135deg,
-      rgba(250, 45, 72, 0.32) 0%,
-      rgba(250, 45, 72, 0.16) 55%,
-      rgba(168, 85, 247, 0.26) 100%
-    );
-    -webkit-backdrop-filter: blur(24px) saturate(195%);
-    backdrop-filter: blur(24px) saturate(195%);
-    border: 1px solid rgba(250, 45, 72, 0.48);
-    border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 24px -4px rgba(250, 45, 72, 0.3),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
-      inset 0 -1px 0 0 rgba(250, 45, 72, 0.14);
-    color: #ffffff;
-    white-space: nowrap;
-    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    cursor: pointer;
-  }
-
-  .glass-button-primary:hover:not(:disabled) {
-    background: linear-gradient(
-      135deg,
-      rgba(250, 45, 72, 0.44) 0%,
-      rgba(250, 45, 72, 0.24) 55%,
-      rgba(168, 85, 247, 0.34) 100%
-    );
-    border-color: rgba(255, 120, 140, 0.65);
-    box-shadow:
-      0 12px 30px -4px rgba(250, 45, 72, 0.42),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.44),
-      inset 0 -1px 0 0 rgba(250, 45, 72, 0.18);
-    transform: translate3d(0, -1px, 0);
-  }
-
-  .glass-button-primary:active:not(:disabled) {
-    transform: scale3d(0.96, 0.96, 1);
-  }
-
-  /* Tinted Liquid Glass Emerald Button (Live Jam / Active) */
-  .glass-button-emerald {
-    background: linear-gradient(
-      135deg,
-      rgba(52, 211, 153, 0.26) 0%,
-      rgba(16, 185, 129, 0.14) 55%,
-      rgba(5, 150, 105, 0.24) 100%
-    );
-    -webkit-backdrop-filter: blur(22px) saturate(190%);
-    backdrop-filter: blur(22px) saturate(190%);
-    border: 1px solid rgba(52, 211, 153, 0.38);
-    border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 24px -4px rgba(16, 185, 129, 0.25),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
-      inset 0 -1px 0 0 rgba(52, 211, 153, 0.12);
-    color: #a7f3d0;
-    white-space: nowrap;
-    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    cursor: pointer;
-  }
-
-  .glass-button-emerald:hover:not(:disabled) {
-    background: linear-gradient(
-      135deg,
-      rgba(52, 211, 153, 0.36) 0%,
-      rgba(16, 185, 129, 0.22) 55%,
-      rgba(5, 150, 105, 0.32) 100%
-    );
-    border-color: rgba(110, 231, 183, 0.55);
-    color: #ffffff;
-    box-shadow:
-      0 12px 30px -4px rgba(16, 185, 129, 0.38),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.42);
-    transform: translate3d(0, -1px, 0);
-  }
-
-  /* Tinted Liquid Glass Purple / Cosmic Button */
-  .glass-button-purple {
-    background: linear-gradient(
-      135deg,
-      rgba(168, 85, 247, 0.3) 0%,
-      rgba(124, 58, 237, 0.16) 55%,
-      rgba(217, 70, 239, 0.25) 100%
-    );
-    -webkit-backdrop-filter: blur(22px) saturate(190%);
-    backdrop-filter: blur(22px) saturate(190%);
-    border: 1px solid rgba(192, 132, 252, 0.38);
-    border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 24px -4px rgba(139, 92, 246, 0.28),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
-      inset 0 -1px 0 0 rgba(192, 132, 252, 0.12);
-    color: #e9d5ff;
-    white-space: nowrap;
-    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    cursor: pointer;
-  }
-
-  .glass-button-purple:hover:not(:disabled) {
-    background: linear-gradient(
-      135deg,
-      rgba(168, 85, 247, 0.42) 0%,
-      rgba(124, 58, 237, 0.26) 55%,
-      rgba(217, 70, 239, 0.36) 100%
-    );
-    border-color: rgba(216, 180, 254, 0.58);
-    color: #ffffff;
-    box-shadow:
-      0 12px 30px -4px rgba(139, 92, 246, 0.42),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.44);
-    transform: translate3d(0, -1px, 0);
-  }
-
-  /* Tinted Liquid Glass Cyan / Spatial Button */
-  .glass-button-cyan {
-    background: linear-gradient(
-      135deg,
-      rgba(34, 211, 238, 0.26) 0%,
-      rgba(6, 182, 212, 0.14) 55%,
-      rgba(59, 130, 246, 0.24) 100%
-    );
-    -webkit-backdrop-filter: blur(22px) saturate(190%);
-    backdrop-filter: blur(22px) saturate(190%);
-    border: 1px solid rgba(34, 211, 238, 0.38);
-    border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 24px -4px rgba(6, 182, 212, 0.26),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
-      inset 0 -1px 0 0 rgba(34, 211, 238, 0.12);
-    color: #a5f3fc;
-    white-space: nowrap;
-    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    cursor: pointer;
-  }
-
-  .glass-button-cyan:hover:not(:disabled) {
-    background: linear-gradient(
-      135deg,
-      rgba(34, 211, 238, 0.38) 0%,
-      rgba(6, 182, 212, 0.24) 55%,
-      rgba(59, 130, 246, 0.34) 100%
-    );
-    border-color: rgba(103, 232, 249, 0.58);
-    color: #ffffff;
-    box-shadow:
-      0 12px 30px -4px rgba(6, 182, 212, 0.4),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.44);
-    transform: translate3d(0, -1px, 0);
-  }
-
-  .glass-input {
-    background: rgba(255, 255, 255, 0.06);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
-    border-radius: var(--radius-md);
-    color: var(--color-text-primary);
-    outline: none;
-    transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
-  }
-
-  .glass-input:focus {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.28);
-    box-shadow: 0 0 0 3px rgba(250, 45, 72, 0.2);
-  }
-
-  /* Deep Frosted Modal Backdrop (heavily blurs background so pop-up is 100% focused) */
-  .modal-backdrop-blur {
-    background: rgba(6, 7, 15, 0.76);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    backdrop-filter: blur(28px) saturate(180%);
-  }
-
-  /* Deep Frosted Modal Panel (high-focus frosted glass surface with clear content contrast) */
-  .modal-glass-panel {
-    background: linear-gradient(
-      155deg,
-      rgba(26, 28, 44, 0.92) 0%,
-      rgba(12, 13, 22, 0.96) 100%
-    );
-    -webkit-backdrop-filter: blur(40px) saturate(190%);
-    backdrop-filter: blur(40px) saturate(190%);
-    border: 1px solid rgba(255, 255, 255, 0.20);
-    border-radius: var(--radius-2xl);
-    box-shadow:
-      0 32px 100px rgba(0, 0, 0, 0.88),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.26),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
-  }
-
-  /* Prevent nested backdrop-filter compositing flashes inside already-blurred modals */
-  .glass-heavy .glass-button,
-  .glass-heavy .glass-button-primary,
-  .glass-heavy .glass-button-emerald,
-  .glass-heavy .glass-button-purple,
-  .glass-heavy .glass-button-cyan,
-  .glass-heavy .glass-input,
-  .glass-heavy .liquid-glass,
-  .modal-glass-panel .glass-button,
-  .modal-glass-panel .glass-button-primary,
-  .modal-glass-panel .glass-button-emerald,
-  .modal-glass-panel .glass-button-purple,
-  .modal-glass-panel .glass-button-cyan,
-  .modal-glass-panel .glass-input,
-  .modal-glass-panel .liquid-glass,
-  .modal-glass-panel .glass,
-  .modal-glass-panel .glass-light {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-
-  /* Realistic Anodized Vinyl Platter with Concentric Micro-Grooves */
-  .vinyl-disc {
-    background:
-      radial-gradient(circle at center, rgba(0, 0, 0, 0.85) 0%, rgba(16, 16, 24, 0.95) 28%, transparent 29%),
-      repeating-radial-gradient(
-        circle at center,
-        rgba(255, 255, 255, 0.035) 0px,
-        rgba(255, 255, 255, 0.035) 1px,
-        rgba(8, 8, 14, 0.96) 2px,
-        rgba(8, 8, 14, 0.96) 4px
-      ),
-      conic-gradient(
-        from 0deg,
-        #0a0a10 0deg,
-        #232536 42deg,
-        #0a0a10 90deg,
-        #1e2030 135deg,
-        #0a0a10 180deg,
-        #232536 225deg,
-        #0a0a10 270deg,
-        #1e2030 315deg,
-        #0a0a10 360deg
-      );
-    box-shadow:
-      0 18px 45px rgba(0, 0, 0, 0.65),
-      inset 0 0 18px rgba(0, 0, 0, 0.85);
-  }
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 0 3px rgba(250, 45, 72, 0.2);
 }
 
 /* Animated dynamic ambient background */
@@ -414,11 +169,11 @@
   inset: 0;
   z-index: 0;
   background:
-    radial-gradient(circle at 15% 20%, var(--gradient-color-1, rgba(250, 45, 72, 0.2)) 0%, transparent 48%),
-    radial-gradient(circle at 85% 25%, var(--gradient-color-2, rgba(124, 58, 237, 0.2)) 0%, transparent 52%),
-    radial-gradient(circle at 50% 85%, var(--gradient-color-3, rgba(14, 165, 233, 0.15)) 0%, transparent 55%),
+    radial-gradient(circle at 15% 20%, var(--gradient-color-1, rgba(250, 45, 72, 0.22)) 0%, transparent 48%),
+    radial-gradient(circle at 85% 25%, var(--gradient-color-2, rgba(124, 58, 237, 0.22)) 0%, transparent 52%),
+    radial-gradient(circle at 50% 85%, var(--gradient-color-3, rgba(14, 165, 233, 0.16)) 0%, transparent 55%),
     #06060b;
-  transform: translateZ(0);
+  transition: background 1.8s ease;
 }
 
 /* Shimmer loading effect */
@@ -445,16 +200,16 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translate3d(0, 0px, 0); }
-  50% { transform: translate3d(0, -12px, 0); }
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
 }
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
 
 @keyframes pulse-ring {
-  0% { transform: scale3d(1, 1, 1); opacity: 0.35; }
-  100% { transform: scale3d(1.35, 1.35, 1); opacity: 0; }
+  0% { transform: scale(1); opacity: 0.35; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
 .animate-pulse-ring {
   animation: pulse-ring 2.2s ease-out infinite;
@@ -485,10 +240,10 @@ input[type='range']::-webkit-slider-thumb {
   background: #ffffff;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.15s ease;
 }
 input[type='range']::-webkit-slider-thumb:hover {
-  transform: scale3d(1.25, 1.25, 1);
+  transform: scale(1.25);
 }
 input[type='range']::-moz-range-thumb {
   width: 13px;
@@ -498,54 +253,5 @@ input[type='range']::-moz-range-thumb {
   background: #ffffff;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Rhythmic Studio Equalizer Bars (GPU scaleY instead of layout height reflow!) */
-@keyframes eq-bar-1 {
-  0%, 100% { transform: scaleY(0.28); }
-  50% { transform: scaleY(0.95); }
-}
-@keyframes eq-bar-2 {
-  0%, 100% { transform: scaleY(0.9); }
-  35% { transform: scaleY(0.32); }
-  70% { transform: scaleY(1); }
-}
-@keyframes eq-bar-3 {
-  0%, 100% { transform: scaleY(0.45); }
-  45% { transform: scaleY(0.95); }
-  80% { transform: scaleY(0.25); }
-}
-.animate-eq-1 {
-  height: 15px;
-  transform-origin: bottom;
-  animation: eq-bar-1 0.85s ease-in-out infinite;
-  will-change: transform;
-}
-.animate-eq-2 {
-  height: 15px;
-  transform-origin: bottom;
-  animation: eq-bar-2 0.75s ease-in-out infinite;
-  will-change: transform;
-}
-.animate-eq-3 {
-  height: 15px;
-  transform-origin: bottom;
-  animation: eq-bar-3 0.92s ease-in-out infinite;
-  will-change: transform;
-}
-
-/* ━━━ Landing Page ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
-@keyframes landing-marquee-slide {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.landing-marquee {
-  animation: landing-marquee-slide 45s linear infinite;
-  width: max-content;
-  will-change: transform;
-}
-.landing-marquee:hover {
-  animation-play-state: paused;
+  transition: transform 0.15s ease;
 }

@@ -5,6 +5,7 @@ export const INVIDIOUS_INSTANCES = [
   'https://vid.puffyan.us'
 ];
 
+export const ITUNES_API = 'https://itunes.apple.com';
 export const LYRICS_API = 'https://api.lyrics.ovh/v1';
 
 export const DEFAULT_THUMBNAIL = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23311042' /%3E%3Cstop offset='100%25' stop-color='%230f172a' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='400' fill='url(%23grad)' /%3E%3Ccircle cx='200' cy='200' r='64' fill='none' stroke='%23a855f7' stroke-width='8' opacity='0.5'/%3E%3Ccircle cx='200' cy='200' r='20' fill='%23a855f7' opacity='0.7'/%3E%3C/svg%3E";

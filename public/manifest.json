@@ -1,48 +1,24 @@
 {
-  "id": "/",
-  "name": "WaveCraft — Liquid Glass Music Studio",
+  "name": "WaveCraft",
   "short_name": "WaveCraft",
-  "description": "High-res 320kbps music streaming studio with AI Vibe DJ, 10-band Equalizer, 3D Visualizers, Synced Lyrics, and Live Jam Rooms.",
+  "description": "A liquid glass themed music streaming platform",
   "start_url": "/",
-  "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
-  "background_color": "#06060b",
-  "theme_color": "#fa2d48",
+  "background_color": "#0a0a0f",
+  "theme_color": "#7c3aed",
   "orientation": "any",
-  "categories": ["music", "entertainment", "multimedia"],
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23fa2d48'/><stop offset='50%25' style='stop-color:%23e11d48'/><stop offset='100%25' style='stop-color:%237c3aed'/></linearGradient></defs><rect width='512' height='512' rx='112' fill='url(%23g)'/><path d='M160 176v160M208 128v256M256 88v336M304 128v256M352 176v160' stroke='white' stroke-width='34' stroke-linecap='round'/></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%237c3aed'/><stop offset='100%25' style='stop-color:%23a855f7'/></linearGradient></defs><rect width='512' height='512' rx='96' fill='url(%23g)'/><path d='M160 160v192M208 120v272M256 80v352M304 120v272M352 160v192' stroke='white' stroke-width='32' stroke-linecap='round'/></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23fa2d48'/><stop offset='100%25' style='stop-color:%237c3aed'/></linearGradient></defs><rect width='192' height='192' rx='42' fill='url(%23g)'/><path d='M56 64v64M76 44v104M96 28v136M116 44v104M136 64v64' stroke='white' stroke-width='13' stroke-linecap='round'/></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%237c3aed'/><stop offset='100%25' style='stop-color:%23a855f7'/></linearGradient></defs><rect width='192' height='192' rx='36' fill='url(%23g)'/><path d='M56 56v80M76 40v112M96 24v144M116 40v112M136 56v80' stroke='white' stroke-width='12' stroke-linecap='round'/></svg>",
       "sizes": "192x192",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "AI Vibe DJ",
-      "short_name": "Vibe DJ",
-      "description": "Generate an instant AI radio mix for any mood",
-      "url": "/vibe"
-    },
-    {
-      "name": "Live Jam Room",
-      "short_name": "Jam Room",
-      "description": "Listen together in real time with friends",
-      "url": "/jam"
-    },
-    {
-      "name": "Liked Songs",
-      "short_name": "Liked",
-      "description": "Play your favorite tracks",
-      "url": "/liked"
+      "purpose": "any"
     }
   ]
 }

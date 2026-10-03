@@ -1,7 +1,12 @@
-import type { Track, Playlist } from '../types';
+import type { Track, SearchResult, ArtistResult, AlbumResult, LyricLine } from '../types';
 import { get, set, del, keys } from 'idb-keyval';
 
-export type { Playlist };
+// Extend local interfaces assuming these would normally come from types but are required here
+export interface Playlist {
+  id: string;
+  name: string;
+  tracks: Track[];
+}
 
 export interface SettingsState {
   theme?: string;
@@ -15,34 +20,8 @@ const KEYS = {
   RECENTLY_PLAYED: 'wavecraft_recently_played',
   PLAY_HISTORY: 'wavecraft_play_history',
   SETTINGS: 'wavecraft_settings',
-  SEARCH_HISTORY: 'wavecraft_search_history'
+  SEARCH_HISTORY: 'wavecraft_search_history',
 };
-
-// Coalesce rapid IndexedDB writes per key so batch operations (like playlist imports or queue drags)
-// never block the main UI thread with redundant structured-clone transactions.
-const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const pendingValues = new Map<string, any>();
-
-function scheduleIdbWrite(key: string, value: any, delayMs = 60): Promise<void> {
-  pendingValues.set(key, value);
-  const existing = pendingTimers.get(key);
-  if (existing) clearTimeout(existing);
-
-  return new Promise((resolve) => {
-    const timer = setTimeout(async () => {
-      pendingTimers.delete(key);
-      const latest = pendingValues.get(key);
-      pendingValues.delete(key);
-      try {
-        await set(key, latest);
-      } catch (error) {
-        console.error(`Error persisting ${key}:`, error);
-      }
-      resolve();
-    }, delayMs);
-    pendingTimers.set(key, timer);
-  });
-}
 
 export async function loadLikedSongs(): Promise<Track[]> {
   try {
@@ -55,7 +34,11 @@ export async function loadLikedSongs(): Promise<Track[]> {
 }
 
 export async function saveLikedSongs(tracks: Track[]): Promise<void> {
-  return scheduleIdbWrite(KEYS.LIKED_SONGS, tracks);
+  try {
+    await set(KEYS.LIKED_SONGS, tracks);
+  } catch (error) {
+    console.error('Error saving liked songs:', error);
+  }
 }
 
 export async function loadPlaylists(): Promise<Playlist[]> {
@@ -69,10 +52,14 @@ export async function loadPlaylists(): Promise<Playlist[]> {
 }
 
 export async function savePlaylists(playlists: Playlist[]): Promise<void> {
-  return scheduleIdbWrite(KEYS.PLAYLISTS, playlists);
+  try {
+    await set(KEYS.PLAYLISTS, playlists);
+  } catch (error) {
+    console.error('Error saving playlists:', error);
+  }
 }
 
-export async function loadRecentlyPlayed(): Promise<{ track: Track; playedAt: number }[]> {
+export async function loadRecentlyPlayed(): Promise<{track: Track, playedAt: number}[]> {
   try {
     const data = await get(KEYS.RECENTLY_PLAYED);
     return Array.isArray(data) ? data : [];
@@ -82,10 +69,12 @@ export async function loadRecentlyPlayed(): Promise<{ track: Track; playedAt: nu
   }
 }
 
-export async function saveRecentlyPlayed(
-  items: { track: Track; playedAt: number }[]
-): Promise<void> {
-  return scheduleIdbWrite(KEYS.RECENTLY_PLAYED, items);
+export async function saveRecentlyPlayed(items: {track: Track, playedAt: number}[]): Promise<void> {
+  try {
+    await set(KEYS.RECENTLY_PLAYED, items);
+  } catch (error) {
+    console.error('Error saving recently played:', error);
+  }
 }
 
 export async function addToPlayHistory(trackId: string, duration: number): Promise<void> {
@@ -96,20 +85,19 @@ export async function addToPlayHistory(trackId: string, duration: number): Promi
       duration,
       playedAt: Date.now()
     });
-
+    
+    // Keep max 10000 entries
     if (history.length > 10000) {
       history.splice(0, history.length - 10000);
     }
-
-    await scheduleIdbWrite(KEYS.PLAY_HISTORY, history, 120);
+    
+    await set(KEYS.PLAY_HISTORY, history);
   } catch (error) {
     console.error('Error adding to play history:', error);
   }
 }
 
-export async function loadPlayHistory(): Promise<
-  { trackId: string; playedAt: number; duration: number }[]
-> {
+export async function loadPlayHistory(): Promise<{trackId: string, playedAt: number, duration: number}[]> {
   try {
     const data = await get(KEYS.PLAY_HISTORY);
     return Array.isArray(data) ? data : [];
@@ -130,7 +118,11 @@ export async function loadSettings(): Promise<SettingsState | null> {
 }
 
 export async function saveSettings(settings: SettingsState): Promise<void> {
-  return scheduleIdbWrite(KEYS.SETTINGS, settings, 40);
+  try {
+    await set(KEYS.SETTINGS, settings);
+  } catch (error) {
+    console.error('Error saving settings:', error);
+  }
 }
 
 export async function loadSearchHistory(): Promise<string[]> {
@@ -144,11 +136,16 @@ export async function loadSearchHistory(): Promise<string[]> {
 }
 
 export async function saveSearchHistory(history: string[]): Promise<void> {
-  const limitedHistory = history.slice(0, 50);
-  return scheduleIdbWrite(KEYS.SEARCH_HISTORY, limitedHistory, 60);
+  try {
+    // Keep max 50 entries
+    const limitedHistory = history.slice(0, 50);
+    await set(KEYS.SEARCH_HISTORY, limitedHistory);
+  } catch (error) {
+    console.error('Error saving search history:', error);
+  }
 }
 
-export async function getStorageUsage(): Promise<{ used: number; available: number }> {
+export async function getStorageUsage(): Promise<{used: number, available: number}> {
   try {
     if (navigator.storage && navigator.storage.estimate) {
       const estimate = await navigator.storage.estimate();
@@ -165,38 +162,26 @@ export async function getStorageUsage(): Promise<{ used: number; available: numb
 
 export async function clearAllData(): Promise<void> {
   try {
-    pendingTimers.forEach((timer) => clearTimeout(timer));
-    pendingTimers.clear();
-    pendingValues.clear();
     const allKeys = await keys();
-    const wavecraftKeys = allKeys.filter(
-      (k) => typeof k === 'string' && k.startsWith('wavecraft_')
-    );
-    await Promise.all(wavecraftKeys.map((k) => del(k as IDBValidKey)));
-
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const toRemove: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('wavecraft_')) {
-          toRemove.push(k);
-        }
-      }
-      toRemove.forEach((k) => localStorage.removeItem(k));
-    }
+    const wavecraftKeys = allKeys.filter(k => typeof k === 'string' && k.startsWith('wavecraft_'));
+    await Promise.all(wavecraftKeys.map(k => del(k as IDBValidKey)));
   } catch (error) {
     console.error('Error clearing data:', error);
   }
 }
 
+// Aliases for compatibility with stores that use get* naming
 export const getLikedSongs = loadLikedSongs;
 export const getPlaylists = loadPlaylists;
 export const getRecentlyPlayed = loadRecentlyPlayed;
 export const getPlayHistory = loadPlayHistory;
 
-export async function savePlayHistory(
-  history: { trackId: string; playedAt: number; duration: number }[]
-): Promise<void> {
-  const limited = history.slice(-10000);
-  return scheduleIdbWrite(KEYS.PLAY_HISTORY, limited, 120);
+export async function savePlayHistory(history: {trackId: string, playedAt: number, duration: number}[]): Promise<void> {
+  try {
+    const limited = history.slice(-10000);
+    await set(KEYS.PLAY_HISTORY, limited);
+  } catch (error) {
+    console.error('Error saving play history:', error);
+  }
 }
+
