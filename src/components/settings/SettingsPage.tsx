@@ -290,15 +290,18 @@ export default function SettingsPage() {
             <ToggleSwitch checked={settings.showVisualizer} onChange={settings.setShowVisualizer} />
           </SettingRow>
 
-          <SettingRow label="Visualizer Mode" description="Choose your visual geometry">
+          <SettingRow label="Visualizer Mode" description="Choose your 3D or 2D reactive audio geometry">
             <GlassSelect
-              value={settings.visualizerStyle || 'blob'}
+              value={settings.visualizerStyle || 'nebula'}
               onChange={(val) => settings.setVisualizerStyle(val as any)}
               options={[
+                { value: 'nebula', label: '3D Cosmic Nebula' },
+                { value: 'starfield', label: '3D Starfield Warp' },
+                { value: 'particles', label: 'Bioluminescent Orbs' },
                 { value: 'blob', label: 'Liquid Blob' },
+                { value: 'circular', label: 'Radial Halo' },
                 { value: 'bars', label: 'Spectrum Bars' },
-                { value: 'wave', label: 'Harmonic Wave' },
-                { value: 'circular', label: 'Radial Halo' }
+                { value: 'wave', label: 'Harmonic Wave' }
               ]}
             />
           </SettingRow>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useStudioStore } from '../../stores/studioStore';
 import { getTrending, getCachedTrending, searchTracks } from '../../services/youtube';
 import { getNewReleases, getCachedNewReleases } from '../../services/itunes';
 import GlassCard from '../ui/GlassCard';
@@ -172,10 +173,25 @@ export default function HomePage() {
               </button>
 
               <button
-                onClick={() => navigate('/search')}
-                className="px-5 py-3 rounded-full glass-button text-sm font-semibold text-white/90 hover:text-white"
+                onClick={() => navigate('/vibe')}
+                className="px-5 py-3 rounded-full liquid-glass border border-white/20 text-sm font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-2"
               >
-                Explore Catalog
+                <span>✨ AI Vibe DJ</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/jam')}
+                className="px-5 py-3 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30 text-sm font-bold text-emerald-300 transition-all cursor-pointer flex items-center gap-2"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span>Live Jam Room</span>
+              </button>
+
+              <button
+                onClick={() => useStudioStore.getState().setStudioModalOpen(true)}
+                className="px-5 py-3 rounded-full bg-purple-500/15 hover:bg-purple-500/25 border border-purple-400/30 text-sm font-bold text-purple-200 transition-all cursor-pointer flex items-center gap-2"
+              >
+                <span>🎛️ Studio FX & Ambient Focus</span>
               </button>
             </div>
           </div>

@@ -35,16 +35,14 @@ export default function PlaylistView() {
 
   const handlePlayAll = () => {
     if (playlist.tracks.length > 0) {
-      setQueue(playlist.tracks);
-      playTrack(playlist.tracks[0]);
+      playTrack(playlist.tracks[0], playlist.tracks, 0);
     }
   };
 
   const handleShuffleAll = () => {
     if (playlist.tracks.length > 0) {
       const shuffled = [...playlist.tracks].sort(() => Math.random() - 0.5);
-      setQueue(shuffled);
-      playTrack(shuffled[0]);
+      playTrack(shuffled[0], shuffled, 0);
     }
   };
 
@@ -126,11 +124,9 @@ export default function PlaylistView() {
               <div className="flex-grow">
                 <TrackRow 
                   track={track} 
+                  tracks={playlist.tracks}
                   index={index + 1} 
-                  onClick={() => {
-                    setQueue(playlist.tracks);
-                    playTrack(track);
-                  }} 
+                  onPlay={() => playTrack(track, playlist.tracks, index)} 
                 />
               </div>
               <button 

@@ -122,11 +122,124 @@ export default async function handler(req, res) {
       return res.status(200).json(imported);
     }
 
+    if (action === 'jam') {
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      const roomCode = (url.searchParams.get('room') || '').trim().toUpperCase();
+      if (!roomCode) {
+        return res.status(400).json({ error: 'Room code required' });
+      }
+      const result = await handleJamRoomRequest(req, url, roomCode);
+      return res.status(200).json(result);
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('API error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
+}
+
+const jamRooms = new Map();
+
+async function readJsonBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string' && req.body.trim()) {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+  return new Promise((resolve) => {
+    let raw = '';
+    req.on?.('data', (chunk) => {
+      raw += chunk;
+      if (raw.length > 250_000) req.destroy?.();
+    });
+    req.on?.('end', () => {
+      if (!raw) return resolve({});
+      try {
+        resolve(JSON.parse(raw));
+      } catch {
+        resolve({});
+      }
+    });
+    req.on?.('error', () => resolve({}));
+  });
+}
+
+async function handleJamRoomRequest(req, url, roomCode) {
+  const now = Date.now();
+  // Clean up expired rooms (> 2 hours idle)
+  for (const [key, rm] of jamRooms.entries()) {
+    if (now - rm.updatedAt > 7_200_000) jamRooms.delete(key);
+  }
+
+  const op = url.searchParams.get('op') || (req.method === 'POST' ? 'sync' : 'get');
+  const body = req.method === 'POST' ? await readJsonBody(req) : {};
+
+  let room = jamRooms.get(roomCode);
+  if (!room) {
+    room = {
+      roomCode,
+      hostId: body.userId || url.searchParams.get('userId') || 'host',
+      hostName: body.userName || url.searchParams.get('userName') || 'DJ Host',
+      currentTrack: null,
+      isPlaying: false,
+      currentTime: 0,
+      updatedAt: now,
+      queue: [],
+      members: [],
+      reactions: []
+    };
+    jamRooms.set(roomCode, room);
+  }
+
+  const userId = body.userId || url.searchParams.get('userId');
+  const userName = body.userName || url.searchParams.get('userName');
+  if (userId && userName) {
+    const existing = room.members.find((m) => m.id === userId);
+    if (existing) {
+      existing.name = userName;
+      existing.lastSeen = now;
+    } else {
+      room.members.push({ id: userId, name: userName, lastSeen: now });
+    }
+  }
+  // Prune members inactive for > 25s
+  room.members = room.members.filter((m) => now - m.lastSeen < 25_000);
+  // Keep reactions from last 20s
+  room.reactions = room.reactions.filter((r) => now - r.createdAt < 20_000).slice(-20);
+
+  if (op === 'sync') {
+    if (body.currentTrack !== undefined) room.currentTrack = body.currentTrack;
+    if (typeof body.isPlaying === 'boolean') room.isPlaying = body.isPlaying;
+    if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
+    if (Array.isArray(body.queue)) room.queue = body.queue.slice(0, 30);
+    room.updatedAt = now;
+  } else if (op === 'react') {
+    const emoji = body.emoji || url.searchParams.get('emoji') || '🔥';
+    const sender = userName || 'Listener';
+    room.reactions.push({
+      id: `${now}-${Math.random().toString(36).slice(2, 6)}`,
+      emoji,
+      sender,
+      createdAt: now
+    });
+  } else if (op === 'add-track' && body.track) {
+    const exists = room.queue.some((t) => t.id === body.track.id);
+    if (!exists) {
+      room.queue.push(body.track);
+    }
+    if (!room.currentTrack) {
+      room.currentTrack = body.track;
+      room.isPlaying = true;
+      room.currentTime = 0;
+    }
+    room.updatedAt = now;
+  }
+
+  return room;
 }
 
 async function fetchSaavnSearch(query, count = 20) {
@@ -221,69 +334,180 @@ async function fetchYouTubeSearch(query) {
 }
 
 function cleanSongTitle(rawTitle) {
-  return (rawTitle || '')
-    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+  let t = (rawTitle || '')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;|&amp;/g, ' ')
+    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ');
+
+  const pipeParts = t
+    .split('|')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (pipeParts.length > 0) {
+    t =
+      /^(full\s+video|lyrical|video\s+song|official|4k|8k|audio)/i.test(pipeParts[0]) &&
+      pipeParts[0].length < 18 &&
+      pipeParts[1]
+        ? pipeParts[1]
+        : pipeParts[0];
+  }
+
+  t = t
+    .replace(
+      /^(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|official\s+music\s+video|official\s+video|official\s+audio|4k\s+video|8k\s+video|audio\s+song|audio)\s*[:\-–—]?\s*/i,
+      ''
+    )
+    .replace(
+      /\s+(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|full\s+audio|8k\s+video|4k\s+video|hd\s+video|official\s+video|official\s+audio|video)\b.*$/i,
+      ''
+    )
+    .replace(/\s*[-–—]\s*(?:from|feat|ft|telugu|hindi|tamil|malayalam|kannada)\b.*$/i, '')
     .replace(/feat\..*/gi, '')
     .replace(/ft\..*/gi, '')
-    .replace(/-\s*from.*/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  if (t.includes(' - ')) {
+    const dashParts = t.split(' - ').map((s) => s.trim()).filter(Boolean);
+    if (dashParts.length >= 2) {
+      t = dashParts[0];
+    }
+  }
+
+  return t || (rawTitle || '').trim();
+}
+
+function cleanArtistName(rawArtist) {
+  const first = (rawArtist || '')
+    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+    .split(',')[0]
+    .split('&')[0]
+    .split(/feat\.|ft\./i)[0]
+    .trim();
+
+  if (
+    /t-series|aditya|sony\s*music|zee\s*music|saregama|think\s*music|lahari|junglee|tips|yrf|mythri|hombale|vevo|wavecraft|unknown|official|channel|records|films|movies/i.test(
+      first
+    )
+  ) {
+    return '';
+  }
+  return first;
+}
+
+function pickBestLrcMatch(list, cleanTitle) {
+  if (!Array.isArray(list) || list.length === 0) return null;
+  const target = cleanTitle.toLowerCase();
+
+  // 1. Exact or substring title match with syncedLyrics
+  const exactSynced = list.find(
+    (item) =>
+      item.syncedLyrics &&
+      (item.trackName?.toLowerCase().includes(target) ||
+        target.includes(item.trackName?.toLowerCase() || '___'))
+  );
+  if (exactSynced) return exactSynced;
+
+  // 2. Any result with syncedLyrics
+  const anySynced = list.find((item) => item.syncedLyrics);
+  if (anySynced) return anySynced;
+
+  // 3. Exact or substring title match with plainLyrics
+  const exactPlain = list.find(
+    (item) =>
+      item.plainLyrics &&
+      (item.trackName?.toLowerCase().includes(target) ||
+        target.includes(item.trackName?.toLowerCase() || '___'))
+  );
+  if (exactPlain) return exactPlain;
+
+  // 4. First result with plainLyrics
+  return list.find((item) => item.plainLyrics) || null;
 }
 
 async function fetchMultiSourceLyrics(rawTitle, rawArtist) {
-  const cleanTitle = cleanSongTitle(rawTitle) || rawTitle;
-  const primaryArtist = (rawArtist || '').split(',')[0].split('&')[0].split('-')[0].trim();
+  const cleanTitle = cleanSongTitle(rawTitle);
+  const primaryArtist = cleanArtistName(rawArtist);
 
-  // 1. Try LRCLIB with track_name + artist_name
-  try {
-    const lrcUrl1 = `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`;
-    const r1 = await fetch(lrcUrl1, {
-      headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' }
-    });
-    if (r1.ok) {
-      const list = await r1.json();
-      if (Array.isArray(list) && list.length > 0) {
-        const best = list.find((item) => item.syncedLyrics) || list.find((item) => item.plainLyrics);
+  // 1. Try LRCLIB with cleanTitle + primaryArtist (if artist is not a label/channel)
+  if (primaryArtist) {
+    try {
+      const lrcUrl1 = `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`)}`;
+      const r1 = await fetchWithTimeout(
+        lrcUrl1,
+        { headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' } },
+        2500
+      );
+      if (r1.ok) {
+        const list = await r1.json();
+        const best = pickBestLrcMatch(list, cleanTitle);
         if (best && (best.syncedLyrics || best.plainLyrics)) {
           return {
             synced: Boolean(best.syncedLyrics),
             lyrics: best.syncedLyrics || best.plainLyrics,
-            source: 'WaveSync • Time-Synced'
+            source: best.syncedLyrics ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics'
           };
         }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
-  // 2. Try general query search
-  try {
-    const lrcUrl2 = `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`)}`;
-    const r2 = await fetch(lrcUrl2, {
-      headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' }
-    });
-    if (r2.ok) {
-      const list = await r2.json();
-      if (Array.isArray(list) && list.length > 0) {
-        const titleLower = cleanTitle.toLowerCase();
-        const match =
-          list.find((item) => item.trackName?.toLowerCase().includes(titleLower) && item.syncedLyrics) ||
-          list.find((item) => item.trackName?.toLowerCase().includes(titleLower) && item.plainLyrics);
-        if (match && (match.syncedLyrics || match.plainLyrics)) {
+  // 2. Try LRCLIB with cleanTitle ONLY (handles label channels like "T-Series Telugu" or composer vs singer mismatches!)
+  if (cleanTitle) {
+    try {
+      const lrcUrl2 = `https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle)}`;
+      const r2 = await fetchWithTimeout(
+        lrcUrl2,
+        { headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' } },
+        2500
+      );
+      if (r2.ok) {
+        const list = await r2.json();
+        const best = pickBestLrcMatch(list, cleanTitle);
+        if (best && (best.syncedLyrics || best.plainLyrics)) {
           return {
-            synced: Boolean(match.syncedLyrics),
-            lyrics: match.syncedLyrics || match.plainLyrics,
-            source: 'WaveSync Lyrics'
+            synced: Boolean(best.syncedLyrics),
+            lyrics: best.syncedLyrics || best.plainLyrics,
+            source: best.syncedLyrics ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics'
           };
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Try JioSaavn Official Lyrics API if available
+  try {
+    const searchRes = await fetchSaavnSearch(`${cleanTitle} ${primaryArtist}`.trim(), 5);
+    const withLyrics = searchRes.find((item) => item.more_info?.has_lyrics === 'true' || item.more_info?.lyrics_id);
+    if (withLyrics?.id) {
+      const saavnLyricsUrl = `https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=web6dot0&api_version=4&_format=json&_marker=0&lyrics_id=${withLyrics.id}`;
+      const lrRes = await fetchWithTimeout(saavnLyricsUrl, {}, 2000);
+      if (lrRes.ok) {
+        const lrData = await lrRes.json();
+        if (lrData?.lyrics) {
+          const formatted = lrData.lyrics
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .trim();
+          if (formatted.length > 40) {
+            return {
+              synced: false,
+              lyrics: formatted,
+              source: 'Studio Lyrics'
+            };
+          }
         }
       }
     }
   } catch {}
 
-  // 3. Try plain lyrics lookup
-  try {
-    if (primaryArtist && cleanTitle) {
-      const ovhRes = await fetch(
-        `https://api.lyrics.ovh/v1/${encodeURIComponent(primaryArtist)}/${encodeURIComponent(cleanTitle)}`
+  // 4. Try plain lyrics lookup (lyrics.ovh)
+  if (primaryArtist && cleanTitle) {
+    try {
+      const ovhRes = await fetchWithTimeout(
+        `https://api.lyrics.ovh/v1/${encodeURIComponent(primaryArtist)}/${encodeURIComponent(cleanTitle)}`,
+        {},
+        2000
       );
       if (ovhRes.ok) {
         const ovhData = await ovhRes.json();
@@ -295,74 +519,8 @@ async function fetchMultiSourceLyrics(rawTitle, rawArtist) {
           };
         }
       }
-    }
-  } catch {}
-
-  // 4. Fallback: Official Liner Notes
-  try {
-    const ytSearchRes = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00' } },
-        query: `${cleanTitle} ${primaryArtist} lyrics`
-      })
-    });
-    if (ytSearchRes.ok) {
-      const ytData = await ytSearchRes.json();
-      const contents =
-        ytData?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer
-          ?.contents?.[0]?.itemSectionRenderer?.contents || [];
-      const videoIds = contents
-        .filter((c) => c.videoRenderer?.videoId)
-        .slice(0, 3)
-        .map((c) => c.videoRenderer.videoId);
-
-      let fallbackDesc = '';
-      for (const vid of videoIds) {
-        const nextRes = await fetch('https://www.youtube.com/youtubei/v1/next?prettyPrint=false', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00' } },
-            videoId: vid
-          })
-        });
-        if (!nextRes.ok) continue;
-        const nextData = await nextRes.json();
-        const items =
-          nextData?.contents?.twoColumnWatchNextResults?.results?.results?.contents || [];
-        const sec = items.find((c) => c.videoSecondaryInfoRenderer)?.videoSecondaryInfoRenderer;
-        const desc = sec?.attributedDescription?.content || '';
-        if (desc && desc.length > 120) {
-          // Clean hashtags and URLs from description
-          const cleanedDesc = desc
-            .split('\n')
-            .filter(
-              (line) =>
-                !line.trim().startsWith('http') &&
-                !line.trim().startsWith('#') &&
-                !line.toLowerCase().includes('subscribe') &&
-                !line.toLowerCase().includes('follow us')
-            )
-            .join('\n')
-            .trim();
-          if (cleanedDesc.length > 80) {
-            fallbackDesc = cleanedDesc;
-            if (desc.toLowerCase().includes('lyrics')) break;
-          }
-        }
-      }
-
-      if (fallbackDesc) {
-        return {
-          synced: false,
-          lyrics: fallbackDesc,
-          source: 'Studio Liner Notes'
-        };
-      }
-    }
-  } catch {}
+    } catch {}
+  }
 
   return { synced: false, lyrics: null, source: null };
 }

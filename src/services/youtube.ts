@@ -38,25 +38,57 @@ function mapSaavnItemToTrack(item: any, fallbackYoutubeId = ''): Track | null {
   };
 }
 
-function cleanYouTubeTitle(title: string): string {
-  return decodeHtmlEntities(title)
-    .replace(/\s*[\(\[].*?(official|video|audio|lyric|lyrics|hd|4k|hq|visualizer|full song).*?[\)\]]\s*/gi, ' ')
+function cleanYouTubeTitle(raw: string): string {
+  let t = decodeHtmlEntities(raw)
+    .replace(/\s*[\(\[].*?(official|video|audio|lyric|lyrics|hd|4k|8k|hq|visualizer|full\s*song|from).*?[\)\]]\s*/gi, ' ');
+
+  const pipeParts = t.split('|').map((s) => s.trim()).filter(Boolean);
+  if (pipeParts.length > 0) {
+    t =
+      /^(full\s+video|lyrical|video\s+song|official|4k|8k|audio)/i.test(pipeParts[0]) &&
+      pipeParts[0].length < 18 &&
+      pipeParts[1]
+        ? pipeParts[1]
+        : pipeParts[0];
+  }
+
+  return t
+    .replace(
+      /^(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|official\s+music\s+video|official\s+video|official\s+audio|4k\s+video|8k\s+video|audio\s+song|audio)\s*[:\-–—]?\s*/i,
+      ''
+    )
+    .replace(
+      /\s+(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|full\s+audio|8k\s+video|4k\s+video|hd\s+video|official\s+video|official\s+audio)\b.*$/i,
+      ''
+    )
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 function mapYouTubeItemToTrack(v: any): Track {
   const rawTitle = decodeHtmlEntities(v.title || 'Unknown Title');
-  const parts = rawTitle.split(' - ');
+  const pipeParts = rawTitle.split('|').map((s) => s.trim()).filter(Boolean);
   const cleaned = cleanYouTubeTitle(rawTitle);
-  const title = parts.length > 1 ? cleanYouTubeTitle(parts.slice(1).join(' - ')) : cleaned;
-  const artist = parts.length > 1 ? parts[0].trim() : decodeHtmlEntities(v.author || 'WaveCraft Artist').replace(' - Topic', '');
+  const dashParts = cleaned.split(' - ');
+  const title = dashParts.length > 1 ? cleanYouTubeTitle(dashParts.slice(1).join(' - ')) : cleaned;
+
+  const channelAuthor = decodeHtmlEntities(v.author || 'WaveCraft Artist').replace(' - Topic', '');
+  const isLabelChannel =
+    /t-series|aditya|sony\s*music|zee\s*music|saregama|think\s*music|lahari|junglee|tips|yrf|mythri|hombale|vevo|records|films|movies/i.test(
+      channelAuthor
+    );
+
+  let artist = dashParts.length > 1 ? dashParts[0].trim() : channelAuthor;
+  if (isLabelChannel && pipeParts.length >= 3) {
+    artist = pipeParts.slice(1, 3).join(', ');
+  }
+
   const thumb = v.thumbnail || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
   const thumbLarge = v.thumbnailLarge || `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`;
 
   return {
     id: `yt_${v.videoId}`,
-    title: title || rawTitle,
+    title: title || cleaned || rawTitle,
     artist,
     album: 'WaveCraft Cloud',
     duration: Number(v.lengthSeconds) || 210,

@@ -3,10 +3,13 @@ import { createPortal } from 'react-dom';
 import type { Track } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
+import { useOfflineVault } from '../../services/offlineVault';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
 interface TrackRowProps {
   track: Track;
+  tracks?: Track[];
   index?: number;
   isPlaying?: boolean;
   isActive?: boolean;
@@ -29,14 +32,15 @@ const formatDuration = (seconds: number) => {
 
 const EqualizerIcon = () => (
   <div className="flex items-end gap-[2.5px] h-4 w-4 justify-center">
-    <span className="w-[3px] h-3 bg-[var(--color-accent)] rounded-full animate-pulse" />
-    <span className="w-[3px] h-4 bg-[var(--color-accent)] rounded-full animate-pulse [animation-delay:150ms]" />
-    <span className="w-[3px] h-2.5 bg-[var(--color-accent)] rounded-full animate-pulse [animation-delay:300ms]" />
+    <span className="w-[3px] bg-[var(--color-accent)] rounded-full animate-eq-1" />
+    <span className="w-[3px] bg-[var(--color-accent)] rounded-full animate-eq-2" />
+    <span className="w-[3px] bg-[var(--color-accent)] rounded-full animate-eq-3" />
   </div>
 );
 
 const TrackRow = memo(({
   track,
+  tracks,
   index,
   isPlaying: propIsPlaying,
   isActive: propIsActive,
@@ -64,6 +68,9 @@ const TrackRow = memo(({
     propIsLiked !== undefined ? propIsLiked : s.likedSongs.some((item) => item.id === track.id)
   );
   const playlists = useLibraryStore((s) => s.playlists);
+  const { isOffline, savingIds, toggleOfflineTrack } = useOfflineVault();
+  const trackIsOffline = isOffline(track.id);
+  const isSavingOffline = Boolean(savingIds[track.id]);
 
   useEffect(() => {
     if (!showPlaylistMenu) return;
@@ -92,8 +99,11 @@ const TrackRow = memo(({
       onPlay(track);
     } else if (onClick) {
       onClick(track);
+    } else if (tracks && tracks.length > 1) {
+      const idx = tracks.findIndex((t) => t.id === track.id);
+      player.playTrack(track, tracks, idx >= 0 ? idx : 0);
     } else {
-      player.playTrack(track);
+      playTrackWithSmartQueue(track);
     }
   };
 
@@ -124,12 +134,15 @@ const TrackRow = memo(({
     <div
       onClick={handleTriggerPlay}
       onContextMenu={(e) => onContextMenu?.(e, track)}
-      className={`group relative flex items-center gap-4 px-3.5 py-2.5 rounded-2xl transition-colors duration-150 cursor-pointer select-none border ${
+      className={`group relative flex items-center gap-4 px-3.5 py-2.5 rounded-2xl transition-all duration-200 ease-out hover:translate-x-1 active:scale-[0.992] cursor-pointer select-none border ${
         isCurrentTrack
-          ? 'bg-white/[0.11] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
+          ? 'bg-white/[0.12] border-white/20 shadow-[0_8px_28px_rgba(0,0,0,0.38)]'
           : 'bg-white/[0.02] border-transparent hover:bg-white/[0.07] hover:border-white/10'
       }`}
     >
+      {isCurrentTrack && (
+        <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
+      )}
       {/* Index or Equalizer */}
       {showIndex && (
         <div className="w-7 flex justify-center items-center text-sm text-white/50 font-medium flex-shrink-0">
@@ -183,10 +196,16 @@ const TrackRow = memo(({
           >
             {track.title}
           </span>
-          {track.audioUrl && (
-            <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase bg-white/10 text-white/70 border border-white/10 flex-shrink-0">
-              320k HD
+          {trackIsOffline ? (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex-shrink-0">
+              ⚡ OFFLINE
             </span>
+          ) : (
+            track.audioUrl && (
+              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase bg-white/10 text-white/70 border border-white/10 flex-shrink-0">
+                320k HD
+              </span>
+            )
           )}
         </div>
         <span className="text-xs text-white/55 truncate mt-0.5">
@@ -196,6 +215,33 @@ const TrackRow = memo(({
 
       {/* Actions */}
       <div className="flex items-center gap-1.5 sm:gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleOfflineTrack(track);
+          }}
+          title={trackIsOffline ? 'Saved in Offline Vault (Click to Remove)' : 'Save 320kbps Audio to Offline Vault'}
+          className={`p-2 rounded-full transition-all cursor-pointer ${
+            trackIsOffline
+              ? 'text-emerald-400 opacity-100 bg-emerald-500/15'
+              : isSavingOffline
+                ? 'text-amber-300 opacity-100 animate-pulse'
+                : 'text-white/40 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            {trackIsOffline ? (
+              <polyline points="20 6 9 17 4 12" />
+            ) : (
+              <>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </>
+            )}
+          </svg>
+        </button>
+
         <button
           onClick={handleLike}
           title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}

@@ -56,7 +56,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
           ? startIndex
           : Math.max(0, targetQueue.findIndex((t) => t.id === track.id));
       return {
-        currentTrack: track,
+        currentTrack: { ...track },
         queue: targetQueue,
         originalQueue: queue && queue.length > 0 ? queue : state.originalQueue.length > 0 ? state.originalQueue : targetQueue,
         queueIndex: foundIdx,

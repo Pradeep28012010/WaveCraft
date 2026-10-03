@@ -1,14 +1,117 @@
-import type { ArtistResult, AlbumResult } from '../types';
+import type { ArtistResult, AlbumResult, Track } from '../types';
 import { DEFAULT_THUMBNAIL } from '../utils/constants';
+import { searchTracks } from './youtube';
 
 const ITUNES_API = 'https://itunes.apple.com';
 const artCache = new Map<string, string | null>();
 const albumsCache = new Map<string, AlbumResult[]>();
 const artistsCache = new Map<string, ArtistResult[]>();
+const albumTracksCache = new Map<string, Track[]>();
 let cachedNewReleases: AlbumResult[] | null = null;
 
 export function getCachedNewReleases(): AlbumResult[] | null {
   return cachedNewReleases;
+}
+
+export function cleanAlbumSearchQuery(title: string, artist: string): string {
+  const cleanTitle = (title || '')
+    .replace(/\s*[\(\[].*?(original|motion\s*picture|soundtrack|deluxe|expanded|remaster|edition|version|feat|from).*?[\)\]]\s*/gi, ' ')
+    .replace(/\s*-\s*(?:ep|single|ost|soundtrack|tamil|telugu|hindi|malayalam|kannada)\b.*$/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const primaryArtist = (artist || '').split(/[,&]/)[0].trim();
+  return `${cleanTitle || title} ${primaryArtist}`.trim();
+}
+
+export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
+  const cacheKey = `${album.id}_${album.title}_${album.artist}`.toLowerCase();
+  if (albumTracksCache.has(cacheKey)) {
+    return albumTracksCache.get(cacheKey)!;
+  }
+
+  const cleanQuery = cleanAlbumSearchQuery(album.title || album.name, album.artist);
+
+  try {
+    // Fetch 320kbps playable tracks for this album and official iTunes tracklist in parallel
+    const [playableTracks, itunesLookup] = await Promise.all([
+      searchTracks(cleanQuery).catch(() => [] as Track[]),
+      album.collectionId
+        ? fetch(`${ITUNES_API}/lookup?id=${album.collectionId}&entity=song`)
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null)
+        : Promise.resolve(null)
+    ]);
+
+    const itunesSongs = (itunesLookup?.results || []).filter(
+      (item: any) => item.wrapperType === 'track' && item.kind === 'song' && item.trackName
+    );
+
+    if (itunesSongs.length > 0) {
+      const usedPlayableIds = new Set<string>();
+      const mappedTracks: Track[] = itunesSongs.map((item: any, idx: number) => {
+        const trackTitle: string = item.trackName;
+        const normTitle = trackTitle
+          .toLowerCase()
+          .replace(/[\(\[].*?[\)\]]/g, '')
+          .trim();
+
+        // Find matching 320kbps stream from playableTracks
+        const matched = playableTracks.find((pt) => {
+          const ptNorm = pt.title
+            .toLowerCase()
+            .replace(/[\(\[].*?[\)\]]/g, '')
+            .trim();
+          return (
+            ptNorm === normTitle ||
+            ptNorm.includes(normTitle) ||
+            normTitle.includes(ptNorm)
+          );
+        });
+
+        if (matched) {
+          usedPlayableIds.add(matched.id);
+          return {
+            ...matched,
+            album: album.title || album.name || matched.album,
+            thumbnail: matched.thumbnail || album.coverUrl || DEFAULT_THUMBNAIL,
+            thumbnailLarge: matched.thumbnailLarge || album.coverUrl || DEFAULT_THUMBNAIL
+          };
+        }
+
+        const art = item.artworkUrl100
+          ? item.artworkUrl100.replace('100x100bb', '600x600bb').replace('100x100', '600x600')
+          : album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL;
+
+        return {
+          id: `album_track_${item.trackId || idx}_${Date.now()}`,
+          title: trackTitle,
+          artist: item.artistName || album.artist || 'Unknown Artist',
+          album: album.title || album.name || 'Album',
+          duration: item.trackTimeMillis ? Math.round(item.trackTimeMillis / 1000) : 210,
+          thumbnail: art,
+          thumbnailLarge: art,
+          thumbnailUrl: art,
+          youtubeId: '',
+          quality: '320kbps Studio AAC'
+        };
+      });
+
+      albumTracksCache.set(cacheKey, mappedTracks);
+      return mappedTracks;
+    }
+
+    if (playableTracks.length > 0) {
+      albumTracksCache.set(cacheKey, playableTracks);
+      return playableTracks;
+    }
+  } catch (err) {
+    console.warn('Error fetching album tracks:', err);
+  }
+
+  const fallback = await searchTracks(`${album.title || album.name} ${album.artist}`);
+  albumTracksCache.set(cacheKey, fallback);
+  return fallback;
 }
 
 export async function searchAlbums(query: string): Promise<AlbumResult[]> {
@@ -91,6 +194,7 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
       const title = item['im:name']?.label || 'Album';
       return {
         id: String(item.id?.attributes?.['im:id'] || Math.random()),
+        collectionId: Number(item.id?.attributes?.['im:id']) || undefined,
         name: title,
         title,
         artist: item['im:artist']?.label || 'Artist',
