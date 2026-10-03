@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { usePlayerStore } from '../../stores/playerStore';
 import { clearAllData } from '../../services/storage';
 import { useOfflineVault } from '../../services/offlineVault';
 import GlassCard from '../ui/GlassCard';
@@ -114,10 +115,19 @@ export default function SettingsPage() {
   };
 
   const handleClearData = async () => {
-    if (window.confirm('Clear all saved playlists, liked songs, and settings?')) {
+    if (
+      window.confirm(
+        'Reset everything and restore WaveCraft to a clean initial state? This clears your library, queue, search history, and settings.'
+      )
+    ) {
       await clearAllData();
       settings.resetSettings();
+      const pStore = usePlayerStore.getState();
+      pStore.clearQueue();
+      pStore.pause();
+      usePlayerStore.setState({ currentTrack: null, progress: 0, currentTime: 0, duration: 0 });
       await library.loadFromStorage();
+      window.location.reload();
     }
   };
 
@@ -426,7 +436,7 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-lg font-bold text-white">WaveCraft Spatial Edition</h3>
               <p className="text-xs text-white/55 mt-0.5">
-                320kbps Studio Engine • 10-Band Web Audio EQ • WaveSync Lyrics • Gapless Preloader
+                YouTube Cloud Engine • 10-Band Web Audio EQ • WaveSync Lyrics • Spatial 3D Audio
               </p>
             </div>
           </div>

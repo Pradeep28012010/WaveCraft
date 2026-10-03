@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
-import { getSmartRecommendations, playTrackWithSmartQueue } from '../../services/recommendationEngine';
+import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { searchTracks } from '../../services/youtube';
 import { unlockAudioEngine, getAudioFrequencyData } from '../player/YouTubeEmbed';
 import GlassCard from '../ui/GlassCard';
@@ -276,7 +276,6 @@ export default function SonicGalaxyPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const queue = usePlayerStore((s) => s.queue);
   const playTrack = usePlayerStore((s) => s.playTrack);
   const addNext = usePlayerStore((s) => s.addNext);
   const togglePlay = usePlayerStore((s) => s.togglePlay);
@@ -314,32 +313,19 @@ export default function SonicGalaxyPage() {
   });
   const shockwavesRef = useRef<Shockwave[]>([]);
 
-  // Load AI Taste-Predicted stars to enrich the user's personal galaxy
+  // Load preview stars only when the user has no liked songs yet
   useEffect(() => {
+    if (likedSongs.length > 0) return;
     let active = true;
-    const seed =
-      currentTrack ||
-      likedSongs[0] ||
-      recentlyPlayed[0]?.track ||
-      queue[0];
-
-    if (seed) {
-      getSmartRecommendations(seed, [], 18)
-        .then((recs) => {
-          if (active) setPredictedTracks(recs);
-        })
-        .catch(() => {});
-    } else {
-      searchTracks('Top Global & Indian Hits 2025')
-        .then((res) => {
-          if (active) setPredictedTracks(res.slice(0, 20));
-        })
-        .catch(() => {});
-    }
+    searchTracks('Top Global Pop Hits 2025')
+      .then((res) => {
+        if (active) setPredictedTracks(res.slice(0, 10));
+      })
+      .catch(() => {});
     return () => {
       active = false;
     };
-  }, [currentTrack?.id, likedSongs.length]);
+  }, [likedSongs.length]);
 
   // Trigger a Hyperjump Warp into a custom artist/vibe or preset
   const triggerWormholeWarp = async (query: string, label?: string) => {
@@ -426,7 +412,7 @@ export default function SonicGalaxyPage() {
     return { artistCounts, likedIds, recentIds, userDna, hasHistory: dnaSamples.length > 0 };
   }, [likedSongs, recentlyPlayed, playHistory, playlists, currentTrack?.id]);
 
-  // Build 3D StarNodes using the Real Taste Match & Sonic DNA Engine
+  // Build 3D StarNodes: strictly the user's TRULY LIKED songs (no queue/played clutter)
   const stars: StarNode3D[] = useMemo(() => {
     const map = new Map<string, { track: Track; source: StarNode3D['sourceLabel'] }>();
 
@@ -434,23 +420,16 @@ export default function SonicGalaxyPage() {
       for (const t of wormholeTracks) {
         if (t?.id) map.set(t.id, { track: t, source: 'Wormhole Discovery' });
       }
-    } else {
-      for (const t of likedSongs.slice(0, 14)) {
+    } else if (likedSongs.length > 0) {
+      // Sonic Galaxy represents the universe of songs the user TRULY LIKED
+      for (const t of likedSongs) {
         if (t?.id) map.set(t.id, { track: t, source: 'Liked Core' });
       }
-      for (const r of recentlyPlayed.slice(0, 12)) {
-        if (r?.track?.id && !map.has(r.track.id)) {
-          map.set(r.track.id, { track: r.track, source: 'Recent Orbit' });
-        }
-      }
-      for (const p of predictedTracks) {
+    } else {
+      // Preview mode for brand new users who haven't liked any songs yet
+      for (const p of predictedTracks.slice(0, 10)) {
         if (p?.id && !map.has(p.id)) {
           map.set(p.id, { track: p, source: 'AI Taste Predicted' });
-        }
-      }
-      for (const q of queue.slice(0, 10)) {
-        if (q?.id && !map.has(q.id)) {
-          map.set(q.id, { track: q, source: 'AI Taste Predicted' });
         }
       }
     }
@@ -564,7 +543,7 @@ export default function SonicGalaxyPage() {
     });
 
     return rawNodes.sort((a, b) => b.affinityScore - a.affinityScore);
-  }, [wormholeTracks, likedSongs, recentlyPlayed, predictedTracks, queue, userTasteProfile, galaxyLayout]);
+  }, [wormholeTracks, likedSongs, predictedTracks, userTasteProfile, galaxyLayout]);
 
   // Average taste match across visible stars
   const avgTasteMatch = useMemo(() => {
@@ -1324,17 +1303,26 @@ export default function SonicGalaxyPage() {
                 4D COSINE DNA ENGINE
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 whitespace-nowrap flex-shrink-0">
-                {stars.length} Stars • {avgTasteMatch}% Avg Taste Match
+                {stars.length} {stars.length === 1 ? 'Star' : 'Stars'} • {avgTasteMatch}% Match
               </span>
-              {userTasteProfile.hasHistory && (
-                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-[10px] font-bold text-cyan-200 whitespace-nowrap flex-shrink-0">
-                  Synced to Your Library
+              {likedSongs.length > 0 ? (
+                <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-400/40 text-[10px] font-extrabold text-rose-300 whitespace-nowrap flex-shrink-0">
+                  ❤️ {likedSongs.length} Liked {likedSongs.length === 1 ? 'Song' : 'Songs'} in Orbit
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-[10px] font-extrabold text-amber-300 whitespace-nowrap flex-shrink-0">
+                  ✨ Preview Constellation • Tap ❤️ to add songs
                 </span>
               )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-purple-200 to-cyan-300 bg-clip-text text-transparent">
               Sonic Galaxy • 3D Musical Observatory
             </h1>
+            <p className="text-xs text-white/50">
+              {likedSongs.length > 0
+                ? 'Your personal 3D universe strictly mapped from your Liked Songs'
+                : 'Preview universe • Like songs (tap ❤️) anywhere in WaveCraft to build your personalized galaxy'}
+            </p>
           </div>
 
           {/* Right Controls: Layout Mode + Hyperjump Search */}

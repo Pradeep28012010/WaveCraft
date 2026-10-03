@@ -32,7 +32,7 @@ export default function TrendingSection({ tracks, isLoading, onPlayTrack }: Tren
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight">Trending Now</h2>
-          <p className="text-xs text-white/50 mt-0.5">Full-length 320kbps studio charts</p>
+          <p className="text-xs text-white/50 mt-0.5">Top global and regional charts</p>
         </div>
         <div className="flex gap-2">
           <button

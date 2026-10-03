@@ -597,28 +597,62 @@ async function fetchYouTubeSearch(query, limit = 25) {
   return tracks.slice(0, limit);
 }
 
+const TOP_GLOBAL_TRENDING_SEEDS = [
+  'Lady Gaga Bruno Mars Die With A Smile',
+  'The Weeknd Playboi Carti Timeless',
+  'Billie Eilish Birds of a Feather',
+  'Sabrina Carpenter Espresso',
+  'Rose Bruno Mars Apt',
+  'Kendrick Lamar Not Like Us',
+  'Taylor Swift Cruel Summer',
+  'Sabrina Carpenter Taste',
+  'The Weeknd Blinding Lights',
+  'Post Malone Morgan Wallen I Had Some Help',
+  'Benson Boone Beautiful Things',
+  'Coldplay feelslikeimfallinginlove',
+  'Dua Lipa Levitating',
+  'Hozier Too Sweet',
+  'SZA Snooze',
+  'Teddy Swims Lose Control',
+  'Tauba Tauba Bad Newz',
+  'Chuttamalle Devara',
+  'Aaj Ki Raat Stree 2',
+  'Arijit Singh Chaleya',
+  'Anirudh Hukum Jailer',
+  'Dua Lipa Houdini'
+];
+
 async function fetchYouTubeTrending() {
-  const [globalHits, trendingVids] = await Promise.allSettled([
-    fetchYouTubeSearch('Top Global Music Hits 2025', 20),
-    fetchYouTubeSearch('Trending Music Videos Official', 20)
-  ]);
-  const gList = globalHits.status === 'fulfilled' ? globalHits.value : [];
-  const tList = trendingVids.status === 'fulfilled' ? trendingVids.value : [];
+  const specificHits = await Promise.allSettled(
+    TOP_GLOBAL_TRENDING_SEEDS.map((q) => fetchYouTubeSearch(q, 1))
+  );
 
   const seen = new Set();
-  const merged = [];
-  const maxLen = Math.max(gList.length, tList.length);
-  for (let i = 0; i < maxLen; i++) {
-    if (gList[i] && !seen.has(gList[i].youtubeId)) {
-      seen.add(gList[i].youtubeId);
-      merged.push(gList[i]);
-    }
-    if (tList[i] && !seen.has(tList[i].youtubeId)) {
-      seen.add(tList[i].youtubeId);
-      merged.push(tList[i]);
+  const tracks = [];
+
+  for (const res of specificHits) {
+    if (res.status === 'fulfilled' && Array.isArray(res.value) && res.value[0]) {
+      const t = res.value[0];
+      if (!seen.has(t.youtubeId)) {
+        seen.add(t.youtubeId);
+        tracks.push(t);
+      }
     }
   }
-  return merged.slice(0, 30);
+
+  if (tracks.length < 15) {
+    try {
+      const fallbackHits = await fetchYouTubeSearch('Global Top 20 Pop Music Hits Official Audio', 15);
+      for (const t of fallbackHits) {
+        if (!seen.has(t.youtubeId)) {
+          seen.add(t.youtubeId);
+          tracks.push(t);
+        }
+      }
+    } catch {}
+  }
+
+  return tracks.slice(0, 25);
 }
 
 function normalizeForMatch(str) {
