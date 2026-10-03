@@ -68,6 +68,7 @@ export default function TopBar() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequestIdRef = useRef(0);
 
   const [isListeningVoice, setIsListeningVoice] = useState(false);
   const recognitionRef = useRef<{ stop: () => void; abort: () => void } | null>(null);
@@ -175,31 +176,55 @@ export default function TopBar() {
     const val = e.target.value;
     setSearchQuery(val);
 
+    const reqId = ++searchRequestIdRef.current;
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
+    const trimmed = val.trim();
+    if (!trimmed) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      navigate('/search', { replace: true });
+      return;
+    }
+
     debounceTimer.current = setTimeout(async () => {
-      if (val.trim().length > 0) {
-        navigate(`/search?q=${encodeURIComponent(val.trim())}`);
-        const sugs = await searchSuggestions(val.trim());
-        setSuggestions(sugs.slice(0, 5));
-      } else {
-        setSuggestions([]);
+      if (reqId !== searchRequestIdRef.current) return;
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
+      try {
+        const sugs = await searchSuggestions(trimmed);
+        if (reqId === searchRequestIdRef.current) {
+          setSuggestions(sugs.slice(0, 5));
+          setShowSuggestions(true);
+        }
+      } catch {
+        if (reqId === searchRequestIdRef.current) {
+          setSuggestions([]);
+        }
       }
     }, 180);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
+    if (e.key === 'Enter') {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       setShowSuggestions(false);
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      if (searchQuery.trim()) {
+        navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`, { replace: true });
+      } else {
+        navigate('/search', { replace: true });
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
     }
   };
 
   const handleClear = () => {
+    searchRequestIdRef.current++;
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
     setSearchQuery('');
     setSuggestions([]);
-    navigate('/search');
+    setShowSuggestions(false);
+    navigate('/search', { replace: true });
   };
 
   // Phone UI Preset Header (clean, thumb-friendly, zero horizontal crowding)
@@ -233,7 +258,9 @@ export default function TopBar() {
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={handleKeyDown}
-              onFocus={() => setShowSuggestions(true)}
+              onFocus={() => {
+                if (searchQuery.trim().length > 0) setShowSuggestions(true);
+              }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
               placeholder={
                 isListeningVoice ? '🎙️ Say a song or lyric...' : 'Search songs, lyrics, moods...'
@@ -270,7 +297,7 @@ export default function TopBar() {
             </button>
           </div>
 
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && searchQuery.trim().length > 0 && suggestions.length > 0 && (
             <div className="absolute left-0 right-0 top-11 glass-heavy rounded-2xl p-1.5 shadow-2xl border border-white/15 z-50">
               {suggestions.map((sug, i) => (
                 <button
@@ -359,7 +386,9 @@ export default function TopBar() {
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={handleKeyDown}
-              onFocus={() => setShowSuggestions(true)}
+              onFocus={() => {
+                if (searchQuery.trim().length > 0) setShowSuggestions(true);
+              }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
               placeholder={
                 isListeningVoice
@@ -417,7 +446,7 @@ export default function TopBar() {
           </div>
 
           {/* Search Suggestions Dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && searchQuery.trim().length > 0 && suggestions.length > 0 && (
             <div className="absolute left-0 right-0 top-13 glass-heavy rounded-2xl p-2 shadow-2xl border border-white/15 z-50">
               {suggestions.map((sug, i) => (
                 <button
