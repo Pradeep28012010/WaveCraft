@@ -351,7 +351,7 @@ export default function PlaylistView() {
                 required
                 value={attachUrlInput}
                 onChange={(e) => setAttachUrlInput(e.target.value)}
-                placeholder="Paste Spotify, YouTube, or JioSaavn playlist URL to keep this playlist live-synced..."
+                placeholder="Paste Spotify or YouTube playlist URL to keep this playlist live-synced..."
                 className="flex-1 w-full glass-input rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/40"
               />
               <div className="flex items-center gap-2 flex-shrink-0">

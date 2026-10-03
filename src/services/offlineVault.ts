@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import type { Track } from '../types';
-import { searchTracks } from './youtube';
 
 const VAULT_CACHE_NAME = 'wavecraft-offline-audio-vault-v1';
 const VAULT_META_KEY = 'wavecraft_offline_tracks_meta_v1';
@@ -82,27 +81,16 @@ export async function saveTrackOffline(track: Track): Promise<boolean> {
   try {
     let resolvedTrack = { ...track };
 
-    // If the track doesn't have a direct audioUrl yet, resolve it via JioSaavn search
-    if (!resolvedTrack.audioUrl) {
-      const matches = await searchTracks(`${track.title} ${track.artist}`);
-      const best = matches.find((m) => m.audioUrl) || matches[0];
-      if (best?.audioUrl) {
-        resolvedTrack.audioUrl = best.audioUrl;
-        if (!resolvedTrack.thumbnail && best.thumbnail) {
-          resolvedTrack.thumbnail = best.thumbnail;
-        }
-      }
-    }
-
-    if (!resolvedTrack.audioUrl) {
-      return false;
-    }
-
     if ('caches' in window) {
       const cache = await caches.open(VAULT_CACHE_NAME);
-      const audioRes = await fetch(resolvedTrack.audioUrl, { mode: 'cors' });
-      if (!audioRes.ok) return false;
-      await cache.put(`https://wavecraft.local/offline-audio/${resolvedTrack.id}`, audioRes);
+      if (resolvedTrack.audioUrl) {
+        try {
+          const audioRes = await fetch(resolvedTrack.audioUrl, { mode: 'cors' });
+          if (audioRes.ok) {
+            await cache.put(`https://wavecraft.local/offline-audio/${resolvedTrack.id}`, audioRes);
+          }
+        } catch {}
+      }
 
       if (resolvedTrack.thumbnail) {
         try {

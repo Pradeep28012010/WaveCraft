@@ -89,17 +89,6 @@ export default function ImportPlaylistModal({
         bgColor: 'bg-rose-500/10'
       };
     }
-    if (raw.includes('jiosaavn.com')) {
-      return {
-        name: 'JioSaavn',
-        icon: '🔵',
-        badge: 'JIOSAAVN PLAYLIST',
-        accent: 'from-cyan-500 to-teal-600',
-        textColor: 'text-cyan-300',
-        borderColor: 'border-cyan-500/40',
-        bgColor: 'bg-cyan-500/10'
-      };
-    }
     if (raw.includes('apple.com')) {
       return {
         name: 'Apple Music',
@@ -376,7 +365,7 @@ export default function ImportPlaylistModal({
                 SOURCE STREAM
               </span>
               <span className="text-xs font-extrabold text-white truncate block">
-                {detectedPlatform ? detectedPlatform.name : 'Spotify • YouTube • Saavn'}
+                {detectedPlatform ? detectedPlatform.name : 'Spotify • YouTube'}
               </span>
             </div>
           </div>

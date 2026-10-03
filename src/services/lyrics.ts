@@ -267,7 +267,7 @@ export async function getLyricsData(
     return parsed;
   }
 
-  // 2. Fallback to backend /api/music?action=lyrics (Saavn official lyrics + lyrics.ovh)
+  // 2. Fallback to backend /api/music?action=lyrics (LRCLIB targeted + lyrics.ovh)
   try {
     const res = await fetch(
       `/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`
@@ -281,7 +281,7 @@ export async function getLyricsData(
           lines: parseLyrics(data.lyrics, duration),
           source: data.source || 'Studio Lyrics',
           candidates: [],
-          activeCandidateId: 'saavn-fallback'
+          activeCandidateId: 'backend-fallback'
         };
         cache.set(cacheKey, parsed);
         return parsed;
