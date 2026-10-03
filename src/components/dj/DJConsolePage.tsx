@@ -138,6 +138,20 @@ export default function DJConsolePage() {
   // VU meter animated state
   const [vuLevels, setVuLevels] = useState({ aL: 0, aR: 0, bL: 0, bR: 0 });
 
+  const automixIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const padTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    return () => {
+      if (automixIntervalRef.current) {
+        clearInterval(automixIntervalRef.current);
+        automixIntervalRef.current = null;
+      }
+      padTimeoutsRef.current.forEach(clearTimeout);
+      padTimeoutsRef.current = [];
+    };
+  }, []);
+
   // Deck B Web Audio nodes
   const audioBRef = useRef<HTMLAudioElement | null>(null);
   const ctxBRef = useRef<AudioContext | null>(null);
@@ -530,7 +544,11 @@ export default function DJConsolePage() {
     const steps = 60;
     let step = 0;
 
-    const interval = setInterval(() => {
+    if (automixIntervalRef.current) {
+      clearInterval(automixIntervalRef.current);
+    }
+
+    automixIntervalRef.current = setInterval(() => {
       step++;
       const progress = step / steps;
       const nextVal = startCross + (targetCross - startCross) * progress;
@@ -548,7 +566,10 @@ export default function DJConsolePage() {
       }
 
       if (step >= steps) {
-        clearInterval(interval);
+        if (automixIntervalRef.current) {
+          clearInterval(automixIntervalRef.current);
+          automixIntervalRef.current = null;
+        }
         setIsAutomixing(false);
         setEqA({ low: 0, mid: 0, high: 0 });
         setEqB({ low: 0, mid: 0, high: 0 });
@@ -561,28 +582,32 @@ export default function DJConsolePage() {
     setActivePad(padId);
     if (padId === 'vinyl-brake') {
       setPlaybackSpeedA(0.55);
-      setTimeout(() => setPlaybackSpeedA(0.35), 250);
-      setTimeout(() => {
+      const t1 = setTimeout(() => setPlaybackSpeedA(0.35), 250);
+      const t2 = setTimeout(() => {
         setPlaybackSpeedA(1);
         setActivePad(null);
       }, 950);
+      padTimeoutsRef.current.push(t1, t2);
     } else if (padId === 'underwater') {
       setFxMode('slowed-reverb');
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
         setFxMode('normal');
         setActivePad(null);
       }, 2400);
+      padTimeoutsRef.current.push(t1);
     } else if (padId === '8d-spin') {
       setFxMode('8d-orbit');
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
         setFxMode('normal');
         setActivePad(null);
       }, 3200);
+      padTimeoutsRef.current.push(t1);
     } else if (padId === 'bass-drop') {
       setFxMode('bass-cinema');
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
         setActivePad(null);
       }, 2200);
+      padTimeoutsRef.current.push(t1);
     } else if (padId === 'nightcore') {
       setFxMode('nightcore');
       setTimeout(() => {

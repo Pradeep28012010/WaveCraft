@@ -111,7 +111,12 @@ async function fetchDirectSaavnFallback(query: string): Promise<any[]> {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        if (data?.results) return data.results;
+        if (Array.isArray(data?.results)) {
+          return data.results.filter(
+            (r: unknown): r is Record<string, unknown> =>
+              Boolean(r && typeof r === 'object' && 'id' in r && 'title' in r)
+          );
+        }
       }
     } catch {
       // try next proxy

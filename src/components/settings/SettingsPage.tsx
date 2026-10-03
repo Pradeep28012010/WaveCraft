@@ -157,16 +157,16 @@ export default function SettingsPage() {
           })}
         </div>
 
-        <GlassCard variant="liquid" padding="lg" className="overflow-x-auto">
-          <div className="flex justify-between gap-3 min-w-[540px] h-56 items-center pt-4 pb-2 px-2">
+        <GlassCard variant="liquid" padding="lg" className="overflow-x-auto no-scrollbar">
+          <div className="flex justify-between gap-1 sm:gap-3 min-w-[340px] sm:min-w-[540px] h-56 items-center pt-4 pb-2 px-1 sm:px-2">
             {(settings.equalizerBands || Array(10).fill(0)).map((val, idx) => {
               const pct = ((val + 12) / 24) * 100; // 0% at -12dB, 50% at 0dB, 100% at +12dB
               return (
-                <div key={idx} className="flex flex-col items-center gap-2.5 flex-1 h-full select-none">
+                <div key={idx} className="flex flex-col items-center gap-2.5 flex-1 h-full select-none min-w-0">
                   {/* dB Value Badge */}
                   <span
-                    className={`text-[11px] font-bold tabular-nums ${
-                      val > 0 ? 'text-[var(--color-accent)]' : val < 0 ? 'text-sky-400' : 'text-white/45'
+                    className={`text-[10px] sm:text-[11px] font-bold tabular-nums truncate ${
+                      val > 0 ? 'text-[var(--color-accent)]' : val < 0 ? 'text-sky-400' : 'text-white/60'
                     }`}
                   >
                     {val > 0 ? `+${val}` : val}dB
@@ -175,7 +175,7 @@ export default function SettingsPage() {
                   {/* Interactive Vertical Slider Track */}
                   <div
                     onMouseDown={(e) => handleVerticalDrag(idx, e)}
-                    className="relative w-9 flex-1 bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 rounded-full cursor-ns-resize flex justify-center overflow-hidden"
+                    className="relative w-6 sm:w-9 flex-1 bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 rounded-full cursor-ns-resize flex justify-center overflow-hidden"
                   >
                     {/* Center 0dB Reference Line */}
                     <div className="absolute left-0 right-0 top-1/2 h-px bg-white/20 pointer-events-none" />

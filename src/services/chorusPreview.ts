@@ -178,6 +178,7 @@ export async function toggleChorusPreview(track: Track) {
 
   audio.onloadedmetadata = onLoaded;
   audio.onerror = () => {
+    if (previewState.trackId !== track.id) return;
     if (audio.src.includes('_320.mp4')) {
       audio.src = audio.src.replace('_320.mp4', '_160.mp4');
       audio.load();

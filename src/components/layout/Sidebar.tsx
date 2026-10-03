@@ -283,7 +283,7 @@ export default function Sidebar() {
         {/* Navigation Links */}
         <nav className="flex-1 overflow-y-auto px-3 py-1.5 space-y-0.5 no-scrollbar">
           {!collapsed && (
-            <div className="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/35">
+            <div className="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/60">
               Navigation
             </div>
           )}

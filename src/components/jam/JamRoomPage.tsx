@@ -135,49 +135,66 @@ export default function JamRoomPage() {
 
     let rafId = 0;
     let phase = 0;
+    let width = canvas.clientWidth || 300;
+    let height = canvas.clientHeight || 150;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width: w, height: h } = entry.contentRect;
+        if (w > 0 && h > 0) {
+          width = w;
+          height = h;
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          canvas.width = Math.floor(w * dpr);
+          canvas.height = Math.floor(h * dpr);
+        }
+      }
+    });
+    resizeObserver.observe(canvas);
 
     const render = () => {
       phase += isPlayingRef.current ? 0.055 : 0.015;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = canvas.getBoundingClientRect();
-      if (canvas.width !== Math.floor(rect.width * dpr) || canvas.height !== Math.floor(rect.height * dpr)) {
-        canvas.width = Math.floor(rect.width * dpr);
-        canvas.height = Math.floor(rect.height * dpr);
+      const w = width;
+      const h = height;
+
+      if (w > 0 && h > 0) {
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+
+        const barCount = 56;
+        const barW = w / barCount;
+
+        for (let i = 0; i < barCount; i++) {
+          const x = i * barW;
+          const n1 = Math.abs(Math.sin(phase + i * 0.28));
+          const n2 = Math.abs(Math.cos(phase * 1.4 - i * 0.19));
+          const energy = isPlayingRef.current ? 0.18 + (n1 * 0.55 + n2 * 0.27) : 0.08 + n1 * 0.06;
+          const barH = Math.max(4, energy * h * 0.68);
+
+          const grad = ctx.createLinearGradient(0, h, 0, h - barH);
+          grad.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
+          grad.addColorStop(0.6, 'rgba(6, 182, 212, 0.16)');
+          grad.addColorStop(1, 'rgba(250, 45, 72, 0.06)');
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.roundRect(x + 1.5, h - barH, Math.max(2, barW - 3), barH, 3);
+          ctx.fill();
+        }
+
+        ctx.restore();
       }
 
-      ctx.save();
-      ctx.scale(dpr, dpr);
-      const w = rect.width;
-      const h = rect.height;
-      ctx.clearRect(0, 0, w, h);
-
-      const barCount = 56;
-      const barW = w / barCount;
-
-      for (let i = 0; i < barCount; i++) {
-        const x = i * barW;
-        const n1 = Math.abs(Math.sin(phase + i * 0.28));
-        const n2 = Math.abs(Math.cos(phase * 1.4 - i * 0.19));
-        const energy = isPlayingRef.current ? 0.18 + (n1 * 0.55 + n2 * 0.27) : 0.08 + n1 * 0.06;
-        const barH = Math.max(4, energy * h * 0.68);
-
-        const grad = ctx.createLinearGradient(0, h, 0, h - barH);
-        grad.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
-        grad.addColorStop(0.6, 'rgba(6, 182, 212, 0.16)');
-        grad.addColorStop(1, 'rgba(250, 45, 72, 0.06)');
-
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.roundRect(x + 1.5, h - barH, Math.max(2, barW - 3), barH, 3);
-        ctx.fill();
-      }
-
-      ctx.restore();
       rafId = requestAnimationFrame(render);
     };
 
     rafId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelAnimationFrame(rafId);
+      resizeObserver.disconnect();
+    };
   }, [roomCode]);
 
   const handleStartRoom = async () => {
@@ -733,6 +750,8 @@ export default function JamRoomPage() {
                           <img
                             src={track.thumbnail || DEFAULT_THUMBNAIL}
                             alt={track.title}
+                            loading="lazy"
+                            decoding="async"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                             }}

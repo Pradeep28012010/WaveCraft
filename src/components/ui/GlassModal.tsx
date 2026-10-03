@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, ReactNode } from 'react';
+import { useEffect, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface GlassModalProps {
@@ -16,14 +16,57 @@ const MODAL_TRANSITION = {
 };
 
 const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModalProps) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!isOpen) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusables = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
-    document.addEventListener('keydown', handleEscape);
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    const timer = setTimeout(() => {
+      if (modalRef.current) {
+        const firstFocusable = modalRef.current.querySelector<HTMLElement>(
+          'input, button, [href], select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        firstFocusable?.focus();
+      }
+    }, 30);
+
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      clearTimeout(timer);
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
     };
   }, [isOpen, onClose]);
 
@@ -46,6 +89,10 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
             className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
           />
           <motion.div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title || 'Dialog'}
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -61,7 +108,8 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-8 h-8 p-0 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white cursor-pointer flex-shrink-0"
+                  aria-label="Close dialog"
+                  className="w-9 h-9 p-0 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white cursor-pointer flex-shrink-0 transition-transform active:scale-95"
                   title="Close"
                 >
                   ✕
