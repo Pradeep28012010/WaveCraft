@@ -5,9 +5,6 @@ import { DEFAULT_THUMBNAIL } from '../utils/constants';
 export function useMediaSession() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const currentTime = usePlayerStore((s) => s.currentTime);
-  const duration = usePlayerStore((s) => s.duration);
-  const playbackSpeed = usePlayerStore((s) => s.playbackSpeed);
 
   // Register hardware media key & lock-screen action handlers once
   useEffect(() => {
@@ -92,24 +89,49 @@ export function useMediaSession() {
       : 'none';
   }, [isPlaying, currentTrack]);
 
-  // Sync lock-screen scrub bar position state safely
+  // Sync lock-screen scrub bar position state via passive store subscription
+  // so root AppContent NEVER re-renders on currentTime ticks
   useEffect(() => {
     if (
-      'mediaSession' in navigator &&
-      typeof navigator.mediaSession.setPositionState === 'function' &&
-      duration > 0 &&
-      isFinite(duration)
+      !('mediaSession' in navigator) ||
+      typeof navigator.mediaSession.setPositionState !== 'function'
     ) {
+      return;
+    }
+
+    let lastSyncMs = 0;
+    let lastTime = -1;
+    let lastDuration = -1;
+    let lastSpeed = -1;
+
+    const syncPosition = (currentTime: number, duration: number, playbackSpeed: number) => {
+      if (duration <= 0 || !isFinite(duration)) return;
+      const now = performance.now();
+      const jumped = Math.abs(currentTime - lastTime) > 2.5;
+      const metaChanged = duration !== lastDuration || playbackSpeed !== lastSpeed;
+      if (!jumped && !metaChanged && now - lastSyncMs < 1500) return;
+
+      lastSyncMs = now;
+      lastTime = currentTime;
+      lastDuration = duration;
+      lastSpeed = playbackSpeed;
+
       try {
-        const safePosition = Math.max(0, Math.min(duration, currentTime || 0));
         navigator.mediaSession.setPositionState({
           duration,
           playbackRate: playbackSpeed || 1,
-          position: safePosition
+          position: Math.max(0, Math.min(duration, currentTime || 0))
         });
       } catch {
         // Ignore transient position errors
       }
-    }
-  }, [currentTime, duration, playbackSpeed]);
+    };
+
+    const init = usePlayerStore.getState();
+    syncPosition(init.currentTime, init.duration, init.playbackSpeed);
+
+    return usePlayerStore.subscribe((state) => {
+      syncPosition(state.currentTime, state.duration, state.playbackSpeed);
+    });
+  }, []);
 }

@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
-import { useEffect, useRef, lazy, Suspense } from 'react';
+import { Suspense, useEffect, useRef, lazy } from 'react';
 import { MotionConfig } from 'framer-motion';
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './components/discover/HomePage';
@@ -9,7 +9,7 @@ import { useSettingsStore } from './stores/settingsStore';
 import { usePlayerStore } from './stores/playerStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useMediaSession } from './hooks/useMediaSession';
-import { searchTracks } from './services/youtube';
+import { searchTracks, getTrending } from './services/youtube';
 
 const SearchResults = lazy(() => import('./components/search/SearchResults'));
 const LibraryPage = lazy(() => import('./components/library/LibraryPage'));
@@ -22,14 +22,7 @@ const VibeDJPage = lazy(() => import('./components/vibe/VibeDJPage'));
 const JamRoomPage = lazy(() => import('./components/jam/JamRoomPage'));
 const DJConsolePage = lazy(() => import('./components/dj/DJConsolePage'));
 const SonicGalaxyPage = lazy(() => import('./components/galaxy/SonicGalaxyPage'));
-
-function RouteFallback() {
-  return (
-    <div className="flex items-center justify-center py-24">
-      <div className="w-8 h-8 border-2 border-white/20 border-t-[var(--color-accent)] rounded-full animate-spin" />
-    </div>
-  );
-}
+const LandingPage = lazy(() => import('./components/landing/LandingPage'));
 
 function AppContent() {
   const loadLibrary = useLibraryStore((s) => s.loadFromStorage);
@@ -38,10 +31,29 @@ function AppContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const handledPlayParam = useRef<string | null>(null);
 
-  // Initialize stores from IndexedDB on mount
+  // Initialize stores from IndexedDB on mount + idle pre-warm route chunks & trending feed
   useEffect(() => {
     loadLibrary();
     loadSettings();
+
+    const prewarm = () => {
+      getTrending().catch(() => {});
+      import('./components/library/LibraryPage').catch(() => {});
+      import('./components/search/SearchResults').catch(() => {});
+      import('./components/vibe/VibeDJPage').catch(() => {});
+      import('./components/galaxy/SonicGalaxyPage').catch(() => {});
+      import('./components/dj/DJConsolePage').catch(() => {});
+      import('./components/stats/StatsPage').catch(() => {});
+      import('./components/library/LikedSongs').catch(() => {});
+    };
+
+    if ('requestIdleCallback' in window) {
+      const id = (window as any).requestIdleCallback(prewarm, { timeout: 1500 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    } else {
+      const timer = setTimeout(prewarm, 900);
+      return () => clearTimeout(timer);
+    }
   }, [loadLibrary, loadSettings]);
 
   // Handle shared WaveCard deep-link (?play=Song+Artist)
@@ -69,25 +81,40 @@ function AppContent() {
   useMediaSession();
 
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Routes>
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/vibe" element={<VibeDJPage />} />
-          <Route path="/dj" element={<DJConsolePage />} />
-          <Route path="/galaxy" element={<SonicGalaxyPage />} />
-          <Route path="/jam" element={<JamRoomPage />} />
-          <Route path="/search" element={<SearchResults />} />
-          <Route path="/genres" element={<GenreBrowser />} />
-          <Route path="/library" element={<LibraryPage />} />
-          <Route path="/liked" element={<LikedSongs />} />
-          <Route path="/recent" element={<RecentlyPlayed />} />
-          <Route path="/playlist/:id" element={<PlaylistView />} />
-          <Route path="/stats" element={<StatsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
-      </Routes>
-    </Suspense>
+    <Routes>
+      {/* Standalone landing page — no sidebar, topbar, or player chrome */}
+      <Route
+        path="/welcome"
+        element={
+          <Suspense
+            fallback={
+              <div className="fixed inset-0 bg-[#050508] flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-white/15 border-t-[#fa2d48] rounded-full animate-spin" />
+              </div>
+            }
+          >
+            <LandingPage />
+          </Suspense>
+        }
+      />
+
+      {/* Main App Routes — wrapped in layout with sidebar, topbar, player */}
+      <Route element={<MainLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/vibe" element={<VibeDJPage />} />
+        <Route path="/dj" element={<DJConsolePage />} />
+        <Route path="/galaxy" element={<SonicGalaxyPage />} />
+        <Route path="/jam" element={<JamRoomPage />} />
+        <Route path="/search" element={<SearchResults />} />
+        <Route path="/genres" element={<GenreBrowser />} />
+        <Route path="/library" element={<LibraryPage />} />
+        <Route path="/liked" element={<LikedSongs />} />
+        <Route path="/recent" element={<RecentlyPlayed />} />
+        <Route path="/playlist/:id" element={<PlaylistView />} />
+        <Route path="/stats" element={<StatsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+      </Route>
+    </Routes>
   );
 }
 

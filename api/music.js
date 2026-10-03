@@ -178,25 +178,36 @@ async function handleJamRoomRequest(req, url, roomCode) {
   const op = url.searchParams.get('op') || (req.method === 'POST' ? 'sync' : 'get');
   const body = req.method === 'POST' ? await readJsonBody(req) : {};
 
+  const userId = body.userId || url.searchParams.get('userId');
+  const userName = body.userName || url.searchParams.get('userName');
+
   let room = jamRooms.get(roomCode);
   if (!room) {
+    const isCreatingOrSyncingHost = op === 'sync' || Boolean(body.hostName);
     room = {
       roomCode,
-      hostId: body.userId || url.searchParams.get('userId') || 'host',
-      hostName: body.userName || url.searchParams.get('userName') || 'DJ Host',
+      hostId: isCreatingOrSyncingHost ? userId || 'host' : 'host',
+      hostName: body.hostName || (isCreatingOrSyncingHost ? userName : null) || 'DJ Host',
       currentTrack: null,
       isPlaying: false,
       currentTime: 0,
       updatedAt: now,
+      trackOverrideAt: 0,
+      stateVersion: 1,
       queue: [],
+      guestTracks: [],
       members: [],
-      reactions: []
+      reactions: [],
+      messages: []
     };
     jamRooms.set(roomCode, room);
   }
 
-  const userId = body.userId || url.searchParams.get('userId');
-  const userName = body.userName || url.searchParams.get('userName');
+  if (op === 'leave' && userId) {
+    room.members = room.members.filter((m) => m.id !== userId);
+    return room;
+  }
+
   if (userId && userName) {
     const existing = room.members.find((m) => m.id === userId);
     if (existing) {
@@ -204,38 +215,101 @@ async function handleJamRoomRequest(req, url, roomCode) {
       existing.lastSeen = now;
     } else {
       room.members.push({ id: userId, name: userName, lastSeen: now });
+      room.messages.push({
+        id: `sys-${now}-${Math.random().toString(36).slice(2, 6)}`,
+        sender: 'WaveJam',
+        text: `🎧 ${userName} joined the Jam!`,
+        isSystem: true,
+        createdAt: now
+      });
     }
   }
+
   // Prune members inactive for > 25s
   room.members = room.members.filter((m) => now - m.lastSeen < 25_000);
   // Keep reactions from last 20s
   room.reactions = room.reactions.filter((r) => now - r.createdAt < 20_000).slice(-20);
+  // Keep last 40 chat messages
+  room.messages = (room.messages || []).slice(-40);
 
   if (op === 'sync') {
-    if (body.currentTrack !== undefined) room.currentTrack = body.currentTrack;
-    if (typeof body.isPlaying === 'boolean') room.isPlaying = body.isPlaying;
-    if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
-    if (Array.isArray(body.queue)) room.queue = body.queue.slice(0, 30);
+    if (body.hostName) room.hostName = body.hostName;
+    if (userId) room.hostId = userId;
+
+    // Only accept host currentTrack if a collaborative play-track didn't just override it in the last 4s
+    const recentOverride = room.trackOverrideAt && now - room.trackOverrideAt < 4000;
+    if (!recentOverride) {
+      if (body.currentTrack !== undefined && (body.currentTrack || !room.currentTrack)) {
+        room.currentTrack = body.currentTrack;
+      }
+      if (typeof body.isPlaying === 'boolean') room.isPlaying = body.isPlaying;
+      if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
+    }
+
+    if (Array.isArray(body.queue)) {
+      const merged = [...body.queue];
+      for (const gt of room.guestTracks || []) {
+        if (!merged.some((t) => t.id === gt.id)) {
+          merged.push(gt);
+        }
+      }
+      room.queue = merged.slice(0, 40);
+    }
     room.updatedAt = now;
   } else if (op === 'react') {
     const emoji = body.emoji || url.searchParams.get('emoji') || '🔥';
     const sender = userName || 'Listener';
-    room.reactions.push({
-      id: `${now}-${Math.random().toString(36).slice(2, 6)}`,
-      emoji,
-      sender,
-      createdAt: now
-    });
+    const reactionId = body.id || `${now}-${Math.random().toString(36).slice(2, 6)}`;
+    if (!room.reactions.some((r) => r.id === reactionId)) {
+      room.reactions.push({
+        id: reactionId,
+        emoji,
+        sender,
+        createdAt: now
+      });
+    }
+  } else if (op === 'chat' && body.text) {
+    const msgId = body.id || `${now}-${Math.random().toString(36).slice(2, 6)}`;
+    if (!room.messages.some((m) => m.id === msgId)) {
+      room.messages.push({
+        id: msgId,
+        sender: userName || 'Listener',
+        text: String(body.text).slice(0, 240),
+        createdAt: now
+      });
+    }
   } else if (op === 'add-track' && body.track) {
     const exists = room.queue.some((t) => t.id === body.track.id);
     if (!exists) {
       room.queue.push(body.track);
     }
-    if (!room.currentTrack) {
+    if (!room.guestTracks.some((t) => t.id === body.track.id)) {
+      room.guestTracks.push(body.track);
+    }
+    if (!room.currentTrack || body.playNow) {
       room.currentTrack = body.track;
       room.isPlaying = true;
       room.currentTime = 0;
+      room.trackOverrideAt = now;
     }
+    room.stateVersion = (room.stateVersion || 1) + 1;
+    room.updatedAt = now;
+    room.messages.push({
+      id: `sys-${now}-${Math.random().toString(36).slice(2, 6)}`,
+      sender: 'WaveJam',
+      text: `🎵 ${userName || 'A listener'} ${body.playNow ? 'started playing' : 'queued'} "${body.track.title}"`,
+      isSystem: true,
+      createdAt: now
+    });
+  } else if (op === 'play-track' && body.track) {
+    if (!room.queue.some((t) => t.id === body.track.id)) {
+      room.queue.push(body.track);
+    }
+    room.currentTrack = body.track;
+    room.isPlaying = true;
+    room.currentTime = 0;
+    room.trackOverrideAt = now;
+    room.stateVersion = (room.stateVersion || 1) + 1;
     room.updatedAt = now;
   }
 
@@ -528,7 +602,7 @@ async function fetchMultiSourceLyrics(rawTitle, rawArtist) {
 async function importExternalPlaylist(playlistUrl) {
   if (!playlistUrl) return { error: 'Missing playlist URL' };
 
-  // 1. External Playlist or Album Link (Type A)
+  // 1. Spotify Playlist / Album / Track Link — Fetch ALL tracks (Embed + Web API pagination for >100 tracks)
   if (playlistUrl.includes('spotify.com')) {
     const typeMatch = playlistUrl.match(/spotify\.com\/(playlist|album|track)\/([a-zA-Z0-9]+)/);
     if (typeMatch) {
@@ -547,16 +621,68 @@ async function importExternalPlaylist(playlistUrl) {
           const end = html.indexOf('</script>', start);
           const json = JSON.parse(html.slice(start, end));
           const entity = json?.props?.pageProps?.state?.data?.entity;
+          const accessToken = json?.props?.pageProps?.state?.settings?.session?.accessToken;
+
           if (entity) {
             const name = entity.name || entity.title || 'Imported Playlist';
-            const coverUrl = entity.visualIdentity?.image?.[0]?.url || '';
+            const images = Array.isArray(entity.visualIdentity?.image)
+              ? [...entity.visualIdentity.image].sort(
+                  (a, b) => (b.maxWidth || b.width || 0) - (a.maxWidth || a.width || 0)
+                )
+              : [];
+            const rawCover = images[0]?.url || '';
+            const coverUrl = rawCover
+              .replace('ab67706f00000001', 'ab67706f00000003')
+              .replace('ab67706f00000002', 'ab67706f00000003')
+              .replace('ab67616d00004851', 'ab67616d0000b273')
+              .replace('ab67616d00001e02', 'ab67616d0000b273');
             const trackList = entity.trackList || [];
-            const queries = trackList.slice(0, 30).map((t) => ({
+            const queries = trackList.map((t) => ({
               title: t.title,
               artist: (t.subtitle || '').replace(/\u00a0/g, ' ')
             }));
+
+            // If playlist has more than 100 tracks and we have an anonymous session token, paginate through ALL remaining tracks!
+            if (entityType === 'playlist' && accessToken && trackList.length >= 100) {
+              try {
+                let nextOffset = trackList.length;
+                let keepFetching = true;
+                while (keepFetching && nextOffset < 1000) {
+                  const apiRes = await fetch(
+                    `https://api.spotify.com/v1/playlists/${id}/tracks?offset=${nextOffset}&limit=100`,
+                    {
+                      headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                      }
+                    }
+                  );
+                  if (!apiRes.ok) break;
+                  const pageData = await apiRes.json();
+                  const items = pageData?.items || [];
+                  if (items.length === 0) break;
+                  for (const item of items) {
+                    const tr = item?.track;
+                    if (tr?.name) {
+                      const artists = Array.isArray(tr.artists)
+                        ? tr.artists.map((a) => a.name).filter(Boolean).join(', ')
+                        : '';
+                      queries.push({
+                        title: tr.name,
+                        artist: artists
+                      });
+                    }
+                  }
+                  nextOffset += items.length;
+                  if (!pageData.next || items.length < 100) {
+                    keepFetching = false;
+                  }
+                }
+              } catch {}
+            }
+
             return {
-              platform: 'External Link',
+              platform: 'Spotify',
               name,
               coverUrl,
               queries
@@ -567,16 +693,19 @@ async function importExternalPlaylist(playlistUrl) {
     }
   }
 
-  // 2. External Playlist Link (Type B)
+  // 2. YouTube / YouTube Music Playlist Link — Fetch ALL tracks + follow continuation tokens for >100 song playlists
   if (playlistUrl.includes('youtube.com') || playlistUrl.includes('youtu.be')) {
     const listMatch = playlistUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/);
     if (listMatch) {
       const listId = listMatch[1];
+      const ytClientContext = {
+        client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' }
+      };
       const r = await fetch('https://www.youtube.com/youtubei/v1/browse?prettyPrint=false', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          context: { client: { clientName: 'WEB', clientVersion: '2.20240101.00.00' } },
+          context: ytClientContext,
           browseId: `VL${listId}`
         })
       });
@@ -585,24 +714,63 @@ async function importExternalPlaylist(playlistUrl) {
         const title =
           data?.header?.playlistHeaderRenderer?.title?.simpleText ||
           data?.metadata?.playlistMetadataRenderer?.title ||
-          'Imported Playlist';
+          'Imported YouTube Playlist';
         const tabs = data?.contents?.twoColumnBrowseResultsRenderer?.tabs || [];
-        const contents =
+        let contents =
           tabs[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer
             ?.contents?.[0]?.playlistVideoListRenderer?.contents || [];
 
         const queries = [];
-        for (const item of contents.slice(0, 30)) {
-          const pv = item.playlistVideoRenderer;
-          if (!pv) continue;
-          queries.push({
-            title: pv.title?.runs?.[0]?.text || '',
-            artist: pv.shortBylineText?.runs?.[0]?.text || '',
-            videoId: pv.videoId
-          });
+        const extractFromItems = (items) => {
+          let token = null;
+          for (const item of items) {
+            const pv = item.playlistVideoRenderer;
+            if (pv && pv.videoId) {
+              queries.push({
+                title: pv.title?.runs?.[0]?.text || '',
+                artist: pv.shortBylineText?.runs?.[0]?.text || '',
+                videoId: pv.videoId
+              });
+            }
+            const cont =
+              item.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
+            if (cont) token = cont;
+          }
+          return token;
+        };
+
+        let nextToken = extractFromItems(contents);
+        let pageCount = 0;
+
+        // Follow continuation pages so playlists with 100 to 1000+ songs import every single track
+        while (nextToken && pageCount < 10) {
+          pageCount++;
+          try {
+            const contRes = await fetch(
+              'https://www.youtube.com/youtubei/v1/browse?prettyPrint=false',
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  context: ytClientContext,
+                  continuation: nextToken
+                })
+              }
+            );
+            if (!contRes.ok) break;
+            const contData = await contRes.json();
+            const actions = contData?.onResponseReceivedActions || [];
+            const appendedItems =
+              actions[0]?.appendContinuationItemsAction?.continuationItems || [];
+            if (appendedItems.length === 0) break;
+            nextToken = extractFromItems(appendedItems);
+          } catch {
+            break;
+          }
         }
+
         return {
-          platform: 'External Link',
+          platform: 'YouTube',
           name: title,
           coverUrl: queries[0]?.videoId
             ? `https://i.ytimg.com/vi/${queries[0].videoId}/hqdefault.jpg`
@@ -611,6 +779,39 @@ async function importExternalPlaylist(playlistUrl) {
         };
       }
     }
+  }
+
+  // 3. JioSaavn Featured Playlist or Album Link
+  if (playlistUrl.includes('jiosaavn.com')) {
+    try {
+      const tokenMatch = playlistUrl.match(/\/(featured|album|s\/playlist)\/[^/]+\/([^/?#]+)/);
+      const token = tokenMatch ? tokenMatch[2] : playlistUrl.split('/').filter(Boolean).pop();
+      const type = playlistUrl.includes('/album/') ? 'album' : 'playlist';
+      if (token) {
+        const saavnApi = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(token)}&type=${type}&p=1&n=500&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0`;
+        const sr = await fetch(saavnApi, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+        if (sr.ok) {
+          const sdata = await sr.json();
+          const list = sdata?.list || sdata?.songs || [];
+          if (Array.isArray(list) && list.length > 0) {
+            const queries = list.map((item) => ({
+              title: (item.title || item.song || '').replace(/&quot;/g, '"'),
+              artist: (item.more_info?.artistMap?.primary_artists?.[0]?.name || item.subtitle || '').replace(/&quot;/g, '"')
+            }));
+            return {
+              platform: 'JioSaavn',
+              name: (sdata.title || sdata.listname || 'Imported Saavn Playlist').replace(/&quot;/g, '"'),
+              coverUrl: (sdata.image || '').replace('150x150', '500x500'),
+              queries
+            };
+          }
+        }
+      }
+    } catch {}
   }
 
   return { error: 'Could not parse playlist link. Make sure the playlist is public.' };

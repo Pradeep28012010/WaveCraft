@@ -21,28 +21,8 @@ interface CommandAction {
 }
 
 export default function CommandPalette() {
-  const navigate = useNavigate();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState('');
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [trackResults, setTrackResults] = useState<Track[]>([]);
-  const [isSearchingTracks, setIsSearchingTracks] = useState(false);
-
-  const {
-    isCommandPaletteOpen,
-    fxMode,
-    ambientVolumes,
-    setCommandPaletteOpen,
-    setStudioModalOpen,
-    setFxMode,
-    setAmbientVolume,
-    stopAllAmbient,
-    startPomodoro
-  } = useStudioStore();
-
-  const playTrack = usePlayerStore((s) => s.playTrack);
-  const togglePlay = usePlayerStore((s) => s.togglePlay);
-  const nextTrack = usePlayerStore((s) => s.nextTrack);
+  const isCommandPaletteOpen = useStudioStore((s) => s.isCommandPaletteOpen);
+  const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
 
   // Global Ctrl+K / Cmd+K shortcut listener
   useEffect(() => {
@@ -58,19 +38,47 @@ export default function CommandPalette() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [setCommandPaletteOpen]);
 
-  // Focus input when opened
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <AnimatePresence>
+      {isCommandPaletteOpen && (
+        <CommandPaletteDialog onClose={() => setCommandPaletteOpen(false)} />
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+}
+
+function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [trackResults, setTrackResults] = useState<Track[]>([]);
+  const [isSearchingTracks, setIsSearchingTracks] = useState(false);
+
+  const fxMode = useStudioStore((s) => s.fxMode);
+  const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
+  const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
+  const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
+  const setFxMode = useStudioStore((s) => s.setFxMode);
+  const setAmbientVolume = useStudioStore((s) => s.setAmbientVolume);
+  const stopAllAmbient = useStudioStore((s) => s.stopAllAmbient);
+  const startPomodoro = useStudioStore((s) => s.startPomodoro);
+
+  const togglePlay = usePlayerStore((s) => s.togglePlay);
+  const nextTrack = usePlayerStore((s) => s.nextTrack);
+
+  // Focus input when mounted
   useEffect(() => {
-    if (isCommandPaletteOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      setTrackResults([]);
-      setTimeout(() => inputRef.current?.focus(), 40);
-    }
-  }, [isCommandPaletteOpen]);
+    const t = setTimeout(() => inputRef.current?.focus(), 30);
+    return () => clearTimeout(t);
+  }, []);
 
   // Live song search when typing > 2 chars
   useEffect(() => {
-    if (!isCommandPaletteOpen || query.trim().length < 2) {
+    if (query.trim().length < 2) {
       setTrackResults([]);
       setIsSearchingTracks(false);
       return;
@@ -89,7 +97,7 @@ export default function CommandPalette() {
     }, 220);
 
     return () => clearTimeout(timer);
-  }, [query, isCommandPaletteOpen]);
+  }, [query]);
 
   const actions: CommandAction[] = useMemo(
     () => [
@@ -313,181 +321,176 @@ export default function CommandPalette() {
     }
   };
 
-  if (typeof document === 'undefined') return null;
-
-  return createPortal(
-    <AnimatePresence>
-      {isCommandPaletteOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => setCommandPaletteOpen(false)}
-          className="fixed inset-0 z-[9995] flex items-start justify-center pt-[11vh] px-4 bg-black/75 backdrop-blur-2xl select-none"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.94, y: -16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: -16 }}
-            transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl rounded-3xl liquid-glass border border-white/25 shadow-[0_30px_100px_rgba(0,0,0,0.9)] overflow-hidden text-white"
+  return (
+    <div className="fixed inset-0 z-[9995] flex items-start justify-center pt-[11vh] px-4 select-none">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+        onClick={onClose}
+        className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: -10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: -10 }}
+        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative z-10 w-full max-w-2xl rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 overflow-hidden text-white"
+      >
+        {/* Search Input Header */}
+        <div className="flex items-center gap-3.5 px-5 py-4 border-b border-white/12 bg-black/30">
+          <svg
+            className="w-5 h-5 text-[var(--color-accent)] flex-shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
           >
-            {/* Search Input Header */}
-            <div className="flex items-center gap-3.5 px-5 py-4 border-b border-white/12 bg-black/30">
-              <svg
-                className="w-5 h-5 text-[var(--color-accent)] flex-shrink-0"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setSelectedIndex(0);
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder="Play any song, toggle Slowed + Reverb, 8D Orbit, Rain, or Focus Timer..."
-                className="flex-1 bg-transparent text-sm sm:text-base font-medium text-white placeholder-white/40 focus:outline-none"
-              />
-              {isSearchingTracks && (
-                <div className="w-4 h-4 border-2 border-white/20 border-t-[var(--color-accent)] rounded-full animate-spin" />
-              )}
-              <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-bold text-white/50">
-                ESC
-              </span>
-            </div>
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Play any song, toggle Slowed + Reverb, 8D Orbit, Rain, or Focus Timer..."
+            className="flex-1 bg-transparent text-sm sm:text-base font-medium text-white placeholder-white/40 focus:outline-none"
+          />
+          {isSearchingTracks && (
+            <div className="w-4 h-4 border-2 border-white/20 border-t-[var(--color-accent)] rounded-full animate-spin" />
+          )}
+          <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-bold text-white/50">
+            ESC
+          </span>
+        </div>
 
-            {/* Results List */}
-            <div className="max-h-[60vh] overflow-y-auto p-2.5 no-scrollbar space-y-3">
-              {/* Instant Playable Song Matches */}
-              {trackResults.length > 0 && (
-                <div>
-                  <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[var(--color-accent)]">
-                    Instant Play • 320kbps Studio Tracks
-                  </div>
-                  <div className="space-y-1 mt-1">
-                    {trackResults.map((track, idx) => {
-                      const active = selectedIndex === idx;
-                      return (
-                        <div
-                          key={track.id}
-                          onMouseEnter={() => setSelectedIndex(idx)}
-                          onClick={() => {
-                            unlockAudioEngine();
-                            playTrackWithSmartQueue(track);
-                            setCommandPaletteOpen(false);
-                          }}
-                          className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl cursor-pointer transition-colors ${
-                            active ? 'bg-white/15 border border-white/20' : 'hover:bg-white/10 border border-transparent'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <img
-                              src={track.thumbnail || DEFAULT_THUMBNAIL}
-                              alt={track.title}
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                              }}
-                              className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <div className="text-sm font-bold text-white truncate">
-                                {track.title}
-                              </div>
-                              <div className="text-xs text-white/55 truncate">{track.artist}</div>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-full bg-[var(--color-accent)] text-white text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0">
-                            ▶ Play Now
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Studio Commands & Quick Actions */}
-              {filteredActions.length > 0 && (
-                <div>
-                  <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white/45">
-                    Studio Actions & Audio FX
-                  </div>
-                  <div className="space-y-1 mt-1">
-                    {filteredActions.map((action, i) => {
-                      const globalIdx = trackResults.length + i;
-                      const active = selectedIndex === globalIdx;
-                      return (
-                        <div
-                          key={action.id}
-                          onMouseEnter={() => setSelectedIndex(globalIdx)}
-                          onClick={() => {
-                            action.run();
-                            setCommandPaletteOpen(false);
-                          }}
-                          className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl cursor-pointer transition-colors ${
-                            active ? 'bg-white/15 border border-white/20' : 'hover:bg-white/10 border border-transparent'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-white/[0.07] border border-white/10 flex items-center justify-center text-base flex-shrink-0">
-                              {action.icon}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-sm font-bold text-white truncate">
-                                {action.title}
-                              </div>
-                              <div className="text-xs text-white/50 truncate">
-                                {action.subtitle}
-                              </div>
-                            </div>
-                          </div>
-                          {action.badge && (
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0 ${
-                                action.badge === 'ACTIVE' || action.badge === 'ON'
-                                  ? 'bg-emerald-400 text-black'
-                                  : 'bg-white/10 text-white/75'
-                              }`}
-                            >
-                              {action.badge}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {totalItems === 0 && !isSearchingTracks && (
-                <div className="py-10 text-center text-sm text-white/45">
-                  No matching commands or songs found for "{query}".
-                </div>
-              )}
-            </div>
-
-            {/* Footer Hints */}
-            <div className="px-5 py-2.5 border-t border-white/10 bg-black/35 flex items-center justify-between text-[11px] text-white/45">
-              <div className="flex items-center gap-3">
-                <span>↑↓ Navigate</span>
-                <span>↵ Execute / Play</span>
-                <span>ESC Close</span>
+        {/* Results List */}
+        <div className="max-h-[60vh] overflow-y-auto p-2.5 no-scrollbar space-y-3">
+          {/* Instant Playable Song Matches */}
+          {trackResults.length > 0 && (
+            <div>
+              <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[var(--color-accent)]">
+                Instant Play • 320kbps Studio Tracks
               </div>
-              <span className="font-semibold text-white/60">WaveCraft Spotlight • Ctrl+K</span>
+              <div className="space-y-1 mt-1">
+                {trackResults.map((track, idx) => {
+                  const active = selectedIndex === idx;
+                  return (
+                    <div
+                      key={track.id}
+                      onMouseEnter={() => setSelectedIndex(idx)}
+                      onClick={() => {
+                        unlockAudioEngine();
+                        playTrackWithSmartQueue(track);
+                        setCommandPaletteOpen(false);
+                      }}
+                      className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl cursor-pointer transition-colors ${
+                        active ? 'bg-white/15 border border-white/20' : 'hover:bg-white/10 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={track.thumbnail || DEFAULT_THUMBNAIL}
+                          alt={track.title}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                          }}
+                          className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold text-white truncate">
+                            {track.title}
+                          </div>
+                          <div className="text-xs text-white/55 truncate">{track.artist}</div>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-[var(--color-accent)] text-white text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0">
+                        ▶ Play Now
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body
+          )}
+
+          {/* Studio Commands & Quick Actions */}
+          {filteredActions.length > 0 && (
+            <div>
+              <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white/45">
+                Studio Actions & Audio FX
+              </div>
+              <div className="space-y-1 mt-1">
+                {filteredActions.map((action, i) => {
+                  const globalIdx = trackResults.length + i;
+                  const active = selectedIndex === globalIdx;
+                  return (
+                    <div
+                      key={action.id}
+                      onMouseEnter={() => setSelectedIndex(globalIdx)}
+                      onClick={() => {
+                        action.run();
+                        setCommandPaletteOpen(false);
+                      }}
+                      className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl cursor-pointer transition-colors ${
+                        active ? 'bg-white/15 border border-white/20' : 'hover:bg-white/10 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-white/[0.07] border border-white/10 flex items-center justify-center text-base flex-shrink-0">
+                          {action.icon}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold text-white truncate">
+                            {action.title}
+                          </div>
+                          <div className="text-xs text-white/50 truncate">
+                            {action.subtitle}
+                          </div>
+                        </div>
+                      </div>
+                      {action.badge && (
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0 ${
+                            action.badge === 'ACTIVE' || action.badge === 'ON'
+                              ? 'bg-emerald-400 text-black'
+                              : 'bg-white/10 text-white/75'
+                          }`}
+                        >
+                          {action.badge}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {totalItems === 0 && !isSearchingTracks && (
+            <div className="py-10 text-center text-sm text-white/45">
+              No matching commands or songs found for "{query}".
+            </div>
+          )}
+        </div>
+
+        {/* Footer Hints */}
+        <div className="px-5 py-2.5 border-t border-white/10 bg-black/35 flex items-center justify-between text-[11px] text-white/45">
+          <div className="flex items-center gap-3">
+            <span>↑↓ Navigate</span>
+            <span>↵ Execute / Play</span>
+            <span>ESC Close</span>
+          </div>
+          <span className="font-semibold text-white/60">WaveCraft Spotlight • Ctrl+K</span>
+        </div>
+      </motion.div>
+    </div>
   );
 }

@@ -86,6 +86,12 @@ const Visualizer = memo(
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        if (typeof document !== 'undefined' && document.hidden) {
+          lastTimeRef.current = now;
+          requestRef.current = requestAnimationFrame(draw);
+          return;
+        }
+
         const width = canvas.width;
         const height = canvas.height;
         if (width === 0 || height === 0) {
@@ -143,10 +149,14 @@ const Visualizer = memo(
         const c1 = colors[1] || '#8b5cf6';
         const c2 = colors[2] || '#06b6d4';
 
-        const gradient = ctx.createLinearGradient(0, 0, width, height);
-        gradient.addColorStop(0, c0);
-        gradient.addColorStop(0.5, c1);
-        gradient.addColorStop(1, c2);
+        let gradient: string | CanvasGradient = c0;
+        if (style === 'bars' || style === 'wave' || style === 'blob' || style === 'circular') {
+          const lin = ctx.createLinearGradient(0, 0, width, height);
+          lin.addColorStop(0, c0);
+          lin.addColorStop(0.5, c1);
+          lin.addColorStop(1, c2);
+          gradient = lin;
+        }
 
         if (style === 'starfield') {
           const cx = width / 2;
@@ -448,7 +458,7 @@ const Visualizer = memo(
     }, [draw]);
 
     const containerClasses = fullScreen
-      ? 'fixed inset-0 z-40 bg-black/80 flex items-center justify-center gpu-layer'
+      ? 'absolute inset-0 w-full h-full pointer-events-none'
       : 'relative w-full h-full min-h-[200px] bg-white/5 dark:bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden gpu-layer';
 
     return (

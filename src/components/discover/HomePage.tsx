@@ -63,7 +63,7 @@ const HorizontalScroll = ({
       </div>
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 pt-1 px-1"
+        className="flex gap-5 overflow-x-auto no-scrollbar pt-4 pb-6 px-5 -mx-5 -mt-2"
       >
         {children}
       </div>
@@ -155,7 +155,7 @@ export default function HomePage() {
             <p className="text-white/65 text-sm sm:text-base mt-3 leading-relaxed">
               Stream full-length songs in 320kbps studio quality with spatial glass aesthetics, time-synced lyrics, real-time audio visualizers, and zero ads.
             </p>
-            <div className="flex flex-wrap items-center gap-3.5 mt-6">
+            <div className="flex flex-wrap items-center gap-3 mt-6">
               <button
                 onClick={() => {
                   if (trendingTracks.length > 0) {
@@ -164,7 +164,7 @@ export default function HomePage() {
                     handlePlayMood('hero', 'top global hits');
                   }
                 }}
-                className="px-6 py-3 rounded-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold text-sm flex items-center gap-2.5 shadow-xl shadow-[var(--color-accent)]/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                className="px-6 py-3 rounded-full glass-button-primary text-white font-bold text-sm flex items-center gap-2.5 cursor-pointer"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
@@ -174,14 +174,14 @@ export default function HomePage() {
 
               <button
                 onClick={() => navigate('/vibe')}
-                className="px-5 py-3 rounded-full liquid-glass border border-white/20 text-sm font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-2"
+                className="px-5 py-3 rounded-full glass-button text-sm font-bold text-white flex items-center gap-2 cursor-pointer"
               >
                 <span>✨ AI Vibe DJ</span>
               </button>
 
               <button
                 onClick={() => navigate('/jam')}
-                className="px-5 py-3 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30 text-sm font-bold text-emerald-300 transition-all cursor-pointer flex items-center gap-2"
+                className="px-5 py-3 rounded-full glass-button-emerald text-sm font-bold flex items-center gap-2 cursor-pointer"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                 <span>Live Jam Room</span>
@@ -189,7 +189,7 @@ export default function HomePage() {
 
               <button
                 onClick={() => useStudioStore.getState().setStudioModalOpen(true)}
-                className="px-5 py-3 rounded-full bg-purple-500/15 hover:bg-purple-500/25 border border-purple-400/30 text-sm font-bold text-purple-200 transition-all cursor-pointer flex items-center gap-2"
+                className="px-5 py-3 rounded-full glass-button-purple text-sm font-bold flex items-center gap-2 cursor-pointer"
               >
                 <span>🎛️ Studio FX & Ambient Focus</span>
               </button>
@@ -234,7 +234,7 @@ export default function HomePage() {
                 key={`${track.id}-${i}`}
                 padding="sm"
                 hover
-                className="min-w-[175px] max-w-[175px] flex-shrink-0 snap-start group cursor-pointer"
+                className="min-w-[175px] max-w-[175px] flex-shrink-0 snap-start group cursor-pointer hover:border-white/25 transition-colors duration-300"
                 onClick={() =>
                   playTrack(
                     track,
@@ -243,22 +243,22 @@ export default function HomePage() {
                   )
                 }
               >
-                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5">
+                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5 shadow-md">
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                     alt={track.title}
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
                   />
-                  <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="w-11 h-11 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-lg">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
                       <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
                   </div>
                 </div>
-                <h3 className="font-bold text-sm truncate text-white">{track.title}</h3>
+                <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{track.title}</h3>
                 <p className="text-xs text-white/55 truncate mt-0.5">{track.artist}</p>
               </GlassCard>
             );
@@ -282,12 +282,12 @@ export default function HomePage() {
               key={mood.id}
               padding="md"
               hover
-              className={`min-w-[215px] max-w-[215px] flex-shrink-0 snap-start cursor-pointer relative overflow-hidden ${mood.colorClass}`}
+              className={`min-w-[215px] max-w-[215px] flex-shrink-0 snap-start cursor-pointer relative overflow-hidden group ${mood.colorClass}`}
               onClick={() => handlePlayMood(mood.id, mood.query || mood.searchQuery)}
             >
               <div className="flex items-center justify-between mb-4">
-                <span className="text-4xl drop-shadow">{mood.emoji}</span>
-                <div className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center text-white">
+                <span className="text-4xl drop-shadow group-hover:scale-110 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">{mood.emoji}</span>
+                <div className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-white/25 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
                   {isMoodLoading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
@@ -321,27 +321,27 @@ export default function HomePage() {
                 key={album.id}
                 padding="sm"
                 hover
-                className="min-w-[180px] max-w-[180px] flex-shrink-0 snap-start group cursor-pointer"
+                className="min-w-[180px] max-w-[180px] flex-shrink-0 snap-start group cursor-pointer hover:border-white/25 transition-colors duration-300"
                 onClick={() =>
                   navigate(`/search?q=${encodeURIComponent(`${album.title || album.name} ${album.artist}`)}`)
                 }
               >
-                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5">
+                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5 shadow-md">
                   <img
                     src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                     alt={album.title || album.name}
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
                   />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="w-11 h-11 rounded-full bg-white/25 backdrop-blur-md text-white flex items-center justify-center">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-full bg-white/25 backdrop-blur-md text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
                       <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
                   </div>
                 </div>
-                <h3 className="font-bold text-sm truncate text-white">{album.title || album.name}</h3>
+                <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{album.title || album.name}</h3>
                 <p className="text-xs text-white/55 truncate mt-0.5">{album.artist}</p>
               </GlassCard>
             ))}

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { usePlayerStore } from './playerStore';
+import { setAmbientLayerVolume, stopAllAmbientLayers } from '../services/ambientSynth';
 
 export type StudioFXMode =
   | 'normal'
@@ -7,14 +8,17 @@ export type StudioFXMode =
   | 'nightcore'
   | '8d-orbit'
   | 'bass-cinema'
-  | 'vocal-stage';
+  | 'vocal-stage'
+  | 'lofi-tape'
+  | 'arena-live';
 
-export type AmbientLayerId = 'rain' | 'vinyl' | 'waves' | 'binaural';
+export type AmbientLayerId = 'rain' | 'vinyl' | 'waves' | 'binaural' | 'campfire' | 'cafe';
 
 export interface StudioFXInfo {
   id: StudioFXMode;
   name: string;
   badge: string;
+  icon: string;
   description: string;
   accent: string;
 }
@@ -24,43 +28,65 @@ export const STUDIO_FX_MODES: StudioFXInfo[] = [
     id: 'normal',
     name: 'Studio Master',
     badge: '320K FLAT',
-    description: 'Bit-accurate 320kbps studio reference audio with zero coloration.',
+    icon: '💎',
+    description: 'Bit-accurate 320kbps studio reference audio with zero coloration and pure dynamic headroom.',
     accent: 'from-emerald-500 to-teal-600'
+  },
+  {
+    id: '8d-orbit',
+    name: '3D Spatial Audio',
+    badge: '360° HRTF',
+    icon: '🪐',
+    description: 'True 360° HRTF binaural soundstage revolving around your head with centered sub-bass and dome acoustics.',
+    accent: 'from-cyan-500 to-blue-600'
   },
   {
     id: 'slowed-reverb',
     name: 'Slowed + Reverb',
-    badge: '0.86x TAPE',
-    description: 'Analog pitch-dropped 0.86x speed drenched in lush stereo hall reverb.',
+    badge: '0.88x HALL',
+    icon: '🌊',
+    description: 'Warm 0.88x analog tape drift paired with lush 32-bit stereo convolution cathedral reverb.',
     accent: 'from-purple-500 to-indigo-600'
-  },
-  {
-    id: '8d-orbit',
-    name: '8D Spatial Orbit',
-    badge: '360° PAN',
-    description: 'Orbits the audio smoothly in a 360° circle around your left and right ears.',
-    accent: 'from-cyan-500 to-blue-600'
-  },
-  {
-    id: 'nightcore',
-    name: 'Nightcore Rush',
-    badge: '1.22x UP',
-    description: 'High-energy 1.22x pitch & tempo boost with crystalline treble sparkle.',
-    accent: 'from-pink-500 to-rose-600'
   },
   {
     id: 'bass-cinema',
     name: 'Sub-Bass Cinema',
-    badge: '+8dB SUB',
-    description: 'Deep theater sub-bass punch at 32Hz–64Hz with crisp studio highs.',
+    badge: 'DEEP SUB',
+    icon: '🔊',
+    description: 'Deep theater sub-bass punch at 32Hz–64Hz with brickwall headroom limiting and crisp highs.',
     accent: 'from-amber-500 to-red-600'
   },
   {
+    id: 'nightcore',
+    name: 'Nightcore Rush',
+    badge: '1.18x UP',
+    icon: '⚡',
+    description: 'High-energy 1.18x tempo & pitch lift with silky studio treble air and zero harshness.',
+    accent: 'from-pink-500 to-rose-600'
+  },
+  {
     id: 'vocal-stage',
-    name: 'Karaoke Stage',
-    badge: 'SING-ALONG',
-    description: 'Mid-scoop instrumental stage tuning paired with fullscreen synced lyrics.',
+    name: 'Vocal Stage HD',
+    badge: 'CLARITY',
+    icon: '🎙️',
+    description: 'Front-row lead vocal presence boost with studio plate ambiance and silky harmonic air.',
     accent: 'from-fuchsia-500 to-purple-600'
+  },
+  {
+    id: 'lofi-tape',
+    name: 'Lo-Fi Analog Tape',
+    badge: 'WARM TAPE',
+    icon: '📼',
+    description: 'Relaxed 0.96x vintage cassette warmth with tube saturation, gentle high roll-off, and cozy room tone.',
+    accent: 'from-orange-400 to-amber-600'
+  },
+  {
+    id: 'arena-live',
+    name: 'Live Concert Arena',
+    badge: 'STADIUM 3D',
+    icon: '🏟️',
+    description: 'Expansive stadium acoustic reflection field with wide binaural Haas imaging and live kick punch.',
+    accent: 'from-blue-500 to-indigo-600'
   }
 ];
 
@@ -91,194 +117,41 @@ export const AMBIENT_LAYERS: Array<{
   {
     id: 'binaural',
     name: '40Hz Deep Focus',
-    subtitle: 'Binaural study pad',
+    subtitle: 'Gamma binaural study pad',
     icon: '🧠'
+  },
+  {
+    id: 'campfire',
+    name: 'Cozy Campfire',
+    subtitle: 'Crackling hearth embers',
+    icon: '🔥'
+  },
+  {
+    id: 'cafe',
+    name: 'Midnight Cafe',
+    subtitle: 'Warm acoustic study room',
+    icon: '☕'
   }
 ];
 
-// Procedural Web Audio Ambient Synthesizer
-let ambientCtx: AudioContext | null = null;
-const activeLayerNodes = new Map<
-  AmbientLayerId,
-  { gain: GainNode; cleanup: () => void }
->();
-
-function getAmbientContext(): AudioContext {
-  if (!ambientCtx) {
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    ambientCtx = new Ctx();
-  }
-  if (ambientCtx.state === 'suspended') {
-    ambientCtx.resume().catch(() => {});
-  }
-  return ambientCtx;
-}
-
-function createNoiseBuffer(ctx: AudioContext, type: 'pink' | 'vinyl' | 'brown'): AudioBuffer {
-  const bufferSize = ctx.sampleRate * 4;
-  const buffer = ctx.createBuffer(2, bufferSize, ctx.sampleRate);
-
-  for (let ch = 0; ch < 2; ch++) {
-    const out = buffer.getChannelData(ch);
-    if (type === 'pink') {
-      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-      for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        b0 = 0.99886 * b0 + white * 0.0555179;
-        b1 = 0.99332 * b1 + white * 0.0750759;
-        b2 = 0.96900 * b2 + white * 0.1538520;
-        b3 = 0.86650 * b3 + white * 0.3104856;
-        b4 = 0.55000 * b4 + white * 0.5329522;
-        b5 = -0.7616 * b5 - white * 0.0168980;
-        out[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.035;
-        b6 = white * 0.115926;
-      }
-    } else if (type === 'brown') {
-      let lastOut = 0.0;
-      for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        out[i] = (lastOut + 0.02 * white) / 1.02;
-        lastOut = out[i];
-        out[i] *= 0.18;
-      }
-    } else {
-      let last = 0;
-      for (let i = 0; i < bufferSize; i++) {
-        const white = (Math.random() * 2 - 1) * 0.012;
-        last = (last + 0.04 * white) / 1.04;
-        const pop = Math.random() > 0.9988 ? (Math.random() * 2 - 1) * 0.45 : 0;
-        out[i] = last + pop;
-      }
-    }
-  }
-  return buffer;
-}
-
-function startAmbientLayer(id: AmbientLayerId, volume: number) {
-  const ctx = getAmbientContext();
-  const masterGain = ctx.createGain();
-  masterGain.gain.value = Math.max(0, Math.min(1, volume * 0.55));
-  masterGain.connect(ctx.destination);
-
-  if (id === 'rain') {
-    const src = ctx.createBufferSource();
-    src.buffer = createNoiseBuffer(ctx, 'pink');
-    src.loop = true;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = 1100;
-    filter.Q.value = 0.65;
-
-    src.connect(filter);
-    filter.connect(masterGain);
-    src.start();
-
-    activeLayerNodes.set(id, {
-      gain: masterGain,
-      cleanup: () => {
-        try {
-          src.stop();
-          src.disconnect();
-          masterGain.disconnect();
-        } catch {}
-      }
-    });
-  } else if (id === 'vinyl') {
-    const src = ctx.createBufferSource();
-    src.buffer = createNoiseBuffer(ctx, 'vinyl');
-    src.loop = true;
-
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 550;
-
-    src.connect(hp);
-    hp.connect(masterGain);
-    src.start();
-
-    activeLayerNodes.set(id, {
-      gain: masterGain,
-      cleanup: () => {
-        try {
-          src.stop();
-          src.disconnect();
-          masterGain.disconnect();
-        } catch {}
-      }
-    });
-  } else if (id === 'waves') {
-    const src = ctx.createBufferSource();
-    src.buffer = createNoiseBuffer(ctx, 'brown');
-    src.loop = true;
-
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = 360;
-
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.11;
-    lfoGain.gain.value = 260;
-    lfo.connect(lfoGain);
-    lfoGain.connect(lp.frequency);
-
-    src.connect(lp);
-    lp.connect(masterGain);
-    src.start();
-    lfo.start();
-
-    activeLayerNodes.set(id, {
-      gain: masterGain,
-      cleanup: () => {
-        try {
-          src.stop();
-          lfo.stop();
-          src.disconnect();
-          masterGain.disconnect();
-        } catch {}
-      }
-    });
-  } else if (id === 'binaural') {
-    const oscL = ctx.createOscillator();
-    const oscR = ctx.createOscillator();
-    const panL = ctx.createStereoPanner();
-    const panR = ctx.createStereoPanner();
-
-    oscL.type = 'sine';
-    oscR.type = 'sine';
-    oscL.frequency.value = 200;
-    oscR.frequency.value = 240;
-    panL.pan.value = -0.75;
-    panR.pan.value = 0.75;
-
-    const padGain = ctx.createGain();
-    padGain.gain.value = 0.16;
-
-    oscL.connect(panL);
-    oscR.connect(panR);
-    panL.connect(padGain);
-    panR.connect(padGain);
-    padGain.connect(masterGain);
-
-    oscL.start();
-    oscR.start();
-
-    activeLayerNodes.set(id, {
-      gain: masterGain,
-      cleanup: () => {
-        try {
-          oscL.stop();
-          oscR.stop();
-          masterGain.disconnect();
-        } catch {}
-      }
-    });
-  }
-}
+export type VocalStemMode = 'normal' | 'karaoke' | 'acapella';
 
 interface StudioState {
   fxMode: StudioFXMode;
+  vocalMode: VocalStemMode;
+  spatialOrbitAuto: boolean;
+  spatialOrbitSpeed: number;
+  spatialRoomSize: number;
+  spatialManualPos: { x: number; z: number };
+
+  // Real-Time Mastering Rack Custom Controls
+  subBassBoost: number; // 0 to +9 dB
+  harmonicDrive: number; // 0 to 1 (Analog Tube Warmth)
+  stereoWidth: number; // 0 to 1 (Binaural Haas Widener)
+  reverbMix: number; // 0 to 0.75 (Convolution Hall Wet Mix)
+  trebleAir: number; // -6 to +6 dB (11kHz Silk Air / Lo-Fi Cut)
+  preservePitch: boolean; // True = time-stretch only, False = analog tape pitch+speed shift
+
   ambientVolumes: Record<AmbientLayerId, number>;
   isStudioModalOpen: boolean;
   isCommandPaletteOpen: boolean;
@@ -296,7 +169,22 @@ interface StudioState {
   sleepEndAtTrack: boolean;
 
   setFxMode: (mode: StudioFXMode) => void;
+  setVocalMode: (mode: VocalStemMode) => void;
+  setSpatialOrbitAuto: (auto: boolean) => void;
+  setSpatialOrbitSpeed: (speed: number) => void;
+  setSpatialRoomSize: (size: number) => void;
+  setSpatialManualPos: (pos: { x: number; z: number }) => void;
+
+  setSubBassBoost: (db: number) => void;
+  setHarmonicDrive: (drive: number) => void;
+  setStereoWidth: (width: number) => void;
+  setReverbMix: (mix: number) => void;
+  setTrebleAir: (db: number) => void;
+  setPreservePitch: (preserve: boolean) => void;
+  resetMasteringRack: () => void;
+
   setAmbientVolume: (id: AmbientLayerId, volume: number) => void;
+  applyAmbientPreset: (preset: Partial<Record<AmbientLayerId, number>>) => void;
   stopAllAmbient: () => void;
   setStudioModalOpen: (open: boolean) => void;
   setCommandPaletteOpen: (open: boolean) => void;
@@ -311,13 +199,137 @@ interface StudioState {
   tickSleepTimer: () => void;
 }
 
+const STUDIO_PREFS_KEY = 'wavecraft_studio_prefs_v1';
+
+interface PersistedStudioPrefs {
+  fxMode: StudioFXMode;
+  vocalMode: VocalStemMode;
+  spatialOrbitAuto: boolean;
+  spatialOrbitSpeed: number;
+  spatialRoomSize: number;
+  spatialManualPos: { x: number; z: number };
+  subBassBoost: number;
+  harmonicDrive: number;
+  stereoWidth: number;
+  reverbMix: number;
+  trebleAir: number;
+  preservePitch: boolean;
+}
+
+function loadStudioPrefsSync(): PersistedStudioPrefs {
+  const defaults: PersistedStudioPrefs = {
+    fxMode: 'normal',
+    vocalMode: 'normal',
+    spatialOrbitAuto: true,
+    spatialOrbitSpeed: 0.145,
+    spatialRoomSize: 0.26,
+    spatialManualPos: { x: 0.65, z: -0.55 },
+    subBassBoost: 0,
+    harmonicDrive: 0,
+    stereoWidth: 0,
+    reverbMix: 0,
+    trebleAir: 0,
+    preservePitch: true
+  };
+  try {
+    const raw = localStorage.getItem(STUDIO_PREFS_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Partial<PersistedStudioPrefs>;
+    return {
+      fxMode: parsed.fxMode || defaults.fxMode,
+      vocalMode: parsed.vocalMode || defaults.vocalMode,
+      spatialOrbitAuto:
+        typeof parsed.spatialOrbitAuto === 'boolean'
+          ? parsed.spatialOrbitAuto
+          : defaults.spatialOrbitAuto,
+      spatialOrbitSpeed:
+        typeof parsed.spatialOrbitSpeed === 'number'
+          ? parsed.spatialOrbitSpeed
+          : defaults.spatialOrbitSpeed,
+      spatialRoomSize:
+        typeof parsed.spatialRoomSize === 'number'
+          ? parsed.spatialRoomSize
+          : defaults.spatialRoomSize,
+      spatialManualPos:
+        parsed.spatialManualPos &&
+        typeof parsed.spatialManualPos.x === 'number' &&
+        typeof parsed.spatialManualPos.z === 'number'
+          ? parsed.spatialManualPos
+          : defaults.spatialManualPos,
+      subBassBoost: typeof parsed.subBassBoost === 'number' ? parsed.subBassBoost : 0,
+      harmonicDrive: typeof parsed.harmonicDrive === 'number' ? parsed.harmonicDrive : 0,
+      stereoWidth: typeof parsed.stereoWidth === 'number' ? parsed.stereoWidth : 0,
+      reverbMix: typeof parsed.reverbMix === 'number' ? parsed.reverbMix : 0,
+      trebleAir: typeof parsed.trebleAir === 'number' ? parsed.trebleAir : 0,
+      preservePitch: typeof parsed.preservePitch === 'boolean' ? parsed.preservePitch : true
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+let pendingStudioState: StudioState | null = null;
+let studioSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushStudioPrefs(): void {
+  if (!pendingStudioState) return;
+  const state = pendingStudioState;
+  pendingStudioState = null;
+  if (studioSaveTimer) {
+    clearTimeout(studioSaveTimer);
+    studioSaveTimer = null;
+  }
+  try {
+    const payload: PersistedStudioPrefs = {
+      fxMode: state.fxMode,
+      vocalMode: state.vocalMode,
+      spatialOrbitAuto: state.spatialOrbitAuto,
+      spatialOrbitSpeed: state.spatialOrbitSpeed,
+      spatialRoomSize: state.spatialRoomSize,
+      spatialManualPos: state.spatialManualPos,
+      subBassBoost: state.subBassBoost,
+      harmonicDrive: state.harmonicDrive,
+      stereoWidth: state.stereoWidth,
+      reverbMix: state.reverbMix,
+      trebleAir: state.trebleAir,
+      preservePitch: state.preservePitch
+    };
+    localStorage.setItem(STUDIO_PREFS_KEY, JSON.stringify(payload));
+  } catch {}
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushStudioPrefs);
+}
+
+function saveStudioPrefsSync(state: StudioState): void {
+  pendingStudioState = state;
+  if (studioSaveTimer) clearTimeout(studioSaveTimer);
+  studioSaveTimer = setTimeout(flushStudioPrefs, 120);
+}
+
+const initialStudioPrefs = loadStudioPrefsSync();
+
 export const useStudioStore = create<StudioState>((set, get) => ({
-  fxMode: 'normal',
+  fxMode: initialStudioPrefs.fxMode,
+  vocalMode: initialStudioPrefs.vocalMode,
+  spatialOrbitAuto: initialStudioPrefs.spatialOrbitAuto,
+  spatialOrbitSpeed: initialStudioPrefs.spatialOrbitSpeed,
+  spatialRoomSize: initialStudioPrefs.spatialRoomSize,
+  spatialManualPos: initialStudioPrefs.spatialManualPos,
+  subBassBoost: initialStudioPrefs.subBassBoost,
+  harmonicDrive: initialStudioPrefs.harmonicDrive,
+  stereoWidth: initialStudioPrefs.stereoWidth,
+  reverbMix: initialStudioPrefs.reverbMix,
+  trebleAir: initialStudioPrefs.trebleAir,
+  preservePitch: initialStudioPrefs.preservePitch,
   ambientVolumes: {
     rain: 0,
     vinyl: 0,
     waves: 0,
-    binaural: 0
+    binaural: 0,
+    campfire: 0,
+    cafe: 0
   },
   isStudioModalOpen: false,
   isCommandPaletteOpen: false,
@@ -332,39 +344,100 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   sleepTotalSeconds: 0,
   sleepEndAtTrack: false,
 
-  setFxMode: (fxMode) => set({ fxMode }),
+  setFxMode: (fxMode) => {
+    set({ fxMode });
+    saveStudioPrefsSync(get());
+  },
+  setVocalMode: (vocalMode) => {
+    set({ vocalMode });
+    saveStudioPrefsSync(get());
+  },
+  setSpatialOrbitAuto: (spatialOrbitAuto) => {
+    set({ spatialOrbitAuto });
+    saveStudioPrefsSync(get());
+  },
+  setSpatialOrbitSpeed: (spatialOrbitSpeed) => {
+    set({ spatialOrbitSpeed: Math.max(0.04, Math.min(0.4, spatialOrbitSpeed)) });
+    saveStudioPrefsSync(get());
+  },
+  setSpatialRoomSize: (spatialRoomSize) => {
+    set({ spatialRoomSize: Math.max(0, Math.min(0.65, spatialRoomSize)) });
+    saveStudioPrefsSync(get());
+  },
+  setSpatialManualPos: (spatialManualPos) => {
+    set({
+      spatialManualPos: {
+        x: Math.max(-1, Math.min(1, spatialManualPos.x)),
+        z: Math.max(-1, Math.min(1, spatialManualPos.z))
+      }
+    });
+    saveStudioPrefsSync(get());
+  },
+
+  setSubBassBoost: (subBassBoost) => {
+    set({ subBassBoost: Math.max(0, Math.min(9, subBassBoost)) });
+    saveStudioPrefsSync(get());
+  },
+  setHarmonicDrive: (harmonicDrive) => {
+    set({ harmonicDrive: Math.max(0, Math.min(1, harmonicDrive)) });
+    saveStudioPrefsSync(get());
+  },
+  setStereoWidth: (stereoWidth) => {
+    set({ stereoWidth: Math.max(0, Math.min(1, stereoWidth)) });
+    saveStudioPrefsSync(get());
+  },
+  setReverbMix: (reverbMix) => {
+    set({ reverbMix: Math.max(0, Math.min(0.75, reverbMix)) });
+    saveStudioPrefsSync(get());
+  },
+  setTrebleAir: (trebleAir) => {
+    set({ trebleAir: Math.max(-6, Math.min(6, trebleAir)) });
+    saveStudioPrefsSync(get());
+  },
+  setPreservePitch: (preservePitch) => {
+    set({ preservePitch });
+    saveStudioPrefsSync(get());
+  },
+  resetMasteringRack: () => {
+    set({
+      subBassBoost: 0,
+      harmonicDrive: 0,
+      stereoWidth: 0,
+      reverbMix: 0,
+      trebleAir: 0,
+      preservePitch: true
+    });
+    saveStudioPrefsSync(get());
+  },
 
   setAmbientVolume: (id, volume) => {
-    const clamped = Math.max(0, Math.min(1, volume));
-    const existing = activeLayerNodes.get(id);
-
-    if (clamped <= 0.01) {
-      if (existing) {
-        existing.cleanup();
-        activeLayerNodes.delete(id);
-      }
-      set((s) => ({
-        ambientVolumes: { ...s.ambientVolumes, [id]: 0 }
-      }));
-      return;
-    }
-
-    if (existing && ambientCtx) {
-      existing.gain.gain.setTargetAtTime(clamped * 0.55, ambientCtx.currentTime, 0.05);
-    } else {
-      startAmbientLayer(id, clamped);
-    }
-
+    const appliedVolume = setAmbientLayerVolume(id, volume);
     set((s) => ({
-      ambientVolumes: { ...s.ambientVolumes, [id]: clamped }
+      ambientVolumes: { ...s.ambientVolumes, [id]: appliedVolume }
     }));
   },
 
+  applyAmbientPreset: (preset) => {
+    const allIds: AmbientLayerId[] = ['rain', 'vinyl', 'waves', 'binaural', 'campfire', 'cafe'];
+    const nextVolumes: Record<AmbientLayerId, number> = {
+      rain: 0,
+      vinyl: 0,
+      waves: 0,
+      binaural: 0,
+      campfire: 0,
+      cafe: 0
+    };
+    for (const id of allIds) {
+      const target = preset[id] || 0;
+      nextVolumes[id] = setAmbientLayerVolume(id, target);
+    }
+    set({ ambientVolumes: nextVolumes });
+  },
+
   stopAllAmbient: () => {
-    activeLayerNodes.forEach((node) => node.cleanup());
-    activeLayerNodes.clear();
+    stopAllAmbientLayers();
     set({
-      ambientVolumes: { rain: 0, vinyl: 0, waves: 0, binaural: 0 }
+      ambientVolumes: { rain: 0, vinyl: 0, waves: 0, binaural: 0, campfire: 0, cafe: 0 }
     });
   },
 

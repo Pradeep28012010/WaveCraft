@@ -23,24 +23,26 @@ const GlassButton = ({
   title,
   ...props
 }: GlassButtonProps) => {
-  let baseClass = 'inline-flex items-center justify-center font-medium transition-colors outline-none';
+  const baseClass =
+    'inline-flex items-center justify-center gap-2 font-semibold transition-[background-color,border-color,box-shadow,color] duration-200 outline-none select-none cursor-pointer';
   let variantClass = '';
   let sizeClass = '';
 
   if (variant === 'default') {
-    variantClass = 'glass-button';
+    variantClass = 'glass-button rounded-full';
   } else if (variant === 'primary') {
-    variantClass = 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white border border-transparent shadow-lg glow-accent rounded-[var(--radius-md)]';
+    variantClass = 'glass-button-primary rounded-full';
   } else if (variant === 'ghost') {
-    variantClass = 'bg-transparent hover:bg-white/10 text-white rounded-[var(--radius-md)]';
+    variantClass =
+      'glass-button bg-white/[0.05] hover:bg-white/[0.14] text-white/80 hover:text-white border border-white/12 hover:border-white/28 rounded-full';
   } else if (variant === 'icon') {
     variantClass = 'glass-button rounded-full p-2';
   }
 
   if (variant !== 'icon') {
-    if (size === 'sm') sizeClass = 'px-3 py-1.5 text-sm';
-    if (size === 'md') sizeClass = 'px-4 py-2 text-base';
-    if (size === 'lg') sizeClass = 'px-6 py-3 text-lg';
+    if (size === 'sm') sizeClass = 'px-4 py-1.5 text-xs sm:text-sm';
+    if (size === 'md') sizeClass = 'px-5 py-2.5 text-sm';
+    if (size === 'lg') sizeClass = 'px-6 py-3 text-base';
   } else {
     if (size === 'sm') sizeClass = 'w-8 h-8';
     if (size === 'md') sizeClass = 'w-10 h-10';
@@ -48,7 +50,7 @@ const GlassButton = ({
   }
 
   if (active && variant !== 'primary') {
-    variantClass += ' ring-2 ring-[var(--color-accent)] glow-accent bg-white/10';
+    variantClass += ' ring-2 ring-[var(--color-accent)] glow-accent bg-white/15 border-white/30';
   }
 
   if (disabled) {
@@ -57,7 +59,9 @@ const GlassButton = ({
 
   return (
     <motion.button
-      whileTap={disabled ? undefined : { scale: 0.95 }}
+      whileHover={disabled ? undefined : { y: -1.5, scale: 1.02 }}
+      whileTap={disabled ? undefined : { scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 24, mass: 0.6 }}
       onClick={onClick}
       disabled={disabled}
       className={`${baseClass} ${variantClass} ${sizeClass} ${className}`}

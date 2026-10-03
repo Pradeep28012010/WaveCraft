@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Track, LyricLine } from '../../types';
-import { getLyrics } from '../../services/lyrics';
+import { getLyricsData } from '../../services/lyrics';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
 interface WaveCardModalProps {
@@ -10,6 +10,7 @@ interface WaveCardModalProps {
   onClose: () => void;
   track: Track;
   currentTime?: number;
+  initialQuote?: string;
 }
 
 const CARD_THEMES = [
@@ -51,11 +52,13 @@ export default function WaveCardModal({
   isOpen,
   onClose,
   track,
-  currentTime = 0
+  currentTime = 0,
+  initialQuote
 }: WaveCardModalProps) {
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [selectedQuote, setSelectedQuote] = useState<string>('');
   const [themeId, setThemeId] = useState<string>('crimson');
+  const [aspectMode, setAspectMode] = useState<'story' | 'feed'>('story');
   const [copiedLink, setCopiedLink] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
@@ -69,8 +72,13 @@ export default function WaveCardModal({
     if (!isOpen || !track) return;
     let cancelled = false;
 
-    getLyrics(track.artist, track.title).then((lines) => {
+    if (initialQuote && initialQuote.trim()) {
+      setSelectedQuote(initialQuote.trim());
+    }
+
+    getLyricsData(track.artist, track.title, track.duration).then((data) => {
       if (cancelled) return;
+      const lines = data?.lines || [];
       const valid = lines.filter(
         (l) =>
           l.text &&
@@ -79,6 +87,10 @@ export default function WaveCardModal({
           !l.text.startsWith('♪')
       );
       setLyrics(valid);
+
+      if (initialQuote && initialQuote.trim()) {
+        return;
+      }
 
       if (valid.length > 0) {
         // Pick the line closest to currentTime
@@ -97,7 +109,7 @@ export default function WaveCardModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, track, currentTime]);
+  }, [isOpen, track, currentTime, initialQuote]);
 
   const shareUrl = `${window.location.origin}/?play=${encodeURIComponent(
     `${track.title} ${track.artist}`
@@ -111,41 +123,45 @@ export default function WaveCardModal({
     } catch {}
   };
 
-  // Render high-res 1080x1350 PNG via HTML5 Canvas
+  // Render high-res 1080x1920 (9:16 Story) or 1080x1350 (4:5 Feed) PNG via HTML5 Canvas
   const generateCanvasBlob = async (): Promise<Blob | null> => {
     const canvas = canvasRef.current || document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 1350;
+    const isStory = aspectMode === 'story';
+    const W = 1080;
+    const H = isStory ? 1920 : 1350;
+    canvas.width = W;
+    canvas.height = H;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
     // 1. Background Gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, 1080, 1350);
+    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
     bgGrad.addColorStop(0, activeTheme.bgStart);
     bgGrad.addColorStop(0.55, '#0b0b14');
     bgGrad.addColorStop(1, activeTheme.bgEnd);
     ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, 1080, 1350);
+    ctx.fillRect(0, 0, W, H);
 
     // 2. Ambient Glow Orbs
-    const orb1 = ctx.createRadialGradient(220, 260, 20, 220, 260, 520);
+    const orb1 = ctx.createRadialGradient(220, 280, 20, 220, 280, 620);
     orb1.addColorStop(0, `${activeTheme.primary}66`);
     orb1.addColorStop(1, 'transparent');
     ctx.fillStyle = orb1;
-    ctx.fillRect(0, 0, 1080, 1350);
+    ctx.fillRect(0, 0, W, H);
 
-    const orb2 = ctx.createRadialGradient(880, 1050, 20, 880, 1050, 520);
+    const orb2 = ctx.createRadialGradient(880, H - 300, 20, 880, H - 300, 620);
     orb2.addColorStop(0, `${activeTheme.secondary}55`);
     orb2.addColorStop(1, 'transparent');
     ctx.fillStyle = orb2;
-    ctx.fillRect(0, 0, 1080, 1350);
+    ctx.fillRect(0, 0, W, H);
 
     // 3. Inner Frosted Card Frame
+    const framePadY = isStory ? 120 : 72;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.045)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.roundRect(72, 72, 936, 1206, 56);
+    ctx.roundRect(72, framePadY, 936, H - framePadY * 2, 56);
     ctx.fill();
     ctx.stroke();
 
@@ -161,44 +177,46 @@ export default function WaveCardModal({
       });
 
     const artImg = await loadImg(imgUrl);
+    const artY = isStory ? 210 : 140;
 
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(140, 140, 280, 280, 38);
+    ctx.roundRect(140, artY, 280, 280, 38);
     ctx.clip();
     if (artImg) {
-      ctx.drawImage(artImg, 140, 140, 280, 280);
+      ctx.drawImage(artImg, 140, artY, 280, 280);
     } else {
-      const fallbackGrad = ctx.createLinearGradient(140, 140, 420, 420);
+      const fallbackGrad = ctx.createLinearGradient(140, artY, 420, artY + 280);
       fallbackGrad.addColorStop(0, activeTheme.primary);
       fallbackGrad.addColorStop(1, activeTheme.secondary);
       ctx.fillStyle = fallbackGrad;
-      ctx.fillRect(140, 140, 280, 280);
+      ctx.fillRect(140, artY, 280, 280);
     }
     ctx.restore();
 
     // 5. Track Title & Artist next to Album Art
     ctx.fillStyle = activeTheme.primary;
     ctx.font = 'bold 24px Inter, sans-serif';
-    ctx.fillText('NOW STREAMING ON WAVECRAFT', 460, 215);
+    ctx.fillText('NOW STREAMING ON WAVECRAFT', 460, artY + 75);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = '800 46px Inter, sans-serif';
     const titleShort = track.title.length > 22 ? track.title.slice(0, 21) + '…' : track.title;
-    ctx.fillText(titleShort, 460, 285);
+    ctx.fillText(titleShort, 460, artY + 145);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.68)';
     ctx.font = '600 32px Inter, sans-serif';
     const artistShort = track.artist.length > 28 ? track.artist.slice(0, 27) + '…' : track.artist;
-    ctx.fillText(artistShort, 460, 340);
+    ctx.fillText(artistShort, 460, artY + 200);
 
     // 6. Decorative Quote Mark & Lyric Quote Block
+    const quoteTopY = isStory ? 720 : 575;
     ctx.fillStyle = `${activeTheme.primary}44`;
     ctx.font = '800 140px Georgia, serif';
-    ctx.fillText('“', 135, 575);
+    ctx.fillText('“', 135, quoteTopY);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = '700 46px Inter, sans-serif';
+    ctx.font = isStory ? '800 50px Inter, sans-serif' : '700 46px Inter, sans-serif';
     const rawLines = (selectedQuote || track.title).split('\n');
     const wrappedLines: string[] = [];
     for (const raw of rawLines) {
@@ -216,19 +234,20 @@ export default function WaveCardModal({
       if (current) wrappedLines.push(current);
     }
 
-    let yCursor = 615;
-    for (const line of wrappedLines.slice(0, 6)) {
+    let yCursor = quoteTopY + 45;
+    const maxLines = isStory ? 8 : 6;
+    for (const line of wrappedLines.slice(0, maxLines)) {
       ctx.fillText(line, 145, yCursor);
-      yCursor += 68;
+      yCursor += isStory ? 74 : 68;
     }
 
     // 7. Studio Waveform Bars at Bottom
-    const waveY = 1075;
+    const waveY = H - (isStory ? 350 : 275);
     const barCount = 44;
     const totalWaveW = 790;
     const barGap = totalWaveW / barCount;
     for (let i = 0; i < barCount; i++) {
-      const h = 16 + Math.abs(Math.sin(i * 0.45) * 48 + Math.cos(i * 0.8) * 22);
+      const h = 16 + Math.abs(Math.sin(i * 0.45) * 52 + Math.cos(i * 0.8) * 24);
       const x = 145 + i * barGap;
       ctx.fillStyle = i < barCount * 0.62 ? activeTheme.primary : 'rgba(255,255,255,0.22)';
       ctx.beginPath();
@@ -237,13 +256,14 @@ export default function WaveCardModal({
     }
 
     // 8. Footer Branding
+    const footerY = H - (isStory ? 210 : 155);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.font = '600 24px Inter, sans-serif';
-    ctx.fillText('WaveCraft • Liquid Glass Music Studio', 145, 1195);
+    ctx.fillText('WaveCraft • Liquid Glass Music Studio', 145, footerY);
 
     ctx.fillStyle = activeTheme.primary;
     ctx.font = '700 24px Inter, sans-serif';
-    ctx.fillText('320kbps HD', 790, 1195);
+    ctx.fillText('320kbps HD', 790, footerY);
 
     return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png', 0.95));
   };
@@ -478,42 +498,74 @@ export default function WaveCardModal({
 
   return createPortal(
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl"
-        onClick={onClose}
-      >
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
         <motion.div
-          initial={{ scale: 0.92, opacity: 0, y: 20 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
+          onClick={onClose}
+        />
+        <motion.div
+          initial={{ scale: 0.96, opacity: 0, y: 10 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.92, opacity: 0, y: 20 }}
+          exit={{ scale: 0.96, opacity: 0, y: 10 }}
+          transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-4xl rounded-3xl liquid-glass border border-white/15 p-6 sm:p-8 shadow-[0_28px_90px_rgba(0,0,0,0.85)] max-h-[90vh] overflow-y-auto"
+          className="relative z-10 w-full max-w-4xl rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-6 sm:p-8 max-h-[90vh] overflow-y-auto"
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
               <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-accent)]">
-                Social Studio Export
+                Social Studio Export • 1080p HD
               </span>
               <h2 className="text-2xl font-extrabold text-white mt-0.5">
-                Create Shareable WaveCard
+                Lyric Poster & Social Story Studio
               </h2>
             </div>
-            <button
-              onClick={onClose}
-              className="w-9 h-9 rounded-full liquid-glass flex items-center justify-center text-white/70 hover:text-white cursor-pointer"
-            >
-              ✕
-            </button>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center p-1 rounded-full bg-white/[0.06] border border-white/15">
+                <button
+                  type="button"
+                  onClick={() => setAspectMode('story')}
+                  className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+                    aspectMode === 'story'
+                      ? 'bg-[var(--color-accent)] text-white shadow'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  9:16 Story (1080×1920)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAspectMode('feed')}
+                  className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+                    aspectMode === 'feed'
+                      ? 'bg-[var(--color-accent)] text-white shadow'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  4:5 Feed (1080×1350)
+                </button>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-9 h-9 rounded-full liquid-glass flex items-center justify-center text-white/70 hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left: Live Interactive Card Preview */}
             <div className="lg:col-span-6 flex justify-center">
               <div
-                className="w-full max-w-[340px] aspect-[4/5] rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden border border-white/20 shadow-2xl select-none"
+                className={`w-full ${
+                  aspectMode === 'story' ? 'max-w-[290px] aspect-[9/16]' : 'max-w-[340px] aspect-[4/5]'
+                } rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden border border-white/20 shadow-2xl select-none transition-all duration-300`}
                 style={{
                   background: `linear-gradient(145deg, ${activeTheme.bgStart} 0%, #090910 55%, ${activeTheme.bgEnd} 100%)`
                 }}
@@ -557,7 +609,7 @@ export default function WaveCardModal({
                   >
                     “
                   </div>
-                  <p className="text-lg sm:text-xl font-extrabold text-white leading-snug whitespace-pre-line line-clamp-5">
+                  <p className="text-lg sm:text-xl font-extrabold text-white leading-snug whitespace-pre-line line-clamp-6">
                     {selectedQuote || `Listening to ${track.title}`}
                   </p>
                 </div>
@@ -630,26 +682,57 @@ export default function WaveCardModal({
                 />
               </div>
 
-              {/* Quick Lyric Line Picker */}
+              {/* Quick Lyric Line Picker (Multi-line toggleable) */}
               {lyrics.length > 0 && (
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-2">
-                    Or Tap a Lyric Line From This Track:
-                  </label>
-                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
-                    {lyrics.slice(0, 25).map((line, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          const nextLine = lyrics[i + 1]?.text;
-                          setSelectedQuote(nextLine ? `${line.text}\n${nextLine}` : line.text);
-                        }}
-                        className="w-full text-left px-3 py-1.5 rounded-xl text-xs text-white/75 hover:text-white hover:bg-white/10 transition-colors truncate cursor-pointer"
-                      >
-                        “{line.text}”
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-white/60">
+                      Tap Lyric Lines to Toggle on Poster (Up to 4 Lines):
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedQuote('')}
+                      className="text-[11px] font-bold text-white/50 hover:text-white cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                    {lyrics.slice(0, 35).map((line, i) => {
+                      const activeLines = selectedQuote
+                        .split('\n')
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+                      const isLineSelected = activeLines.includes(line.text.trim());
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            const clean = line.text.trim();
+                            if (isLineSelected) {
+                              const next = activeLines.filter((l) => l !== clean);
+                              setSelectedQuote(next.join('\n'));
+                            } else {
+                              const next = [...activeLines, clean].slice(-4);
+                              setSelectedQuote(next.join('\n'));
+                            }
+                          }}
+                          className={`w-full text-left px-3 py-1.5 rounded-xl text-xs transition-colors truncate cursor-pointer flex items-center justify-between gap-2 ${
+                            isLineSelected
+                              ? 'bg-[var(--color-accent)]/25 border border-[var(--color-accent)]/50 text-white font-bold'
+                              : 'text-white/75 hover:text-white hover:bg-white/10 border border-transparent'
+                          }`}
+                        >
+                          <span className="truncate">“{line.text}”</span>
+                          {isLineSelected && (
+                            <span className="text-[10px] font-extrabold text-[var(--color-accent)] flex-shrink-0">
+                              ✓ ON POSTER
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -662,7 +745,11 @@ export default function WaveCardModal({
                     disabled={isExporting || isRecordingVideo}
                     className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white font-bold text-sm shadow-lg hover:brightness-110 transition-all cursor-pointer disabled:opacity-50"
                   >
-                    {isExporting ? 'Rendering HD Card...' : '⬇ Download Story PNG'}
+                    {isExporting
+                      ? 'Rendering HD Poster...'
+                      : aspectMode === 'story'
+                      ? '⬇ Download 9:16 Story PNG (1080×1920)'
+                      : '⬇ Download 4:5 Feed PNG (1080×1350)'}
                   </button>
 
                   <button
@@ -701,7 +788,7 @@ export default function WaveCardModal({
 
           <canvas ref={canvasRef} className="hidden" />
         </motion.div>
-      </motion.div>
+      </div>
     </AnimatePresence>,
     document.body
   );

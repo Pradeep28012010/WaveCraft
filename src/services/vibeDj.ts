@@ -179,7 +179,6 @@ export async function generateVibeMix(
   const spec =
     typeof promptOrPreset === 'string'
       ? {
-          title: analyzeCustomPrompt(promptOrPreset).title,
           prompt: promptOrPreset,
           ...analyzeCustomPrompt(promptOrPreset)
         }

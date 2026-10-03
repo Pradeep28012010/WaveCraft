@@ -22,10 +22,13 @@ const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
     if (padding === 'sm') paddingClass = 'p-4';
     if (padding === 'lg') paddingClass = 'p-8';
 
-    const hoverProps = hover ? {
-      whileHover: { y: -4, scale: 1.01 },
-      transition: { type: 'spring', stiffness: 300, damping: 20 }
-    } : {};
+    const hoverProps = hover
+      ? {
+          whileHover: { y: -6, scale: 1.022 },
+          whileTap: { scale: 0.975 },
+          transition: { type: 'spring', stiffness: 380, damping: 24, mass: 0.65 }
+        }
+      : {};
 
     return (
       <motion.div

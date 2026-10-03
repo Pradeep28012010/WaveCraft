@@ -7,40 +7,69 @@ const VAULT_META_KEY = 'wavecraft_offline_tracks_meta_v1';
 
 type VaultListener = () => void;
 const listeners = new Set<VaultListener>();
+const trackStatusListeners = new Map<string, Set<VaultListener>>();
+const activeSavingIds = new Set<string>();
 
-function notifyListeners() {
+let cachedOfflineTracks: Track[] | null = null;
+let cachedOfflineIds = new Set<string>();
+
+function syncMemoryCache(tracks: Track[]) {
+  cachedOfflineTracks = tracks;
+  cachedOfflineIds = new Set(tracks.map((t) => t.id));
+}
+
+function notifyListeners(changedTrackId?: string) {
   listeners.forEach((fn) => fn());
+  if (changedTrackId) {
+    const bucket = trackStatusListeners.get(changedTrackId);
+    if (bucket) bucket.forEach((fn) => fn());
+  } else {
+    trackStatusListeners.forEach((bucket) => bucket.forEach((fn) => fn()));
+  }
 }
 
 /**
- * Reads the list of offline-saved tracks from localStorage metadata.
+ * Reads the list of offline-saved tracks from in-memory cache (backed by localStorage).
  */
 export function getOfflineTracks(): Track[] {
+  if (cachedOfflineTracks !== null) {
+    return cachedOfflineTracks;
+  }
   try {
     const raw = localStorage.getItem(VAULT_META_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      syncMemoryCache([]);
+      return [];
+    }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((t) => t && t.id && t.title) : [];
+    const valid = Array.isArray(parsed) ? parsed.filter((t) => t && t.id && t.title) : [];
+    syncMemoryCache(valid);
+    return valid;
   } catch {
+    syncMemoryCache([]);
     return [];
   }
 }
 
-function saveOfflineTracksMeta(tracks: Track[]) {
+function saveOfflineTracksMeta(tracks: Track[], changedTrackId?: string) {
+  syncMemoryCache(tracks);
   try {
     localStorage.setItem(VAULT_META_KEY, JSON.stringify(tracks));
-    notifyListeners();
+    notifyListeners(changedTrackId);
   } catch (e) {
     console.warn('Failed to persist offline vault metadata', e);
   }
 }
 
 /**
- * Checks synchronously whether a track ID is stored in the Offline Vault.
+ * Checks synchronously in O(1) time whether a track ID is stored in the Offline Vault.
  */
 export function isTrackOffline(trackId?: string): boolean {
   if (!trackId) return false;
-  return getOfflineTracks().some((t) => t.id === trackId);
+  if (cachedOfflineTracks === null) {
+    getOfflineTracks();
+  }
+  return cachedOfflineIds.has(trackId);
 }
 
 /**
@@ -88,7 +117,7 @@ export async function saveTrackOffline(track: Track): Promise<boolean> {
     }
 
     const current = getOfflineTracks().filter((t) => t.id !== resolvedTrack.id);
-    saveOfflineTracksMeta([resolvedTrack, ...current]);
+    saveOfflineTracksMeta([resolvedTrack, ...current], resolvedTrack.id);
     return true;
   } catch (err) {
     console.warn('Offline Vault save failed:', err);
@@ -109,7 +138,27 @@ export async function removeTrackOffline(trackId: string): Promise<void> {
   } catch {}
 
   const updated = getOfflineTracks().filter((t) => t.id !== trackId);
-  saveOfflineTracksMeta(updated);
+  saveOfflineTracksMeta(updated, trackId);
+}
+
+/**
+ * Toggles a track's presence in the Offline Vault and notifies per-track listeners.
+ */
+export async function toggleOfflineTrack(track: Track): Promise<void> {
+  if (!track?.id) return;
+  if (isTrackOffline(track.id)) {
+    await removeTrackOffline(track.id);
+    return;
+  }
+  if (activeSavingIds.has(track.id)) return;
+  activeSavingIds.add(track.id);
+  notifyListeners(track.id);
+  try {
+    await saveTrackOffline(track);
+  } finally {
+    activeSavingIds.delete(track.id);
+    notifyListeners(track.id);
+  }
 }
 
 /**
@@ -138,42 +187,73 @@ export async function getOfflineAudioObjectUrl(trackId: string): Promise<string 
 }
 
 /**
- * Reactive hook for reading and managing the Offline 320kbps Audio Vault.
+ * Lightweight O(1) hook for an individual TrackRow to subscribe ONLY to its own offline status.
+ */
+export function useTrackOfflineStatus(trackId: string) {
+  const [status, setStatus] = useState(() => ({
+    isOffline: isTrackOffline(trackId),
+    isSaving: activeSavingIds.has(trackId)
+  }));
+
+  useEffect(() => {
+    const sync = () => {
+      const nextOffline = isTrackOffline(trackId);
+      const nextSaving = activeSavingIds.has(trackId);
+      setStatus((prev) =>
+        prev.isOffline === nextOffline && prev.isSaving === nextSaving
+          ? prev
+          : { isOffline: nextOffline, isSaving: nextSaving }
+      );
+    };
+    let bucket = trackStatusListeners.get(trackId);
+    if (!bucket) {
+      bucket = new Set();
+      trackStatusListeners.set(trackId, bucket);
+    }
+    bucket.add(sync);
+    sync();
+    return () => {
+      const b = trackStatusListeners.get(trackId);
+      if (b) {
+        b.delete(sync);
+        if (b.size === 0) trackStatusListeners.delete(trackId);
+      }
+    };
+  }, [trackId]);
+
+  return {
+    trackIsOffline: status.isOffline,
+    isSavingOffline: status.isSaving,
+    toggleOfflineTrack
+  };
+}
+
+/**
+ * Reactive hook for reading and managing the full Offline 320kbps Audio Vault list.
  */
 export function useOfflineVault() {
   const [offlineTracks, setOfflineTracks] = useState<Track[]>(() => getOfflineTracks());
   const [savingIds, setSavingIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const onUpdate = () => setOfflineTracks(getOfflineTracks());
+    const onUpdate = () => {
+      setOfflineTracks(getOfflineTracks());
+      const map: Record<string, boolean> = {};
+      activeSavingIds.forEach((id) => {
+        map[id] = true;
+      });
+      setSavingIds(map);
+    };
     listeners.add(onUpdate);
     return () => {
       listeners.delete(onUpdate);
     };
   }, []);
 
-  const toggleOfflineTrack = async (track: Track) => {
-    if (!track?.id) return;
-    if (isTrackOffline(track.id)) {
-      await removeTrackOffline(track.id);
-      return;
-    }
-    setSavingIds((prev) => ({ ...prev, [track.id]: true }));
-    try {
-      await saveTrackOffline(track);
-    } finally {
-      setSavingIds((prev) => {
-        const next = { ...prev };
-        delete next[track.id];
-        return next;
-      });
-    }
-  };
-
   return {
     offlineTracks,
     savingIds,
-    isOffline: (id?: string) => Boolean(id && offlineTracks.some((t) => t.id === id)),
+    isOffline: (id?: string) => Boolean(id && cachedOfflineIds.has(id)),
     toggleOfflineTrack,
     removeTrackOffline
   };
