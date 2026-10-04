@@ -184,13 +184,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   nextTrack: () => {
     set((state) => {
-      const { queue, queueIndex, repeatMode, currentTrack } = state;
+      const { queue, queueIndex, repeatMode } = state;
       if (queue.length === 0) return {};
-
-      if (repeatMode === 'one' && currentTrack) {
-        seekToTime(0);
-        return { progress: 0, currentTime: 0, isPlaying: true };
-      }
 
       let nextIndex = queueIndex + 1;
       if (nextIndex >= queue.length) {
@@ -234,7 +229,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         if (repeatMode === 'all') {
           prevIndex = queue.length - 1;
         } else {
-          prevIndex = 0;
+          seekToTime(0);
+          return { progress: 0, currentTime: 0, isPlaying: state.isPlaying };
         }
       }
 

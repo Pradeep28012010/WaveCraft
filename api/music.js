@@ -749,27 +749,46 @@ async function fetchSpotifyTrending(categoryKey = 'global') {
             };
           });
 
-          // Pre-resolve YouTube IDs for the top 3 tracks in parallel for instant zero-latency playback
-          const topHits = await Promise.allSettled(
-            mappedTracks.slice(0, 3).map((tr) => fetchYouTubeSearch(`${tr.title} ${tr.artist}`, 1))
-          );
-          topHits.forEach((res, i) => {
-            if (res.status === 'fulfilled' && Array.isArray(res.value) && res.value[0]?.youtubeId) {
-              const matched = res.value[0];
-              mappedTracks[i].youtubeId = matched.youtubeId;
-              if (matched.thumbnail) {
-                mappedTracks[i].thumbnail = matched.thumbnail;
-                mappedTracks[i].thumbnailLarge = matched.thumbnailLarge || matched.thumbnail;
-                mappedTracks[i].thumbnailUrl = matched.thumbnail;
-              }
-            }
-          });
+          // Pre-resolve YouTube IDs for the top tracks in parallel batches for zero-latency, verified playback
+          const candidatesToResolve = mappedTracks.slice(0, 25);
+          const resolvedTracks = [];
+          const seenVideoIds = new Set();
 
-          return {
-            tracks: mappedTracks,
-            playlistName: entity.name || cat.name,
-            coverUrl: playlistCover
-          };
+          for (let b = 0; b < candidatesToResolve.length; b += 8) {
+            const batch = candidatesToResolve.slice(b, b + 8);
+            const batchResults = await Promise.allSettled(
+              batch.map((tr) => fetchYouTubeSearch(`${tr.title} ${tr.artist}`, 2))
+            );
+
+            batch.forEach((tr, idx) => {
+              const res = batchResults[idx];
+              if (res.status === 'fulfilled' && Array.isArray(res.value) && res.value.length > 0) {
+                const matched = res.value[0];
+                if (matched && matched.youtubeId && !seenVideoIds.has(matched.youtubeId)) {
+                  seenVideoIds.add(matched.youtubeId);
+                  tr.youtubeId = matched.youtubeId;
+                  tr.id = `yt_${matched.youtubeId}`;
+                  if (matched.thumbnail) {
+                    tr.thumbnail = matched.thumbnail;
+                    tr.thumbnailLarge = matched.thumbnailLarge || matched.thumbnail;
+                    tr.thumbnailUrl = matched.thumbnail;
+                  }
+                  if (matched.duration && matched.duration > 0) {
+                    tr.duration = matched.duration;
+                  }
+                  resolvedTracks.push(tr);
+                }
+              }
+            });
+          }
+
+          if (resolvedTracks.length >= 8) {
+            return {
+              tracks: resolvedTracks,
+              playlistName: entity.name || cat.name,
+              coverUrl: playlistCover
+            };
+          }
         }
       }
     }

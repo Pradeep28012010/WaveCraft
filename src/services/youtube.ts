@@ -146,7 +146,9 @@ export function findStrictTrackMatch(
   const normTargetTitle = normalizeForMatch(targetTitle);
   const normTargetArtist = normalizeForMatch(targetArtist);
   const targetTokens = normTargetTitle.split(/\s+/).filter((t) => t.length > 1);
+  const artistTokens = normTargetArtist.split(/\s+/).filter((t) => t.length > 2);
   const isTargetInstrumental = /\b(instrumental|karaoke|bgm|piano|flute|guitar)\b/i.test(targetTitle);
+  const isTargetCover = /\b(cover|tribute|rendition)\b/i.test(targetTitle);
 
   let bestMatch: Track | null = null;
   let bestScore = -Infinity;
@@ -155,10 +157,16 @@ export function findStrictTrackMatch(
     const candTitle = normalizeForMatch(cand.title);
     const candArtist = normalizeForMatch(cand.artist);
     const candCombined = `${candTitle} ${candArtist}`;
-    const isCandInstrumental = /\b(instrumental|karaoke|bgm|piano|flute|guitar|cover)\b/i.test(cand.title);
+    const isCandInstrumental = /\b(instrumental|karaoke|bgm|piano|flute|guitar)\b/i.test(cand.title);
+    const isCandCover = /\b(cover|tribute|rendition)\b/i.test(cand.title);
 
     // Reject instrumental if target is vocal
     if (!isTargetInstrumental && isCandInstrumental) {
+      continue;
+    }
+
+    // Heavy penalty for fan/amateur covers when looking for original song
+    if (!isTargetCover && isCandCover) {
       continue;
     }
 
@@ -169,13 +177,20 @@ export function findStrictTrackMatch(
     else if (candTitle.startsWith(normTargetTitle) || normTargetTitle.startsWith(candTitle)) score += 350;
     else if (candTitle.includes(normTargetTitle) || normTargetTitle.includes(candTitle)) score += 200;
 
-    // Token matching
+    // Token matching for title
     const matchedTokens = targetTokens.filter((tok) => candCombined.includes(tok));
-    score += matchedTokens.length * 70;
-    if (targetTokens.length > 0 && matchedTokens.length === targetTokens.length) score += 200;
+    score += matchedTokens.length * 80;
+    if (targetTokens.length > 0 && matchedTokens.length === targetTokens.length) score += 220;
 
-    // Artist matching
-    if (normTargetArtist && candCombined.includes(normTargetArtist)) score += 150;
+    // Token matching for artist
+    const matchedArtistTokens = artistTokens.filter((tok) => candCombined.includes(tok));
+    score += matchedArtistTokens.length * 60;
+    if (normTargetArtist && candCombined.includes(normTargetArtist)) score += 160;
+
+    // Penalty if no title tokens match at all
+    if (targetTokens.length > 0 && matchedTokens.length === 0) {
+      score -= 600;
+    }
 
     // Duration match
     if (targetDuration > 0 && cand.duration > 0) {

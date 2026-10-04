@@ -37,11 +37,14 @@ export default function YouTubeEmbed() {
   const containerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastRecordedTrackId = useRef<string | null>(null);
-  const activeLoadedTrackKeyRef = useRef<string | null>(null);
   const isFetchingAutoplay = useRef<boolean>(false);
-  const resolvingTrackIdRef = useRef<string | null>(null);
   const trackTransitionIntentRef = useRef<boolean>(false);
   const userInitiatedPauseRef = useRef<boolean>(false);
+  const isSwitchingTrackRef = useRef<boolean>(false);
+  const activeLoadedYtIdRef = useRef<string | null>(null);
+  const currentTrackIdRef = useRef<string | null>(null);
+  const resolvingTokenRef = useRef<number>(0);
+  const preResolvingIndexRef = useRef<number>(-1);
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const queue = usePlayerStore((s) => s.queue);
@@ -270,13 +273,20 @@ export default function YouTubeEmbed() {
               e.target.setPlaybackQuality?.('small');
             } catch {}
 
-            if (state.currentTrack?.youtubeId) {
+            const cur = state.currentTrack;
+            const effectiveId =
+              cur?.youtubeId ||
+              (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
+              (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
+
+            if (effectiveId) {
+              activeLoadedYtIdRef.current = effectiveId;
               setActiveEngine('youtube');
               if (state.isPlaying) {
-                e.target.loadVideoById(state.currentTrack.youtubeId);
+                e.target.loadVideoById(effectiveId);
               } else {
                 // Cue only on refresh so data isn't consumed and audio doesn't start unexpectedly
-                e.target.cueVideoById(state.currentTrack.youtubeId);
+                e.target.cueVideoById(effectiveId);
               }
             }
           },
@@ -315,6 +325,7 @@ export default function YouTubeEmbed() {
               trackTransitionIntentRef.current = true;
               usePlayerStore.getState().nextTrack();
             } else if (state === window.YT.PlayerState.PLAYING) {
+              isSwitchingTrackRef.current = false;
               trackTransitionIntentRef.current = false;
               userInitiatedPauseRef.current = false;
               usePlayerStore.setState({ isPlaying: true, isLoading: false });
@@ -326,11 +337,11 @@ export default function YouTubeEmbed() {
                 e.target.setPlaybackQuality?.('small');
               } catch {}
             } else if (state === window.YT.PlayerState.PAUSED) {
-              // Ignore transient PAUSED event during track transition or seek
-              if (
-                trackTransitionIntentRef.current ||
-                (!userInitiatedPauseRef.current && usePlayerStore.getState().isPlaying)
-              ) {
+              // Ignore transient PAUSED event during track transition or when awaiting a new track
+              if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
+                return;
+              }
+              if (!userInitiatedPauseRef.current && usePlayerStore.getState().isPlaying) {
                 try {
                   e.target.playVideo?.();
                 } catch {}
@@ -340,10 +351,10 @@ export default function YouTubeEmbed() {
             } else if (state === window.YT.PlayerState.BUFFERING) {
               usePlayerStore.getState().setIsLoading(true);
             } else if (state === window.YT.PlayerState.CUED) {
-              if (
-                trackTransitionIntentRef.current ||
-                (!userInitiatedPauseRef.current && usePlayerStore.getState().isPlaying)
-              ) {
+              if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
+                return;
+              }
+              if (!userInitiatedPauseRef.current && usePlayerStore.getState().isPlaying) {
                 try {
                   e.target.playVideo?.();
                 } catch {}
@@ -388,11 +399,13 @@ export default function YouTubeEmbed() {
         .then((blobUrl) => {
           if (!blobUrl || usePlayerStore.getState().currentTrack?.id !== track.id) return;
           const ytPlayer = getPlayer();
-          if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.stopVideo === 'function') {
+          if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.pauseVideo === 'function') {
             try {
-              ytPlayer.stopVideo();
+              ytPlayer.pauseVideo();
             } catch {}
           }
+          activeLoadedYtIdRef.current = null;
+          isSwitchingTrackRef.current = false;
           setActiveEngine('audio');
           if (audio.src !== blobUrl) {
             audio.src = blobUrl;
@@ -414,33 +427,53 @@ export default function YouTubeEmbed() {
     setActiveEngine('youtube');
 
     const ytPlayer = getPlayer();
-    const effectiveYtId = track.youtubeId || (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '');
+    const effectiveYtId =
+      track.youtubeId ||
+      (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
+      (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
     if (effectiveYtId) {
       track.youtubeId = effectiveYtId;
+      isSwitchingTrackRef.current = true;
+      trackTransitionIntentRef.current = true;
+      userInitiatedPauseRef.current = false;
+
       if (ytPlayer && window.ytPlayerReady) {
+        if (activeLoadedYtIdRef.current === effectiveYtId) {
+          isSwitchingTrackRef.current = false;
+          if (shouldPlay) {
+            ytPlayer.playVideo?.();
+          } else {
+            ytPlayer.pauseVideo?.();
+          }
+          return;
+        }
+
+        activeLoadedYtIdRef.current = effectiveYtId;
+        setIsLoading(true);
+        setProgress(0, 0);
+
         if (shouldPlay) {
-          trackTransitionIntentRef.current = true;
-          userInitiatedPauseRef.current = false;
           if (typeof ytPlayer.loadVideoById === 'function') {
             ytPlayer.loadVideoById(effectiveYtId);
           }
           try {
             ytPlayer.setPlaybackQuality?.('small');
           } catch {}
+
           const activeAnchor = jamSyncEngine.getActiveAnchor();
           const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
           const waitMs =
             activeAnchor?.rendezvousAt && activeAnchor.rendezvousAt > hostNow
               ? activeAnchor.rendezvousAt - hostNow
               : 0;
+
           if (waitMs > 15 && waitMs < 2500) {
+            ytPlayer.pauseVideo?.();
             setTimeout(() => {
               ytPlayer.playVideo?.();
               jamSyncEngine.clearRendezvous();
             }, waitMs);
-          } else {
-            ytPlayer.playVideo?.();
           }
         } else {
           // Explicitly cue without auto-playing on page refresh or initial load
@@ -454,37 +487,68 @@ export default function YouTubeEmbed() {
       return;
     }
 
-    // 3. Fallback: track has no youtubeId (e.g. from an external playlist import) -> resolve on the fly
-    if (resolvingTrackIdRef.current !== track.id) {
-      resolvingTrackIdRef.current = track.id;
-      setIsLoading(true);
-      searchTracks(`${track.title} ${track.artist}`)
-        .then((results) => {
-          const best = findStrictTrackMatch(track.title, track.artist, results, track.duration) || results[0];
-          if (best?.youtubeId && usePlayerStore.getState().currentTrack?.id === track.id) {
-            track.youtubeId = best.youtubeId;
-            activeLoadedTrackKeyRef.current = track.id;
-            startTrackPlayback(track, usePlayerStore.getState().isPlaying);
-          } else {
-            setIsLoading(false);
-          }
-        })
-        .catch(() => {
-          setIsLoading(false);
-        });
+    // 3. Fallback: track has no direct youtubeId -> resolve on the fly with strict accuracy
+    // Immediately pause existing video so old audio NEVER leaks while resolving!
+    isSwitchingTrackRef.current = true;
+    trackTransitionIntentRef.current = true;
+    if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.pauseVideo === 'function') {
+      try {
+        ytPlayer.pauseVideo();
+      } catch {}
     }
+    activeLoadedYtIdRef.current = null;
+    setIsLoading(true);
+    setProgress(0, 0);
+
+    const token = ++resolvingTokenRef.current;
+    searchTracks(`${track.title} ${track.artist}`)
+      .then((results) => {
+        if (token !== resolvingTokenRef.current) return;
+        if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+
+        const best = findStrictTrackMatch(track.title, track.artist, results, track.duration);
+        const resolved = best || (results.length > 0 ? results[0] : null);
+
+        if (resolved?.youtubeId) {
+          track.youtubeId = resolved.youtubeId;
+          // Permanently sync with Zustand store for currentTrack AND in queue
+          usePlayerStore.setState((s) => ({
+            currentTrack:
+              s.currentTrack?.id === track.id
+                ? { ...s.currentTrack, youtubeId: resolved.youtubeId, duration: resolved.duration || s.currentTrack.duration }
+                : s.currentTrack,
+            queue: s.queue.map((t) =>
+              t.id === track.id
+                ? { ...t, youtubeId: resolved.youtubeId, duration: resolved.duration || t.duration }
+                : t
+            )
+          }));
+          startTrackPlayback(track, usePlayerStore.getState().isPlaying);
+        } else {
+          console.warn(`[WaveCraft] Could not match audio stream for: "${track.title}" by "${track.artist}"`);
+          setIsLoading(false);
+          isSwitchingTrackRef.current = false;
+          trackTransitionIntentRef.current = false;
+          usePlayerStore.getState().nextTrack();
+        }
+      })
+      .catch((err) => {
+        if (token !== resolvingTokenRef.current) return;
+        console.warn('[WaveCraft] Stream resolution network error:', err);
+        setIsLoading(false);
+        isSwitchingTrackRef.current = false;
+        trackTransitionIntentRef.current = false;
+      });
   };
 
   // Load new track when currentTrack changes
   useEffect(() => {
     if (!currentTrack) return;
 
-    if (activeLoadedTrackKeyRef.current === currentTrack.id) {
-      return;
-    }
-    activeLoadedTrackKeyRef.current = currentTrack.id;
+    const isSameTrack = currentTrackIdRef.current === currentTrack.id;
+    currentTrackIdRef.current = currentTrack.id;
 
-    if (lastRecordedTrackId.current !== currentTrack.id) {
+    if (!isSameTrack && lastRecordedTrackId.current !== currentTrack.id) {
       lastRecordedTrackId.current = currentTrack.id;
       const lib = useLibraryStore.getState();
       lib.addToRecentlyPlayed(currentTrack);
@@ -507,6 +571,51 @@ export default function YouTubeEmbed() {
     }
     startTrackPlayback(currentTrack, shouldPlay);
   }, [currentTrack]);
+
+  // Proactive Queue Lookahead: Pre-resolve YouTube ID for next track in queue so Next is always instant
+  useEffect(() => {
+    if (!currentTrack || queue.length === 0) return;
+    const nextIdx = queueIndex + 1;
+    if (nextIdx >= queue.length) return;
+    if (preResolvingIndexRef.current === nextIdx) return;
+
+    const nextTrackCandidate = queue[nextIdx];
+    if (!nextTrackCandidate) return;
+
+    const hasYtId =
+      nextTrackCandidate.youtubeId ||
+      nextTrackCandidate.id.startsWith('yt_') ||
+      nextTrackCandidate.id.startsWith('yt-');
+
+    if (!hasYtId) {
+      preResolvingIndexRef.current = nextIdx;
+      searchTracks(`${nextTrackCandidate.title} ${nextTrackCandidate.artist}`)
+        .then((results) => {
+          const match =
+            findStrictTrackMatch(
+              nextTrackCandidate.title,
+              nextTrackCandidate.artist,
+              results,
+              nextTrackCandidate.duration
+            ) || results[0];
+
+          if (match?.youtubeId) {
+            usePlayerStore.setState((s) => ({
+              queue: s.queue.map((t, idx) =>
+                idx === nextIdx
+                  ? {
+                      ...t,
+                      youtubeId: match.youtubeId,
+                      duration: match.duration || t.duration
+                    }
+                  : t
+              )
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [currentTrack, queueIndex, queue]);
 
   // Sync Play / Pause when isPlaying toggles on the current track
   useEffect(() => {
@@ -604,6 +713,7 @@ export default function YouTubeEmbed() {
         getActiveEngine() === 'youtube' &&
         ytPlayer &&
         isPlaying &&
+        !isSwitchingTrackRef.current &&
         window.ytPlayerReady &&
         typeof ytPlayer.getCurrentTime === 'function'
       ) {
