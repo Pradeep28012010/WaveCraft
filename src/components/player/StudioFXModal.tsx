@@ -234,26 +234,22 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <motion.div
+    <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="studio-fx-modal-title"
-      initial={{ opacity: 0, scale: 0.96, y: 10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.96, y: 10 }}
-      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
       onClick={(e) => e.stopPropagation()}
-      className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-6 sm:p-7 text-white shadow-2xl border border-white/15"
+      className="relative z-10 w-full max-w-xl max-h-[85vh] flex flex-col rounded-3xl bg-[#0e101f]/90 backdrop-blur-2xl backdrop-saturate-200 border border-white/20 text-white shadow-[0_25px_65px_-12px_rgba(0,0,0,0.85),0_0_50px_rgba(6,182,212,0.12),inset_0_1px_0_rgba(255,255,255,0.25)] overflow-hidden"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/10">
+      {/* Header (Pinned) */}
+      <div className="flex items-center justify-between p-5 pb-4 border-b border-white/10 flex-shrink-0 bg-white/[0.02]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25 text-white">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25 text-white flex-shrink-0">
             <span className="text-xl">🎛️</span>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 id="studio-fx-modal-title" className="text-lg sm:text-xl font-black tracking-tight text-white">
+              <h2 id="studio-fx-modal-title" className="text-base sm:text-lg font-black tracking-tight text-white">
                 Studio FX & Spatial Audio
               </h2>
               <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-[10px] font-bold tracking-wider uppercase">
@@ -271,10 +267,10 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               onClick={resetToOriginal}
-              className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold text-white/80 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold text-white/80 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
             >
               <span>↺</span>
-              <span>Reset Master</span>
+              <span>Reset</span>
             </button>
           )}
 
@@ -282,7 +278,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             type="button"
             onClick={onClose}
             aria-label="Close Studio FX"
-            className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white hover:bg-white/15 transition cursor-pointer text-sm font-bold active:scale-95"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-white/80 hover:text-white transition cursor-pointer text-sm font-bold active:scale-95"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M6 18L18 6M6 6l12 12" />
@@ -291,12 +287,14 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
+      {/* Scrollable Content Stage */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar">
         {/* 3 Core Modes: Studio Master, 3D Spatial Audio, Live Concert */}
-        <div className="mt-5">
-          <div className="text-xs font-bold uppercase tracking-wider text-white/50 mb-2.5">
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-white/50 mb-2">
             Select Sound Mode
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {STUDIO_FX_MODES.map((mode) => {
               const isSelected = fxMode === mode.id;
               return (
@@ -309,16 +307,16 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       setSpatialOrbitAuto(true);
                     }
                   }}
-                  className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                  className={`text-left p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
                     isSelected
-                      ? 'border-cyan-400/80 bg-white/10 shadow-[0_0_24px_rgba(6,182,212,0.3)]'
-                      : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/20'
+                      ? 'border-cyan-400 bg-cyan-500/15 shadow-[0_0_20px_rgba(6,182,212,0.25),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                      : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/20'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-2xl">{mode.icon}</span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xl">{mode.icon}</span>
                     <span
-                      className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
                         isSelected
                           ? 'bg-cyan-400 text-black'
                           : 'bg-white/10 text-white/60'
@@ -327,14 +325,12 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       {mode.badge}
                     </span>
                   </div>
-                  <div className="font-bold text-sm text-white">{mode.name}</div>
-                  <p className="text-[11px] text-white/55 line-clamp-2 mt-1 leading-snug">
+                  <div className="font-bold text-xs text-white">{mode.name}</div>
+                  <p className="text-[10px] text-white/55 line-clamp-2 mt-0.5 leading-snug">
                     {mode.description}
                   </p>
                   {isSelected && (
-                    <div
-                      className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500"
-                    />
+                    <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500" />
                   )}
                 </button>
               );
@@ -632,7 +628,8 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
+    </div>
   );
 }
 
@@ -663,13 +660,13 @@ export default function StudioFXModal() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           className="fixed inset-0 z-[9995] flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
         >
           {/* Frosted Liquid-Glass Modal Backdrop */}
           <div
             onClick={handleClose}
-            className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150 cursor-pointer"
+            className="fixed inset-0 bg-black/60 backdrop-blur-xl backdrop-saturate-150 cursor-pointer"
             aria-hidden="true"
           />
           <StudioFXModalContent onClose={handleClose} />
