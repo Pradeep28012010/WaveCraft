@@ -86,7 +86,7 @@ export default function TrendingSection({
       {onSelectCategory && (
         <div
           ref={categoriesRef}
-          className="flex items-center gap-2.5 overflow-x-auto sm:flex-wrap sm:overflow-visible py-4 px-3 mb-3 no-scrollbar relative z-10"
+          className="flex items-center flex-wrap gap-2.5 overflow-visible py-3 px-1 mb-4 relative z-10"
           style={{ background: 'transparent' }}
         >
           {SPOTIFY_TRENDING_CATEGORIES.map((cat) => {
@@ -105,7 +105,7 @@ export default function TrendingSection({
                   isSelected
                     ? {
                         boxShadow:
-                          '0 0 12px rgba(30, 215, 96, 0.8), 0 0 25px rgba(30, 215, 96, 0.5), 0 0 45px rgba(30, 215, 96, 0.25)'
+                          '0 0 14px rgba(30, 215, 96, 0.8), 0 0 28px rgba(30, 215, 96, 0.5), 0 0 50px rgba(30, 215, 96, 0.25)'
                       }
                     : undefined
                 }
@@ -121,7 +121,7 @@ export default function TrendingSection({
       {/* Track Cards Horizontal Scroll */}
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto no-scrollbar pt-5 pb-8 px-2"
+        className="flex gap-5 overflow-x-auto no-scrollbar pt-6 pb-8 px-4"
       >
         {isLoading
           ? Array(8)
