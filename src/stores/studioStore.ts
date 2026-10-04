@@ -3,15 +3,7 @@ import { usePlayerStore } from './playerStore';
 import { useSettingsStore } from './settingsStore';
 import { setAmbientLayerVolume, stopAllAmbientLayers } from '../services/ambientSynth';
 
-export type StudioFXMode =
-  | 'normal'
-  | 'slowed-reverb'
-  | 'nightcore'
-  | '8d-orbit'
-  | 'bass-cinema'
-  | 'vocal-stage'
-  | 'lofi-tape'
-  | 'arena-live';
+export type StudioFXMode = 'normal' | '8d-orbit' | 'arena-live';
 
 export type AmbientLayerId = 'rain' | 'vinyl' | 'waves' | 'binaural' | 'campfire' | 'cafe';
 
@@ -28,65 +20,25 @@ export const STUDIO_FX_MODES: StudioFXInfo[] = [
   {
     id: 'normal',
     name: 'Studio Master',
-    badge: '320K FLAT',
+    badge: 'ORIGINAL FLAT',
     icon: '💎',
-    description: 'Bit-accurate 320kbps studio reference audio with zero coloration and pure dynamic headroom.',
+    description: 'Bit-accurate reference audio with zero coloration and pure dynamic headroom.',
     accent: 'from-emerald-500 to-teal-600'
   },
   {
     id: '8d-orbit',
     name: '3D Spatial Audio',
-    badge: '360° HRTF',
+    badge: '360° BINAURAL',
     icon: '🪐',
-    description: 'True 360° HRTF binaural soundstage revolving around your head with centered sub-bass and dome acoustics.',
+    description: 'True 360° binaural spatial soundstage orbiting around your head with real-time radar positioning.',
     accent: 'from-cyan-500 to-blue-600'
   },
   {
-    id: 'slowed-reverb',
-    name: 'Slowed + Reverb',
-    badge: '0.88x HALL',
-    icon: '🌊',
-    description: 'Warm 0.88x analog tape drift paired with lush 32-bit stereo convolution cathedral reverb.',
-    accent: 'from-purple-500 to-indigo-600'
-  },
-  {
-    id: 'bass-cinema',
-    name: 'Sub-Bass Cinema',
-    badge: 'DEEP SUB',
-    icon: '🔊',
-    description: 'Deep theater sub-bass punch at 32Hz–64Hz with brickwall headroom limiting and crisp highs.',
-    accent: 'from-amber-500 to-red-600'
-  },
-  {
-    id: 'nightcore',
-    name: 'Nightcore Rush',
-    badge: '1.18x UP',
-    icon: '⚡',
-    description: 'High-energy 1.18x tempo & pitch lift with silky studio treble air and zero harshness.',
-    accent: 'from-pink-500 to-rose-600'
-  },
-  {
-    id: 'vocal-stage',
-    name: 'Vocal Stage HD',
-    badge: 'CLARITY',
-    icon: '🎙️',
-    description: 'Front-row lead vocal presence boost with studio plate ambiance and silky harmonic air.',
-    accent: 'from-fuchsia-500 to-purple-600'
-  },
-  {
-    id: 'lofi-tape',
-    name: 'Lo-Fi Analog Tape',
-    badge: 'WARM TAPE',
-    icon: '📼',
-    description: 'Relaxed 0.96x vintage cassette warmth with tube saturation, gentle high roll-off, and cozy room tone.',
-    accent: 'from-orange-400 to-amber-600'
-  },
-  {
     id: 'arena-live',
-    name: 'Live Concert Arena',
-    badge: 'STADIUM 3D',
+    name: 'Live Concert',
+    badge: 'STADIUM ARENA',
     icon: '🏟️',
-    description: 'Expansive stadium acoustic reflection field with wide binaural Haas imaging and live kick punch.',
+    description: 'Expansive live stadium concert acoustics with arena crowd ambiance and live presence.',
     accent: 'from-blue-500 to-indigo-600'
   }
 ];
@@ -237,8 +189,9 @@ function loadStudioPrefsSync(): PersistedStudioPrefs {
     const raw = localStorage.getItem(STUDIO_PREFS_KEY);
     if (!raw) return defaults;
     const parsed = JSON.parse(raw) as Partial<PersistedStudioPrefs>;
+    const validModes: StudioFXMode[] = ['normal', '8d-orbit', 'arena-live'];
     return {
-      fxMode: parsed.fxMode || defaults.fxMode,
+      fxMode: (parsed.fxMode && validModes.includes(parsed.fxMode)) ? parsed.fxMode : defaults.fxMode,
       vocalMode: parsed.vocalMode || defaults.vocalMode,
       spatialOrbitAuto:
         typeof parsed.spatialOrbitAuto === 'boolean'

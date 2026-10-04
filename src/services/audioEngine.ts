@@ -3,15 +3,10 @@ import { useStudioStore, type StudioFXMode } from '../stores/studioStore';
 
 const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
-// Audiophile-tuned EQ offsets (gentle, musical sweetening curves that maintain 100% volume and clarity)
+// Audiophile-tuned EQ offsets for remaining active modes
 const FX_EQ_OFFSETS: Record<StudioFXMode, number[]> = {
   normal: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   '8d-orbit': [0.8, 0.6, 0.2, 0, 0, 0, 0.3, 0.6, 0.8, 0.8],
-  'slowed-reverb': [1.2, 1.0, 0.4, 0, 0, 0, 0.3, 0.5, 0.8, 0.8],
-  nightcore: [0, 0, 0, 0, 0.2, 0.4, 0.8, 1.2, 1.4, 1.2],
-  'bass-cinema': [2.8, 2.4, 1.2, 0.2, 0, 0, 0.2, 0.5, 0.8, 0.8],
-  'vocal-stage': [0, 0, 0, 0.3, 1.2, 1.8, 1.5, 1.0, 0.8, 0.5],
-  'lofi-tape': [1.2, 1.0, 0.6, 0.2, 0, 0, -0.4, -0.8, -1.2, -1.6],
   'arena-live': [1.6, 1.4, 0.6, 0, 0.2, 0.5, 1.0, 1.4, 1.5, 1.2]
 };
 
@@ -241,8 +236,7 @@ export function syncHeadroomAndEQ(eqBands: number[], fxMode: StudioFXMode): void
     trebleAirRackNode.gain.setTargetAtTime(Math.min(4, studio.trebleAir || 0), now, 0.035);
   }
 
-  const effectiveDrive =
-    Math.min(1, (studio.harmonicDrive || 0) + (fxMode === 'lofi-tape' ? 0.08 : 0));
+  const effectiveDrive = Math.min(1, studio.harmonicDrive || 0);
   if (exciterWaveShaper && Math.abs(effectiveDrive - lastExciterDrive) > 0.01) {
     lastExciterDrive = effectiveDrive;
     exciterWaveShaper.curve = createAnalogSaturationCurve(effectiveDrive);
@@ -514,25 +508,132 @@ export function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]
   }
 }
 
+// --- Dedicated Live Concert & 3D Spatial Audio Generators for Real-Time Experience ---
+let spatialAcousticGain: GainNode | null = null;
+let spatialAcousticPanner: StereoPannerNode | null = null;
+let spatialAcousticOsc: OscillatorNode | null = null;
+let arenaAcousticsGain: GainNode | null = null;
+let arenaSubOsc: OscillatorNode | null = null;
+let arenaCrowdSource: AudioBufferSourceNode | null = null;
+
+function createCrowdArenaBuffer(ctx: AudioContext): AudioBuffer {
+  const duration = 6;
+  const sampleRate = ctx.sampleRate;
+  const length = sampleRate * duration;
+  const buffer = ctx.createBuffer(2, length, sampleRate);
+
+  for (let ch = 0; ch < 2; ch++) {
+    const data = buffer.getChannelData(ch);
+    let last = 0;
+    for (let i = 0; i < length; i++) {
+      const white = Math.random() * 2 - 1;
+      last = (last + 0.035 * white) / 1.035;
+      const t = i / sampleRate;
+      const swell = 0.5 + 0.45 * Math.sin(t * 0.75 + ch * 1.5) * Math.cos(t * 0.32);
+      data[i] = last * swell * 0.24;
+    }
+  }
+  return buffer;
+}
+
+function ensureLiveAcousticsGraph(ctx: AudioContext): void {
+  if (spatialAcousticGain && arenaAcousticsGain) return;
+
+  try {
+    // 1. 3D Spatial Audio Orbital Synthesizer
+    spatialAcousticGain = ctx.createGain();
+    spatialAcousticGain.gain.value = 0;
+
+    spatialAcousticPanner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+
+    const spatialFilter = ctx.createBiquadFilter();
+    spatialFilter.type = 'bandpass';
+    spatialFilter.frequency.value = 432;
+    spatialFilter.Q.value = 1.2;
+
+    spatialAcousticOsc = ctx.createOscillator();
+    spatialAcousticOsc.type = 'sine';
+    spatialAcousticOsc.frequency.value = 216; // Harmonic spatial room tone
+    spatialAcousticOsc.connect(spatialFilter);
+
+    if (spatialAcousticPanner) {
+      spatialFilter.connect(spatialAcousticPanner);
+      spatialAcousticPanner.connect(spatialAcousticGain);
+    } else {
+      spatialFilter.connect(spatialAcousticGain);
+    }
+
+    spatialAcousticGain.connect(analyserNode || ctx.destination);
+    spatialAcousticOsc.start();
+
+    // 2. Live Concert Stadium Arena Generator
+    arenaAcousticsGain = ctx.createGain();
+    arenaAcousticsGain.gain.value = 0;
+
+    // Sub-bass stadium floor vibration (55Hz)
+    arenaSubOsc = ctx.createOscillator();
+    arenaSubOsc.type = 'sine';
+    arenaSubOsc.frequency.value = 55;
+    const subFilter = ctx.createBiquadFilter();
+    subFilter.type = 'lowpass';
+    subFilter.frequency.value = 80;
+    const subGain = ctx.createGain();
+    subGain.gain.value = 0.08;
+    arenaSubOsc.connect(subFilter);
+    subFilter.connect(subGain);
+    subGain.connect(arenaAcousticsGain);
+    arenaSubOsc.start();
+
+    // Stadium acoustic crowd and hall reflection field
+    const crowdBuffer = createCrowdArenaBuffer(ctx);
+    arenaCrowdSource = ctx.createBufferSource();
+    arenaCrowdSource.buffer = crowdBuffer;
+    arenaCrowdSource.loop = true;
+
+    const crowdHP = ctx.createBiquadFilter();
+    crowdHP.type = 'highpass';
+    crowdHP.frequency.value = 350;
+
+    const crowdLP = ctx.createBiquadFilter();
+    crowdLP.type = 'lowpass';
+    crowdLP.frequency.value = 3200;
+
+    const crowdGain = ctx.createGain();
+    crowdGain.gain.value = 0.16;
+
+    arenaCrowdSource.connect(crowdHP);
+    crowdHP.connect(crowdLP);
+    crowdLP.connect(crowdGain);
+    crowdGain.connect(arenaAcousticsGain);
+    arenaCrowdSource.start();
+
+    arenaAcousticsGain.connect(analyserNode || ctx.destination);
+  } catch (err) {
+    console.warn('Live acoustics graph initialization error:', err);
+  }
+}
+
+export function setLiveSpatialPan(pan: number): void {
+  const clamped = Math.max(-1, Math.min(1, pan));
+  if (audioCtx) {
+    const now = audioCtx.currentTime;
+    if (spatialAcousticPanner) {
+      spatialAcousticPanner.pan.setTargetAtTime(clamped, now, 0.035);
+    }
+    if (stereoPanner) {
+      stereoPanner.pan.setTargetAtTime(clamped, now, 0.035);
+    }
+  }
+}
+
 export function applyStudioFXToAudio(
   audio: HTMLAudioElement | null,
   fxMode: StudioFXMode,
   baseSpeed: number
 ): void {
   const studio = useStudioStore.getState();
-  const effectiveSpeed =
-    fxMode === 'slowed-reverb'
-      ? 0.88
-      : fxMode === 'nightcore'
-      ? 1.18
-      : fxMode === 'lofi-tape'
-      ? 0.96
-      : baseSpeed || 1;
-
-  const preservePitch =
-    fxMode === 'slowed-reverb' || fxMode === 'nightcore' || fxMode === 'lofi-tape'
-      ? false
-      : studio.preservePitch ?? true;
+  const effectiveSpeed = baseSpeed || 1;
+  const preservePitch = studio.preservePitch ?? true;
 
   if (audio) {
     try {
@@ -555,6 +656,56 @@ export function applyStudioFXToAudio(
     } catch {}
   }
 
+  // Ensure AudioContext and Live Acoustics Graph are awake when any effect is enabled
+  if (fxMode !== 'normal') {
+    resumeAudioContextIfNeeded();
+    if (audioCtx) {
+      ensureLiveAcousticsGraph(audioCtx);
+    }
+  }
+
+  const isPlaying = usePlayerStore.getState().isPlaying;
+  const now = audioCtx ? audioCtx.currentTime : 0;
+
+  // 1. Real-time 3D Spatial Audio processing
+  if (spatialAcousticGain && audioCtx) {
+    if (fxMode === '8d-orbit' && isPlaying) {
+      spatialAcousticGain.gain.setTargetAtTime(0.065, now, 0.05);
+
+      if (spatialAcousticPanner) {
+        if (!studio.spatialOrbitAuto) {
+          const manualX = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
+          spatialAcousticPanner.pan.setTargetAtTime(manualX * 0.88, now, 0.04);
+        }
+      }
+
+      // Coupled YouTube distance attenuation for true physical distance feel
+      if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
+        const baseVol = (usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume) * 100;
+        const dist = Math.hypot(studio.spatialManualPos?.x ?? 0, studio.spatialManualPos?.z ?? 0);
+        const distAttenuation = 1 - Math.min(0.12, dist * 0.12);
+        ytPlayerInstance.setVolume(Math.round(baseVol * distAttenuation));
+      }
+    } else {
+      spatialAcousticGain.gain.setTargetAtTime(0, now, 0.05);
+      if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
+        const baseVol = (usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume) * 100;
+        ytPlayerInstance.setVolume(Math.round(baseVol));
+      }
+    }
+  }
+
+  // 2. Real-time Live Concert Arena processing
+  if (arenaAcousticsGain && audioCtx) {
+    if (fxMode === 'arena-live' && isPlaying) {
+      const arenaVolume = Math.min(0.24, 0.12 + (studio.reverbMix || 0) * 0.12);
+      arenaAcousticsGain.gain.setTargetAtTime(arenaVolume, now, 0.06);
+    } else {
+      arenaAcousticsGain.gain.setTargetAtTime(0, now, 0.06);
+    }
+  }
+
+  // 3. Web Audio Master DSP chain (applied to direct streams / offline vault playback)
   if (
     audioCtx &&
     panLfoGain &&
@@ -563,18 +714,8 @@ export function applyStudioFXToAudio(
     sideWidthGain &&
     dryPathGain
   ) {
-    const now = audioCtx.currentTime;
     const isSpatial3D = fxMode === '8d-orbit';
 
-    // 0. Real-Time Vocal Stem Mode Crossfader (Normal vs Karaoke Instrumental vs Acapella Vocal)
-    if (normalStemGain && karaokeStemGain && acapellaStemGain) {
-      const vMode = studio.vocalMode || 'normal';
-      normalStemGain.gain.setTargetAtTime(vMode === 'normal' ? 1.0 : 0.0, now, 0.04);
-      karaokeStemGain.gain.setTargetAtTime(vMode === 'karaoke' ? 1.0 : 0.0, now, 0.04);
-      acapellaStemGain.gain.setTargetAtTime(vMode === 'acapella' ? 1.0 : 0.0, now, 0.04);
-    }
-
-    // 1. 3D Spatial Audio Orbit Panning (Smooth 360° Binaural sweep)
     const speedHz = Math.max(0.04, Math.min(0.4, studio.spatialOrbitSpeed || 0.12));
     if (sinLfoNode) {
       sinLfoNode.frequency.setTargetAtTime(speedHz, now, 0.06);
@@ -594,42 +735,19 @@ export function applyStudioFXToAudio(
       stereoPanner.pan.setTargetAtTime(0, now, 0.06);
     }
 
-    // Dry path is ALWAYS crystal-clear and full volume (1.0)
     dryPathGain.gain.setTargetAtTime(1.0, now, 0.04);
 
-    // 2. Phase-Pure Mid/Side Stereo Widener (1.0 = bit-perfect original stereo; >1.0 = widened)
     const basePresetWidth =
-      fxMode === '8d-orbit'
-        ? 1.25
-        : fxMode === 'arena-live'
-        ? 1.30
-        : fxMode === 'vocal-stage'
-        ? 1.15
-        : fxMode === 'bass-cinema'
-        ? 1.10
-        : fxMode === 'slowed-reverb'
-        ? 1.20
-        : fxMode === 'lofi-tape'
-        ? 1.05
-        : fxMode === 'nightcore'
-        ? 1.05
-        : 1.0;
+      fxMode === '8d-orbit' ? 1.25 : fxMode === 'arena-live' ? 1.30 : 1.0;
     const customWidthOffset = (studio.stereoWidth || 0) * 0.45;
     const finalWidth = Math.max(0.2, Math.min(1.65, basePresetWidth + customWidthOffset));
     sideWidthGain.gain.setTargetAtTime(finalWidth, now, 0.05);
 
-    // 3. Acoustic Dome & Hall Reverb Send Mix (Clean, pre-delayed, zero noise wash)
     const presetWet =
-      fxMode === 'slowed-reverb'
-        ? 0.18
-        : fxMode === 'arena-live'
-        ? 0.14
+      fxMode === 'arena-live'
+        ? 0.16
         : fxMode === '8d-orbit'
         ? Math.min(0.18, Math.max(0.06, (studio.spatialRoomSize ?? 0.26) * 0.3))
-        : fxMode === 'vocal-stage'
-        ? 0.07
-        : fxMode === 'lofi-tape'
-        ? 0.05
         : 0;
     const customWet = (studio.reverbMix || 0) * 0.35;
     const wetAmount = Math.min(0.35, Math.max(presetWet, customWet));
@@ -638,7 +756,7 @@ export function applyStudioFXToAudio(
 }
 
 export const getAudioFrequencyData = (out: Uint8Array): boolean => {
-  if (!analyserNode || activeEngine !== 'audio' || !audioCtx || audioCtx.state !== 'running') {
+  if (!analyserNode || !audioCtx || audioCtx.state !== 'running') {
     return false;
   }
   try {
@@ -693,5 +811,10 @@ export const seekToTime = (seconds: number): void => {
     }
   } else if (ytPlayerInstance && typeof ytPlayerInstance.seekTo === 'function') {
     ytPlayerInstance.seekTo(seconds, true);
+    if (usePlayerStore.getState().isPlaying) {
+      try {
+        ytPlayerInstance.playVideo?.();
+      } catch {}
+    }
   }
 };

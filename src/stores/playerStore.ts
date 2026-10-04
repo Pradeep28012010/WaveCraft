@@ -221,12 +221,12 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
       if (currentTime > 3) {
         seekToTime(0);
-        return { progress: 0, currentTime: 0 };
+        return { progress: 0, currentTime: 0, isPlaying: state.isPlaying };
       }
 
       if (queue.length === 0) {
         seekToTime(0);
-        return { progress: 0, currentTime: 0 };
+        return { progress: 0, currentTime: 0, isPlaying: state.isPlaying };
       }
 
       let prevIndex = queueIndex - 1;

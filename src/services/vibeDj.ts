@@ -41,7 +41,7 @@ export const CURATED_VIBE_PRESETS: VibePreset[] = [
     emoji: '🌧️',
     gradient: 'from-indigo-600 via-purple-600 to-cyan-500',
     eqPreset: 'Electronic',
-    fxMode: 'lofi-tape',
+    fxMode: 'normal',
     visualizerStyle: 'particles',
     accentColor: '#8b5cf6',
     energyLabel: 'Deep Flow • 92 BPM',
@@ -54,7 +54,7 @@ export const CURATED_VIBE_PRESETS: VibePreset[] = [
     emoji: '🔥',
     gradient: 'from-rose-600 via-red-600 to-orange-500',
     eqPreset: 'Bass Boost',
-    fxMode: 'bass-cinema',
+    fxMode: 'arena-live',
     visualizerStyle: 'starfield',
     accentColor: '#fa2d48',
     energyLabel: 'Maximum Adrenaline • 145 BPM',
@@ -93,7 +93,7 @@ export const CURATED_VIBE_PRESETS: VibePreset[] = [
     emoji: '✨',
     gradient: 'from-emerald-500 via-teal-600 to-cyan-600',
     eqPreset: 'Vocal',
-    fxMode: 'vocal-stage',
+    fxMode: 'normal',
     visualizerStyle: 'nebula',
     accentColor: '#10b981',
     energyLabel: 'Soulful Maestro • Melodic',
@@ -106,7 +106,7 @@ export const CURATED_VIBE_PRESETS: VibePreset[] = [
     emoji: '☕',
     gradient: 'from-amber-600 via-yellow-600 to-emerald-600',
     eqPreset: 'Acoustic',
-    fxMode: 'lofi-tape',
+    fxMode: 'normal',
     visualizerStyle: 'wave',
     accentColor: '#10b981',
     energyLabel: 'Warm & Cozy • 85 BPM',
@@ -119,7 +119,7 @@ export const CURATED_VIBE_PRESETS: VibePreset[] = [
     emoji: '🌌',
     gradient: 'from-purple-700 via-indigo-700 to-blue-600',
     eqPreset: 'Vocal',
-    fxMode: 'slowed-reverb',
+    fxMode: 'normal',
     visualizerStyle: 'nebula',
     accentColor: '#a855f7',
     energyLabel: 'Ethereal Cloud • 0.88x Reverb',
@@ -132,7 +132,7 @@ export const CURATED_VIBE_PRESETS: VibePreset[] = [
     emoji: '💔',
     gradient: 'from-rose-900 via-purple-900 to-slate-900',
     eqPreset: 'Vocal',
-    fxMode: 'vocal-stage',
+    fxMode: 'normal',
     visualizerStyle: 'wave',
     accentColor: '#f43f5e',
     energyLabel: 'Deep Emotional • 82 BPM',
@@ -162,9 +162,9 @@ const ARTIST_KNOWLEDGE_BASE: Record<string, ArtistProfile> = {
   'taylor swift': {
     name: 'Taylor Swift',
     genre: 'Indie Pop & Storytelling',
-    soundalikes: ['Olivia Rodrigo', 'Gracie Abrams', 'Sabrina Carpenter', 'Phoebe Bridgers'],
+    soundalikes: ['Olivia Rodrigo', 'Gracie Abrams', 'Sabrina Carpenter', 'Phoebe Bridges'],
     seedQueries: ['Taylor Swift 1989 Midnights hits', 'Olivia Rodrigo pop hits', 'Sabrina Carpenter Espresso', 'Gracie Abrams indie'],
-    preferredFx: 'vocal-stage',
+    preferredFx: 'normal',
     preferredEq: 'Pop'
   },
   'anirudh': {
@@ -172,7 +172,7 @@ const ARTIST_KNOWLEDGE_BASE: Record<string, ArtistProfile> = {
     genre: 'Modern Tamil/Telugu EDM Fusion',
     soundalikes: ['Santhosh Narayanan', 'GV Prakash', 'Thaman S', 'Devi Sri Prasad'],
     seedQueries: ['Anirudh Ravichander blockbuster hits', 'Anirudh Leo Jailer songs', 'Thaman S mass beats', 'Santhosh Narayanan hits'],
-    preferredFx: 'bass-cinema',
+    preferredFx: 'arena-live',
     preferredEq: 'Bass Boost'
   },
   'rahman': {
@@ -188,7 +188,7 @@ const ARTIST_KNOWLEDGE_BASE: Record<string, ArtistProfile> = {
     genre: 'Soulful Bollywood Melodies',
     soundalikes: ['Atif Aslam', 'Mohit Chauhan', 'Pritam', 'Jubin Nautiyal'],
     seedQueries: ['Arijit Singh soulful romantic hits', 'Pritam Arijit chartbusters', 'Atif Aslam greatest hits', 'Mohit Chauhan melodies'],
-    preferredFx: 'vocal-stage',
+    preferredFx: 'normal',
     preferredEq: 'Vocal'
   },
   'drake': {
@@ -196,7 +196,7 @@ const ARTIST_KNOWLEDGE_BASE: Record<string, ArtistProfile> = {
     genre: 'Hip Hop & Melodic Trap',
     soundalikes: ['Travis Scott', '21 Savage', 'Future', 'Post Malone'],
     seedQueries: ['Drake OVO billboard hits', 'Travis Scott Utopia hits', 'Post Malone hip hop', '21 Savage Metro Boomin'],
-    preferredFx: 'bass-cinema',
+    preferredFx: 'arena-live',
     preferredEq: 'Bass Boost'
   },
   'billie eilish': {
@@ -204,7 +204,7 @@ const ARTIST_KNOWLEDGE_BASE: Record<string, ArtistProfile> = {
     genre: 'Dark Bedroom Alt-Pop',
     soundalikes: ['Lorde', 'Lana Del Rey', 'FINNEAS', 'Melanie Martinez'],
     seedQueries: ['Billie Eilish dark pop hits', 'Lana Del Rey Born to Die', 'Lorde Melodrama', 'Billie Eilish Birds of a Feather'],
-    preferredFx: 'slowed-reverb',
+    preferredFx: '8d-orbit',
     preferredEq: 'Electronic'
   },
   'diljit': {
@@ -212,7 +212,7 @@ const ARTIST_KNOWLEDGE_BASE: Record<string, ArtistProfile> = {
     genre: 'Punjabi Global Pop',
     soundalikes: ['Karan Aujla', 'AP Dhillon', 'Shubh', 'Sidhu Moose Wala'],
     seedQueries: ['Diljit Dosanjh Ghost hits', 'Karan Aujla Making Memories', 'AP Dhillon Brown Munde', 'Shubh Cheques'],
-    preferredFx: 'bass-cinema',
+    preferredFx: 'arena-live',
     preferredEq: 'Bass Boost'
   },
   'bts': {
@@ -220,7 +220,7 @@ const ARTIST_KNOWLEDGE_BASE: Record<string, ArtistProfile> = {
     genre: 'K-Pop & Hyper-Energy Dance',
     soundalikes: ['NewJeans', 'BLACKPINK', 'Stray Kids', 'LE SSERAFIM'],
     seedQueries: ['BTS greatest dance hits', 'NewJeans hype boy OMG', 'BLACKPINK Born Pink hits', 'LE SSERAFIM Antifragile'],
-    preferredFx: 'nightcore',
+    preferredFx: 'arena-live',
     preferredEq: 'Pop'
   },
   'coldplay': {
@@ -258,22 +258,10 @@ export function analyzeCustomPrompt(prompt: string): {
   // 2. Detect modifiers and FX
   let fxMode: StudioFXMode = 'normal';
   let suggestedSpeed = 1.0;
-  if (/slowed|reverb|vaporwave|dreamy|aesthetic/i.test(lower)) {
-    fxMode = 'slowed-reverb';
-    suggestedSpeed = 0.88;
-  } else if (/8d|spatial|surround|binaural|orbit/i.test(lower)) {
+  if (/8d|spatial|surround|binaural|orbit|3d/i.test(lower)) {
     fxMode = '8d-orbit';
-  } else if (/nightcore|fast|hyper|speed\s*up/i.test(lower)) {
-    fxMode = 'nightcore';
-    suggestedSpeed = 1.15;
-  } else if (/bass|sub|cinema|car\s*audio|heavy\s*bass/i.test(lower)) {
-    fxMode = 'bass-cinema';
-  } else if (/lofi|lo-fi|tape|cassette|vinyl|study/i.test(lower)) {
-    fxMode = 'lofi-tape';
-  } else if (/live|concert|arena|stadium/i.test(lower)) {
+  } else if (/live|concert|arena|stadium|crowd/i.test(lower)) {
     fxMode = 'arena-live';
-  } else if (/karaoke|acapella|vocal|acoustic/i.test(lower)) {
-    fxMode = 'vocal-stage';
   }
 
   // 3. Detect Genre, Mood, and Energy Level
@@ -289,28 +277,25 @@ export function analyzeCustomPrompt(prompt: string): {
     accentColor = '#fa2d48';
     energyLabel = 'Maximum Adrenaline • 140+ BPM';
     vibeCategory = 'High-Intensity Beast Mode';
-    if (fxMode === 'normal') fxMode = 'bass-cinema';
+    if (fxMode === 'normal') fxMode = 'arena-live';
   } else if (/(code|coding|study|focus|rain|lofi|ambient|reading|zen|calm|tokyo)/i.test(lower)) {
     eqPreset = 'Electronic';
     visualizerStyle = 'particles';
     accentColor = '#8b5cf6';
     energyLabel = 'Deep Flow State • 88 BPM';
     vibeCategory = 'Deep Mental Focus';
-    if (fxMode === 'normal') fxMode = 'lofi-tape';
   } else if (/(acoustic|coffee|morning|unplugged|indie|folk|campfire|peaceful|sunday)/i.test(lower)) {
     eqPreset = 'Acoustic';
     visualizerStyle = 'wave';
     accentColor = '#10b981';
     energyLabel = 'Warm Acoustic Harmony • 85 BPM';
     vibeCategory = 'Organic Coffeehouse';
-    if (fxMode === 'normal') fxMode = 'vocal-stage';
   } else if (/(sad|heartbreak|crying|lonely|alone|breakup|melancholy|miss\s*you|depressed)/i.test(lower)) {
     eqPreset = 'Vocal';
     visualizerStyle = 'wave';
     accentColor = '#f43f5e';
     energyLabel = 'Emotional & Vulnerable • 78 BPM';
     vibeCategory = 'Late Night Melancholy';
-    if (fxMode === 'normal') fxMode = 'slowed-reverb';
   } else if (/(party|club|dance|edm|festival|bounce|rave|banger|house)/i.test(lower)) {
     eqPreset = 'Electronic';
     visualizerStyle = 'bars';

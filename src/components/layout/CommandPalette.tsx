@@ -103,40 +103,22 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
   const actions: CommandAction[] = useMemo(
     () => [
       {
-        id: 'fx-slowed',
-        category: 'Studio Audio FX',
-        title: 'Activate Slowed + Reverb Mode',
-        subtitle: '0.86x analog tape pitch-drop with lush stereo hall reverb',
-        badge: fxMode === 'slowed-reverb' ? 'ACTIVE' : '0.86x DSP',
-        icon: '🌙',
-        run: () => setFxMode(fxMode === 'slowed-reverb' ? 'normal' : 'slowed-reverb')
-      },
-      {
         id: 'fx-8d',
         category: 'Studio Audio FX',
-        title: 'Activate 8D Spatial Audio Orbit',
+        title: 'Activate 3D Spatial Audio Orbit',
         subtitle: '360° circular stereo panner orbiting around your headphones',
         badge: fxMode === '8d-orbit' ? 'ACTIVE' : '360° ORBIT',
-        icon: '🎧',
+        icon: '🪐',
         run: () => setFxMode(fxMode === '8d-orbit' ? 'normal' : '8d-orbit')
       },
       {
-        id: 'fx-nightcore',
+        id: 'fx-live',
         category: 'Studio Audio FX',
-        title: 'Activate Nightcore Rush (1.22x)',
-        subtitle: 'High-energy sped-up pitch & tempo with crystal treble boost',
-        badge: fxMode === 'nightcore' ? 'ACTIVE' : '1.22x UP',
-        icon: '⚡',
-        run: () => setFxMode(fxMode === 'nightcore' ? 'normal' : 'nightcore')
-      },
-      {
-        id: 'fx-bass',
-        category: 'Studio Audio FX',
-        title: 'Activate Sub-Bass Cinema (+8dB)',
-        subtitle: 'Deep theater sub-bass punch at 32Hz–64Hz',
-        badge: fxMode === 'bass-cinema' ? 'ACTIVE' : '+8dB SUB',
-        icon: '🔊',
-        run: () => setFxMode(fxMode === 'bass-cinema' ? 'normal' : 'bass-cinema')
+        title: 'Activate Live Concert Arena',
+        subtitle: 'Expansive live stadium concert reflections and arena crowd presence',
+        badge: fxMode === 'arena-live' ? 'ACTIVE' : 'LIVE ARENA',
+        icon: '🏟️',
+        run: () => setFxMode(fxMode === 'arena-live' ? 'normal' : 'arena-live')
       },
       {
         id: 'fx-normal',

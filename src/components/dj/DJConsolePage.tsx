@@ -771,9 +771,7 @@ export default function DJConsolePage() {
       }, 950);
       padTimeoutsRef.current.push(t1, t2);
     } else if (padId === 'underwater') {
-      setFxMode('slowed-reverb');
       const t1 = setTimeout(() => {
-        setFxMode('normal');
         setActivePad(null);
       }, 2400);
       padTimeoutsRef.current.push(t1);
@@ -785,13 +783,13 @@ export default function DJConsolePage() {
       }, 3200);
       padTimeoutsRef.current.push(t1);
     } else if (padId === 'bass-drop') {
-      setFxMode('bass-cinema');
+      setFxMode('arena-live');
       const t1 = setTimeout(() => {
         setActivePad(null);
       }, 2200);
       padTimeoutsRef.current.push(t1);
     } else if (padId === 'nightcore') {
-      setFxMode('nightcore');
+      setFxMode('arena-live');
       setTimeout(() => {
         setFxMode('normal');
         setActivePad(null);
