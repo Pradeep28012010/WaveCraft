@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wavecraft-shell-v3.5';
+const CACHE_NAME = 'wavecraft-shell-v3.6';
 const SHELL_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {

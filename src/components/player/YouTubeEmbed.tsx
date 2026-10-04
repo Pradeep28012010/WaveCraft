@@ -200,6 +200,12 @@ export default function YouTubeEmbed() {
         usePlayerStore.getState().pause();
         return;
       }
+      const pState = usePlayerStore.getState();
+      if (pState.repeatMode === 'one') {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+        return;
+      }
       nextTrack();
     };
 

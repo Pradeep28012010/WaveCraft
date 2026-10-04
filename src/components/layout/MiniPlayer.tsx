@@ -371,31 +371,49 @@ export default function MiniPlayer() {
                 whileHover={{ scale: 1.12 }}
                 whileTap={{ scale: 0.88 }}
                 onClick={cycleRepeat}
-                title={`Repeat: ${repeatMode}`}
-                className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
+                title={
+                  repeatMode === 'one'
+                    ? 'Repeat One Track'
+                    : repeatMode === 'all'
+                    ? 'Repeat All'
+                    : 'Repeat Off'
+                }
+                aria-label={
+                  repeatMode === 'one'
+                    ? 'Repeat One Track'
+                    : repeatMode === 'all'
+                    ? 'Repeat All'
+                    : 'Repeat Off'
+                }
+                className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer relative ${
                   repeatMode !== 'off' ? 'glass-button-primary text-white' : 'text-white/50 hover:text-white'
                 }`}
               >
                 <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  {repeatMode === 'one' ? (
-                    <>
-                      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                      <polyline points="17 1 21 5 17 9" />
-                      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                      <polyline points="7 23 3 19 7 15" />
-                      <text x="10" y="15" fontSize="8" fill="currentColor" stroke="none" fontWeight="bold">
-                        1
-                      </text>
-                    </>
-                  ) : (
-                    <>
-                      <polyline points="17 1 21 5 17 9" />
-                      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                      <polyline points="7 23 3 19 7 15" />
-                      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                    </>
+                  <polyline points="17 1 21 5 17 9" />
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" />
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                  {repeatMode === 'one' && (
+                    <text
+                      x="12"
+                      y="13"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize="8"
+                      fill="currentColor"
+                      stroke="none"
+                      fontWeight="900"
+                    >
+                      1
+                    </text>
                   )}
                 </svg>
+                {repeatMode === 'one' && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-accent)] text-white text-[7px] font-black flex items-center justify-center shadow-sm border border-white/20">
+                    1
+                  </span>
+                )}
               </motion.button>
             </div>
           </div>

@@ -626,8 +626,21 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                     <button
                       onClick={cycleRepeat}
-                      title={`Repeat: ${repeatMode}`}
-                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer ${
+                      title={
+                        repeatMode === 'one'
+                          ? 'Repeat One Track'
+                          : repeatMode === 'all'
+                          ? 'Repeat All'
+                          : 'Repeat Off'
+                      }
+                      aria-label={
+                        repeatMode === 'one'
+                          ? 'Repeat One Track'
+                          : repeatMode === 'all'
+                          ? 'Repeat All'
+                          : 'Repeat Off'
+                      }
+                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer relative ${
                         repeatMode !== 'off'
                           ? 'glass-button-primary text-white'
                           : 'glass-button text-white/60 hover:text-white'
@@ -638,7 +651,26 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         <path d="M3 11V9a4 4 0 0 1 4-4h14" />
                         <polyline points="7 23 3 19 7 15" />
                         <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                        {repeatMode === 'one' && (
+                          <text
+                            x="12"
+                            y="13"
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fontSize="8"
+                            fill="currentColor"
+                            stroke="none"
+                            fontWeight="900"
+                          >
+                            1
+                          </text>
+                        )}
                       </svg>
+                      {repeatMode === 'one' && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center shadow-sm border border-white/20">
+                          1
+                        </span>
+                      )}
                     </button>
                   </div>
 
