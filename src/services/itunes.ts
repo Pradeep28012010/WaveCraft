@@ -107,6 +107,53 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
   }
 
   try {
+    const res = await fetch('/api/music?action=new-releases');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.releases) && data.releases.length > 0) {
+        cachedNewReleases = data.releases;
+        return data.releases;
+      }
+    }
+  } catch (err) {
+    console.warn('API new-releases fetch error, trying direct Apple RSS:', err);
+  }
+
+  // Client-side direct Apple RSS fallback
+  try {
+    const r = await fetch('https://itunes.apple.com/us/rss/topalbums/limit=25/json');
+    if (r.ok) {
+      const data = await r.json();
+      const entries = data.feed?.entry || [];
+      const releases: AlbumResult[] = entries.map((e: any, idx: number) => {
+        const rawCover = e['im:image']?.slice(-1)[0]?.label || DEFAULT_THUMBNAIL;
+        const highResCover = rawCover.replace('170x170bb', '600x600bb');
+        const title = e['im:name']?.label || 'Untitled Album';
+        const artist = e['im:artist']?.label || 'Various Artists';
+        return {
+          id: `rel_${idx}_${e.id?.attributes?.['im:id'] || idx}`,
+          name: title,
+          title: title,
+          artist: artist,
+          coverUrl: highResCover,
+          coverArt: highResCover,
+          thumbnail: highResCover,
+          year: new Date().getFullYear(),
+          trackCount: parseInt(e['im:itemCount']?.label || '10', 10)
+        };
+      });
+
+      if (releases.length > 0) {
+        cachedNewReleases = releases;
+        return releases;
+      }
+    }
+  } catch (err) {
+    console.warn('Direct Apple RSS fallback error:', err);
+  }
+
+  // Final fallback to trending
+  try {
     const trending = (await getCachedTrending()) || (await getTrending());
     const seen = new Set<string>();
     const releases: AlbumResult[] = [];

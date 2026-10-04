@@ -78,7 +78,8 @@ export default function HomePage() {
 
   const [trendingTracks, setTrendingTracks] = useState<Track[]>(() => getCachedTrending() || []);
   const [newReleases, setNewReleases] = useState<AlbumResult[]>(() => getCachedNewReleases() || []);
-  const [isLoading, setIsLoading] = useState<boolean>(() => !getCachedTrending());
+  const [isTrendingLoading, setIsTrendingLoading] = useState<boolean>(() => !getCachedTrending());
+  const [isReleasesLoading, setIsReleasesLoading] = useState<boolean>(() => !getCachedNewReleases());
   const [activeTrendingCategory, setActiveTrendingCategory] = useState<string>('global');
   const [isCategoryTrendingLoading, setIsCategoryTrendingLoading] = useState<boolean>(false);
   const [loadingMoodId, setLoadingMoodId] = useState<string | null>(null);
@@ -87,25 +88,40 @@ export default function HomePage() {
     let isMounted = true;
 
     if (!getCachedTrending()) {
-      setIsLoading(true);
+      setIsTrendingLoading(true);
     }
 
     getTrending('global')
       .then((trending) => {
         if (isMounted) {
-          setTrendingTracks(trending);
-          setIsLoading(false);
+          if (trending && trending.length > 0) {
+            setTrendingTracks(trending);
+          }
+          setIsTrendingLoading(false);
         }
       })
-      .catch(() => {
-        if (isMounted) setIsLoading(false);
+      .catch((err) => {
+        console.warn('Trending fetch error:', err);
+        if (isMounted) setIsTrendingLoading(false);
       });
+
+    if (!getCachedNewReleases()) {
+      setIsReleasesLoading(true);
+    }
 
     getNewReleases()
       .then((releases) => {
-        if (isMounted) setNewReleases(releases);
+        if (isMounted) {
+          if (releases && releases.length > 0) {
+            setNewReleases(releases);
+          }
+          setIsReleasesLoading(false);
+        }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('New releases fetch error:', err);
+        if (isMounted) setIsReleasesLoading(false);
+      });
 
     return () => {
       isMounted = false;
@@ -287,7 +303,7 @@ export default function HomePage() {
       {/* Trending Section */}
       <TrendingSection
         tracks={trendingTracks}
-        isLoading={isLoading || isCategoryTrendingLoading}
+        isLoading={isTrendingLoading || isCategoryTrendingLoading}
         activeCategory={activeTrendingCategory}
         onSelectCategory={handleSelectTrendingCategory}
         onPlayTrack={(track, allTracks) => playTrack(track, allTracks)}
@@ -326,7 +342,7 @@ export default function HomePage() {
 
       {/* New Releases */}
       <HorizontalScroll title="New Releases" subtitle="Top albums making waves worldwide">
-        {isLoading
+        {isReleasesLoading
           ? Array(6)
               .fill(0)
               .map((_, i) => (
@@ -341,28 +357,31 @@ export default function HomePage() {
                 key={album.id}
                 padding="sm"
                 hover
-                className="min-w-[180px] max-w-[180px] flex-shrink-0 snap-start group cursor-pointer hover:border-white/25 transition-colors duration-300"
+                className="min-w-[190px] max-w-[190px] flex-shrink-0 snap-start group cursor-pointer hover:border-white/25 transition-all duration-300"
                 onClick={() =>
                   navigate(`/search?q=${encodeURIComponent(`${album.title || album.name} ${album.artist}`)}`)
                 }
               >
-                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5 shadow-md">
+                <div className="aspect-square rounded-xl overflow-hidden mb-3.5 relative bg-white/5 shadow-lg">
                   <img
                     src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                     alt={album.title || album.name}
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                     className="w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
                   />
+                  <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-[10px] font-bold text-white/90">
+                    Album
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center">
-                    <div className="w-11 h-11 rounded-full bg-white/25 backdrop-blur-md text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
-                      <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                    <div className="w-12 h-12 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(250,45,72,0.55)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
+                      <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
                   </div>
                 </div>
                 <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{album.title || album.name}</h3>
-                <p className="text-xs text-white/55 truncate mt-0.5">{album.artist}</p>
+                <p className="text-xs text-white/55 truncate mt-1">{album.artist}</p>
               </GlassCard>
             ))}
       </HorizontalScroll>

@@ -90,6 +90,48 @@ export default async function handler(req, res) {
       return res.status(200).json(payload);
     }
 
+    if (action === 'new-releases') {
+      const cacheKey = 'releases:global';
+      const cached = getCached(cacheKey);
+      res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=7200');
+      if (cached) return res.status(200).json(cached);
+
+      try {
+        const r = await fetchWithTimeout('https://itunes.apple.com/us/rss/topalbums/limit=25/json', {}, 4000);
+        if (r.ok) {
+          const data = await r.json();
+          const entries = data.feed?.entry || [];
+          const releases = entries.map((e, idx) => {
+            const rawCover = e['im:image']?.slice(-1)[0]?.label || '';
+            const highResCover = rawCover.replace('170x170bb', '600x600bb');
+            const title = e['im:name']?.label || 'Untitled Album';
+            const artist = e['im:artist']?.label || 'Various Artists';
+            return {
+              id: `rel_${idx}_${e.id?.attributes?.['im:id'] || idx}`,
+              name: title,
+              title: title,
+              artist: artist,
+              coverUrl: highResCover,
+              coverArt: highResCover,
+              thumbnail: highResCover,
+              year: new Date().getFullYear(),
+              trackCount: parseInt(e['im:itemCount']?.label || '10', 10)
+            };
+          });
+
+          if (releases.length > 0) {
+            const payload = { releases };
+            setCached(cacheKey, payload, 3600_000);
+            return res.status(200).json(payload);
+          }
+        }
+      } catch (err) {
+        console.warn('New releases fetch error:', err);
+      }
+
+      return res.status(200).json({ releases: [] });
+    }
+
     if (action === 'suggestions') {
       const cacheKey = `sug:${q.toLowerCase()}`;
       const cached = getCached(cacheKey);
@@ -750,7 +792,7 @@ async function fetchSpotifyTrending(categoryKey = 'global') {
           });
 
           // Pre-resolve YouTube IDs for the top tracks in parallel batches for zero-latency, verified playback
-          const candidatesToResolve = mappedTracks.slice(0, 25);
+          const candidatesToResolve = mappedTracks.slice(0, 30);
           const resolvedTracks = [];
           const seenVideoIds = new Set();
 
@@ -777,12 +819,16 @@ async function fetchSpotifyTrending(categoryKey = 'global') {
                     tr.duration = matched.duration;
                   }
                   resolvedTracks.push(tr);
+                } else {
+                  resolvedTracks.push(tr);
                 }
+              } else {
+                resolvedTracks.push(tr);
               }
             });
           }
 
-          if (resolvedTracks.length >= 8) {
+          if (resolvedTracks.length >= 6) {
             return {
               tracks: resolvedTracks,
               playlistName: entity.name || cat.name,
