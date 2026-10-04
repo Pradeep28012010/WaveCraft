@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wavecraft-shell-v4.0';
+const CACHE_NAME = 'wavecraft-shell-v5.0-clean';
 const SHELL_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -19,6 +19,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
@@ -36,10 +42,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests: network first, fallback to cached index.html for SPA routes
+  // Navigation requests: always fetch fresh from network with no-cache, fallback to cache only when offline
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-cache' })
         .then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();
@@ -52,7 +58,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Hashed Vite build assets: network first to prevent serving stale versions
+  // Hashed Vite build assets: network first to guarantee latest code chunks
   if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
     event.respondWith(
       fetch(request)
@@ -68,21 +74,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static same-origin assets: stale-while-revalidate
+  // Static same-origin assets: network-first with stale fallback
   if (url.origin === self.location.origin) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        const networkFetch = fetch(request)
-          .then((response) => {
-            if (response && response.status === 200 && response.type === 'basic') {
-              const clone = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-            }
-            return response;
-          })
-          .catch(() => cached);
-        return cached || networkFetch;
-      })
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
   }
 });
