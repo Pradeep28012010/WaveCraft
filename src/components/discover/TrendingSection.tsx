@@ -11,7 +11,7 @@ interface TrendingSectionProps {
   isLoading: boolean;
   activeCategory?: string;
   onSelectCategory?: (category: string) => void;
-  onPlayTrack: (track: Track, allTracks: Track[]) => void;
+  onPlayTrack: (track: Track, allTracks: Track[], index?: number) => void;
 }
 
 export default function TrendingSection({
@@ -86,7 +86,7 @@ export default function TrendingSection({
       {onSelectCategory && (
         <div
           ref={categoriesRef}
-          className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mb-1"
+          className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pt-2 pb-4 px-2 mb-1"
         >
           {SPOTIFY_TRENDING_CATEGORIES.map((cat) => {
             const isSelected = cat.key === activeCategory;
@@ -94,9 +94,9 @@ export default function TrendingSection({
               <button
                 key={cat.key}
                 onClick={() => onSelectCategory(cat.key)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer flex-shrink-0 ${
                   isSelected
-                    ? 'bg-[#1ed760] text-black font-extrabold shadow-[0_4px_16px_rgba(30,215,96,0.35)] scale-105'
+                    ? 'bg-[#1ed760] text-black font-black shadow-[0_4px_20px_rgba(30,215,96,0.4)] scale-[1.03]'
                     : 'glass-button text-white/75 hover:text-white hover:bg-white/10'
                 }`}
               >
@@ -111,7 +111,7 @@ export default function TrendingSection({
       {/* Track Cards Horizontal Scroll */}
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto no-scrollbar pt-3 pb-6 px-5 -mx-5"
+        className="flex gap-5 overflow-x-auto no-scrollbar pt-5 pb-8 px-2"
       >
         {isLoading
           ? Array(8)
@@ -135,7 +135,13 @@ export default function TrendingSection({
                       ? '!border-2 !border-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent)]/60 bg-white/15 shadow-[0_14px_34px_rgba(0,0,0,0.5)]'
                       : 'hover:bg-white/[0.11] hover:border-white/25'
                   }`}
-                  onClick={() => onPlayTrack(track, tracks)}
+                  onClick={() => {
+                    if (isActive) {
+                      usePlayerStore.getState().togglePlay();
+                    } else {
+                      onPlayTrack(track, tracks, i);
+                    }
+                  }}
                 >
                   {/* Rank Badge */}
                   <div className="absolute top-4 left-4 px-2.5 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-xs font-black z-10 shadow-lg">

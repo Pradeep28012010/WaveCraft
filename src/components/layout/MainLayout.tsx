@@ -87,7 +87,7 @@ export default function MainLayout() {
 
           <main
             ref={mainRef}
-            className={`flex-1 overflow-y-auto scroll-smooth will-change-scroll ${
+            className={`flex-1 overflow-y-auto overflow-x-hidden scroll-smooth will-change-scroll ${
               isPhone ? 'p-3.5' : 'p-6'
             }`}
           >

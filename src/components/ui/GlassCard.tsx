@@ -24,15 +24,16 @@ const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
 
     const hoverProps = hover
       ? {
-          whileHover: { y: -6, scale: 1.022 },
-          whileTap: { scale: 0.975 },
-          transition: { type: 'spring', stiffness: 380, damping: 24, mass: 0.65 }
+          whileHover: { y: -5, scale: 1.02 },
+          whileTap: { scale: 0.98 },
+          transition: { type: 'spring', stiffness: 380, damping: 24, mass: 0.6 }
         }
       : {};
 
     return (
       <motion.div
         ref={ref}
+        style={{ willChange: hover ? 'transform' : 'auto', ...(props.style || {}) }}
         className={`${variantClass} rounded-[var(--radius-lg)] ${paddingClass} ${className}`}
         {...hoverProps}
         {...props}

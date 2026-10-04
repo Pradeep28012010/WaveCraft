@@ -5,7 +5,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useStudioStore } from '../../stores/studioStore';
 import { getTrending, getCachedTrending, searchTracks } from '../../services/youtube';
-import { getNewReleases, getCachedNewReleases } from '../../services/itunes';
+import { getNewReleases, getCachedNewReleases, getAlbumTracks } from '../../services/itunes';
 import GlassCard from '../ui/GlassCard';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from '../search/GenreBrowser';
@@ -37,7 +37,7 @@ const HorizontalScroll = ({
 
   return (
     <section className="mb-12">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-2">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight">{title}</h2>
           {subtitle && <p className="text-xs text-white/50 mt-0.5">{subtitle}</p>}
@@ -63,7 +63,7 @@ const HorizontalScroll = ({
       </div>
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto no-scrollbar pt-4 pb-6 px-5 -mx-5 -mt-2"
+        className="flex gap-5 overflow-x-auto no-scrollbar pt-5 pb-8 px-2"
       >
         {children}
       </div>
@@ -83,6 +83,7 @@ export default function HomePage() {
   const [activeTrendingCategory, setActiveTrendingCategory] = useState<string>('global');
   const [isCategoryTrendingLoading, setIsCategoryTrendingLoading] = useState<boolean>(false);
   const [loadingMoodId, setLoadingMoodId] = useState<string | null>(null);
+  const [playingAlbumId, setPlayingAlbumId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -146,6 +147,23 @@ export default function HomePage() {
       console.error('Failed to play mood:', err);
     } finally {
       setLoadingMoodId(null);
+    }
+  };
+
+  const handlePlayAlbum = async (album: AlbumResult, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPlayingAlbumId(album.id);
+    try {
+      const tracks = await getAlbumTracks(album);
+      if (tracks.length > 0) {
+        playTrack(tracks[0], tracks, 0);
+      } else {
+        navigate(`/search?q=${encodeURIComponent(`${album.title || album.name} ${album.artist}`)}`);
+      }
+    } catch {
+      navigate(`/search?q=${encodeURIComponent(`${album.title || album.name} ${album.artist}`)}`);
+    } finally {
+      setPlayingAlbumId(null);
     }
   };
 
@@ -306,7 +324,7 @@ export default function HomePage() {
         isLoading={isTrendingLoading || isCategoryTrendingLoading}
         activeCategory={activeTrendingCategory}
         onSelectCategory={handleSelectTrendingCategory}
-        onPlayTrack={(track, allTracks) => playTrack(track, allTracks)}
+        onPlayTrack={(track, allTracks, idx) => playTrack(track, allTracks, idx)}
       />
 
       {/* Mood Playlists */}
@@ -373,11 +391,19 @@ export default function HomePage() {
                     Album
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center">
-                    <div className="w-12 h-12 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(250,45,72,0.55)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
-                      <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </div>
+                    <button
+                      onClick={(e) => handlePlayAlbum(album, e)}
+                      className="w-12 h-12 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(250,45,72,0.55)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer hover:brightness-110 active:scale-95"
+                      title={`Play ${album.title || album.name}`}
+                    >
+                      {playingAlbumId === album.id ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 </div>
                 <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{album.title || album.name}</h3>
