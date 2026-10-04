@@ -93,7 +93,9 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   const rightEarRef = useRef<HTMLDivElement>(null);
   const spectrumCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Update radar position readout directly without React re-renders
+  const prevVisualsRef = useRef({ az: '', dist: '', l: '', r: '', zone: '' });
+
+  // Update radar position readout directly without React re-renders or redundant DOM dirtying
   const updateRadarVisuals = (
     x: number,
     z: number,
@@ -103,11 +105,33 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       orbDotRef.current.style.transform = `translate(${x * 68}px, ${z * 68}px)`;
     }
     const state = spatialState || getLiveSpatialState();
-    if (azimuthRef.current) azimuthRef.current.textContent = `${state.azimuthDeg}°`;
-    if (distanceRef.current) distanceRef.current.textContent = `${state.distanceMeters.toFixed(2)} m`;
-    if (leftEarRef.current) leftEarRef.current.textContent = `${state.leftEarPct}%`;
-    if (rightEarRef.current) rightEarRef.current.textContent = `${state.rightEarPct}%`;
-    if (stageZoneRef.current) stageZoneRef.current.textContent = state.stageZone;
+    const azStr = `${state.azimuthDeg}°`;
+    const distStr = `${(state.distanceMeters || 0).toFixed(2)} m`;
+    const lStr = `${state.leftEarPct}%`;
+    const rStr = `${state.rightEarPct}%`;
+    const zoneStr = state.stageZone || '';
+
+    const p = prevVisualsRef.current;
+    if (p.az !== azStr && azimuthRef.current) {
+      p.az = azStr;
+      azimuthRef.current.textContent = azStr;
+    }
+    if (p.dist !== distStr && distanceRef.current) {
+      p.dist = distStr;
+      distanceRef.current.textContent = distStr;
+    }
+    if (p.l !== lStr && leftEarRef.current) {
+      p.l = lStr;
+      leftEarRef.current.textContent = lStr;
+    }
+    if (p.r !== rStr && rightEarRef.current) {
+      p.r = rStr;
+      rightEarRef.current.textContent = rStr;
+    }
+    if (p.zone !== zoneStr && stageZoneRef.current) {
+      p.zone = zoneStr;
+      stageZoneRef.current.textContent = zoneStr;
+    }
   };
 
   // High-Definition 60fps Real-Time Spectrum Analyzer Canvas

@@ -502,15 +502,22 @@ let rackSubGain: GainNode | null = null;
 let rackTrebleGain: GainNode | null = null;
 let rackTrebleSource: AudioBufferSourceNode | null = null;
 
-// Persistent Global 60fps Orbit Loop
+// Persistent Global 60fps Orbit Loop & Background Resilience
 let orbitAngle = 0;
 let orbitRafId = 0;
+let backgroundIntervalId: ReturnType<typeof setInterval> | null = null;
 let lastOrbitTime = 0;
 let isOrbitLoopRunning = false;
+let lastAppliedYtVolume = -1;
+let lastYtVolumeTime = 0;
 
-function updateSpatialFrame(ox: number, oz: number, angle: number): void {
+function updateSpatialFrame(rawX: number, rawZ: number, angle: number): void {
+  const ox = isFinite(rawX) ? Math.max(-1, Math.min(1, rawX)) : 0;
+  const oz = isFinite(rawZ) ? Math.max(-1, Math.min(1, rawZ)) : -0.85;
+
   const azDeg = Math.round(((Math.atan2(ox, -oz) * 180) / Math.PI + 360) % 360);
-  const dist = (Math.hypot(ox, oz) * 2.5).toFixed(2);
+  const rawDist = Math.hypot(ox, oz);
+  const dist = isFinite(rawDist) ? (rawDist * 2.5).toFixed(2) : '2.12';
   const lEar = Math.round(Math.min(100, Math.max(18, 72 - ox * 38)));
   const rEar = Math.round(Math.min(100, Math.max(18, 72 + ox * 38)));
   const stageLabel =
@@ -525,7 +532,7 @@ function updateSpatialFrame(ox: number, oz: number, angle: number): void {
   liveSpatialState = {
     x: ox,
     z: oz,
-    angle,
+    angle: isFinite(angle) ? angle : 0,
     azimuthDeg: azDeg,
     distanceMeters: parseFloat(dist),
     leftEarPct: lEar,
@@ -540,17 +547,27 @@ function updateSpatialFrame(ox: number, oz: number, angle: number): void {
   });
 
   // Dynamic Head-Shadow & Distance Attenuation for YouTube Player
-  // When sound orbits behind the head (oz > 0), the skull casts an acoustic shadow,
-  // attenuating direct volume down to 52-60%. In front (oz <= 0), volume is 92-100%.
+  // Optimized: Throttled IPC so postMessage is never spammed more than ~30 times/sec
   if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
     const pState = usePlayerStore.getState();
-    const baseUserVol = (pState.isMuted ? 0 : pState.volume) * 100;
-    const headShadow = oz > 0 ? 1 - (oz * 0.46) : 1 - (Math.abs(oz) * 0.08);
-    const earProximity = 1 + Math.abs(ox) * 0.06;
-    const distanceDecay = 1 - Math.min(0.20, Math.max(0, Math.hypot(ox, oz) - 0.5) * 0.28);
+    const baseUserVol = (pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume))) * 100;
+    const headShadow = oz > 0 ? 1 - (oz * 0.45) : 1.0;
+    const earProximity = 1 + Math.abs(ox) * 0.05;
+    const distanceDecay = 1 - Math.min(0.20, Math.max(0, rawDist - 0.85) * 0.60);
     const finalVolScale = Math.max(0.48, Math.min(1.05, headShadow * earProximity * distanceDecay));
 
-    ytPlayerInstance.setVolume(Math.round(baseUserVol * finalVolScale));
+    const targetVol = Math.round(baseUserVol * finalVolScale);
+    const nowMs = performance.now();
+    if (
+      targetVol !== lastAppliedYtVolume &&
+      (nowMs - lastYtVolumeTime >= 28 || Math.abs(targetVol - lastAppliedYtVolume) >= 2)
+    ) {
+      lastAppliedYtVolume = targetVol;
+      lastYtVolumeTime = nowMs;
+      try {
+        ytPlayerInstance.setVolume(targetVol);
+      } catch {}
+    }
   }
 
   // Web Audio 360° Binaural Field & Head-Shadow Filter
@@ -589,14 +606,15 @@ function runOrbitLoop(now: number): void {
     } else {
       const ox = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
       const oz = Math.max(-1, Math.min(1, studio.spatialManualPos?.z ?? 0));
-      orbitAngle = Math.atan2(ox, -oz);
+      orbitAngle = (Math.atan2(ox, -oz) + Math.PI * 2) % (Math.PI * 2);
       updateSpatialFrame(ox, oz, orbitAngle);
     }
-    orbitRafId = requestAnimationFrame(runOrbitLoop);
+
+    if (typeof document !== 'undefined' && !document.hidden) {
+      orbitRafId = requestAnimationFrame(runOrbitLoop);
+    }
   } else {
-    isOrbitLoopRunning = false;
-    cancelAnimationFrame(orbitRafId);
-    orbitRafId = 0;
+    stopGlobalOrbitLoop();
   }
 }
 
@@ -605,7 +623,16 @@ export function startGlobalOrbitLoop(): void {
   if (isOrbitLoopRunning) return;
   isOrbitLoopRunning = true;
   lastOrbitTime = performance.now();
-  orbitRafId = requestAnimationFrame(runOrbitLoop);
+
+  if (typeof document !== 'undefined' && document.hidden) {
+    if (!backgroundIntervalId) {
+      backgroundIntervalId = setInterval(() => {
+        runOrbitLoop(performance.now());
+      }, 35);
+    }
+  } else {
+    orbitRafId = requestAnimationFrame(runOrbitLoop);
+  }
 }
 
 export function stopGlobalOrbitLoop(): void {
@@ -614,19 +641,57 @@ export function stopGlobalOrbitLoop(): void {
     cancelAnimationFrame(orbitRafId);
     orbitRafId = 0;
   }
+  if (backgroundIntervalId) {
+    clearInterval(backgroundIntervalId);
+    backgroundIntervalId = null;
+  }
 }
 
 export function setLiveSpatialManualPosition(x: number, z: number): void {
-  const clampedX = Math.max(-1, Math.min(1, x));
-  const clampedZ = Math.max(-1, Math.min(1, z));
-  const angle = Math.atan2(clampedX, -clampedZ);
+  const safeX = isFinite(x) ? Math.max(-1, Math.min(1, x)) : 0;
+  const safeZ = isFinite(z) ? Math.max(-1, Math.min(1, z)) : -0.85;
+  const angle = (Math.atan2(safeX, -safeZ) + Math.PI * 2) % (Math.PI * 2);
   orbitAngle = angle;
-  updateSpatialFrame(clampedX, clampedZ, angle);
+  updateSpatialFrame(safeX, safeZ, angle);
 }
 
 export function setLiveSpatialPan(pan: number): void {
   const clamped = Math.max(-1, Math.min(1, pan));
   setLiveSpatialManualPosition(clamped, liveSpatialState.z);
+}
+
+// Background Tab Resilience: ensure orbit continues seamlessly when tab is hidden
+if (typeof document !== 'undefined') {
+  document.addEventListener(
+    'visibilitychange',
+    () => {
+      const studio = useStudioStore.getState();
+      const isPlaying = usePlayerStore.getState().isPlaying;
+      if (document.hidden) {
+        if (studio.fxMode === '8d-orbit' && isPlaying && isOrbitLoopRunning) {
+          if (orbitRafId) {
+            cancelAnimationFrame(orbitRafId);
+            orbitRafId = 0;
+          }
+          if (!backgroundIntervalId) {
+            backgroundIntervalId = setInterval(() => {
+              runOrbitLoop(performance.now());
+            }, 35);
+          }
+        }
+      } else {
+        if (backgroundIntervalId) {
+          clearInterval(backgroundIntervalId);
+          backgroundIntervalId = null;
+        }
+        if (studio.fxMode === '8d-orbit' && isPlaying && isOrbitLoopRunning && !orbitRafId) {
+          lastOrbitTime = performance.now();
+          orbitRafId = requestAnimationFrame(runOrbitLoop);
+        }
+      }
+    },
+    { passive: true }
+  );
 }
 
 function createCrowdArenaBuffer(ctx: AudioContext): AudioBuffer {
@@ -840,14 +905,17 @@ export function applyStudioFXToAudio(
     }
   }
 
-  const isPlaying = usePlayerStore.getState().isPlaying;
+  const pState = usePlayerStore.getState();
+  const isPlaying = pState.isPlaying;
+  const userVol = pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume));
   const now = ctx ? ctx.currentTime : 0;
 
   // 1. Real-time 3D Spatial Audio processing
-  if (fxMode === '8d-orbit' && isPlaying) {
+  if (fxMode === '8d-orbit' && isPlaying && userVol > 0) {
     startGlobalOrbitLoop();
     if (spatialAcousticGain && ctx) {
-      spatialAcousticGain.gain.setTargetAtTime(0.38, now, 0.04);
+      const spatialTarget = Math.min(0.38, 0.38 * userVol);
+      spatialAcousticGain.gain.setTargetAtTime(spatialTarget, now, 0.04);
     }
   } else {
     stopGlobalOrbitLoop();
@@ -856,9 +924,11 @@ export function applyStudioFXToAudio(
     }
     // Restore YouTube volume to user's set level when leaving 3D spatial
     if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
-      const pState = usePlayerStore.getState();
-      const baseVol = (pState.isMuted ? 0 : pState.volume) * 100;
-      ytPlayerInstance.setVolume(Math.round(baseVol));
+      const baseVol = Math.round(userVol * 100);
+      lastAppliedYtVolume = baseVol;
+      try {
+        ytPlayerInstance.setVolume(baseVol);
+      } catch {}
     }
     if (stereoPanner && ctx) {
       stereoPanner.pan.setTargetAtTime(0, now, 0.04);
@@ -870,8 +940,8 @@ export function applyStudioFXToAudio(
 
   // 2. Real-time Live Concert Arena processing
   if (arenaAcousticsGain && ctx) {
-    if (fxMode === 'arena-live' && isPlaying) {
-      const arenaVolume = Math.min(0.48, 0.28 + (studio.reverbMix || 0) * 0.22);
+    if (fxMode === 'arena-live' && isPlaying && userVol > 0) {
+      const arenaVolume = Math.min(0.48, (0.28 + (studio.reverbMix || 0) * 0.22) * userVol);
       arenaAcousticsGain.gain.setTargetAtTime(arenaVolume, now, 0.05);
     } else {
       arenaAcousticsGain.gain.setTargetAtTime(0, now, 0.05);
@@ -880,8 +950,8 @@ export function applyStudioFXToAudio(
 
   // 3. Real-Time Mastering Rack Enhancer (Sub-Bass & Treble Air)
   if (rackSubGain && ctx) {
-    if (isPlaying && studio.subBassBoost > 0) {
-      const subVol = Math.min(0.35, (studio.subBassBoost / 9) * 0.35);
+    if (isPlaying && studio.subBassBoost > 0 && userVol > 0) {
+      const subVol = Math.min(0.35, ((studio.subBassBoost / 9) * 0.35) * userVol);
       rackSubGain.gain.setTargetAtTime(subVol, now, 0.035);
     } else {
       rackSubGain.gain.setTargetAtTime(0, now, 0.035);
@@ -889,8 +959,8 @@ export function applyStudioFXToAudio(
   }
 
   if (rackTrebleGain && ctx) {
-    if (isPlaying && studio.trebleAir > 0) {
-      const airVol = Math.min(0.24, (studio.trebleAir / 6) * 0.24);
+    if (isPlaying && studio.trebleAir > 0 && userVol > 0) {
+      const airVol = Math.min(0.24, ((studio.trebleAir / 6) * 0.24) * userVol);
       rackTrebleGain.gain.setTargetAtTime(airVol, now, 0.035);
     } else {
       rackTrebleGain.gain.setTargetAtTime(0, now, 0.035);
