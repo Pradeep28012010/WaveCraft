@@ -6,6 +6,7 @@ import { useStudioStore } from '../../stores/studioStore';
 import { searchTracks, findStrictTrackMatch } from '../../services/youtube';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
 import { getOfflineAudioObjectUrl, isTrackOffline } from '../../services/offlineVault';
+import { resolveDirectAudio } from '../../services/streamResolver';
 import {
   setHtmlAudioElement,
   setYtPlayerInstance,
@@ -13,6 +14,8 @@ import {
   getActiveEngine,
   setActiveEngine,
   setSmoothOutputGain,
+  getTargetOutputGain,
+  resumeAudioContextIfNeeded,
   syncHeadroomAndEQ,
   applyStudioFXToAudio,
   ensureAudioGraph,
@@ -224,6 +227,22 @@ export default function YouTubeEmbed() {
 
     const onError = () => {
       if (getActiveEngine() !== 'audio') return;
+      const cur = usePlayerStore.getState().currentTrack;
+      const effectiveYtId =
+        cur?.youtubeId ||
+        (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
+        (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
+      const ytPlayer = getPlayer();
+      if (effectiveYtId && ytPlayer && window.ytPlayerReady) {
+        setActiveEngine('youtube');
+        setIsLoading(true);
+        if (usePlayerStore.getState().isPlaying) {
+          ytPlayer.loadVideoById?.(effectiveYtId);
+        } else {
+          ytPlayer.cueVideoById?.(effectiveYtId);
+        }
+        return;
+      }
       setIsLoading(false);
       nextTrack();
     };
@@ -396,7 +415,110 @@ export default function YouTubeEmbed() {
     }
   }, []);
 
-  // Helper to load and start playing a track with zero ambiguity
+  // Helper to fallback or play on YouTube IFrame
+  const fallbackToYouTube = (_track: Track, effectiveYtId: string, shouldPlay: boolean) => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+    }
+    setActiveEngine('youtube');
+    const ytPlayer = getPlayer();
+    if (!ytPlayer || !window.ytPlayerReady) return;
+
+    if (activeLoadedYtIdRef.current === effectiveYtId) {
+      isSwitchingTrackRef.current = false;
+      if (shouldPlay) {
+        ytPlayer.playVideo?.();
+      } else {
+        ytPlayer.pauseVideo?.();
+      }
+      return;
+    }
+
+    activeLoadedYtIdRef.current = effectiveYtId;
+    setIsLoading(true);
+    setProgress(0, 0);
+
+    if (shouldPlay) {
+      if (typeof ytPlayer.loadVideoById === 'function') {
+        ytPlayer.loadVideoById(effectiveYtId);
+      }
+      try {
+        ytPlayer.setPlaybackQuality?.('small');
+      } catch {}
+
+      const activeAnchor = jamSyncEngine.getActiveAnchor();
+      const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
+      const waitMs =
+        activeAnchor?.rendezvousAt && activeAnchor.rendezvousAt > hostNow
+          ? activeAnchor.rendezvousAt - hostNow
+          : 0;
+
+      if (waitMs > 15 && waitMs < 2500) {
+        ytPlayer.pauseVideo?.();
+        setTimeout(() => {
+          ytPlayer.playVideo?.();
+          jamSyncEngine.clearRendezvous();
+        }, waitMs);
+      }
+    } else {
+      if (typeof ytPlayer.cueVideoById === 'function') {
+        ytPlayer.cueVideoById(effectiveYtId);
+      } else if (typeof ytPlayer.pauseVideo === 'function') {
+        ytPlayer.pauseVideo();
+      }
+    }
+  };
+
+  // Helper to play on Native HTML5 Audio Engine with full Web Audio 8D / Live Concert DSP
+  const playNativeAudio = (targetUrl: string, shouldPlay: boolean) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const ytPlayer = getPlayer();
+    if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.pauseVideo === 'function') {
+      try {
+        ytPlayer.pauseVideo();
+      } catch {}
+    }
+
+    activeLoadedYtIdRef.current = null;
+    isSwitchingTrackRef.current = false;
+    trackTransitionIntentRef.current = false;
+    userInitiatedPauseRef.current = false;
+
+    setActiveEngine('audio');
+    setIsLoading(true);
+    setProgress(0, 0);
+
+    if (audio.src !== targetUrl) {
+      audio.src = targetUrl;
+      audio.load();
+    }
+    applyStudioFXToAudio(audio, useStudioStore.getState().fxMode, playbackSpeed || 1);
+
+    if (shouldPlay) {
+      resumeAudioContextIfNeeded();
+      audio
+        .play()
+        .then(() => {
+          setSmoothOutputGain(audio, getTargetOutputGain(), 0.03);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          console.warn('[WaveCraft] Native audio play issue:', err);
+          setIsLoading(false);
+          if (err?.name === 'NotAllowedError') {
+            usePlayerStore.getState().pause();
+          }
+        });
+    } else {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper to load and start playing a track with automatic HD stream resolution
   const startTrackPlayback = (track: Track, shouldPlay: boolean) => {
     const audio = audioRef.current;
 
@@ -405,99 +527,81 @@ export default function YouTubeEmbed() {
       getOfflineAudioObjectUrl(track.id)
         .then((blobUrl) => {
           if (!blobUrl || usePlayerStore.getState().currentTrack?.id !== track.id) return;
-          const ytPlayer = getPlayer();
-          if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.pauseVideo === 'function') {
-            try {
-              ytPlayer.pauseVideo();
-            } catch {}
-          }
-          activeLoadedYtIdRef.current = null;
-          isSwitchingTrackRef.current = false;
-          setActiveEngine('audio');
-          if (audio.src !== blobUrl) {
-            audio.src = blobUrl;
-            audio.load();
-          }
-          if (shouldPlay) {
-            audio.play().catch(() => setIsLoading(false));
-          }
+          playNativeAudio(blobUrl, shouldPlay);
         })
         .catch(() => {});
       return;
     }
 
-    // 2. Pure YouTube Playback
-    if (audio) {
-      audio.pause();
-      audio.removeAttribute('src');
+    // 2. Direct 320kbps Audio Stream already available: Play with full Web Audio DSP!
+    if (track.audioUrl && audio) {
+      playNativeAudio(track.audioUrl, shouldPlay);
+      return;
     }
-    setActiveEngine('youtube');
 
-    const ytPlayer = getPlayer();
     const effectiveYtId =
       track.youtubeId ||
       (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
       (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
+    // 3. Auto-Resolve Direct 320kbps Audio Stream on-the-fly for 8D Spatial Audio & Live Concert
+    if (audio && (track.title || track.artist)) {
+      if (effectiveYtId) {
+        track.youtubeId = effectiveYtId;
+        isSwitchingTrackRef.current = true;
+        trackTransitionIntentRef.current = true;
+        userInitiatedPauseRef.current = false;
+        fallbackToYouTube(track, effectiveYtId, shouldPlay);
+      }
+
+      const resolveToken = ++resolvingTokenRef.current;
+      resolveDirectAudio(track.title, track.artist, track.duration)
+        .then((resolvedUrl) => {
+          if (resolveToken !== resolvingTokenRef.current) return;
+          if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+          if (!resolvedUrl) return;
+
+          track.audioUrl = resolvedUrl;
+          track.quality = '320kbps Studio AAC';
+          usePlayerStore.setState((s) => ({
+            currentTrack:
+              s.currentTrack?.id === track.id
+                ? { ...s.currentTrack, audioUrl: resolvedUrl, quality: '320kbps Studio AAC' }
+                : s.currentTrack,
+            queue: s.queue.map((t) =>
+              t.id === track.id
+                ? { ...t, audioUrl: resolvedUrl, quality: '320kbps Studio AAC' }
+                : t
+            )
+          }));
+
+          // Smoothly promote playback to native audio engine so Web Audio 8D / Live Concert is active
+          const curTime = usePlayerStore.getState().currentTime || 0;
+          const isStillPlaying = usePlayerStore.getState().isPlaying;
+          playNativeAudio(resolvedUrl, isStillPlaying);
+          if (curTime > 0 && audio) {
+            audio.currentTime = curTime;
+          }
+        })
+        .catch(() => {});
+
+      if (effectiveYtId) return;
+    }
+
+    // 4. Pure YouTube Playback Fallback
     if (effectiveYtId) {
       track.youtubeId = effectiveYtId;
       isSwitchingTrackRef.current = true;
       trackTransitionIntentRef.current = true;
       userInitiatedPauseRef.current = false;
-
-      if (ytPlayer && window.ytPlayerReady) {
-        if (activeLoadedYtIdRef.current === effectiveYtId) {
-          isSwitchingTrackRef.current = false;
-          if (shouldPlay) {
-            ytPlayer.playVideo?.();
-          } else {
-            ytPlayer.pauseVideo?.();
-          }
-          return;
-        }
-
-        activeLoadedYtIdRef.current = effectiveYtId;
-        setIsLoading(true);
-        setProgress(0, 0);
-
-        if (shouldPlay) {
-          if (typeof ytPlayer.loadVideoById === 'function') {
-            ytPlayer.loadVideoById(effectiveYtId);
-          }
-          try {
-            ytPlayer.setPlaybackQuality?.('small');
-          } catch {}
-
-          const activeAnchor = jamSyncEngine.getActiveAnchor();
-          const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
-          const waitMs =
-            activeAnchor?.rendezvousAt && activeAnchor.rendezvousAt > hostNow
-              ? activeAnchor.rendezvousAt - hostNow
-              : 0;
-
-          if (waitMs > 15 && waitMs < 2500) {
-            ytPlayer.pauseVideo?.();
-            setTimeout(() => {
-              ytPlayer.playVideo?.();
-              jamSyncEngine.clearRendezvous();
-            }, waitMs);
-          }
-        } else {
-          // Explicitly cue without auto-playing on page refresh or initial load
-          if (typeof ytPlayer.cueVideoById === 'function') {
-            ytPlayer.cueVideoById(effectiveYtId);
-          } else if (typeof ytPlayer.pauseVideo === 'function') {
-            ytPlayer.pauseVideo();
-          }
-        }
-      }
+      fallbackToYouTube(track, effectiveYtId, shouldPlay);
       return;
     }
 
-    // 3. Fallback: track has no direct youtubeId -> resolve on the fly with strict accuracy
-    // Immediately pause existing video so old audio NEVER leaks while resolving!
+    // 5. Fallback: track has neither audioUrl nor youtubeId -> search YouTube
     isSwitchingTrackRef.current = true;
     trackTransitionIntentRef.current = true;
+    const ytPlayer = getPlayer();
     if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.pauseVideo === 'function') {
       try {
         ytPlayer.pauseVideo();
@@ -518,7 +622,6 @@ export default function YouTubeEmbed() {
 
         if (resolved?.youtubeId) {
           track.youtubeId = resolved.youtubeId;
-          // Permanently sync with Zustand store for currentTrack AND in queue
           usePlayerStore.setState((s) => ({
             currentTrack:
               s.currentTrack?.id === track.id
@@ -615,6 +718,23 @@ export default function YouTubeEmbed() {
                       youtubeId: match.youtubeId,
                       duration: match.duration || t.duration
                     }
+                  : t
+              )
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Pre-resolve 320kbps audioUrl so next track starts immediately with 8D and Live Concert DSP
+    if (!nextTrackCandidate.audioUrl) {
+      resolveDirectAudio(nextTrackCandidate.title, nextTrackCandidate.artist, nextTrackCandidate.duration)
+        .then((resolvedUrl) => {
+          if (resolvedUrl) {
+            usePlayerStore.setState((s) => ({
+              queue: s.queue.map((t, idx) =>
+                idx === nextIdx
+                  ? { ...t, audioUrl: resolvedUrl, quality: '320kbps Studio AAC' }
                   : t
               )
             }));

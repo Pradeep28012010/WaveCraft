@@ -7,8 +7,8 @@ const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 // Audiophile-tuned EQ offsets for remaining active modes
 const FX_EQ_OFFSETS: Record<StudioFXMode, number[]> = {
   normal: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  '8d-orbit': [0.8, 0.6, 0.2, 0, 0, 0, 0.3, 0.6, 0.8, 0.8],
-  'arena-live': [1.6, 1.4, 0.6, 0, 0.2, 0.5, 1.0, 1.4, 1.5, 1.2]
+  '8d-orbit': [1.2, 0.9, 0.4, 0, 0, 0, 0.4, 0.8, 1.2, 1.0],
+  'arena-live': [2.8, 2.4, 1.2, -0.4, 0.2, 0.8, 1.6, 2.0, 2.2, 2.0]
 };
 
 export interface YouTubePlayerInstance {
@@ -605,8 +605,8 @@ function runOrbitLoop(now: number): void {
     if (studio.spatialOrbitAuto) {
       const speed = Math.max(0.04, Math.min(0.40, studio.spatialOrbitSpeed || 0.12));
       orbitAngle = (orbitAngle + dt * speed * Math.PI * 2) % (Math.PI * 2);
-      const ox = Math.sin(orbitAngle) * 0.85;
-      const oz = -Math.cos(orbitAngle) * 0.85;
+      const ox = Math.sin(orbitAngle) * 0.95;
+      const oz = -Math.cos(orbitAngle) * 0.95;
       updateSpatialFrame(ox, oz, orbitAngle);
     } else {
       const ox = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
@@ -901,7 +901,7 @@ export function applyStudioFXToAudio(
     // Mastering Rack: Stereo Width
     if (sideWidthGain) {
       const basePresetWidth =
-        fxMode === '8d-orbit' ? 1.35 : fxMode === 'arena-live' ? 1.40 : 1.0;
+        fxMode === '8d-orbit' ? 1.35 : fxMode === 'arena-live' ? 1.45 : 1.0;
       const customWidthOffset = (studio.stereoWidth || 0) * 0.50;
       const finalWidth = Math.max(0.2, Math.min(1.80, basePresetWidth + customWidthOffset));
       sideWidthGain.gain.setTargetAtTime(finalWidth, now, 0.05);
@@ -911,12 +911,12 @@ export function applyStudioFXToAudio(
     if (reverbWetGain) {
       const presetWet =
         fxMode === 'arena-live'
-          ? 0.24
+          ? 0.32
           : fxMode === '8d-orbit'
           ? Math.min(0.25, Math.max(0.08, (studio.spatialRoomSize ?? 0.26) * 0.35))
           : 0;
       const customWet = (studio.reverbMix || 0) * 0.40;
-      const wetAmount = Math.min(0.50, Math.max(presetWet, customWet));
+      const wetAmount = Math.min(0.55, Math.max(presetWet, customWet));
       reverbWetGain.gain.setTargetAtTime(wetAmount, now, 0.05);
     }
 
