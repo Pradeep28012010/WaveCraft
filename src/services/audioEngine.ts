@@ -422,6 +422,7 @@ export function initAudioGraph(
       analyserNode.connect(audioCtx.destination);
 
       ensureLiveAcousticsGraph(audioCtx);
+      attachAudioEngineSubscriptions();
 
       const initialFx = useStudioStore.getState().fxMode;
       syncHeadroomAndEQ(bands, initialFx);
@@ -759,6 +760,7 @@ export const getAudioFrequencyData = (out: Uint8Array): boolean => {
  */
 export const unlockAudioEngine = (): void => {
   try {
+    attachAudioEngineSubscriptions();
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
@@ -804,56 +806,67 @@ export const seekToTime = (seconds: number): void => {
   }
 };
 
-// Automatic gesture unlock and reactive store synchronization
+let subscriptionsAttached = false;
+export function attachAudioEngineSubscriptions(): void {
+  if (subscriptionsAttached || typeof window === 'undefined') return;
+  subscriptionsAttached = true;
+
+  try {
+    // Reactive subscription to Studio store changes
+    useStudioStore.subscribe((state, prevState) => {
+      if (
+        state.fxMode !== prevState.fxMode ||
+        state.subBassBoost !== prevState.subBassBoost ||
+        state.harmonicDrive !== prevState.harmonicDrive ||
+        state.stereoWidth !== prevState.stereoWidth ||
+        state.reverbMix !== prevState.reverbMix ||
+        state.trebleAir !== prevState.trebleAir ||
+        state.spatialRoomSize !== prevState.spatialRoomSize ||
+        state.spatialOrbitAuto !== prevState.spatialOrbitAuto ||
+        state.spatialOrbitSpeed !== prevState.spatialOrbitSpeed ||
+        state.spatialManualPos !== prevState.spatialManualPos ||
+        state.preservePitch !== prevState.preservePitch
+      ) {
+        applyStudioFXToAudio(
+          htmlAudioElement,
+          state.fxMode,
+          usePlayerStore.getState().playbackSpeed || 1
+        );
+      }
+    });
+
+    // Reactive subscription to Settings store Equalizer changes
+    useSettingsStore.subscribe((state, prevState) => {
+      if (state.equalizerBands !== prevState.equalizerBands) {
+        syncHeadroomAndEQ(state.equalizerBands, useStudioStore.getState().fxMode);
+      }
+    });
+
+    // Reactive subscription to Player state changes
+    usePlayerStore.subscribe((state, prevState) => {
+      if (
+        state.isPlaying !== prevState.isPlaying ||
+        state.playbackSpeed !== prevState.playbackSpeed
+      ) {
+        applyStudioFXToAudio(
+          htmlAudioElement,
+          useStudioStore.getState().fxMode,
+          state.playbackSpeed || 1
+        );
+      }
+    });
+  } catch (err) {
+    console.warn('Audio engine subscription init deferred:', err);
+  }
+}
+
+// Automatic gesture unlock without touching stores during module evaluation
 if (typeof window !== 'undefined') {
   const unlockOnGesture = () => {
     unlockAudioEngine();
+    attachAudioEngineSubscriptions();
   };
   ['click', 'touchstart', 'pointerdown', 'keydown'].forEach((evt) => {
     window.addEventListener(evt, unlockOnGesture, { passive: true });
-  });
-
-  // Reactive subscription to Studio store changes
-  useStudioStore.subscribe((state, prevState) => {
-    if (
-      state.fxMode !== prevState.fxMode ||
-      state.subBassBoost !== prevState.subBassBoost ||
-      state.harmonicDrive !== prevState.harmonicDrive ||
-      state.stereoWidth !== prevState.stereoWidth ||
-      state.reverbMix !== prevState.reverbMix ||
-      state.trebleAir !== prevState.trebleAir ||
-      state.spatialRoomSize !== prevState.spatialRoomSize ||
-      state.spatialOrbitAuto !== prevState.spatialOrbitAuto ||
-      state.spatialOrbitSpeed !== prevState.spatialOrbitSpeed ||
-      state.spatialManualPos !== prevState.spatialManualPos ||
-      state.preservePitch !== prevState.preservePitch
-    ) {
-      applyStudioFXToAudio(
-        htmlAudioElement,
-        state.fxMode,
-        usePlayerStore.getState().playbackSpeed || 1
-      );
-    }
-  });
-
-  // Reactive subscription to Settings store Equalizer changes
-  useSettingsStore.subscribe((state, prevState) => {
-    if (state.equalizerBands !== prevState.equalizerBands) {
-      syncHeadroomAndEQ(state.equalizerBands, useStudioStore.getState().fxMode);
-    }
-  });
-
-  // Reactive subscription to Player state changes
-  usePlayerStore.subscribe((state, prevState) => {
-    if (
-      state.isPlaying !== prevState.isPlaying ||
-      state.playbackSpeed !== prevState.playbackSpeed
-    ) {
-      applyStudioFXToAudio(
-        htmlAudioElement,
-        useStudioStore.getState().fxMode,
-        state.playbackSpeed || 1
-      );
-    }
   });
 }
