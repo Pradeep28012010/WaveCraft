@@ -86,7 +86,7 @@ export default function TrendingSection({
       {onSelectCategory && (
         <div
           ref={categoriesRef}
-          className="flex items-center md:flex-wrap gap-2 overflow-x-auto no-scrollbar py-3 px-1 mb-2"
+          className="flex items-center gap-2.5 overflow-x-auto sm:flex-wrap sm:overflow-visible py-4 px-3 mb-3 no-scrollbar relative z-10"
           style={{ background: 'transparent' }}
         >
           {SPOTIFY_TRENDING_CATEGORIES.map((cat) => {
@@ -94,17 +94,18 @@ export default function TrendingSection({
             return (
               <button
                 key={cat.key}
+                type="button"
                 onClick={() => onSelectCategory(cat.key)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer flex-shrink-0 ${
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer flex-shrink-0 ${
                   isSelected
-                    ? 'bg-[#1ed760] text-black font-extrabold border border-[#1ed760]'
-                    : 'bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 text-white/75 hover:text-white'
+                    ? 'relative z-20 bg-[#1ed760] text-black font-extrabold border border-[#1ed760]'
+                    : 'relative z-10 bg-white/[0.07] hover:bg-white/[0.14] border border-white/10 text-white/75 hover:text-white'
                 }`}
                 style={
                   isSelected
                     ? {
                         boxShadow:
-                          '0 0 14px rgba(30, 215, 96, 0.7), 0 0 28px rgba(30, 215, 96, 0.25)'
+                          '0 0 12px rgba(30, 215, 96, 0.8), 0 0 25px rgba(30, 215, 96, 0.5), 0 0 45px rgba(30, 215, 96, 0.25)'
                       }
                     : undefined
                 }
