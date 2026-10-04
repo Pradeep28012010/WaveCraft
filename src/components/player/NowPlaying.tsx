@@ -130,8 +130,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const showLyrics = useSettingsStore((s) => s.showLyrics);
   const setShowLyrics = useSettingsStore((s) => s.setShowLyrics);
   const fxMode = useStudioStore((s) => s.fxMode);
-  const vocalMode = useStudioStore((s) => s.vocalMode);
-  const setVocalMode = useStudioStore((s) => s.setVocalMode);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
 
   if (!currentTrack) return null;
@@ -232,40 +230,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* 1-Click Karaoke / Acapella Vocal Stem Toggle */}
-              <button
-                onClick={() =>
-                  setVocalMode(
-                    vocalMode === 'normal'
-                      ? 'karaoke'
-                      : vocalMode === 'karaoke'
-                      ? 'acapella'
-                      : 'normal'
-                  )
-                }
-                className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
-                  vocalMode === 'karaoke'
-                    ? 'glass-button-primary text-white'
-                    : vocalMode === 'acapella'
-                    ? 'glass-button-purple text-white'
-                    : 'glass-button text-white/85 hover:text-white'
-                }`}
-                title="Cycle Real-Time Karaoke Vocal Remover (Instrumental) & Acapella Vocal Isolate"
-              >
-                <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                  <line x1="12" x2="12" y1="19" y2="22" />
-                </svg>
-                <span className="hidden md:inline">
-                  {vocalMode === 'karaoke'
-                    ? 'Karaoke'
-                    : vocalMode === 'acapella'
-                    ? 'Acapella'
-                    : 'Vocals'}
-                </span>
-              </button>
-
               {/* Studio Audio FX & Ambient Mixer Button */}
               <button
                 onClick={() => setStudioModalOpen(true)}

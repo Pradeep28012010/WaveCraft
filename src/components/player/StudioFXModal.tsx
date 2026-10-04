@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -41,9 +41,41 @@ function StudioFXModalContent() {
     setEndAtTrack
   } = useSleepTimer();
 
-  const [liveOrbitAngle, setLiveOrbitAngle] = useState(0);
   const radarRef = useRef<HTMLDivElement>(null);
+  const orbDotRef = useRef<HTMLDivElement>(null);
+  const stageZoneRef = useRef<HTMLDivElement>(null);
+  const azimuthRef = useRef<HTMLDivElement>(null);
+  const distanceRef = useRef<HTMLDivElement>(null);
+  const leftEarRef = useRef<HTMLDivElement>(null);
+  const rightEarRef = useRef<HTMLDivElement>(null);
   const spectrumCanvasRef = useRef<HTMLCanvasElement>(null);
+  const orbitAngleRef = useRef(0);
+
+  const updateRadarVisuals = (x: number, z: number) => {
+    if (orbDotRef.current) {
+      orbDotRef.current.style.transform = `translate(${x * 72}px, ${z * 72}px)`;
+    }
+    const azDeg = Math.round(((Math.atan2(x, -z) * 180) / Math.PI + 360) % 360);
+    const dist = (Math.hypot(x, z) * 2.5).toFixed(2);
+    const lEar = Math.round(Math.min(100, Math.max(18, 72 - x * 38)));
+    const rEar = Math.round(Math.min(100, Math.max(18, 72 + x * 38)));
+
+    if (azimuthRef.current) azimuthRef.current.textContent = `${azDeg}°`;
+    if (distanceRef.current) distanceRef.current.textContent = `${dist} m`;
+    if (leftEarRef.current) leftEarRef.current.textContent = `${lEar}%`;
+    if (rightEarRef.current) rightEarRef.current.textContent = `${rEar}%`;
+    if (stageZoneRef.current) {
+      const label =
+        azDeg >= 315 || azDeg < 45
+          ? 'Front Center Stage'
+          : azDeg < 135
+          ? 'Right Acoustic Wing'
+          : azDeg < 225
+          ? 'Rear Surround Halo'
+          : 'Left Acoustic Wing';
+      stageZoneRef.current.textContent = label;
+    }
+  };
 
   // High-Definition 60fps Real-Time Spectrum Analyzer Canvas
   useEffect(() => {
@@ -124,30 +156,36 @@ function StudioFXModalContent() {
     return () => cancelAnimationFrame(raf);
   }, [isPlaying]);
 
-  // Real-Time 360° Orbit loop with live stereo pan updates
+  // Real-Time 360° Orbit loop with zero React re-renders (direct DOM & WebAudio updates)
   useEffect(() => {
     if (!spatialOrbitAuto || fxMode !== '8d-orbit') return;
     let raf = 0;
     let last = performance.now();
+    const speed = spatialOrbitSpeed || 0.12;
+
     const loop = (now: number) => {
-      const dt = (now - last) / 1000;
+      const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
-      setLiveOrbitAngle((prev) => {
-        const next = (prev + dt * (spatialOrbitSpeed || 0.12) * Math.PI * 2) % (Math.PI * 2);
-        const pan = Math.sin(next);
-        setLiveSpatialPan(pan);
-        return next;
-      });
+      orbitAngleRef.current = (orbitAngleRef.current + dt * speed * Math.PI * 2) % (Math.PI * 2);
+      const angle = orbitAngleRef.current;
+      const ox = Math.sin(angle) * 0.78;
+      const oz = -Math.cos(angle) * 0.78;
+      setLiveSpatialPan(ox);
+      updateRadarVisuals(ox, oz);
       raf = requestAnimationFrame(loop);
     };
+
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [spatialOrbitAuto, spatialOrbitSpeed, fxMode]);
 
-  // Update pan when manual position changes
+  // Update pan and visuals when manual position changes
   useEffect(() => {
     if (fxMode === '8d-orbit' && !spatialOrbitAuto) {
-      setLiveSpatialPan(spatialManualPos?.x ?? 0);
+      const ox = spatialManualPos?.x ?? 0;
+      const oz = spatialManualPos?.z ?? 0;
+      setLiveSpatialPan(ox);
+      updateRadarVisuals(ox, oz);
     }
   }, [spatialManualPos, spatialOrbitAuto, fxMode]);
 
@@ -172,20 +210,21 @@ function StudioFXModalContent() {
     }
     setSpatialManualPos({ x: dx, z: dz });
     setLiveSpatialPan(dx);
+    updateRadarVisuals(dx, dz);
   };
 
-  const orbX = spatialOrbitAuto ? Math.sin(liveOrbitAngle) * 0.78 : (spatialManualPos?.x ?? 0);
-  const orbZ = spatialOrbitAuto ? -Math.cos(liveOrbitAngle) * 0.78 : (spatialManualPos?.z ?? 0);
-  const azimuthDeg = Math.round(((Math.atan2(orbX, -orbZ) * 180) / Math.PI + 360) % 360);
-  const distanceMeters = (Math.hypot(orbX, orbZ) * 2.5).toFixed(2);
-  const leftEarLevel = Math.round(Math.min(100, Math.max(18, 72 - orbX * 38)));
-  const rightEarLevel = Math.round(Math.min(100, Math.max(18, 72 + orbX * 38)));
-  const stageZoneLabel =
-    azimuthDeg >= 315 || azimuthDeg < 45
+  const initialOrbX = spatialOrbitAuto ? Math.sin(orbitAngleRef.current) * 0.78 : (spatialManualPos?.x ?? 0);
+  const initialOrbZ = spatialOrbitAuto ? -Math.cos(orbitAngleRef.current) * 0.78 : (spatialManualPos?.z ?? 0);
+  const initialAzimuthDeg = Math.round(((Math.atan2(initialOrbX, -initialOrbZ) * 180) / Math.PI + 360) % 360);
+  const initialDistanceMeters = (Math.hypot(initialOrbX, initialOrbZ) * 2.5).toFixed(2);
+  const initialLeftEarLevel = Math.round(Math.min(100, Math.max(18, 72 - initialOrbX * 38)));
+  const initialRightEarLevel = Math.round(Math.min(100, Math.max(18, 72 + initialOrbX * 38)));
+  const initialStageZoneLabel =
+    initialAzimuthDeg >= 315 || initialAzimuthDeg < 45
       ? 'Front Center Stage'
-      : azimuthDeg < 135
+      : initialAzimuthDeg < 135
       ? 'Right Acoustic Wing'
-      : azimuthDeg < 225
+      : initialAzimuthDeg < 225
       ? 'Rear Surround Halo'
       : 'Left Acoustic Wing';
 
@@ -200,7 +239,7 @@ function StudioFXModalContent() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="studio-fx-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+      className="fixed inset-0 z-[9990] flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
       style={{
         background: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(28px)',
@@ -323,8 +362,11 @@ function StudioFXModalContent() {
                   <span className="text-cyan-400 text-lg">🪐</span>
                   <span className="font-bold text-sm text-white">360° Binaural Spatial Radar</span>
                 </div>
-                <div className="text-xs font-semibold text-cyan-300 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
-                  {stageZoneLabel}
+                <div
+                  ref={stageZoneRef}
+                  className="text-xs font-semibold text-cyan-300 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20"
+                >
+                  {initialStageZoneLabel}
                 </div>
               </div>
 
@@ -357,11 +399,13 @@ function StudioFXModalContent() {
                   </div>
 
                   {/* Orbiting / Positioned Sound Source Dot */}
-                  <motion.div
-                    className="absolute w-5 h-5 rounded-full bg-cyan-400 border-2 border-white shadow-[0_0_16px_rgba(6,182,212,1)] z-20 pointer-events-none"
+                  <div
+                    ref={orbDotRef}
+                    className="absolute w-5 h-5 rounded-full bg-cyan-400 border-2 border-white shadow-[0_0_16px_rgba(6,182,212,1)] z-20 pointer-events-none transition-none"
                     style={{
-                      left: `calc(50% + ${orbX * 72}px - 10px)`,
-                      top: `calc(50% + ${orbZ * 72}px - 10px)`
+                      left: 'calc(50% - 10px)',
+                      top: 'calc(50% - 10px)',
+                      transform: `translate(${initialOrbX * 72}px, ${initialOrbZ * 72}px)`
                     }}
                   />
                 </div>
@@ -371,19 +415,19 @@ function StudioFXModalContent() {
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
                       <div className="text-white/50 text-[10px] uppercase font-bold">Azimuth</div>
-                      <div className="text-sm font-black text-cyan-300">{azimuthDeg}°</div>
+                      <div ref={azimuthRef} className="text-sm font-black text-cyan-300">{initialAzimuthDeg}°</div>
                     </div>
                     <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
                       <div className="text-white/50 text-[10px] uppercase font-bold">Distance</div>
-                      <div className="text-sm font-black text-white">{distanceMeters} m</div>
+                      <div ref={distanceRef} className="text-sm font-black text-white">{initialDistanceMeters} m</div>
                     </div>
                     <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
                       <div className="text-white/50 text-[10px] uppercase font-bold">Left Ear</div>
-                      <div className="text-sm font-black text-cyan-400">{leftEarLevel}%</div>
+                      <div ref={leftEarRef} className="text-sm font-black text-cyan-400">{initialLeftEarLevel}%</div>
                     </div>
                     <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
                       <div className="text-white/50 text-[10px] uppercase font-bold">Right Ear</div>
-                      <div className="text-sm font-black text-indigo-400">{rightEarLevel}%</div>
+                      <div ref={rightEarRef} className="text-sm font-black text-indigo-400">{initialRightEarLevel}%</div>
                     </div>
                   </div>
 

@@ -8,7 +8,6 @@ import {
   type LyricsCandidate
 } from '../../services/lyrics';
 import { usePlayerStore } from '../../stores/playerStore';
-import { useStudioStore } from '../../stores/studioStore';
 import { formatTime } from '../../utils/formatTime';
 import type { LyricLine } from '../../types';
 
@@ -476,80 +475,6 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
     };
   }, []);
 
-  // Live Microphone Sing-Along Karaoke Scorer State
-  const [singAlongActive, setSingAlongActive] = useState(false);
-  const [micLevel, setMicLevel] = useState(0);
-  const [vocalScore, setVocalScore] = useState(88);
-  const [vocalStreak, setVocalStreak] = useState(0);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const micCtxRef = useRef<AudioContext | null>(null);
-  const micRafRef = useRef<number>(0);
-
-  const toggleSingAlong = async () => {
-    if (singAlongActive) {
-      cancelAnimationFrame(micRafRef.current);
-      micStreamRef.current?.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = null;
-      micCtxRef.current?.close().catch(() => {});
-      micCtxRef.current = null;
-      setSingAlongActive(false);
-      setMicLevel(0);
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micStreamRef.current = stream;
-      const ctx = new window.AudioContext();
-      micCtxRef.current = ctx;
-      const src = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      src.connect(analyser);
-
-      const buf = new Uint8Array(analyser.frequencyBinCount);
-      setSingAlongActive(true);
-      setVocalScore(90);
-      setVocalStreak(1);
-
-      let frameCount = 0;
-      const loop = () => {
-        analyser.getByteFrequencyData(buf);
-        let sum = 0;
-        for (let i = 2; i < 42; i++) sum += buf[i];
-        const avg = sum / 40;
-        const norm = Math.min(100, Math.round((avg / 140) * 100));
-        setMicLevel(norm);
-
-        frameCount++;
-        if (frameCount % 35 === 0 && usePlayerStore.getState().isPlaying) {
-          if (norm > 18) {
-            setVocalStreak((s) => s + 1);
-            setVocalScore((sc) => Math.min(99, sc + 1));
-          }
-        }
-        micRafRef.current = requestAnimationFrame(loop);
-      };
-      micRafRef.current = requestAnimationFrame(loop);
-    } catch {
-      setSingAlongActive(false);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      cancelAnimationFrame(micRafRef.current);
-      micStreamRef.current?.getTracks().forEach((t) => t.stop());
-      micCtxRef.current?.close().catch(() => {});
-    };
-  }, []);
-
-  const vocalMode = useStudioStore((s) => s.vocalMode);
-  const setVocalMode = useStudioStore((s) => s.setVocalMode);
-
-  const vocalGrade =
-    vocalScore >= 95 ? 'S+' : vocalScore >= 88 ? 'S' : vocalScore >= 80 ? 'A' : 'B';
-
   return (
     <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
       {/* Sleek Single-Row Spatial Studio Toolbar */}
@@ -598,79 +523,7 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
             )}
           </button>
 
-          {/* 2. Karaoke / Acapella Vocal Stem Switcher */}
-          <button
-            type="button"
-            onClick={() =>
-              setVocalMode(
-                vocalMode === 'normal'
-                  ? 'karaoke'
-                  : vocalMode === 'karaoke'
-                  ? 'acapella'
-                  : 'normal'
-              )
-            }
-            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              vocalMode === 'karaoke'
-                ? 'glass-button-primary text-white'
-                : vocalMode === 'acapella'
-                ? 'glass-button-purple text-white'
-                : 'glass-button text-white/80 hover:text-white'
-            }`}
-            title="Cycle Real-Time Vocal Remover (Karaoke Instrumental) & Acapella Vocal Isolate"
-          >
-            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 10v3" />
-              <path d="M6 6v11" />
-              <path d="M10 3v18" />
-              <path d="M14 8v7" />
-              <path d="M18 5v13" />
-              <path d="M22 10v3" />
-            </svg>
-            <span>
-              {vocalMode === 'karaoke'
-                ? 'Karaoke On'
-                : vocalMode === 'acapella'
-                ? 'Acapella On'
-                : 'Karaoke'}
-            </span>
-          </button>
-
-          {/* 3. Live Sing-Along Pitch & Energy Scorer */}
-          {singAlongActive && (
-            <div className="hidden md:flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full glass-button-emerald text-[10px] font-extrabold text-emerald-200">
-              <div className="w-10 h-1.5 bg-black/60 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-400 to-cyan-300 rounded-full transition-[width] duration-75"
-                  style={{ width: `${micLevel}%` }}
-                />
-              </div>
-              <span className="tabular-nums text-emerald-300">{vocalStreak}x</span>
-              <span className="px-1.5 py-0.5 rounded-full bg-emerald-400/25 border border-emerald-400/40 text-emerald-100 text-[10px] font-black tabular-nums">
-                {vocalGrade} {vocalScore}%
-              </span>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={toggleSingAlong}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              singAlongActive
-                ? 'glass-button-emerald text-emerald-200 font-extrabold'
-                : 'glass-button text-white/80 hover:text-white'
-            }`}
-            title="Sing along with your microphone for live vocal pitch & energy scoring"
-          >
-            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" x2="12" y1="19" y2="22" />
-            </svg>
-            <span>{singAlongActive ? 'Stop Mic' : 'Sing-Along'}</span>
-          </button>
-
-          {/* 4. Lyric Story Poster Studio */}
+          {/* Lyric Story Poster Studio */}
           {onShareLyric && (
             <button
               type="button"

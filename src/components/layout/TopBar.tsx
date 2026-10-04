@@ -78,7 +78,6 @@ export default function TopBar() {
   const roomCode = useJamStore((s) => s.roomCode);
 
   const fxMode = useStudioStore((s) => s.fxMode);
-  const vocalMode = useStudioStore((s) => s.vocalMode);
   const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
   const sleepActive = useStudioStore((s) => s.sleepActive);
@@ -87,11 +86,7 @@ export default function TopBar() {
 
   const hasActiveAmbient = Object.values(ambientVolumes).some((v) => v > 0.01);
   const activeFxLabel =
-    vocalMode === 'karaoke'
-      ? 'Karaoke Mode'
-      : vocalMode === 'acapella'
-      ? 'Acapella Mode'
-      : fxMode !== 'normal'
+    fxMode !== 'normal'
       ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
       : hasActiveAmbient
       ? 'Ambient Mix'
@@ -333,7 +328,7 @@ export default function TopBar() {
           onClick={() => setStudioModalOpen(true)}
           aria-label="Open Studio FX & Sleep Timer Hub"
           className={`h-10 px-3 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 flex-shrink-0 border ${
-            fxMode !== 'normal' || vocalMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
+            fxMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
               ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-lg'
               : 'liquid-glass border-white/15 text-white/90'
           }`}

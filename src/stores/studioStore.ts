@@ -87,11 +87,8 @@ export const AMBIENT_LAYERS: Array<{
   }
 ];
 
-export type VocalStemMode = 'normal' | 'karaoke' | 'acapella';
-
 interface StudioState {
   fxMode: StudioFXMode;
-  vocalMode: VocalStemMode;
   spatialOrbitAuto: boolean;
   spatialOrbitSpeed: number;
   spatialRoomSize: number;
@@ -122,7 +119,6 @@ interface StudioState {
   sleepEndAtTrack: boolean;
 
   setFxMode: (mode: StudioFXMode) => void;
-  setVocalMode: (mode: VocalStemMode) => void;
   setSpatialOrbitAuto: (auto: boolean) => void;
   setSpatialOrbitSpeed: (speed: number) => void;
   setSpatialRoomSize: (size: number) => void;
@@ -157,7 +153,6 @@ const STUDIO_PREFS_KEY = 'wavecraft_studio_prefs_v1';
 
 interface PersistedStudioPrefs {
   fxMode: StudioFXMode;
-  vocalMode: VocalStemMode;
   spatialOrbitAuto: boolean;
   spatialOrbitSpeed: number;
   spatialRoomSize: number;
@@ -173,7 +168,6 @@ interface PersistedStudioPrefs {
 function loadStudioPrefsSync(): PersistedStudioPrefs {
   const defaults: PersistedStudioPrefs = {
     fxMode: 'normal',
-    vocalMode: 'normal',
     spatialOrbitAuto: true,
     spatialOrbitSpeed: 0.145,
     spatialRoomSize: 0.26,
@@ -192,7 +186,6 @@ function loadStudioPrefsSync(): PersistedStudioPrefs {
     const validModes: StudioFXMode[] = ['normal', '8d-orbit', 'arena-live'];
     return {
       fxMode: (parsed.fxMode && validModes.includes(parsed.fxMode)) ? parsed.fxMode : defaults.fxMode,
-      vocalMode: parsed.vocalMode || defaults.vocalMode,
       spatialOrbitAuto:
         typeof parsed.spatialOrbitAuto === 'boolean'
           ? parsed.spatialOrbitAuto
@@ -237,7 +230,6 @@ function flushStudioPrefs(): void {
   try {
     const payload: PersistedStudioPrefs = {
       fxMode: state.fxMode,
-      vocalMode: state.vocalMode,
       spatialOrbitAuto: state.spatialOrbitAuto,
       spatialOrbitSpeed: state.spatialOrbitSpeed,
       spatialRoomSize: state.spatialRoomSize,
@@ -267,7 +259,6 @@ const initialStudioPrefs = loadStudioPrefsSync();
 
 export const useStudioStore = create<StudioState>((set, get) => ({
   fxMode: initialStudioPrefs.fxMode,
-  vocalMode: initialStudioPrefs.vocalMode,
   spatialOrbitAuto: initialStudioPrefs.spatialOrbitAuto,
   spatialOrbitSpeed: initialStudioPrefs.spatialOrbitSpeed,
   spatialRoomSize: initialStudioPrefs.spatialRoomSize,
@@ -301,10 +292,6 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
   setFxMode: (fxMode) => {
     set({ fxMode });
-    saveStudioPrefsSync(get());
-  },
-  setVocalMode: (vocalMode) => {
-    set({ vocalMode });
     saveStudioPrefsSync(get());
   },
   setSpatialOrbitAuto: (spatialOrbitAuto) => {
@@ -368,7 +355,6 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     stopAllAmbientLayers();
     set({
       fxMode: 'normal',
-      vocalMode: 'normal',
       spatialOrbitAuto: false,
       spatialOrbitSpeed: 0.145,
       spatialRoomSize: 0,

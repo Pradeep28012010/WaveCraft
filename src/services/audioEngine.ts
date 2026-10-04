@@ -41,9 +41,6 @@ let eqFilters: BiquadFilterNode[] = [];
 let subBassRackNode: BiquadFilterNode | null = null;
 let trebleAirRackNode: BiquadFilterNode | null = null;
 let exciterWaveShaper: WaveShaperNode | null = null;
-let normalStemGain: GainNode | null = null;
-let karaokeStemGain: GainNode | null = null;
-let acapellaStemGain: GainNode | null = null;
 let stereoPanner: StereoPannerNode | null = null;
 let dryPathGain: GainNode | null = null;
 let sideWidthGain: GainNode | null = null;
@@ -373,96 +370,8 @@ export function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]
     trebleAirRackNode.connect(exciterWaveShaper);
     prev = exciterWaveShaper;
 
-    // 5. VOCAL STEM ISOLATOR ENGINE (Normal vs Karaoke Vocal Remover vs Acapella Isolator)
-    const stemBusNode = audioCtx.createGain();
-    stemBusNode.gain.value = 1.0;
-
-    normalStemGain = audioCtx.createGain();
-    normalStemGain.gain.value = 1.0;
-    prev.connect(normalStemGain);
-    normalStemGain.connect(stemBusNode);
-
-    // 5A. Karaoke Mode: Phase-inversion center cancellation with low-bass and high-air preservation
-    karaokeStemGain = audioCtx.createGain();
-    karaokeStemGain.gain.value = 0;
-
-    const karaokeBassKeeper = audioCtx.createBiquadFilter();
-    karaokeBassKeeper.type = 'lowpass';
-    karaokeBassKeeper.frequency.value = 155;
-    karaokeBassKeeper.Q.value = 0.707;
-    prev.connect(karaokeBassKeeper);
-    karaokeBassKeeper.connect(karaokeStemGain);
-
-    const karaokeAirKeeper = audioCtx.createBiquadFilter();
-    karaokeAirKeeper.type = 'highpass';
-    karaokeAirKeeper.frequency.value = 6000;
-    karaokeAirKeeper.Q.value = 0.707;
-    const karaokeAirGain = audioCtx.createGain();
-    karaokeAirGain.gain.value = 0.48;
-    prev.connect(karaokeAirKeeper);
-    karaokeAirKeeper.connect(karaokeAirGain);
-    karaokeAirGain.connect(karaokeStemGain);
-
-    const karaokeSplit = audioCtx.createChannelSplitter(2);
-    const karaokeInvertR = audioCtx.createGain();
-    karaokeInvertR.gain.value = -1.0;
-    const karaokeDiffSum = audioCtx.createGain();
-    karaokeDiffSum.gain.value = 1.25;
-
-    const karaokeVocalBandHP = audioCtx.createBiquadFilter();
-    karaokeVocalBandHP.type = 'highpass';
-    karaokeVocalBandHP.frequency.value = 155;
-    karaokeVocalBandHP.Q.value = 0.707;
-
-    const karaokeVocalBandLP = audioCtx.createBiquadFilter();
-    karaokeVocalBandLP.type = 'lowpass';
-    karaokeVocalBandLP.frequency.value = 6000;
-    karaokeVocalBandLP.Q.value = 0.707;
-
-    const karaokeSideMerger = audioCtx.createChannelMerger(2);
-    const karaokeSideDelayR = audioCtx.createDelay(0.02);
-    karaokeSideDelayR.delayTime.value = 0.0009;
-
-    prev.connect(karaokeSplit);
-    karaokeSplit.connect(karaokeDiffSum, 0);
-    karaokeSplit.connect(karaokeInvertR, 1);
-    karaokeInvertR.connect(karaokeDiffSum);
-    karaokeDiffSum.connect(karaokeVocalBandHP);
-    karaokeVocalBandHP.connect(karaokeVocalBandLP);
-    karaokeVocalBandLP.connect(karaokeSideMerger, 0, 0);
-    karaokeVocalBandLP.connect(karaokeSideDelayR);
-    karaokeSideDelayR.connect(karaokeSideMerger, 0, 1);
-    karaokeSideMerger.connect(karaokeStemGain);
-    karaokeStemGain.connect(stemBusNode);
-
-    // 5B. Acapella Mode: Lead Vocal Formant Spotlight (210Hz–4500Hz Bandpass + 1.65kHz Presence Lift)
-    acapellaStemGain = audioCtx.createGain();
-    acapellaStemGain.gain.value = 0;
-
-    const acapellaHP = audioCtx.createBiquadFilter();
-    acapellaHP.type = 'highpass';
-    acapellaHP.frequency.value = 210;
-    acapellaHP.Q.value = 0.85;
-
-    const acapellaLP = audioCtx.createBiquadFilter();
-    acapellaLP.type = 'lowpass';
-    acapellaLP.frequency.value = 4500;
-    acapellaLP.Q.value = 0.85;
-
-    const acapellaFormant = audioCtx.createBiquadFilter();
-    acapellaFormant.type = 'peaking';
-    acapellaFormant.frequency.value = 1650;
-    acapellaFormant.Q.value = 0.95;
-    acapellaFormant.gain.value = 3.6;
-
-    prev.connect(acapellaHP);
-    acapellaHP.connect(acapellaLP);
-    acapellaLP.connect(acapellaFormant);
-    acapellaFormant.connect(acapellaStemGain);
-    acapellaStemGain.connect(stemBusNode);
-
-    // 6. MID/SIDE MATRIX STEREO EXPANDER ROUTING
-    stemBusNode.connect(msSplitter);
+    // 5. MID/SIDE MATRIX STEREO EXPANDER ROUTING
+    prev.connect(msSplitter);
     msSplitter.connect(midSumL, 0);
     msSplitter.connect(midSumR, 1);
     midSumL.connect(midBus);

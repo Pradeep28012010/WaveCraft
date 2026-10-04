@@ -61,7 +61,6 @@ export default function YouTubeEmbed() {
   const eqBands = useSettingsStore((s) => s.equalizerBands);
   const autoplay = useSettingsStore((s) => s.autoplay);
   const fxMode = useStudioStore((s) => s.fxMode);
-  const vocalMode = useStudioStore((s) => s.vocalMode);
   const spatialOrbitAuto = useStudioStore((s) => s.spatialOrbitAuto);
   const spatialOrbitSpeed = useStudioStore((s) => s.spatialOrbitSpeed);
   const spatialRoomSize = useStudioStore((s) => s.spatialRoomSize);
@@ -85,7 +84,6 @@ export default function YouTubeEmbed() {
     eqBands,
     fxMode,
     playbackSpeed,
-    vocalMode,
     spatialOrbitAuto,
     spatialOrbitSpeed,
     spatialRoomSize,
