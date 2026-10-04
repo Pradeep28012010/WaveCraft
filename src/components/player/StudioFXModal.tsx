@@ -12,7 +12,9 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useSleepTimer } from '../../hooks/useSleepTimer';
 import {
   getAudioFrequencyData,
-  setLiveSpatialPan,
+  setLiveSpatialManualPosition,
+  subscribeLiveSpatial,
+  getLiveSpatialState,
   unlockAudioEngine,
   resumeAudioContextIfNeeded
 } from '../../services/audioEngine';
@@ -90,33 +92,22 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   const leftEarRef = useRef<HTMLDivElement>(null);
   const rightEarRef = useRef<HTMLDivElement>(null);
   const spectrumCanvasRef = useRef<HTMLCanvasElement>(null);
-  const orbitAngleRef = useRef(0);
 
   // Update radar position readout directly without React re-renders
-  const updateRadarVisuals = (x: number, z: number) => {
+  const updateRadarVisuals = (
+    x: number,
+    z: number,
+    spatialState?: ReturnType<typeof getLiveSpatialState>
+  ) => {
     if (orbDotRef.current) {
       orbDotRef.current.style.transform = `translate(${x * 68}px, ${z * 68}px)`;
     }
-    const azDeg = Math.round(((Math.atan2(x, -z) * 180) / Math.PI + 360) % 360);
-    const dist = (Math.hypot(x, z) * 2.5).toFixed(2);
-    const lEar = Math.round(Math.min(100, Math.max(18, 72 - x * 38)));
-    const rEar = Math.round(Math.min(100, Math.max(18, 72 + x * 38)));
-
-    if (azimuthRef.current) azimuthRef.current.textContent = `${azDeg}°`;
-    if (distanceRef.current) distanceRef.current.textContent = `${dist} m`;
-    if (leftEarRef.current) leftEarRef.current.textContent = `${lEar}%`;
-    if (rightEarRef.current) rightEarRef.current.textContent = `${rEar}%`;
-    if (stageZoneRef.current) {
-      const label =
-        azDeg >= 315 || azDeg < 45
-          ? 'Front Center Stage'
-          : azDeg < 135
-          ? 'Right Acoustic Wing'
-          : azDeg < 225
-          ? 'Rear Surround Halo'
-          : 'Left Acoustic Wing';
-      stageZoneRef.current.textContent = label;
-    }
+    const state = spatialState || getLiveSpatialState();
+    if (azimuthRef.current) azimuthRef.current.textContent = `${state.azimuthDeg}°`;
+    if (distanceRef.current) distanceRef.current.textContent = `${state.distanceMeters.toFixed(2)} m`;
+    if (leftEarRef.current) leftEarRef.current.textContent = `${state.leftEarPct}%`;
+    if (rightEarRef.current) rightEarRef.current.textContent = `${state.rightEarPct}%`;
+    if (stageZoneRef.current) stageZoneRef.current.textContent = state.stageZone;
   };
 
   // High-Definition 60fps Real-Time Spectrum Analyzer Canvas
@@ -207,40 +198,21 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     };
   }, [isPlaying]);
 
-  // Real-Time 360° Orbit loop with zero React re-renders (direct DOM & WebAudio updates)
+  // Subscribe to Global Persistent Orbit Engine
   useEffect(() => {
-    if (!spatialOrbitAuto || fxMode !== '8d-orbit') return;
-    let isMounted = true;
-    let raf = 0;
-    let last = performance.now();
-    const speed = spatialOrbitSpeed || 0.12;
+    if (fxMode !== '8d-orbit') return;
+    const unsubscribe = subscribeLiveSpatial((state) => {
+      updateRadarVisuals(state.x, state.z, state);
+    });
+    return unsubscribe;
+  }, [fxMode]);
 
-    const loop = (now: number) => {
-      if (!isMounted) return;
-      const dt = Math.min((now - last) / 1000, 0.1);
-      last = now;
-      orbitAngleRef.current = (orbitAngleRef.current + dt * speed * Math.PI * 2) % (Math.PI * 2);
-      const angle = orbitAngleRef.current;
-      const ox = Math.sin(angle) * 0.78;
-      const oz = -Math.cos(angle) * 0.78;
-      setLiveSpatialPan(ox);
-      updateRadarVisuals(ox, oz);
-      raf = requestAnimationFrame(loop);
-    };
-
-    raf = requestAnimationFrame(loop);
-    return () => {
-      isMounted = false;
-      cancelAnimationFrame(raf);
-    };
-  }, [spatialOrbitAuto, spatialOrbitSpeed, fxMode]);
-
-  // Update pan and visuals when manual position changes
+  // Sync manual position changes to global engine
   useEffect(() => {
     if (fxMode === '8d-orbit' && !spatialOrbitAuto) {
       const ox = spatialManualPos?.x ?? 0;
       const oz = spatialManualPos?.z ?? 0;
-      setLiveSpatialPan(ox);
+      setLiveSpatialManualPosition(ox, oz);
       updateRadarVisuals(ox, oz);
     }
   }, [spatialManualPos, spatialOrbitAuto, fxMode]);
@@ -265,30 +237,18 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       setSpatialOrbitAuto(false);
     }
     setSpatialManualPos({ x: dx, z: dz });
-    setLiveSpatialPan(dx);
+    setLiveSpatialManualPosition(dx, dz);
     updateRadarVisuals(dx, dz);
   };
 
-  const initialOrbX = spatialOrbitAuto
-    ? Math.sin(orbitAngleRef.current) * 0.78
-    : spatialManualPos?.x ?? 0;
-  const initialOrbZ = spatialOrbitAuto
-    ? -Math.cos(orbitAngleRef.current) * 0.78
-    : spatialManualPos?.z ?? 0;
-  const initialAzimuthDeg = Math.round(
-    ((Math.atan2(initialOrbX, -initialOrbZ) * 180) / Math.PI + 360) % 360
-  );
-  const initialDistanceMeters = (Math.hypot(initialOrbX, initialOrbZ) * 2.5).toFixed(2);
-  const initialLeftEarLevel = Math.round(Math.min(100, Math.max(18, 72 - initialOrbX * 38)));
-  const initialRightEarLevel = Math.round(Math.min(100, Math.max(18, 72 + initialOrbX * 38)));
-  const initialStageZoneLabel =
-    initialAzimuthDeg >= 315 || initialAzimuthDeg < 45
-      ? 'Front Center Stage'
-      : initialAzimuthDeg < 135
-      ? 'Right Acoustic Wing'
-      : initialAzimuthDeg < 225
-      ? 'Rear Surround Halo'
-      : 'Left Acoustic Wing';
+  const initialSpatial = getLiveSpatialState();
+  const initialOrbX = initialSpatial.x;
+  const initialOrbZ = initialSpatial.z;
+  const initialAzimuthDeg = initialSpatial.azimuthDeg;
+  const initialDistanceMeters = initialSpatial.distanceMeters.toFixed(2);
+  const initialLeftEarLevel = initialSpatial.leftEarPct;
+  const initialRightEarLevel = initialSpatial.rightEarPct;
+  const initialStageZoneLabel = initialSpatial.stageZone;
 
   const formatClock = (sec: number) => {
     const m = Math.floor(sec / 60);

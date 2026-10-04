@@ -452,12 +452,182 @@ export function ensureAudioGraph(audio?: HTMLAudioElement | null, initialBands?:
   initAudioGraph(audio, initialBands);
 }
 
-// --- Dedicated Live Concert & 3D Spatial Audio Generators for Real-Time Experience ---
+// --- Dedicated Live Concert, 3D Spatial Audio & Mastering Generators for Real-Time Experience ---
+export interface SpatialLiveState {
+  x: number;
+  z: number;
+  angle: number;
+  azimuthDeg: number;
+  distanceMeters: number;
+  leftEarPct: number;
+  rightEarPct: number;
+  stageZone: string;
+}
+
+let liveSpatialState: SpatialLiveState = {
+  x: 0,
+  z: -0.85,
+  angle: 0,
+  azimuthDeg: 0,
+  distanceMeters: 2.12,
+  leftEarPct: 72,
+  rightEarPct: 72,
+  stageZone: 'Front Center Stage'
+};
+
+const spatialListeners = new Set<(state: SpatialLiveState) => void>();
+
+export function subscribeLiveSpatial(fn: (state: SpatialLiveState) => void): () => void {
+  spatialListeners.add(fn);
+  fn(liveSpatialState);
+  return () => {
+    spatialListeners.delete(fn);
+  };
+}
+
+export function getLiveSpatialState(): SpatialLiveState {
+  return liveSpatialState;
+}
+
 let spatialAcousticGain: GainNode | null = null;
 let spatialAcousticPanner: StereoPannerNode | null = null;
+let spatialHeadShadowFilter: BiquadFilterNode | null = null;
 let arenaAcousticsGain: GainNode | null = null;
 let arenaSubOsc: OscillatorNode | null = null;
 let arenaCrowdSource: AudioBufferSourceNode | null = null;
+
+// Real-Time Active Mastering Rack Enhancers for all audio streams
+let rackSubOsc: OscillatorNode | null = null;
+let rackSubGain: GainNode | null = null;
+let rackTrebleGain: GainNode | null = null;
+let rackTrebleSource: AudioBufferSourceNode | null = null;
+
+// Persistent Global 60fps Orbit Loop
+let orbitAngle = 0;
+let orbitRafId = 0;
+let lastOrbitTime = 0;
+let isOrbitLoopRunning = false;
+
+function updateSpatialFrame(ox: number, oz: number, angle: number): void {
+  const azDeg = Math.round(((Math.atan2(ox, -oz) * 180) / Math.PI + 360) % 360);
+  const dist = (Math.hypot(ox, oz) * 2.5).toFixed(2);
+  const lEar = Math.round(Math.min(100, Math.max(18, 72 - ox * 38)));
+  const rEar = Math.round(Math.min(100, Math.max(18, 72 + ox * 38)));
+  const stageLabel =
+    azDeg >= 315 || azDeg < 45
+      ? 'Front Center Stage'
+      : azDeg < 135
+      ? 'Right Acoustic Wing'
+      : azDeg < 225
+      ? 'Rear Surround Halo'
+      : 'Left Acoustic Wing';
+
+  liveSpatialState = {
+    x: ox,
+    z: oz,
+    angle,
+    azimuthDeg: azDeg,
+    distanceMeters: parseFloat(dist),
+    leftEarPct: lEar,
+    rightEarPct: rEar,
+    stageZone: stageLabel
+  };
+
+  spatialListeners.forEach((fn) => {
+    try {
+      fn(liveSpatialState);
+    } catch {}
+  });
+
+  // Dynamic Head-Shadow & Distance Attenuation for YouTube Player
+  // When sound orbits behind the head (oz > 0), the skull casts an acoustic shadow,
+  // attenuating direct volume down to 52-60%. In front (oz <= 0), volume is 92-100%.
+  if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
+    const pState = usePlayerStore.getState();
+    const baseUserVol = (pState.isMuted ? 0 : pState.volume) * 100;
+    const headShadow = oz > 0 ? 1 - (oz * 0.46) : 1 - (Math.abs(oz) * 0.08);
+    const earProximity = 1 + Math.abs(ox) * 0.06;
+    const distanceDecay = 1 - Math.min(0.20, Math.max(0, Math.hypot(ox, oz) - 0.5) * 0.28);
+    const finalVolScale = Math.max(0.48, Math.min(1.05, headShadow * earProximity * distanceDecay));
+
+    ytPlayerInstance.setVolume(Math.round(baseUserVol * finalVolScale));
+  }
+
+  // Web Audio 360° Binaural Field & Head-Shadow Filter
+  if (audioCtx) {
+    const audioTime = audioCtx.currentTime;
+    if (spatialAcousticPanner) {
+      spatialAcousticPanner.pan.setTargetAtTime(ox * 0.95, audioTime, 0.025);
+    }
+    if (stereoPanner) {
+      stereoPanner.pan.setTargetAtTime(ox * 0.90, audioTime, 0.025);
+    }
+    if (spatialHeadShadowFilter) {
+      // Behind head: filter sweeps down to 1800Hz (deep muffled rear sensation)
+      // In front: filter opens up to 8000Hz (crisp frontal presence)
+      const targetFreq = oz > 0 ? 8000 - oz * 5800 : 8000;
+      spatialHeadShadowFilter.frequency.setTargetAtTime(Math.max(1600, targetFreq), audioTime, 0.035);
+    }
+  }
+}
+
+function runOrbitLoop(now: number): void {
+  if (!isOrbitLoopRunning) return;
+  const dt = lastOrbitTime ? Math.min((now - lastOrbitTime) / 1000, 0.1) : 0.016;
+  lastOrbitTime = now;
+
+  const studio = useStudioStore.getState();
+  const isPlaying = usePlayerStore.getState().isPlaying;
+
+  if (studio.fxMode === '8d-orbit' && isPlaying) {
+    if (studio.spatialOrbitAuto) {
+      const speed = Math.max(0.04, Math.min(0.40, studio.spatialOrbitSpeed || 0.12));
+      orbitAngle = (orbitAngle + dt * speed * Math.PI * 2) % (Math.PI * 2);
+      const ox = Math.sin(orbitAngle) * 0.85;
+      const oz = -Math.cos(orbitAngle) * 0.85;
+      updateSpatialFrame(ox, oz, orbitAngle);
+    } else {
+      const ox = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
+      const oz = Math.max(-1, Math.min(1, studio.spatialManualPos?.z ?? 0));
+      orbitAngle = Math.atan2(ox, -oz);
+      updateSpatialFrame(ox, oz, orbitAngle);
+    }
+    orbitRafId = requestAnimationFrame(runOrbitLoop);
+  } else {
+    isOrbitLoopRunning = false;
+    cancelAnimationFrame(orbitRafId);
+    orbitRafId = 0;
+  }
+}
+
+export function startGlobalOrbitLoop(): void {
+  if (typeof window === 'undefined') return;
+  if (isOrbitLoopRunning) return;
+  isOrbitLoopRunning = true;
+  lastOrbitTime = performance.now();
+  orbitRafId = requestAnimationFrame(runOrbitLoop);
+}
+
+export function stopGlobalOrbitLoop(): void {
+  isOrbitLoopRunning = false;
+  if (orbitRafId) {
+    cancelAnimationFrame(orbitRafId);
+    orbitRafId = 0;
+  }
+}
+
+export function setLiveSpatialManualPosition(x: number, z: number): void {
+  const clampedX = Math.max(-1, Math.min(1, x));
+  const clampedZ = Math.max(-1, Math.min(1, z));
+  const angle = Math.atan2(clampedX, -clampedZ);
+  orbitAngle = angle;
+  updateSpatialFrame(clampedX, clampedZ, angle);
+}
+
+export function setLiveSpatialPan(pan: number): void {
+  const clamped = Math.max(-1, Math.min(1, pan));
+  setLiveSpatialManualPosition(clamped, liveSpatialState.z);
+}
 
 function createCrowdArenaBuffer(ctx: AudioContext): AudioBuffer {
   const duration = 6;
@@ -473,14 +643,14 @@ function createCrowdArenaBuffer(ctx: AudioContext): AudioBuffer {
       last = (last + 0.035 * white) / 1.035;
       const t = i / sampleRate;
       const swell = 0.5 + 0.45 * Math.sin(t * 0.75 + ch * 1.5) * Math.cos(t * 0.32);
-      data[i] = last * swell * 0.24;
+      data[i] = last * swell * 0.28;
     }
   }
   return buffer;
 }
 
 function ensureLiveAcousticsGraph(ctx: AudioContext): void {
-  if (spatialAcousticGain && arenaAcousticsGain) return;
+  if (spatialAcousticGain && arenaAcousticsGain && rackSubGain) return;
 
   try {
     // 1. 3D Spatial Audio Orbital Synthesizer
@@ -489,7 +659,7 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
 
     spatialAcousticPanner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
 
-    // Dual-harmonic binaural acoustic soundstage carrier (432Hz + 436Hz binaural shimmer with warm room diffusion)
+    // Dual-harmonic binaural acoustic soundstage carrier
     const spatialBuffer = ctx.createBuffer(2, ctx.sampleRate * 4, ctx.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
       const data = spatialBuffer.getChannelData(ch);
@@ -499,10 +669,10 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
         b0 = 0.99886 * b0 + white * 0.0555179;
         b1 = 0.99332 * b1 + white * 0.0750759;
         b2 = 0.969 * b2 + white * 0.153852;
-        const pink = (b0 + b1 + b2 + white * 0.5362) * 0.022;
+        const pink = (b0 + b1 + b2 + white * 0.5362) * 0.045;
         const t = i / ctx.sampleRate;
         const toneFreq = ch === 0 ? 432 : 436; // 4Hz binaural beat for deep 3D spatial soundstage perception
-        const tone = Math.sin(2 * Math.PI * toneFreq * t) * 0.038;
+        const tone = Math.sin(2 * Math.PI * toneFreq * t) * 0.055;
         data[i] = pink + tone;
       }
     }
@@ -511,18 +681,25 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
     spatialBufferSource.buffer = spatialBuffer;
     spatialBufferSource.loop = true;
 
-    const spatialFilter = ctx.createBiquadFilter();
-    spatialFilter.type = 'bandpass';
-    spatialFilter.frequency.value = 520;
-    spatialFilter.Q.value = 0.9;
+    // Dynamic 3D Head-Shadow Pinna Filter (sweeps 1.8kHz - 8kHz)
+    spatialHeadShadowFilter = ctx.createBiquadFilter();
+    spatialHeadShadowFilter.type = 'lowpass';
+    spatialHeadShadowFilter.frequency.value = 8000;
+    spatialHeadShadowFilter.Q.value = 0.85;
 
-    spatialBufferSource.connect(spatialFilter);
+    const spatialBandFilter = ctx.createBiquadFilter();
+    spatialBandFilter.type = 'bandpass';
+    spatialBandFilter.frequency.value = 650;
+    spatialBandFilter.Q.value = 0.8;
+
+    spatialBufferSource.connect(spatialBandFilter);
+    spatialBandFilter.connect(spatialHeadShadowFilter);
 
     if (spatialAcousticPanner) {
-      spatialFilter.connect(spatialAcousticPanner);
+      spatialHeadShadowFilter.connect(spatialAcousticPanner);
       spatialAcousticPanner.connect(spatialAcousticGain);
     } else {
-      spatialFilter.connect(spatialAcousticGain);
+      spatialHeadShadowFilter.connect(spatialAcousticGain);
     }
 
     spatialAcousticGain.connect(analyserNode || ctx.destination);
@@ -538,9 +715,9 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
     arenaSubOsc.frequency.value = 55;
     const subFilter = ctx.createBiquadFilter();
     subFilter.type = 'lowpass';
-    subFilter.frequency.value = 80;
+    subFilter.frequency.value = 85;
     const subGain = ctx.createGain();
-    subGain.gain.value = 0.10;
+    subGain.gain.value = 0.25;
     arenaSubOsc.connect(subFilter);
     subFilter.connect(subGain);
     subGain.connect(arenaAcousticsGain);
@@ -554,14 +731,14 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
 
     const crowdHP = ctx.createBiquadFilter();
     crowdHP.type = 'highpass';
-    crowdHP.frequency.value = 350;
+    crowdHP.frequency.value = 320;
 
     const crowdLP = ctx.createBiquadFilter();
     crowdLP.type = 'lowpass';
-    crowdLP.frequency.value = 3200;
+    crowdLP.frequency.value = 3500;
 
     const crowdGain = ctx.createGain();
-    crowdGain.gain.value = 0.22;
+    crowdGain.gain.value = 0.36;
 
     arenaCrowdSource.connect(crowdHP);
     crowdHP.connect(crowdLP);
@@ -570,21 +747,52 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
     arenaCrowdSource.start();
 
     arenaAcousticsGain.connect(analyserNode || ctx.destination);
+
+    // 3. Real-Time Mastering Rack Enhancers (Sub-Bass & Treble Air Resonators)
+    rackSubGain = ctx.createGain();
+    rackSubGain.gain.value = 0;
+
+    rackSubOsc = ctx.createOscillator();
+    rackSubOsc.type = 'sine';
+    rackSubOsc.frequency.value = 50;
+    const rackSubLP = ctx.createBiquadFilter();
+    rackSubLP.type = 'lowpass';
+    rackSubLP.frequency.value = 75;
+    rackSubLP.Q.value = 1.0;
+    rackSubOsc.connect(rackSubLP);
+    rackSubLP.connect(rackSubGain);
+    rackSubGain.connect(analyserNode || ctx.destination);
+    rackSubOsc.start();
+
+    rackTrebleGain = ctx.createGain();
+    rackTrebleGain.gain.value = 0;
+
+    // High frequency sparkling silk air layer
+    const airBuffer = ctx.createBuffer(2, ctx.sampleRate * 2, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = airBuffer.getChannelData(ch);
+      let last = 0;
+      for (let i = 0; i < data.length; i++) {
+        const white = Math.random() * 2 - 1;
+        last = (last + 0.05 * white) / 1.05;
+        data[i] = (white - last) * 0.12;
+      }
+    }
+    rackTrebleSource = ctx.createBufferSource();
+    rackTrebleSource.buffer = airBuffer;
+    rackTrebleSource.loop = true;
+
+    const airHP = ctx.createBiquadFilter();
+    airHP.type = 'highpass';
+    airHP.frequency.value = 11500;
+    airHP.Q.value = 0.8;
+    rackTrebleSource.connect(airHP);
+    airHP.connect(rackTrebleGain);
+    rackTrebleGain.connect(analyserNode || ctx.destination);
+    rackTrebleSource.start();
+
   } catch (err) {
     console.warn('Live acoustics graph initialization error:', err);
-  }
-}
-
-export function setLiveSpatialPan(pan: number): void {
-  const clamped = Math.max(-1, Math.min(1, pan));
-  if (audioCtx) {
-    const now = audioCtx.currentTime;
-    if (spatialAcousticPanner) {
-      spatialAcousticPanner.pan.setTargetAtTime(clamped, now, 0.035);
-    }
-    if (stereoPanner) {
-      stereoPanner.pan.setTargetAtTime(clamped, now, 0.035);
-    }
   }
 }
 
@@ -620,7 +828,12 @@ export function applyStudioFXToAudio(
   }
 
   // Ensure AudioContext and Live Acoustics Graph are awake when any effect is enabled
-  if (fxMode !== 'normal') {
+  if (
+    fxMode !== 'normal' ||
+    studio.subBassBoost > 0 ||
+    studio.trebleAir > 0 ||
+    studio.reverbMix > 0
+  ) {
     resumeAudioContextIfNeeded();
     if (ctx) {
       ensureLiveAcousticsGraph(ctx);
@@ -631,44 +844,60 @@ export function applyStudioFXToAudio(
   const now = ctx ? ctx.currentTime : 0;
 
   // 1. Real-time 3D Spatial Audio processing
-  if (spatialAcousticGain && ctx) {
-    if (fxMode === '8d-orbit' && isPlaying) {
-      spatialAcousticGain.gain.setTargetAtTime(0.09, now, 0.05);
-
-      if (spatialAcousticPanner) {
-        if (!studio.spatialOrbitAuto) {
-          const manualX = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
-          spatialAcousticPanner.pan.setTargetAtTime(manualX * 0.88, now, 0.04);
-        }
-      }
-
-      // Coupled YouTube distance attenuation for true physical distance feel
-      if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
-        const baseVol = (usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume) * 100;
-        const dist = Math.hypot(studio.spatialManualPos?.x ?? 0, studio.spatialManualPos?.z ?? 0);
-        const distAttenuation = 1 - Math.min(0.22, dist * 0.22);
-        ytPlayerInstance.setVolume(Math.round(baseVol * distAttenuation));
-      }
-    } else {
+  if (fxMode === '8d-orbit' && isPlaying) {
+    startGlobalOrbitLoop();
+    if (spatialAcousticGain && ctx) {
+      spatialAcousticGain.gain.setTargetAtTime(0.38, now, 0.04);
+    }
+  } else {
+    stopGlobalOrbitLoop();
+    if (spatialAcousticGain && ctx) {
       spatialAcousticGain.gain.setTargetAtTime(0, now, 0.05);
-      if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
-        const baseVol = (usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume) * 100;
-        ytPlayerInstance.setVolume(Math.round(baseVol));
-      }
+    }
+    // Restore YouTube volume to user's set level when leaving 3D spatial
+    if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
+      const pState = usePlayerStore.getState();
+      const baseVol = (pState.isMuted ? 0 : pState.volume) * 100;
+      ytPlayerInstance.setVolume(Math.round(baseVol));
+    }
+    if (stereoPanner && ctx) {
+      stereoPanner.pan.setTargetAtTime(0, now, 0.04);
+    }
+    if (spatialAcousticPanner && ctx) {
+      spatialAcousticPanner.pan.setTargetAtTime(0, now, 0.04);
     }
   }
 
   // 2. Real-time Live Concert Arena processing
   if (arenaAcousticsGain && ctx) {
     if (fxMode === 'arena-live' && isPlaying) {
-      const arenaVolume = Math.min(0.35, 0.16 + (studio.reverbMix || 0) * 0.18);
-      arenaAcousticsGain.gain.setTargetAtTime(arenaVolume, now, 0.06);
+      const arenaVolume = Math.min(0.48, 0.28 + (studio.reverbMix || 0) * 0.22);
+      arenaAcousticsGain.gain.setTargetAtTime(arenaVolume, now, 0.05);
     } else {
-      arenaAcousticsGain.gain.setTargetAtTime(0, now, 0.06);
+      arenaAcousticsGain.gain.setTargetAtTime(0, now, 0.05);
     }
   }
 
-  // 3. Web Audio Master DSP chain (applied to direct streams / offline vault playback & mastering rack)
+  // 3. Real-Time Mastering Rack Enhancer (Sub-Bass & Treble Air)
+  if (rackSubGain && ctx) {
+    if (isPlaying && studio.subBassBoost > 0) {
+      const subVol = Math.min(0.35, (studio.subBassBoost / 9) * 0.35);
+      rackSubGain.gain.setTargetAtTime(subVol, now, 0.035);
+    } else {
+      rackSubGain.gain.setTargetAtTime(0, now, 0.035);
+    }
+  }
+
+  if (rackTrebleGain && ctx) {
+    if (isPlaying && studio.trebleAir > 0) {
+      const airVol = Math.min(0.24, (studio.trebleAir / 6) * 0.24);
+      rackTrebleGain.gain.setTargetAtTime(airVol, now, 0.035);
+    } else {
+      rackTrebleGain.gain.setTargetAtTime(0, now, 0.035);
+    }
+  }
+
+  // 4. Web Audio Master DSP chain (applied to direct streams / offline vault playback)
   if (ctx) {
     const isSpatial3D = fxMode === '8d-orbit';
 
@@ -677,20 +906,9 @@ export function applyStudioFXToAudio(
       sinLfoNode.frequency.setTargetAtTime(speedHz, now, 0.06);
     }
 
-    if (panLfoGain && stereoPanner) {
-      if (isSpatial3D) {
-        if (studio.spatialOrbitAuto) {
-          panLfoGain.gain.setTargetAtTime(0.82, now, 0.06);
-          stereoPanner.pan.setTargetAtTime(0, now, 0.06);
-        } else {
-          panLfoGain.gain.setTargetAtTime(0, now, 0.04);
-          const manualX = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
-          stereoPanner.pan.setTargetAtTime(manualX * 0.85, now, 0.04);
-        }
-      } else {
-        panLfoGain.gain.setTargetAtTime(0, now, 0.06);
-        stereoPanner.pan.setTargetAtTime(0, now, 0.06);
-      }
+    if (panLfoGain && stereoPanner && !isSpatial3D) {
+      panLfoGain.gain.setTargetAtTime(0, now, 0.06);
+      stereoPanner.pan.setTargetAtTime(0, now, 0.06);
     }
 
     if (dryPathGain) {
@@ -700,9 +918,9 @@ export function applyStudioFXToAudio(
     // Mastering Rack: Stereo Width
     if (sideWidthGain) {
       const basePresetWidth =
-        fxMode === '8d-orbit' ? 1.25 : fxMode === 'arena-live' ? 1.30 : 1.0;
-      const customWidthOffset = (studio.stereoWidth || 0) * 0.45;
-      const finalWidth = Math.max(0.2, Math.min(1.65, basePresetWidth + customWidthOffset));
+        fxMode === '8d-orbit' ? 1.35 : fxMode === 'arena-live' ? 1.40 : 1.0;
+      const customWidthOffset = (studio.stereoWidth || 0) * 0.50;
+      const finalWidth = Math.max(0.2, Math.min(1.80, basePresetWidth + customWidthOffset));
       sideWidthGain.gain.setTargetAtTime(finalWidth, now, 0.05);
     }
 
@@ -710,22 +928,22 @@ export function applyStudioFXToAudio(
     if (reverbWetGain) {
       const presetWet =
         fxMode === 'arena-live'
-          ? 0.18
+          ? 0.24
           : fxMode === '8d-orbit'
-          ? Math.min(0.20, Math.max(0.06, (studio.spatialRoomSize ?? 0.26) * 0.3))
+          ? Math.min(0.25, Math.max(0.08, (studio.spatialRoomSize ?? 0.26) * 0.35))
           : 0;
-      const customWet = (studio.reverbMix || 0) * 0.35;
-      const wetAmount = Math.min(0.40, Math.max(presetWet, customWet));
+      const customWet = (studio.reverbMix || 0) * 0.40;
+      const wetAmount = Math.min(0.50, Math.max(presetWet, customWet));
       reverbWetGain.gain.setTargetAtTime(wetAmount, now, 0.05);
     }
 
-    // Mastering Rack: Sub-Bass Boost (lowshelf filter at 54Hz)
+    // Mastering Rack: Sub-Bass Boost (lowshelf filter at 54Hz for direct streams)
     if (subBassRackNode) {
       const targetGain = Math.max(0, Math.min(9, studio.subBassBoost || 0));
       subBassRackNode.gain.setTargetAtTime(targetGain, now, 0.035);
     }
 
-    // Mastering Rack: Treble Air (highshelf filter at 11kHz)
+    // Mastering Rack: Treble Air (highshelf filter at 11kHz for direct streams)
     if (trebleAirRackNode) {
       const targetAir = Math.max(-6, Math.min(6, studio.trebleAir || 0));
       trebleAirRackNode.gain.setTargetAtTime(targetAir, now, 0.035);

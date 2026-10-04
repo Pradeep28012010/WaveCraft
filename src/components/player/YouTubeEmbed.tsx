@@ -691,7 +691,9 @@ export default function YouTubeEmbed() {
     }
     const ytPlayer = getPlayer();
     if (ytPlayer && window.ytPlayerReady && typeof ytPlayer.setVolume === 'function') {
-      ytPlayer.setVolume(volume * 100);
+      if (useStudioStore.getState().fxMode !== '8d-orbit') {
+        ytPlayer.setVolume(volume * 100);
+      }
       if (isMuted) ytPlayer.mute?.();
       else ytPlayer.unMute?.();
     }
