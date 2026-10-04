@@ -455,7 +455,6 @@ export function ensureAudioGraph(audio?: HTMLAudioElement | null, initialBands?:
 // --- Dedicated Live Concert & 3D Spatial Audio Generators for Real-Time Experience ---
 let spatialAcousticGain: GainNode | null = null;
 let spatialAcousticPanner: StereoPannerNode | null = null;
-let spatialAcousticOsc: OscillatorNode | null = null;
 let arenaAcousticsGain: GainNode | null = null;
 let arenaSubOsc: OscillatorNode | null = null;
 let arenaCrowdSource: AudioBufferSourceNode | null = null;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, Component, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,6 +9,7 @@ import {
   type AmbientLayerId
 } from '../../stores/studioStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useSleepTimer } from '../../hooks/useSleepTimer';
 import {
   getAudioFrequencyData,
   setLiveSpatialPan,
@@ -33,7 +34,6 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     stereoWidth,
     reverbMix,
     trebleAir,
-    preservePitch,
     ambientVolumes,
     pomodoroActive,
     pomodoroMode,
@@ -49,7 +49,6 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     setStereoWidth,
     setReverbMix,
     setTrebleAir,
-    setPreservePitch,
     resetMasteringRack,
     resetToOriginal,
     setAmbientVolume,
@@ -185,7 +184,11 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.roundRect(x, y, barW, barH, 2);
+        if (typeof (ctx as any).roundRect === 'function') {
+          (ctx as any).roundRect(x, y, barW, barH, 2);
+        } else {
+          ctx.rect(x, y, barW, barH);
+        }
         ctx.fill();
 
         // Glowing peak hold dot
@@ -293,6 +296,17 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const safeAmbientVolumes = useMemo(() => {
+    return ambientVolumes || {
+      rain: 0,
+      vinyl: 0,
+      waves: 0,
+      binaural: 0,
+      campfire: 0,
+      cafe: 0
+    };
+  }, [ambientVolumes]);
+
   const hasCustomDSP = useMemo(() => {
     return (
       fxMode !== 'normal' ||
@@ -301,13 +315,13 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       stereoWidth > 0 ||
       reverbMix > 0 ||
       trebleAir !== 0 ||
-      Object.values(ambientVolumes).some((v) => v > 0)
+      Object.values(safeAmbientVolumes).some((v) => v > 0)
     );
-  }, [fxMode, subBassBoost, harmonicDrive, stereoWidth, reverbMix, trebleAir, ambientVolumes]);
+  }, [fxMode, subBassBoost, harmonicDrive, stereoWidth, reverbMix, trebleAir, safeAmbientVolumes]);
 
   const activeAmbientCount = useMemo(() => {
-    return Object.values(ambientVolumes).filter((v) => v > 0.02).length;
-  }, [ambientVolumes]);
+    return Object.values(safeAmbientVolumes).filter((v) => v > 0.02).length;
+  }, [safeAmbientVolumes]);
 
   return (
     <div onPointerDown={unlockAudioEngine} className="flex flex-col h-full max-h-[86vh] overflow-hidden">
@@ -879,7 +893,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
               {/* 6 Ambient Layers Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 {AMBIENT_LAYERS.map((layer) => {
-                  const vol = ambientVolumes[layer.id] || 0;
+                  const vol = (safeAmbientVolumes && safeAmbientVolumes[layer.id]) || 0;
                   const isActive = vol > 0.02;
                   return (
                     <div
@@ -1076,6 +1090,48 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   );
 }
 
+class StudioFXErrorBoundary extends Component<
+  { children: ReactNode; onClose: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; onClose: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: any) {
+    console.error('[WaveCraft StudioFXModal Error]', error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center text-white space-y-4">
+          <div className="text-3xl">🎛️</div>
+          <div className="text-base font-bold">Studio FX encountered an issue</div>
+          <p className="text-xs text-white/60">An unexpected audio workstation error occurred.</p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => this.setState({ hasError: false })}
+              className="px-4 py-1.5 rounded-xl bg-cyan-400 text-black font-bold text-xs cursor-pointer hover:bg-cyan-300 transition"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={this.props.onClose}
+              className="px-4 py-1.5 rounded-xl bg-white/10 text-white font-bold text-xs cursor-pointer hover:bg-white/20 transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function StudioFXModal() {
   const isStudioModalOpen = useStudioStore((s) => s.isStudioModalOpen);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
@@ -1124,7 +1180,9 @@ export default function StudioFXModal() {
             onClick={(e) => e.stopPropagation()}
             className="relative z-10 w-full max-w-2xl max-h-[88vh] flex flex-col rounded-3xl modal-glass-panel text-white shadow-[0_32px_90px_rgba(0,0,0,0.88),0_0_60px_rgba(6,182,212,0.15)] overflow-hidden border border-white/20"
           >
-            <StudioFXModalContent onClose={handleClose} />
+            <StudioFXErrorBoundary onClose={handleClose}>
+              <StudioFXModalContent onClose={handleClose} />
+            </StudioFXErrorBoundary>
           </motion.div>
         </div>
       )}
