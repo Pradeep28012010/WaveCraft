@@ -9,8 +9,12 @@ import {
   type AmbientLayerId
 } from '../../stores/studioStore';
 import { usePlayerStore } from '../../stores/playerStore';
-import { useSleepTimer } from '../../hooks/useSleepTimer';
-import { getAudioFrequencyData, setLiveSpatialPan } from '../../services/audioEngine';
+import {
+  getAudioFrequencyData,
+  setLiveSpatialPan,
+  unlockAudioEngine,
+  resumeAudioContextIfNeeded
+} from '../../services/audioEngine';
 
 type StudioTab = 'spatial' | 'mastering' | 'arena' | 'ambient' | 'timers';
 
@@ -72,6 +76,12 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     if (fxMode === 'arena-live') return 'arena';
     return 'mastering';
   });
+
+  // Permanently unlock AudioContext as soon as the Studio FX workstation is opened
+  useEffect(() => {
+    unlockAudioEngine();
+    resumeAudioContextIfNeeded();
+  }, []);
 
   const radarRef = useRef<HTMLDivElement>(null);
   const orbDotRef = useRef<HTMLDivElement>(null);
@@ -300,7 +310,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   }, [ambientVolumes]);
 
   return (
-    <div className="flex flex-col h-full max-h-[86vh] overflow-hidden">
+    <div onPointerDown={unlockAudioEngine} className="flex flex-col h-full max-h-[86vh] overflow-hidden">
       {/* ── Top Pinned Header ── */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/12 flex-shrink-0 bg-white/[0.02]">
         <div className="flex items-center gap-3">

@@ -15,6 +15,7 @@ import {
   setSmoothOutputGain,
   syncHeadroomAndEQ,
   applyStudioFXToAudio,
+  ensureAudioGraph,
   getAudioFrequencyData,
   unlockAudioEngine,
   seekToTime
@@ -81,6 +82,7 @@ export default function YouTubeEmbed() {
     syncHeadroomAndEQ(eqBands, fxMode);
     applyStudioFXToAudio(audioRef.current, fxMode, playbackSpeed || 1);
   }, [
+    isPlaying,
     eqBands,
     fxMode,
     playbackSpeed,
@@ -153,6 +155,7 @@ export default function YouTubeEmbed() {
       audioRef.current = audio;
       setHtmlAudioElement(audio);
     }
+    ensureAudioGraph(audioRef.current, eqBands);
 
     const audio = audioRef.current;
     let lastReportedTime = -1;

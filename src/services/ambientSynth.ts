@@ -1,28 +1,15 @@
 import type { AmbientLayerId } from '../stores/studioStore';
+import { getAudioContext, getAnalyserNode, unlockAudioEngine } from './audioEngine';
 
 /**
  * Procedural Web Audio Ambient Soundscape Synthesizer
- * Synthesizes real-time stereo ambient layers (Midnight Rain, Vinyl Crackle, Ocean Surf, 40Hz Binaural Focus)
- * with zero external audio asset dependencies.
+ * Synthesizes real-time stereo ambient layers (Midnight Rain, Vinyl Crackle, Ocean Surf, 40Hz Binaural Focus, Campfire, Cafe)
+ * with zero external audio asset dependencies. Routed directly into the master Web Audio graph and 32-band spectrum analyzer.
  */
-let ambientCtx: AudioContext | null = null;
 const activeLayerNodes = new Map<
   AmbientLayerId,
   { gain: GainNode; cleanup: () => void }
 >();
-
-function getAmbientContext(): AudioContext {
-  if (!ambientCtx) {
-    const Ctx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    ambientCtx = new Ctx();
-  }
-  if (ambientCtx.state === 'suspended') {
-    ambientCtx.resume().catch(() => {});
-  }
-  return ambientCtx;
-}
 
 function createNoiseBuffer(ctx: AudioContext, type: 'pink' | 'vinyl' | 'brown'): AudioBuffer {
   const bufferSize = ctx.sampleRate * 4;
@@ -71,10 +58,15 @@ function createNoiseBuffer(ctx: AudioContext, type: 'pink' | 'vinyl' | 'brown'):
 }
 
 function startAmbientLayer(id: AmbientLayerId, volume: number): void {
-  const ctx = getAmbientContext();
+  const ctx = getAudioContext();
+  const analyser = getAnalyserNode();
   const masterGain = ctx.createGain();
-  masterGain.gain.value = Math.max(0, Math.min(1, volume * 0.55));
-  masterGain.connect(ctx.destination);
+  masterGain.gain.value = Math.max(0, Math.min(1, volume * 0.70));
+  if (analyser) {
+    masterGain.connect(analyser);
+  } else {
+    masterGain.connect(ctx.destination);
+  }
 
   if (id === 'rain') {
     const src = ctx.createBufferSource();
@@ -273,6 +265,8 @@ function startAmbientLayer(id: AmbientLayerId, volume: number): void {
 }
 
 export function setAmbientLayerVolume(id: AmbientLayerId, volume: number): number {
+  unlockAudioEngine();
+  const ctx = getAudioContext();
   const clamped = Math.max(0, Math.min(1, volume));
   const existing = activeLayerNodes.get(id);
 
@@ -284,8 +278,8 @@ export function setAmbientLayerVolume(id: AmbientLayerId, volume: number): numbe
     return 0;
   }
 
-  if (existing && ambientCtx) {
-    existing.gain.gain.setTargetAtTime(clamped * 0.55, ambientCtx.currentTime, 0.05);
+  if (existing && ctx) {
+    existing.gain.gain.setTargetAtTime(clamped * 0.70, ctx.currentTime, 0.05);
   } else {
     startAmbientLayer(id, clamped);
   }

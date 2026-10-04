@@ -1,5 +1,6 @@
 import { usePlayerStore } from '../stores/playerStore';
 import { useStudioStore, type StudioFXMode } from '../stores/studioStore';
+import { useSettingsStore } from '../stores/settingsStore';
 
 const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -122,11 +123,24 @@ export function hasWebAudioGain(): boolean {
   return Boolean(audioCtx && gainNode);
 }
 
-export function getAudioContext(): AudioContext | null {
-  return audioCtx;
+export function getAnalyserNode(): AnalyserNode | null {
+  return analyserNode;
+}
+
+export function getAudioContext(): AudioContext {
+  if (!audioCtx) {
+    initAudioGraph(htmlAudioElement);
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+  return audioCtx!;
 }
 
 export function resumeAudioContextIfNeeded(): void {
+  if (!audioCtx) {
+    initAudioGraph(htmlAudioElement);
+  }
   if (audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume().catch(() => {});
   }
@@ -245,176 +259,196 @@ export function syncHeadroomAndEQ(eqBands: number[], fxMode: StudioFXMode): void
   }
 }
 
-export function ensureAudioGraph(audio: HTMLAudioElement, initialBands: number[]): void {
-  if (audioCtx || !window.AudioContext) return;
-  try {
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    audioCtx = new Ctx({ latencyHint: 'playback' });
-    sourceNode = audioCtx.createMediaElementSource(audio);
-    preGainNode = audioCtx.createGain();
-    preGainNode.gain.value = 0.98;
+export function initAudioGraph(
+  audio?: HTMLAudioElement | null,
+  initialBands?: number[]
+): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+  if (!Ctx) return null;
 
-    gainNode = audioCtx.createGain();
-    gainNode.gain.value = getTargetOutputGain();
-    // Lock HTMLAudioElement at unity gain so all volume/fade changes happen zipper-free in Web Audio
-    audio.volume = 1.0;
+  if (!audioCtx) {
+    try {
+      audioCtx = new Ctx({ latencyHint: 'playback' });
+      preGainNode = audioCtx.createGain();
+      preGainNode.gain.value = 0.98;
 
-    stereoPanner = audioCtx.createStereoPanner();
-    dryPathGain = audioCtx.createGain();
-    dryPathGain.gain.value = 1.0;
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = getTargetOutputGain();
 
-    analyserNode = audioCtx.createAnalyser();
-    analyserNode.fftSize = 128;
-    analyserNode.smoothingTimeConstant = 0.78;
+      stereoPanner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+      dryPathGain = audioCtx.createGain();
+      dryPathGain.gain.value = 1.0;
 
-    // Audiophile Mastering Limiter (transparent dynamics, preserves kick attack and dynamics without pumping)
-    masterLimiter = audioCtx.createDynamicsCompressor();
-    masterLimiter.threshold.value = -0.3;
-    masterLimiter.knee.value = 10.0;
-    masterLimiter.ratio.value = 3.5;
-    masterLimiter.attack.value = 0.012;
-    masterLimiter.release.value = 0.16;
+      analyserNode = audioCtx.createAnalyser();
+      analyserNode.fftSize = 128;
+      analyserNode.smoothingTimeConstant = 0.78;
 
-    // 1. 3D SPATIAL ORBIT LFO GENERATOR
-    const orbitFreq = useStudioStore.getState().spatialOrbitSpeed || 0.12;
-    sinLfoNode = audioCtx.createOscillator();
-    sinLfoNode.type = 'sine';
-    sinLfoNode.frequency.value = orbitFreq;
+      masterLimiter = audioCtx.createDynamicsCompressor();
+      masterLimiter.threshold.value = -0.3;
+      masterLimiter.knee.value = 10.0;
+      masterLimiter.ratio.value = 3.5;
+      masterLimiter.attack.value = 0.012;
+      masterLimiter.release.value = 0.16;
 
-    panLfoGain = audioCtx.createGain();
-    panLfoGain.gain.value = 0; // modulated in applyStudioFXToAudio
+      const orbitFreq = useStudioStore.getState().spatialOrbitSpeed || 0.12;
+      sinLfoNode = audioCtx.createOscillator();
+      sinLfoNode.type = 'sine';
+      sinLfoNode.frequency.value = orbitFreq;
 
-    sinLfoNode.connect(panLfoGain);
-    panLfoGain.connect(stereoPanner.pan);
-    sinLfoNode.start();
+      panLfoGain = audioCtx.createGain();
+      panLfoGain.gain.value = 0;
 
-    // 2. PHASE-PURE MID/SIDE STEREO WIDENER MATRIX
-    // Mid = 0.5*(L+R), Side = 0.5*(L-R), L' = Mid + w*Side, R' = Mid - w*Side
-    const msSplitter = audioCtx.createChannelSplitter(2);
-    const msMerger = audioCtx.createChannelMerger(2);
+      if (stereoPanner) {
+        sinLfoNode.connect(panLfoGain);
+        panLfoGain.connect(stereoPanner.pan);
+      }
+      sinLfoNode.start();
 
-    const midSumL = audioCtx.createGain();
-    midSumL.gain.value = 0.5;
-    const midSumR = audioCtx.createGain();
-    midSumR.gain.value = 0.5;
-    const midBus = audioCtx.createGain();
-    midBus.gain.value = 1.0;
+      const msSplitter = audioCtx.createChannelSplitter(2);
+      const msMerger = audioCtx.createChannelMerger(2);
 
-    const sideDiffL = audioCtx.createGain();
-    sideDiffL.gain.value = 0.5;
-    const sideDiffR = audioCtx.createGain();
-    sideDiffR.gain.value = -0.5;
-    const sideBus = audioCtx.createGain();
-    sideBus.gain.value = 1.0;
+      const midSumL = audioCtx.createGain();
+      midSumL.gain.value = 0.5;
+      const midSumR = audioCtx.createGain();
+      midSumR.gain.value = 0.5;
+      const midBus = audioCtx.createGain();
+      midBus.gain.value = 1.0;
 
-    sideWidthGain = audioCtx.createGain();
-    sideWidthGain.gain.value = 1.0;
+      const sideDiffL = audioCtx.createGain();
+      sideDiffL.gain.value = 0.5;
+      const sideDiffR = audioCtx.createGain();
+      sideDiffR.gain.value = -0.5;
+      const sideBus = audioCtx.createGain();
+      sideBus.gain.value = 1.0;
 
-    const sideInvertR = audioCtx.createGain();
-    sideInvertR.gain.value = -1.0;
+      sideWidthGain = audioCtx.createGain();
+      sideWidthGain.gain.value = 1.0;
 
-    // 3. STEREO CONVOLUTION REVERB (highpassed at 280Hz to prevent low mud, air-damped at 8.5kHz)
-    const reverbHP = audioCtx.createBiquadFilter();
-    reverbHP.type = 'highpass';
-    reverbHP.frequency.value = 280;
-    reverbHP.Q.value = 0.707;
+      const sideInvertR = audioCtx.createGain();
+      sideInvertR.gain.value = -1.0;
 
-    const reverbAirLP = audioCtx.createBiquadFilter();
-    reverbAirLP.type = 'lowpass';
-    reverbAirLP.frequency.value = 8500;
-    reverbAirLP.Q.value = 0.707;
+      const reverbHP = audioCtx.createBiquadFilter();
+      reverbHP.type = 'highpass';
+      reverbHP.frequency.value = 280;
+      reverbHP.Q.value = 0.707;
 
-    const convolver = audioCtx.createConvolver();
-    convolver.buffer = createStudioImpulseResponse(audioCtx, 2.0, 2.6);
+      const reverbAirLP = audioCtx.createBiquadFilter();
+      reverbAirLP.type = 'lowpass';
+      reverbAirLP.frequency.value = 8500;
+      reverbAirLP.Q.value = 0.707;
 
-    reverbWetGain = audioCtx.createGain();
-    reverbWetGain.gain.value = 0;
+      const convolver = audioCtx.createConvolver();
+      convolver.buffer = createStudioImpulseResponse(audioCtx, 2.0, 2.6);
 
-    // 4. 10-Band Studio Graphic Equalizer + Mastering Rack Filters
-    eqFilters = EQ_FREQUENCIES.map((freq, idx) => {
-      const filter = audioCtx!.createBiquadFilter();
-      if (idx === 0) filter.type = 'lowshelf';
-      else if (idx === EQ_FREQUENCIES.length - 1) filter.type = 'highshelf';
-      else filter.type = 'peaking';
-      filter.frequency.value = freq;
-      filter.Q.value = 0.95;
-      filter.gain.value = initialBands[idx] || 0;
-      return filter;
-    });
+      reverbWetGain = audioCtx.createGain();
+      reverbWetGain.gain.value = 0;
 
-    subBassRackNode = audioCtx.createBiquadFilter();
-    subBassRackNode.type = 'lowshelf';
-    subBassRackNode.frequency.value = 54;
-    subBassRackNode.gain.value = useStudioStore.getState().subBassBoost || 0;
+      const bands = initialBands || useSettingsStore.getState().equalizerBands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      eqFilters = EQ_FREQUENCIES.map((freq, idx) => {
+        const filter = audioCtx!.createBiquadFilter();
+        if (idx === 0) filter.type = 'lowshelf';
+        else if (idx === EQ_FREQUENCIES.length - 1) filter.type = 'highshelf';
+        else filter.type = 'peaking';
+        filter.frequency.value = freq;
+        filter.Q.value = 0.95;
+        filter.gain.value = bands[idx] || 0;
+        return filter;
+      });
 
-    trebleAirRackNode = audioCtx.createBiquadFilter();
-    trebleAirRackNode.type = 'highshelf';
-    trebleAirRackNode.frequency.value = 11000;
-    trebleAirRackNode.gain.value = useStudioStore.getState().trebleAir || 0;
+      subBassRackNode = audioCtx.createBiquadFilter();
+      subBassRackNode.type = 'lowshelf';
+      subBassRackNode.frequency.value = 54;
+      subBassRackNode.gain.value = useStudioStore.getState().subBassBoost || 0;
 
-    exciterWaveShaper = audioCtx.createWaveShaper();
-    exciterWaveShaper.oversample = '2x';
-    exciterWaveShaper.curve = createAnalogSaturationCurve(
-      useStudioStore.getState().harmonicDrive || 0
-    );
+      trebleAirRackNode = audioCtx.createBiquadFilter();
+      trebleAirRackNode.type = 'highshelf';
+      trebleAirRackNode.frequency.value = 11000;
+      trebleAirRackNode.gain.value = useStudioStore.getState().trebleAir || 0;
 
-    // Wire series EQ chain: sourceNode -> preGainNode -> eqFilters -> subBassRackNode -> trebleAirRackNode -> exciterWaveShaper
-    sourceNode.connect(preGainNode);
-    let prev: AudioNode = preGainNode;
-    for (const f of eqFilters) {
-      prev.connect(f);
-      prev = f;
+      exciterWaveShaper = audioCtx.createWaveShaper();
+      exciterWaveShaper.oversample = '2x';
+      exciterWaveShaper.curve = createAnalogSaturationCurve(
+        useStudioStore.getState().harmonicDrive || 0
+      );
+
+      preGainNode.connect(eqFilters[0]);
+      let prev: AudioNode = eqFilters[0];
+      for (let i = 1; i < eqFilters.length; i++) {
+        prev.connect(eqFilters[i]);
+        prev = eqFilters[i];
+      }
+      prev.connect(subBassRackNode);
+      subBassRackNode.connect(trebleAirRackNode);
+      trebleAirRackNode.connect(exciterWaveShaper);
+      prev = exciterWaveShaper;
+
+      prev.connect(msSplitter);
+      msSplitter.connect(midSumL, 0);
+      msSplitter.connect(midSumR, 1);
+      midSumL.connect(midBus);
+      midSumR.connect(midBus);
+
+      msSplitter.connect(sideDiffL, 0);
+      msSplitter.connect(sideDiffR, 1);
+      sideDiffL.connect(sideBus);
+      sideDiffR.connect(sideBus);
+      sideBus.connect(sideWidthGain);
+
+      midBus.connect(msMerger, 0, 0);
+      sideWidthGain.connect(msMerger, 0, 0);
+      midBus.connect(msMerger, 0, 1);
+      sideWidthGain.connect(sideInvertR);
+      sideInvertR.connect(msMerger, 0, 1);
+
+      if (stereoPanner) {
+        msMerger.connect(stereoPanner);
+        stereoPanner.connect(dryPathGain);
+        stereoPanner.connect(reverbHP);
+      } else {
+        msMerger.connect(dryPathGain);
+        msMerger.connect(reverbHP);
+      }
+
+      dryPathGain.connect(masterLimiter);
+
+      reverbHP.connect(reverbAirLP);
+      reverbAirLP.connect(convolver);
+      convolver.connect(reverbWetGain);
+      reverbWetGain.connect(masterLimiter);
+
+      masterLimiter.connect(gainNode);
+      gainNode.connect(analyserNode);
+      analyserNode.connect(audioCtx.destination);
+
+      ensureLiveAcousticsGraph(audioCtx);
+
+      const initialFx = useStudioStore.getState().fxMode;
+      syncHeadroomAndEQ(bands, initialFx);
+      applyStudioFXToAudio(audio || htmlAudioElement, initialFx, usePlayerStore.getState().playbackSpeed || 1);
+    } catch (err) {
+      console.warn('Web Audio initialization error:', err);
     }
-    prev.connect(subBassRackNode);
-    subBassRackNode.connect(trebleAirRackNode);
-    trebleAirRackNode.connect(exciterWaveShaper);
-    prev = exciterWaveShaper;
-
-    // 5. MID/SIDE MATRIX STEREO EXPANDER ROUTING
-    prev.connect(msSplitter);
-    msSplitter.connect(midSumL, 0);
-    msSplitter.connect(midSumR, 1);
-    midSumL.connect(midBus);
-    midSumR.connect(midBus);
-
-    msSplitter.connect(sideDiffL, 0);
-    msSplitter.connect(sideDiffR, 1);
-    sideDiffL.connect(sideBus);
-    sideDiffR.connect(sideBus);
-    sideBus.connect(sideWidthGain);
-
-    // Reconstruct to stereo
-    midBus.connect(msMerger, 0, 0); // L Mid
-    sideWidthGain.connect(msMerger, 0, 0); // L Side (+)
-    midBus.connect(msMerger, 0, 1); // R Mid
-    sideWidthGain.connect(sideInvertR);
-    sideInvertR.connect(msMerger, 0, 1); // R Side (-)
-
-    // 7. STEREO PANNER (Orbit & Manual 3D Radar)
-    msMerger.connect(stereoPanner);
-
-    // Dry Main Path
-    stereoPanner.connect(dryPathGain);
-    dryPathGain.connect(masterLimiter);
-
-    // Reverb Send Path
-    stereoPanner.connect(reverbHP);
-    reverbHP.connect(reverbAirLP);
-    reverbAirLP.connect(convolver);
-    convolver.connect(reverbWetGain);
-    reverbWetGain.connect(masterLimiter);
-
-    // 8. MASTER LIMITER & OUTPUT
-    masterLimiter.connect(gainNode);
-    gainNode.connect(analyserNode);
-    analyserNode.connect(audioCtx.destination);
-
-    const initialFx = useStudioStore.getState().fxMode;
-    syncHeadroomAndEQ(initialBands, initialFx);
-    applyStudioFXToAudio(audio, initialFx, usePlayerStore.getState().playbackSpeed || 1);
-  } catch (err) {
-    console.warn('Web Audio EQ initialization skipped:', err);
   }
+
+  if (audio && !sourceNode && audioCtx && preGainNode) {
+    try {
+      sourceNode = audioCtx.createMediaElementSource(audio);
+      sourceNode.connect(preGainNode);
+      htmlAudioElement = audio;
+      audio.volume = 1.0;
+    } catch {}
+  }
+
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+
+  return audioCtx;
+}
+
+export function ensureAudioGraph(audio?: HTMLAudioElement | null, initialBands?: number[]): void {
+  initAudioGraph(audio, initialBands);
 }
 
 // --- Dedicated Live Concert & 3D Spatial Audio Generators for Real-Time Experience ---
@@ -455,15 +489,34 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
 
     spatialAcousticPanner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
 
+    // Dual-harmonic binaural acoustic soundstage carrier (432Hz + 436Hz binaural shimmer with warm room diffusion)
+    const spatialBuffer = ctx.createBuffer(2, ctx.sampleRate * 4, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = spatialBuffer.getChannelData(ch);
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < data.length; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.969 * b2 + white * 0.153852;
+        const pink = (b0 + b1 + b2 + white * 0.5362) * 0.022;
+        const t = i / ctx.sampleRate;
+        const toneFreq = ch === 0 ? 432 : 436; // 4Hz binaural beat for deep 3D spatial soundstage perception
+        const tone = Math.sin(2 * Math.PI * toneFreq * t) * 0.038;
+        data[i] = pink + tone;
+      }
+    }
+
+    const spatialBufferSource = ctx.createBufferSource();
+    spatialBufferSource.buffer = spatialBuffer;
+    spatialBufferSource.loop = true;
+
     const spatialFilter = ctx.createBiquadFilter();
     spatialFilter.type = 'bandpass';
-    spatialFilter.frequency.value = 432;
-    spatialFilter.Q.value = 1.2;
+    spatialFilter.frequency.value = 520;
+    spatialFilter.Q.value = 0.9;
 
-    spatialAcousticOsc = ctx.createOscillator();
-    spatialAcousticOsc.type = 'sine';
-    spatialAcousticOsc.frequency.value = 216; // Harmonic spatial room tone
-    spatialAcousticOsc.connect(spatialFilter);
+    spatialBufferSource.connect(spatialFilter);
 
     if (spatialAcousticPanner) {
       spatialFilter.connect(spatialAcousticPanner);
@@ -473,7 +526,7 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
     }
 
     spatialAcousticGain.connect(analyserNode || ctx.destination);
-    spatialAcousticOsc.start();
+    spatialBufferSource.start();
 
     // 2. Live Concert Stadium Arena Generator
     arenaAcousticsGain = ctx.createGain();
@@ -487,7 +540,7 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
     subFilter.type = 'lowpass';
     subFilter.frequency.value = 80;
     const subGain = ctx.createGain();
-    subGain.gain.value = 0.08;
+    subGain.gain.value = 0.10;
     arenaSubOsc.connect(subFilter);
     subFilter.connect(subGain);
     subGain.connect(arenaAcousticsGain);
@@ -508,7 +561,7 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
     crowdLP.frequency.value = 3200;
 
     const crowdGain = ctx.createGain();
-    crowdGain.gain.value = 0.16;
+    crowdGain.gain.value = 0.22;
 
     arenaCrowdSource.connect(crowdHP);
     crowdHP.connect(crowdLP);
@@ -540,6 +593,7 @@ export function applyStudioFXToAudio(
   fxMode: StudioFXMode,
   baseSpeed: number
 ): void {
+  const ctx = getAudioContext();
   const studio = useStudioStore.getState();
   const effectiveSpeed = baseSpeed || 1;
   const preservePitch = studio.preservePitch ?? true;
@@ -568,18 +622,18 @@ export function applyStudioFXToAudio(
   // Ensure AudioContext and Live Acoustics Graph are awake when any effect is enabled
   if (fxMode !== 'normal') {
     resumeAudioContextIfNeeded();
-    if (audioCtx) {
-      ensureLiveAcousticsGraph(audioCtx);
+    if (ctx) {
+      ensureLiveAcousticsGraph(ctx);
     }
   }
 
   const isPlaying = usePlayerStore.getState().isPlaying;
-  const now = audioCtx ? audioCtx.currentTime : 0;
+  const now = ctx ? ctx.currentTime : 0;
 
   // 1. Real-time 3D Spatial Audio processing
-  if (spatialAcousticGain && audioCtx) {
+  if (spatialAcousticGain && ctx) {
     if (fxMode === '8d-orbit' && isPlaying) {
-      spatialAcousticGain.gain.setTargetAtTime(0.065, now, 0.05);
+      spatialAcousticGain.gain.setTargetAtTime(0.09, now, 0.05);
 
       if (spatialAcousticPanner) {
         if (!studio.spatialOrbitAuto) {
@@ -592,7 +646,7 @@ export function applyStudioFXToAudio(
       if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
         const baseVol = (usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume) * 100;
         const dist = Math.hypot(studio.spatialManualPos?.x ?? 0, studio.spatialManualPos?.z ?? 0);
-        const distAttenuation = 1 - Math.min(0.12, dist * 0.12);
+        const distAttenuation = 1 - Math.min(0.22, dist * 0.22);
         ytPlayerInstance.setVolume(Math.round(baseVol * distAttenuation));
       }
     } else {
@@ -605,24 +659,17 @@ export function applyStudioFXToAudio(
   }
 
   // 2. Real-time Live Concert Arena processing
-  if (arenaAcousticsGain && audioCtx) {
+  if (arenaAcousticsGain && ctx) {
     if (fxMode === 'arena-live' && isPlaying) {
-      const arenaVolume = Math.min(0.24, 0.12 + (studio.reverbMix || 0) * 0.12);
+      const arenaVolume = Math.min(0.35, 0.16 + (studio.reverbMix || 0) * 0.18);
       arenaAcousticsGain.gain.setTargetAtTime(arenaVolume, now, 0.06);
     } else {
       arenaAcousticsGain.gain.setTargetAtTime(0, now, 0.06);
     }
   }
 
-  // 3. Web Audio Master DSP chain (applied to direct streams / offline vault playback)
-  if (
-    audioCtx &&
-    panLfoGain &&
-    reverbWetGain &&
-    stereoPanner &&
-    sideWidthGain &&
-    dryPathGain
-  ) {
+  // 3. Web Audio Master DSP chain (applied to direct streams / offline vault playback & mastering rack)
+  if (ctx) {
     const isSpatial3D = fxMode === '8d-orbit';
 
     const speedHz = Math.max(0.04, Math.min(0.4, studio.spatialOrbitSpeed || 0.12));
@@ -630,37 +677,65 @@ export function applyStudioFXToAudio(
       sinLfoNode.frequency.setTargetAtTime(speedHz, now, 0.06);
     }
 
-    if (isSpatial3D) {
-      if (studio.spatialOrbitAuto) {
-        panLfoGain.gain.setTargetAtTime(0.82, now, 0.06);
-        stereoPanner.pan.setTargetAtTime(0, now, 0.06);
+    if (panLfoGain && stereoPanner) {
+      if (isSpatial3D) {
+        if (studio.spatialOrbitAuto) {
+          panLfoGain.gain.setTargetAtTime(0.82, now, 0.06);
+          stereoPanner.pan.setTargetAtTime(0, now, 0.06);
+        } else {
+          panLfoGain.gain.setTargetAtTime(0, now, 0.04);
+          const manualX = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
+          stereoPanner.pan.setTargetAtTime(manualX * 0.85, now, 0.04);
+        }
       } else {
-        panLfoGain.gain.setTargetAtTime(0, now, 0.04);
-        const manualX = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
-        stereoPanner.pan.setTargetAtTime(manualX * 0.85, now, 0.04);
+        panLfoGain.gain.setTargetAtTime(0, now, 0.06);
+        stereoPanner.pan.setTargetAtTime(0, now, 0.06);
       }
-    } else {
-      panLfoGain.gain.setTargetAtTime(0, now, 0.06);
-      stereoPanner.pan.setTargetAtTime(0, now, 0.06);
     }
 
-    dryPathGain.gain.setTargetAtTime(1.0, now, 0.04);
+    if (dryPathGain) {
+      dryPathGain.gain.setTargetAtTime(1.0, now, 0.04);
+    }
 
-    const basePresetWidth =
-      fxMode === '8d-orbit' ? 1.25 : fxMode === 'arena-live' ? 1.30 : 1.0;
-    const customWidthOffset = (studio.stereoWidth || 0) * 0.45;
-    const finalWidth = Math.max(0.2, Math.min(1.65, basePresetWidth + customWidthOffset));
-    sideWidthGain.gain.setTargetAtTime(finalWidth, now, 0.05);
+    // Mastering Rack: Stereo Width
+    if (sideWidthGain) {
+      const basePresetWidth =
+        fxMode === '8d-orbit' ? 1.25 : fxMode === 'arena-live' ? 1.30 : 1.0;
+      const customWidthOffset = (studio.stereoWidth || 0) * 0.45;
+      const finalWidth = Math.max(0.2, Math.min(1.65, basePresetWidth + customWidthOffset));
+      sideWidthGain.gain.setTargetAtTime(finalWidth, now, 0.05);
+    }
 
-    const presetWet =
-      fxMode === 'arena-live'
-        ? 0.16
-        : fxMode === '8d-orbit'
-        ? Math.min(0.18, Math.max(0.06, (studio.spatialRoomSize ?? 0.26) * 0.3))
-        : 0;
-    const customWet = (studio.reverbMix || 0) * 0.35;
-    const wetAmount = Math.min(0.35, Math.max(presetWet, customWet));
-    reverbWetGain.gain.setTargetAtTime(wetAmount, now, 0.05);
+    // Mastering Rack: Convolution Hall Reverb
+    if (reverbWetGain) {
+      const presetWet =
+        fxMode === 'arena-live'
+          ? 0.18
+          : fxMode === '8d-orbit'
+          ? Math.min(0.20, Math.max(0.06, (studio.spatialRoomSize ?? 0.26) * 0.3))
+          : 0;
+      const customWet = (studio.reverbMix || 0) * 0.35;
+      const wetAmount = Math.min(0.40, Math.max(presetWet, customWet));
+      reverbWetGain.gain.setTargetAtTime(wetAmount, now, 0.05);
+    }
+
+    // Mastering Rack: Sub-Bass Boost (lowshelf filter at 54Hz)
+    if (subBassRackNode) {
+      const targetGain = Math.max(0, Math.min(9, studio.subBassBoost || 0));
+      subBassRackNode.gain.setTargetAtTime(targetGain, now, 0.035);
+    }
+
+    // Mastering Rack: Treble Air (highshelf filter at 11kHz)
+    if (trebleAirRackNode) {
+      const targetAir = Math.max(-6, Math.min(6, studio.trebleAir || 0));
+      trebleAirRackNode.gain.setTargetAtTime(targetAir, now, 0.035);
+    }
+
+    // Mastering Rack: Harmonic Analog Saturation WaveShaper
+    if (exciterWaveShaper && Math.abs((studio.harmonicDrive || 0) - lastExciterDrive) > 0.01) {
+      lastExciterDrive = studio.harmonicDrive || 0;
+      exciterWaveShaper.curve = createAnalogSaturationCurve(lastExciterDrive);
+    }
   }
 }
 
@@ -684,8 +759,9 @@ export const getAudioFrequencyData = (out: Uint8Array): boolean => {
  */
 export const unlockAudioEngine = (): void => {
   try {
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
     }
     if (htmlAudioElement && htmlAudioElement.paused && !htmlAudioElement.src) {
       // Silent tiny WAV data URI to unlock HTMLAudioElement gesture requirement
@@ -727,3 +803,57 @@ export const seekToTime = (seconds: number): void => {
     }
   }
 };
+
+// Automatic gesture unlock and reactive store synchronization
+if (typeof window !== 'undefined') {
+  const unlockOnGesture = () => {
+    unlockAudioEngine();
+  };
+  ['click', 'touchstart', 'pointerdown', 'keydown'].forEach((evt) => {
+    window.addEventListener(evt, unlockOnGesture, { passive: true });
+  });
+
+  // Reactive subscription to Studio store changes
+  useStudioStore.subscribe((state, prevState) => {
+    if (
+      state.fxMode !== prevState.fxMode ||
+      state.subBassBoost !== prevState.subBassBoost ||
+      state.harmonicDrive !== prevState.harmonicDrive ||
+      state.stereoWidth !== prevState.stereoWidth ||
+      state.reverbMix !== prevState.reverbMix ||
+      state.trebleAir !== prevState.trebleAir ||
+      state.spatialRoomSize !== prevState.spatialRoomSize ||
+      state.spatialOrbitAuto !== prevState.spatialOrbitAuto ||
+      state.spatialOrbitSpeed !== prevState.spatialOrbitSpeed ||
+      state.spatialManualPos !== prevState.spatialManualPos ||
+      state.preservePitch !== prevState.preservePitch
+    ) {
+      applyStudioFXToAudio(
+        htmlAudioElement,
+        state.fxMode,
+        usePlayerStore.getState().playbackSpeed || 1
+      );
+    }
+  });
+
+  // Reactive subscription to Settings store Equalizer changes
+  useSettingsStore.subscribe((state, prevState) => {
+    if (state.equalizerBands !== prevState.equalizerBands) {
+      syncHeadroomAndEQ(state.equalizerBands, useStudioStore.getState().fxMode);
+    }
+  });
+
+  // Reactive subscription to Player state changes
+  usePlayerStore.subscribe((state, prevState) => {
+    if (
+      state.isPlaying !== prevState.isPlaying ||
+      state.playbackSpeed !== prevState.playbackSpeed
+    ) {
+      applyStudioFXToAudio(
+        htmlAudioElement,
+        useStudioStore.getState().fxMode,
+        state.playbackSpeed || 1
+      );
+    }
+  });
+}
