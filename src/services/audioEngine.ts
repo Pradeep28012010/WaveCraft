@@ -74,6 +74,13 @@ function createAnalogSaturationCurve(driveAmount: number): Float32Array<ArrayBuf
 
 export function setHtmlAudioElement(el: HTMLAudioElement | null): void {
   htmlAudioElement = el;
+  if (el && audioCtx && preGainNode && !sourceNode) {
+    try {
+      sourceNode = audioCtx.createMediaElementSource(el);
+      sourceNode.connect(preGainNode);
+      el.volume = 1.0;
+    } catch {}
+  }
 }
 
 export function getHtmlAudioElement(): HTMLAudioElement | null {
