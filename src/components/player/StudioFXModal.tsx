@@ -10,7 +10,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useSleepTimer } from '../../hooks/useSleepTimer';
 import { getAudioFrequencyData, setLiveSpatialPan } from '../../services/audioEngine';
 
-function StudioFXModalContent() {
+function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   const {
     fxMode,
     spatialOrbitAuto,
@@ -26,8 +26,7 @@ function StudioFXModalContent() {
     setSpatialManualPos,
     setSubBassBoost,
     setReverbMix,
-    resetToOriginal,
-    setStudioModalOpen
+    resetToOriginal
   } = useStudioStore();
 
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -235,71 +234,62 @@ function StudioFXModalContent() {
   };
 
   return (
-    <div
+    <motion.div
       role="dialog"
       aria-modal="true"
       aria-labelledby="studio-fx-modal-title"
-      className="fixed inset-0 z-[9990] flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
-      style={{
-        background: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)'
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) setStudioModalOpen(false);
-      }}
+      initial={{ opacity: 0, scale: 0.96, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96, y: 10 }}
+      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+      onClick={(e) => e.stopPropagation()}
+      className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-6 sm:p-7 text-white shadow-2xl border border-white/15"
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 16 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl border border-white/20 shadow-2xl p-5 sm:p-7 text-white"
-        style={{
-          background: 'linear-gradient(135deg, rgba(22, 24, 34, 0.94) 0%, rgba(12, 14, 22, 0.98) 100%)',
-          backdropFilter: 'blur(32px)',
-          WebkitBackdropFilter: 'blur(32px)'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <span className="text-xl">🎛️</span>
-            </div>
-            <div>
-              <h2 id="studio-fx-modal-title" className="text-xl font-black tracking-tight">
-                Studio FX
-              </h2>
-              <p className="text-xs text-white/50 font-medium">
-                3D Spatial Audio & Live Concert Acoustic Engine
-              </p>
-            </div>
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25 text-white">
+            <span className="text-xl">🎛️</span>
           </div>
-
-          <div className="flex items-center gap-2">
-            {fxMode !== 'normal' && (
-              <button
-                type="button"
-                onClick={resetToOriginal}
-                className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold text-white/80 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>↺</span>
-                <span>Reset Master</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setStudioModalOpen(false)}
-              aria-label="Close Studio FX"
-              className="w-9 h-9 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer text-sm font-bold"
-            >
-              ✕
-            </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 id="studio-fx-modal-title" className="text-lg sm:text-xl font-black tracking-tight text-white">
+                Studio FX & Spatial Audio
+              </h2>
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-[10px] font-bold tracking-wider uppercase">
+                320kbps DSP
+              </span>
+            </div>
+            <p className="text-xs text-white/55 font-medium mt-0.5">
+              Binaural 360° soundstage & stadium concert acoustic processor
+            </p>
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          {fxMode !== 'normal' && (
+            <button
+              type="button"
+              onClick={resetToOriginal}
+              className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold text-white/80 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>↺</span>
+              <span>Reset Master</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close Studio FX"
+            className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white hover:bg-white/15 transition cursor-pointer text-sm font-bold active:scale-95"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
 
         {/* 3 Core Modes: Studio Master, 3D Spatial Audio, Live Concert */}
         <div className="mt-5">
@@ -342,8 +332,7 @@ function StudioFXModalContent() {
                     {mode.description}
                   </p>
                   {isSelected && (
-                    <motion.div
-                      layoutId="active-mode-indicator"
+                    <div
                       className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500"
                     />
                   )}
@@ -644,16 +633,49 @@ function StudioFXModalContent() {
           </div>
         </div>
       </motion.div>
-    </div>
   );
 }
 
 export default function StudioFXModal() {
   const isStudioModalOpen = useStudioStore((s) => s.isStudioModalOpen);
+  const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
+
+  const handleClose = () => setStudioModalOpen(false);
+
+  useEffect(() => {
+    if (!isStudioModalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isStudioModalOpen]);
+
   if (typeof document === 'undefined') return null;
 
   return createPortal(
-    <AnimatePresence>{isStudioModalOpen && <StudioFXModalContent />}</AnimatePresence>,
+    <AnimatePresence>
+      {isStudioModalOpen && (
+        <motion.div
+          key="studio-fx-portal-wrapper"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+          className="fixed inset-0 z-[9995] flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+        >
+          {/* Frosted Liquid-Glass Modal Backdrop */}
+          <div
+            onClick={handleClose}
+            className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150 cursor-pointer"
+            aria-hidden="true"
+          />
+          <StudioFXModalContent onClose={handleClose} />
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   );
 }
