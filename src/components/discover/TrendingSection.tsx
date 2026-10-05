@@ -3,6 +3,7 @@ import type { Track } from '../../types';
 import GlassCard from '../ui/GlassCard';
 import Skeleton from '../ui/Skeleton';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { SPOTIFY_TRENDING_CATEGORIES } from '../../services/youtube';
 
@@ -145,6 +146,12 @@ export default function TrendingSection({
                       ? '!border-2 !border-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent)]/60 bg-white/15 shadow-[0_14px_34px_rgba(0,0,0,0.5)]'
                       : 'hover:bg-white/[0.11] hover:border-white/25'
                   }`}
+                  onContextMenu={(e) => {
+                    if (e.shiftKey) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    useContextMenuStore.getState().openTrackMenu(e, track, tracks);
+                  }}
                   onClick={() => {
                     if (isActive) {
                       usePlayerStore.getState().togglePlay();

@@ -421,8 +421,14 @@ export default function YouTubeEmbed() {
   const fallbackToYouTube = (_track: Track, effectiveYtId: string, shouldPlay: boolean) => {
     const audio = audioRef.current;
     if (audio) {
-      audio.pause();
-      audio.removeAttribute('src');
+      audio.loop = true;
+      audio.src =
+        'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      if (shouldPlay) {
+        audio.play().catch(() => {});
+      } else {
+        audio.pause();
+      }
     }
     setActiveEngine('youtube');
     const ytPlayer = getPlayer();
@@ -494,6 +500,7 @@ export default function YouTubeEmbed() {
     setIsLoading(true);
     setProgress(0, 0);
 
+    audio.loop = false;
     if (audio.src !== targetUrl) {
       audio.src = targetUrl;
       audio.load();
@@ -772,45 +779,59 @@ export default function YouTubeEmbed() {
       } else {
         audio.pause();
       }
-    } else if (getActiveEngine() === 'youtube' && window.ytPlayerReady) {
-      const ytPlayer = getPlayer();
-      if (ytPlayer) {
+    } else if (getActiveEngine() === 'youtube') {
+      if (audioRef.current) {
         if (isPlaying) {
-          userInitiatedPauseRef.current = false;
-          const pState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
-          const effectiveYtId =
-            currentTrack.youtubeId ||
-            (currentTrack.id.startsWith('yt_') ? currentTrack.id.replace('yt_', '') : '');
+          if (!audioRef.current.src || !audioRef.current.src.startsWith('data:audio/wav')) {
+            audioRef.current.loop = true;
+            audioRef.current.src =
+              'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+          }
+          audioRef.current.play().catch(() => {});
+        } else {
+          audioRef.current.pause();
+        }
+      }
+      if (window.ytPlayerReady) {
+        const ytPlayer = getPlayer();
+        if (ytPlayer) {
+          if (isPlaying) {
+            userInitiatedPauseRef.current = false;
+            const pState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+            const effectiveYtId =
+              currentTrack.youtubeId ||
+              (currentTrack.id.startsWith('yt_') ? currentTrack.id.replace('yt_', '') : '');
 
-          // If track was cued (e.g. on page refresh), promote it to load and play
-          if (pState === window.YT?.PlayerState?.CUED || pState === 5 || pState === -1) {
-            if (effectiveYtId && typeof ytPlayer.loadVideoById === 'function') {
-              ytPlayer.loadVideoById(effectiveYtId);
-              try {
-                ytPlayer.setPlaybackQuality?.('small');
-              } catch {}
+            // If track was cued (e.g. on page refresh), promote it to load and play
+            if (pState === window.YT?.PlayerState?.CUED || pState === 5 || pState === -1) {
+              if (effectiveYtId && typeof ytPlayer.loadVideoById === 'function') {
+                ytPlayer.loadVideoById(effectiveYtId);
+                try {
+                  ytPlayer.setPlaybackQuality?.('small');
+                } catch {}
+              }
             }
-          }
 
-          const activeAnchor = jamSyncEngine.getActiveAnchor();
-          const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
-          const waitMs =
-            activeAnchor?.rendezvousAt && activeAnchor.rendezvousAt > hostNow
-              ? activeAnchor.rendezvousAt - hostNow
-              : 0;
+            const activeAnchor = jamSyncEngine.getActiveAnchor();
+            const hostNow = jamSyncEngine.getSynchronizedHostEpoch();
+            const waitMs =
+              activeAnchor?.rendezvousAt && activeAnchor.rendezvousAt > hostNow
+                ? activeAnchor.rendezvousAt - hostNow
+                : 0;
 
-          if (waitMs > 15 && waitMs < 2500) {
-            setTimeout(() => {
+            if (waitMs > 15 && waitMs < 2500) {
+              setTimeout(() => {
+                ytPlayer.playVideo?.();
+                jamSyncEngine.clearRendezvous();
+              }, waitMs);
+            } else {
               ytPlayer.playVideo?.();
-              jamSyncEngine.clearRendezvous();
-            }, waitMs);
-          } else {
-            ytPlayer.playVideo?.();
-          }
-        } else if (typeof ytPlayer.pauseVideo === 'function') {
-          if (!trackTransitionIntentRef.current) {
-            userInitiatedPauseRef.current = true;
-            ytPlayer.pauseVideo();
+            }
+          } else if (typeof ytPlayer.pauseVideo === 'function') {
+            if (!trackTransitionIntentRef.current) {
+              userInitiatedPauseRef.current = true;
+              ytPlayer.pauseVideo();
+            }
           }
         }
       }

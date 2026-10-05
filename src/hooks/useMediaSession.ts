@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
-import { DEFAULT_THUMBNAIL } from '../utils/constants';
+import { unlockAudioEngine, resumeAudioContextIfNeeded } from '../services/audioEngine';
 
 export function useMediaSession() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -11,13 +11,42 @@ export function useMediaSession() {
     if (!('mediaSession' in navigator)) return;
 
     const actions: Array<[MediaSessionAction, MediaSessionActionHandler]> = [
-      ['play', () => usePlayerStore.getState().resume()],
-      ['pause', () => usePlayerStore.getState().pause()],
-      ['previoustrack', () => usePlayerStore.getState().prevTrack()],
-      ['nexttrack', () => usePlayerStore.getState().nextTrack()],
+      [
+        'play',
+        () => {
+          unlockAudioEngine();
+          resumeAudioContextIfNeeded();
+          navigator.mediaSession.playbackState = 'playing';
+          usePlayerStore.getState().resume();
+        }
+      ],
+      [
+        'pause',
+        () => {
+          navigator.mediaSession.playbackState = 'paused';
+          usePlayerStore.getState().pause();
+        }
+      ],
+      [
+        'previoustrack',
+        () => {
+          unlockAudioEngine();
+          resumeAudioContextIfNeeded();
+          usePlayerStore.getState().prevTrack();
+        }
+      ],
+      [
+        'nexttrack',
+        () => {
+          unlockAudioEngine();
+          resumeAudioContextIfNeeded();
+          usePlayerStore.getState().nextTrack();
+        }
+      ],
       [
         'stop',
         () => {
+          navigator.mediaSession.playbackState = 'none';
           usePlayerStore.getState().pause();
         }
       ],
@@ -60,18 +89,21 @@ export function useMediaSession() {
   useEffect(() => {
     if (!('mediaSession' in navigator) || !currentTrack) return;
 
-    const artSmall = currentTrack.thumbnail || DEFAULT_THUMBNAIL;
-    const artLarge = currentTrack.thumbnailLarge || artSmall;
+    const rawArt = currentTrack.thumbnailLarge || currentTrack.thumbnail;
+    const isHttpUrl = rawArt && (rawArt.startsWith('http://') || rawArt.startsWith('https://'));
+    const safeArtUrl = isHttpUrl
+      ? rawArt
+      : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=512&q=80';
 
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentTrack.title,
-        artist: currentTrack.artist,
+        title: currentTrack.title || 'WaveCraft Music',
+        artist: currentTrack.artist || 'WaveCraft Studio',
         album: currentTrack.album || 'WaveCraft Studio',
         artwork: [
-          { src: artSmall, sizes: '96x96', type: 'image/jpeg' },
-          { src: artSmall, sizes: '192x192', type: 'image/jpeg' },
-          { src: artLarge, sizes: '512x512', type: 'image/jpeg' }
+          { src: safeArtUrl, sizes: '96x96', type: 'image/jpeg' },
+          { src: safeArtUrl, sizes: '192x192', type: 'image/jpeg' },
+          { src: safeArtUrl, sizes: '512x512', type: 'image/jpeg' }
         ]
       });
     } catch {

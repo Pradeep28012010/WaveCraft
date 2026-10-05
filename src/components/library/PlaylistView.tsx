@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -10,6 +10,12 @@ import CreatePlaylist from './CreatePlaylist';
 import { getHighResPlaylistCover } from './PlaylistCard';
 import { formatTime } from '../../utils/formatTime';
 import { exportToM3U8, exportToJSON } from '../../utils/playlistExport';
+import {
+  savePlaylistOffline,
+  isPlaylistFullyOffline,
+  getPlaylistOfflineCount,
+  type PlaylistDownloadProgress
+} from '../../services/offlineVault';
 
 export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
@@ -30,9 +36,26 @@ export default function PlaylistView() {
   const [showAttachSource, setShowAttachSource] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<PlaylistDownloadProgress | null>(null);
 
   const playlist = playlists.find((p) => p.id === id);
   const isSyncing = Boolean(id && syncingPlaylistIds[id]);
+
+  const isAllOffline = useMemo(
+    () => (playlist ? isPlaylistFullyOffline(playlist.tracks) : false),
+    [playlist?.tracks, downloadProgress]
+  );
+  const offlineCount = useMemo(
+    () => (playlist ? getPlaylistOfflineCount(playlist.tracks) : 0),
+    [playlist?.tracks, downloadProgress]
+  );
+
+  const handleDownloadAll = async () => {
+    if (!playlist || playlist.tracks.length === 0 || downloadProgress?.isDownloading) return;
+    await savePlaylistOffline(playlist.tracks, (prog) => {
+      setDownloadProgress({ ...prog });
+    });
+  };
 
   const handleCopyTrackList = () => {
     if (!playlist || !playlist.tracks.length) return;
@@ -384,6 +407,50 @@ export default function PlaylistView() {
           </svg>
           Shuffle
         </GlassButton>
+
+        {/* 1-Click Batch Playlist Download to Offline Vault */}
+        <button
+          type="button"
+          onClick={handleDownloadAll}
+          disabled={playlist.tracks.length === 0 || downloadProgress?.isDownloading}
+          className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+            downloadProgress?.isDownloading
+              ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-200'
+              : isAllOffline
+              ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/30'
+              : 'glass-button text-white/90 hover:text-white border-white/15'
+          }`}
+          title={
+            isAllOffline
+              ? 'All songs downloaded in Offline Audio Vault'
+              : 'Download entire playlist with 1 click for zero-latency offline playback'
+          }
+        >
+          {downloadProgress?.isDownloading ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+              <span>
+                Downloading {downloadProgress.completed}/{downloadProgress.total} (
+                {Math.round((downloadProgress.completed / Math.max(1, downloadProgress.total)) * 100)}%)
+              </span>
+            </>
+          ) : isAllOffline ? (
+            <>
+              <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Offline Ready ({offlineCount})</span>
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Download All ({playlist.tracks.length - offlineCount})</span>
+            </>
+          )}
+        </button>
+
         <div className="flex-grow" />
 
         {/* Export Playlist Dropdown */}

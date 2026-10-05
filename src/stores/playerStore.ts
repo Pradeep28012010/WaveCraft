@@ -120,6 +120,10 @@ interface PlayerStore extends PlayerState {
   setCrossfade: (duration: number) => void;
   setPlaybackSpeed: (speed: number) => void;
   setIsLoading: (loading: boolean) => void;
+  isNowPlayingOpen: boolean;
+  setIsNowPlayingOpen: (open: boolean) => void;
+  isQueueOpen: boolean;
+  setIsQueueOpen: (open: boolean) => void;
 }
 
 const initialSession = loadPlayerSessionSync();
@@ -140,6 +144,10 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   crossfadeDuration: 0,
   playbackSpeed: initialSession.playbackSpeed,
   isLoading: false,
+  isNowPlayingOpen: false,
+  setIsNowPlayingOpen: (open) => set({ isNowPlayingOpen: open }),
+  isQueueOpen: false,
+  setIsQueueOpen: (open) => set({ isQueueOpen: open }),
 
   setTrack: (track) => {
     set({ currentTrack: track, duration: track.duration || 0 });

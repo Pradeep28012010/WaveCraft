@@ -6,6 +6,8 @@ import MiniPlayer from './MiniPlayer';
 import MobileBottomNav from './MobileBottomNav';
 import CommandPalette from './CommandPalette';
 import StudioFXModal from '../player/StudioFXModal';
+import ContextMenu from '../ui/ContextMenu';
+import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import AnimatedBackground from '../ui/AnimatedBackground';
@@ -67,17 +69,36 @@ export default function MainLayout() {
     }
   }, [location.pathname]);
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (e.shiftKey) return;
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
+    e.preventDefault();
+    useContextMenuStore.getState().openPageMenu(e);
+  };
+
   return (
-    <div className="h-[100dvh] w-screen flex flex-col overflow-hidden text-white bg-black">
+    <div
+      onContextMenu={handleContextMenu}
+      className="h-[100dvh] w-screen flex flex-col overflow-hidden text-white bg-black"
+    >
       {/* GPU-composited Ambient Background layer */}
       <AnimatedBackground colors={colors} />
 
       {/* Hidden YouTube & Web Audio DSP Player */}
       <YouTubeEmbed />
 
-      {/* Global Ctrl+K Command Palette & Studio FX / Focus Hub */}
+      {/* Global Ctrl+K Command Palette, Studio FX & Context Menu */}
       <CommandPalette />
       <StudioFXModal />
+      <ContextMenu />
 
       <div className="flex flex-1 overflow-hidden relative z-10">
         <Sidebar />

@@ -5,6 +5,12 @@ import { usePlayerStore } from '../../stores/playerStore';
 import TrackRow from '../ui/TrackRow';
 import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
+import {
+  savePlaylistOffline,
+  isPlaylistFullyOffline,
+  getPlaylistOfflineCount,
+  type PlaylistDownloadProgress
+} from '../../services/offlineVault';
 
 export default function LikedSongs() {
   const likedSongs = useLibraryStore((state) => state.likedSongs);
@@ -33,6 +39,24 @@ export default function LikedSongs() {
 
     return result;
   }, [likedSongs, searchQuery, sortBy]);
+
+  const [downloadProgress, setDownloadProgress] = useState<PlaylistDownloadProgress | null>(null);
+
+  const isAllOffline = useMemo(
+    () => isPlaylistFullyOffline(filteredAndSortedSongs),
+    [filteredAndSortedSongs, downloadProgress]
+  );
+  const offlineCount = useMemo(
+    () => getPlaylistOfflineCount(filteredAndSortedSongs),
+    [filteredAndSortedSongs, downloadProgress]
+  );
+
+  const handleDownloadAll = async () => {
+    if (filteredAndSortedSongs.length === 0 || downloadProgress?.isDownloading) return;
+    await savePlaylistOffline(filteredAndSortedSongs, (prog) => {
+      setDownloadProgress({ ...prog });
+    });
+  };
 
   const handlePlayAll = () => {
     if (filteredAndSortedSongs.length > 0) {
@@ -70,10 +94,10 @@ export default function LikedSongs() {
 
       {/* Actions and Filters */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={handlePlayAll}
-            className="px-6 py-3 rounded-full bg-[var(--color-accent)] text-white font-bold text-sm flex items-center gap-2 hover:scale-105 transition-transform shadow-lg disabled:opacity-50 cursor-pointer"
+            className="px-6 py-2.5 rounded-full bg-[var(--color-accent)] text-white font-bold text-sm flex items-center gap-2 hover:scale-105 transition-transform shadow-lg disabled:opacity-50 cursor-pointer"
             disabled={filteredAndSortedSongs.length === 0}
           >
             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -84,6 +108,49 @@ export default function LikedSongs() {
           <GlassButton onClick={handleShuffleAll} disabled={filteredAndSortedSongs.length === 0}>
             Shuffle
           </GlassButton>
+
+          {/* 1-Click Download All to Offline Audio Vault */}
+          <button
+            type="button"
+            onClick={handleDownloadAll}
+            disabled={filteredAndSortedSongs.length === 0 || downloadProgress?.isDownloading}
+            className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+              downloadProgress?.isDownloading
+                ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-200'
+                : isAllOffline
+                ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/30'
+                : 'glass-button text-white/90 hover:text-white border-white/15'
+            }`}
+            title={
+              isAllOffline
+                ? 'All favorite songs saved in Offline Audio Vault'
+                : 'Download all liked songs with 1 click for zero-latency offline playback'
+            }
+          >
+            {downloadProgress?.isDownloading ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                <span>
+                  Downloading {downloadProgress.completed}/{downloadProgress.total} (
+                  {Math.round((downloadProgress.completed / Math.max(1, downloadProgress.total)) * 100)}%)
+                </span>
+              </>
+            ) : isAllOffline ? (
+              <>
+                <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Offline Ready ({offlineCount})</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Download All ({filteredAndSortedSongs.length - offlineCount})</span>
+              </>
+            )}
+          </button>
         </div>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto">

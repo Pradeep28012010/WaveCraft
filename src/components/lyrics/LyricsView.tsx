@@ -688,11 +688,12 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
                         title={`${cand.trackName} by ${cand.artistName} (${cand.duration ? `${cand.duration}s` : 'Unknown duration'})`}
                       >
                         <span>
-                          {cand.scriptType === 'Devanagari'
-                            ? '🇮🇳 Devanagari'
-                            : cand.scriptType === 'Native'
-                            ? '🌐 Native'
-                            : '🔤 Romanized'}
+                          {cand.languageLabel ||
+                            (cand.scriptType === 'Devanagari'
+                              ? '🇮🇳 Devanagari'
+                              : cand.scriptType === 'Native'
+                              ? '🌐 Native'
+                              : '🔤 Romanized')}
                         </span>
                         {cand.duration ? (
                           <span className="opacity-60 tabular-nums">

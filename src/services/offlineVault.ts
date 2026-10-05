@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Track } from '../types';
+import { resolveDirectAudio } from './streamResolver';
 
 const VAULT_CACHE_NAME = 'wavecraft-offline-audio-vault-v1';
 const VAULT_META_KEY = 'wavecraft_offline_tracks_meta_v1';
@@ -81,6 +82,17 @@ export async function saveTrackOffline(track: Track): Promise<boolean> {
   try {
     let resolvedTrack = { ...track };
 
+    // Proactively resolve direct 320kbps stream if missing or temporary Spotify preview
+    if (!resolvedTrack.audioUrl || resolvedTrack.audioUrl.includes('p.scdn.co')) {
+      try {
+        const directUrl = await resolveDirectAudio(resolvedTrack.title, resolvedTrack.artist, resolvedTrack.duration);
+        if (directUrl) {
+          resolvedTrack.audioUrl = directUrl;
+          resolvedTrack.quality = '320kbps Studio AAC';
+        }
+      } catch {}
+    }
+
     if ('caches' in window) {
       const cache = await caches.open(VAULT_CACHE_NAME);
       if (resolvedTrack.audioUrl) {
@@ -147,6 +159,112 @@ export async function toggleOfflineTrack(track: Track): Promise<void> {
     activeSavingIds.delete(track.id);
     notifyListeners(track.id);
   }
+}
+
+export interface PlaylistDownloadProgress {
+  total: number;
+  completed: number;
+  currentTrackTitle?: string;
+  isDownloading: boolean;
+  failedCount: number;
+}
+
+export function isPlaylistFullyOffline(tracks: Track[]): boolean {
+  if (!tracks || tracks.length === 0) return false;
+  return tracks.every((t) => isTrackOffline(t.id));
+}
+
+export function getPlaylistOfflineCount(tracks: Track[]): number {
+  if (!tracks || tracks.length === 0) return 0;
+  return tracks.filter((t) => isTrackOffline(t.id)).length;
+}
+
+/**
+ * 1-Click Batch Playlist Download:
+ * Automatically downloads all tracks into the Offline Audio Vault with a concurrency pool.
+ */
+export async function savePlaylistOffline(
+  tracks: Track[],
+  onProgress?: (progress: PlaylistDownloadProgress) => void,
+  shouldCancel?: () => boolean
+): Promise<{ success: number; failed: number }> {
+  if (!tracks || tracks.length === 0) return { success: 0, failed: 0 };
+
+  const missing = tracks.filter((t) => !isTrackOffline(t.id));
+  if (missing.length === 0) {
+    onProgress?.({
+      total: tracks.length,
+      completed: tracks.length,
+      isDownloading: false,
+      failedCount: 0
+    });
+    return { success: 0, failed: 0 };
+  }
+
+  let completed = tracks.length - missing.length;
+  let failed = 0;
+
+  onProgress?.({
+    total: tracks.length,
+    completed,
+    isDownloading: true,
+    failedCount: 0
+  });
+
+  const concurrency = 2;
+  let queueIdx = 0;
+
+  async function worker() {
+    while (queueIdx < missing.length) {
+      if (shouldCancel?.()) break;
+      const current = missing[queueIdx++];
+      if (!current) break;
+
+      onProgress?.({
+        total: tracks.length,
+        completed,
+        currentTrackTitle: current.title,
+        isDownloading: true,
+        failedCount: failed
+      });
+
+      activeSavingIds.add(current.id);
+      notifyListeners(current.id);
+
+      try {
+        const ok = await saveTrackOffline(current);
+        if (ok) {
+          completed++;
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      } finally {
+        activeSavingIds.delete(current.id);
+        notifyListeners(current.id);
+      }
+
+      onProgress?.({
+        total: tracks.length,
+        completed,
+        isDownloading: true,
+        failedCount: failed
+      });
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, missing.length) }, () => worker());
+  await Promise.all(workers);
+
+  onProgress?.({
+    total: tracks.length,
+    completed,
+    isDownloading: false,
+    failedCount: failed
+  });
+
+  return { success: completed - (tracks.length - missing.length), failed };
 }
 
 /**

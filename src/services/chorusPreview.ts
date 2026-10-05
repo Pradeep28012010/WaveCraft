@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { Track } from '../types';
 import { usePlayerStore } from '../stores/playerStore';
-import { searchTracks } from './youtube';
+import { resolveDirectAudio } from './streamResolver';
+import { unlockAudioEngine, resumeAudioContextIfNeeded } from './audioEngine';
 
 interface ChorusPreviewState {
   trackId: string | null;
@@ -94,16 +95,23 @@ export async function toggleChorusPreview(track: Track) {
     remainingSec: PREVIEW_DURATION_SEC
   });
 
+  unlockAudioEngine();
+  resumeAudioContextIfNeeded();
+
   let streamUrl = track.audioUrl;
-  if (!streamUrl) {
+  if (!streamUrl || streamUrl.includes('p.scdn.co')) {
     try {
-      const results = await searchTracks(`${track.title} ${track.artist}`);
-      const match = results.find((r) => r.audioUrl);
-      if (match?.audioUrl) {
-        streamUrl = match.audioUrl;
-        track.audioUrl = match.audioUrl;
+      const resolved = await resolveDirectAudio(track.title, track.artist, track.duration);
+      if (resolved) {
+        streamUrl = resolved;
+        track.audioUrl = resolved;
       }
     } catch {}
+  }
+
+  // If still no direct 320k stream, try using track.audioUrl as fallback
+  if (!streamUrl && track.audioUrl) {
+    streamUrl = track.audioUrl;
   }
 
   // Verify user hasn't cancelled while resolving stream
@@ -121,14 +129,21 @@ export async function toggleChorusPreview(track: Track) {
   }
 
   const audio = previewAudio;
-  audio.src = streamUrl;
   audio.volume = Math.max(0.25, playerState.isMuted ? 0.7 : playerState.volume);
 
-  const onLoaded = () => {
-    if (previewState.trackId !== track.id) return;
+  let hasStarted = false;
+  const startPlaying = () => {
+    if (hasStarted || previewState.trackId !== track.id) return;
+    hasStarted = true;
+
     const dur = audio.duration && isFinite(audio.duration) ? audio.duration : track.duration || 180;
-    // Jump straight to the chorus drop (~34% into the song, clamped between 32s and 75s)
-    previewStartTimeSec = Math.max(24, Math.min(75, Math.min(dur * 0.34, Math.max(0, dur - 20))));
+    // For short previews (<=35s), start at 0s; for full tracks, jump to chorus drop (~32% into song)
+    if (dur <= 35) {
+      previewStartTimeSec = 0;
+    } else {
+      previewStartTimeSec = Math.max(18, Math.min(65, Math.min(dur * 0.32, Math.max(0, dur - 20))));
+    }
+
     try {
       audio.currentTime = previewStartTimeSec;
     } catch {}
@@ -176,16 +191,19 @@ export async function toggleChorusPreview(track: Track) {
       });
   };
 
-  audio.onloadedmetadata = onLoaded;
+  audio.onloadedmetadata = startPlaying;
+  audio.oncanplay = startPlaying;
   audio.onerror = () => {
     if (previewState.trackId !== track.id) return;
-    if (audio.src.includes('_320.mp4')) {
-      audio.src = audio.src.replace('_320.mp4', '_160.mp4');
-      audio.load();
-      return;
-    }
     stopChorusPreview(true);
   };
+
+  audio.src = streamUrl;
+  audio.load();
+
+  if (audio.readyState >= 1) {
+    startPlaying();
+  }
 }
 
 export function useChorusPreview(trackId: string) {

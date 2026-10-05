@@ -88,8 +88,10 @@ const MiniPlayerTimeReadout = memo(({ fallbackDuration }: { fallbackDuration: nu
 MiniPlayerTimeReadout.displayName = 'MiniPlayerTimeReadout';
 
 export default function MiniPlayer() {
-  const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
-  const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const isNowPlayingOpen = usePlayerStore((s) => s.isNowPlayingOpen);
+  const setIsNowPlayingOpen = usePlayerStore((s) => s.setIsNowPlayingOpen);
+  const isQueueOpen = usePlayerStore((s) => s.isQueueOpen);
+  const setIsQueueOpen = usePlayerStore((s) => s.setIsQueueOpen);
   const { isPhone } = useDevicePreset();
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);

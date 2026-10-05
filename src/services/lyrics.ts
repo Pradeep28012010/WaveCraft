@@ -10,6 +10,8 @@ export interface LyricsCandidate {
   lyrics: string;
   lines: LyricLine[];
   scriptType: 'Devanagari' | 'Latin' | 'Native';
+  languageCode: string;
+  languageLabel: string;
   durationDiff: number;
   source: string;
   score: number;
@@ -55,12 +57,74 @@ export function saveLyricsOffset(artist: string, title: string, offset: number):
   } catch {}
 }
 
+export interface LanguageMeta {
+  code: string;
+  label: string;
+  scriptType: 'Devanagari' | 'Latin' | 'Native';
+}
+
+export function detectLanguageMeta(text: string): LanguageMeta {
+  if (!text) {
+    return { code: 'latn', label: '🔤 Romanized', scriptType: 'Latin' };
+  }
+  // Telugu
+  if (/[\u0C00-\u0C7F]/.test(text)) {
+    return { code: 'te', label: '🎬 తెలుగు (Telugu)', scriptType: 'Native' };
+  }
+  // Tamil
+  if (/[\u0B80-\u0BFF]/.test(text)) {
+    return { code: 'ta', label: '🎭 தமிழ் (Tamil)', scriptType: 'Native' };
+  }
+  // Kannada
+  if (/[\u0C80-\u0CFF]/.test(text)) {
+    return { code: 'kn', label: '🎵 ಕನ್ನಡ (Kannada)', scriptType: 'Native' };
+  }
+  // Malayalam
+  if (/[\u0D00-\u0D7F]/.test(text)) {
+    return { code: 'ml', label: '🌴 മലയാളം (Malayalam)', scriptType: 'Native' };
+  }
+  // Punjabi / Gurmukhi
+  if (/[\u0A00-\u0A7F]/.test(text)) {
+    return { code: 'pa', label: '🌾 ਪੰਜਾਬੀ (Punjabi)', scriptType: 'Native' };
+  }
+  // Bengali / Assamese
+  if (/[\u0980-\u09FF]/.test(text)) {
+    return { code: 'bn', label: '🌸 বাংলা (Bengali)', scriptType: 'Native' };
+  }
+  // Gujarati
+  if (/[\u0A80-\u0AFF]/.test(text)) {
+    return { code: 'gu', label: '✨ ગુજરાતી (Gujarati)', scriptType: 'Native' };
+  }
+  // Devanagari (Hindi, Marathi, Nepali)
+  if (/[\u0900-\u097F]/.test(text)) {
+    return { code: 'hi', label: '🇮🇳 हिन्दी (Hindi)', scriptType: 'Devanagari' };
+  }
+  // Japanese (Hiragana / Katakana)
+  if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) {
+    return { code: 'ja', label: '🇯🇵 日本語 (Japanese)', scriptType: 'Native' };
+  }
+  // Korean (Hangul)
+  if (/[\uAC00-\uD7AF]/.test(text)) {
+    return { code: 'ko', label: '🇰🇷 한국어 (Korean)', scriptType: 'Native' };
+  }
+  // Chinese (Hanzi)
+  if (/[\u4E00-\u9FFF]/.test(text)) {
+    return { code: 'zh', label: '🇨🇳 中文 (Chinese)', scriptType: 'Native' };
+  }
+  // Cyrillic (Russian, etc.)
+  if (/[\u0400-\u04FF]/.test(text)) {
+    return { code: 'ru', label: '🇷🇺 Русский (Russian)', scriptType: 'Native' };
+  }
+  // Arabic / Urdu / Persian
+  if (/[\u0600-\u06FF\u0750-\u077F]/.test(text)) {
+    return { code: 'ar', label: '🌙 اردو / Arabic', scriptType: 'Native' };
+  }
+  // Default Latin / Romanized
+  return { code: 'latn', label: '🔤 Romanized', scriptType: 'Latin' };
+}
+
 export function detectScriptType(text: string): 'Devanagari' | 'Latin' | 'Native' {
-  if (/[\u0900-\u097F]/.test(text)) return 'Devanagari';
-  if (/[\u0600-\u06FF\u0750-\u077F]/.test(text)) return 'Native';
-  if (/[\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F]/.test(text)) return 'Native';
-  if (/[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/.test(text)) return 'Native';
-  return 'Latin';
+  return detectLanguageMeta(text).scriptType;
 }
 
 export function parseLyrics(rawLyrics: string, totalDuration = 210): LyricLine[] {
@@ -230,7 +294,7 @@ export async function getLyricsData(
             }
 
             const parsedLines = parseLyrics(raw, duration);
-            const script = detectScriptType(raw);
+            const langMeta = detectLanguageMeta(raw);
 
             allCandidates.push({
               id: item.id,
@@ -241,7 +305,9 @@ export async function getLyricsData(
               synced: isSynced,
               lyrics: raw,
               lines: parsedLines,
-              scriptType: script,
+              scriptType: langMeta.scriptType,
+              languageCode: langMeta.code,
+              languageLabel: langMeta.label,
               durationDiff: durDiff,
               source: isSynced ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics',
               score
@@ -254,13 +320,26 @@ export async function getLyricsData(
 
   if (allCandidates.length > 0) {
     allCandidates.sort((a, b) => b.score - a.score);
-    const best = allCandidates[0];
+
+    // Deduplicate candidates by detected language/script so each language appears AT MOST ONCE
+    // The highest-scoring candidate for each language is selected
+    const languageMap = new Map<string, LyricsCandidate>();
+    for (const cand of allCandidates) {
+      const existing = languageMap.get(cand.languageCode);
+      if (!existing || cand.score > existing.score) {
+        languageMap.set(cand.languageCode, cand);
+      }
+    }
+
+    const deduplicated = Array.from(languageMap.values()).sort((a, b) => b.score - a.score);
+    const best = deduplicated[0] || allCandidates[0];
+
     const parsed: LyricsResult = {
       synced: best.synced,
       lyrics: best.lyrics,
       lines: best.lines,
       source: best.source,
-      candidates: allCandidates.slice(0, 8),
+      candidates: deduplicated,
       activeCandidateId: best.id
     };
     cache.set(cacheKey, parsed);

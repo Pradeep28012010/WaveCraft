@@ -13,6 +13,7 @@ import {
 } from '../../services/chorusPreview';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
+import { useContextMenuStore } from '../../stores/contextMenuStore';
 
 // Shared module-level hover coordinator so moving the cursor from one TrackRow
 // to another TrackRow bridges the 6px row gap and smoothly glides a single
@@ -208,7 +209,16 @@ const TrackRow = memo(({
       onClick={handleTriggerPlay}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      onContextMenu={(e) => onContextMenu?.(e, track)}
+      onContextMenu={(e) => {
+        if (e.shiftKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (onContextMenu) {
+          onContextMenu(e, track);
+        } else {
+          useContextMenuStore.getState().openTrackMenu(e, track, tracks);
+        }
+      }}
       className={`relative flex items-center gap-4 px-4 py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 ${
         isCurrentTrack
           ? 'bg-white/[0.10] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
 import { shuffleArray } from '../../utils/shuffle';
 import { formatTime } from '../../utils/formatTime';
@@ -338,7 +339,15 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-2xl bg-gradient-to-r from-white/[0.12] via-white/[0.07] to-white/[0.04] border border-white/20 shadow-[0_12px_30px_rgba(0,0,0,0.45)] flex items-center gap-3.5">
+                  <div
+                    onContextMenu={(e) => {
+                      if (e.shiftKey) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      useContextMenuStore.getState().openTrackMenu(e, currentTrack, queue);
+                    }}
+                    className="p-3 rounded-2xl bg-gradient-to-r from-white/[0.12] via-white/[0.07] to-white/[0.04] border border-white/20 shadow-[0_12px_30px_rgba(0,0,0,0.45)] flex items-center gap-3.5"
+                  >
                     <div
                       onClick={togglePlay}
                       className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group border border-white/15 shadow-md"
@@ -468,6 +477,12 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                             onDragOver={(e) => handleDragOver(e, actualIndex)}
                             onDrop={() => handleDrop(actualIndex)}
                             onDragEnd={handleDragEnd}
+                            onContextMenu={(e) => {
+                              if (e.shiftKey) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              useContextMenuStore.getState().openTrackMenu(e, track, queue);
+                            }}
                             className={`group flex items-center gap-2.5 p-2 rounded-2xl border transition-all duration-150 ${
                               isDragTarget
                                 ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)] scale-[1.01]'
@@ -621,6 +636,12 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                         <div
                           key={`${track.id}-${actualIndex}`}
                           onClick={() => handleJumpToTrack(track, actualIndex)}
+                          onContextMenu={(e) => {
+                            if (e.shiftKey) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            useContextMenuStore.getState().openTrackMenu(e, track, queue);
+                          }}
                           className="group flex items-center gap-3 p-2 rounded-2xl bg-white/[0.025] hover:bg-white/[0.08] border border-white/[0.05] hover:border-white/15 transition-all cursor-pointer"
                         >
                           <img
