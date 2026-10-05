@@ -28,10 +28,12 @@ export const useContextMenuStore = create<ContextMenuState>((set) => ({
   tracks: undefined,
 
   openTrackMenu: (e, track, tracks) => {
+    const x = typeof e?.clientX === 'number' && isFinite(e.clientX) ? e.clientX : 100;
+    const y = typeof e?.clientY === 'number' && isFinite(e.clientY) ? e.clientY : 100;
     set({
       isOpen: true,
-      x: e.clientX,
-      y: e.clientY,
+      x,
+      y,
       type: 'track',
       track,
       tracks
@@ -39,10 +41,12 @@ export const useContextMenuStore = create<ContextMenuState>((set) => ({
   },
 
   openPageMenu: (e) => {
+    const x = typeof e?.clientX === 'number' && isFinite(e.clientX) ? e.clientX : 100;
+    const y = typeof e?.clientY === 'number' && isFinite(e.clientY) ? e.clientY : 100;
     set({
       isOpen: true,
-      x: e.clientX,
-      y: e.clientY,
+      x,
+      y,
       type: 'page',
       track: null,
       tracks: undefined

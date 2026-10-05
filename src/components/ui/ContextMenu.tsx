@@ -1,18 +1,40 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Component, type ReactNode, type ErrorInfo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useStudioStore } from '../../stores/studioStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { toggleChorusPreview, stopChorusPreview, useChorusPreview } from '../../services/chorusPreview';
+import { toggleChorusPreview, stopChorusPreview, isChorusPreviewActive } from '../../services/chorusPreview';
 import { isTrackOffline, saveTrackOffline, removeTrackOffline } from '../../services/offlineVault';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import type { Playlist } from '../../types';
 
-export default function ContextMenu() {
+class ContextMenuErrorBoundary extends Component<
+  { children: ReactNode; onClose: () => void },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[ContextMenu Error]', error, info);
+    this.props.onClose();
+  }
+
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
+
+function ContextMenuInner() {
   const isOpen = useContextMenuStore((s) => s.isOpen);
   const x = useContextMenuStore((s) => s.x);
   const y = useContextMenuStore((s) => s.y);
@@ -27,64 +49,43 @@ export default function ContextMenu() {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
 
-  // Player Store
+  // Player Store selectors
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const isShuffled = usePlayerStore((s) => s.isShuffled);
   const repeatMode = usePlayerStore((s) => s.repeatMode);
   const isMuted = usePlayerStore((s) => s.isMuted);
 
-  // Library Store
+  // Library Store selectors (STRICTLY UNCONDITIONAL)
   const playlists = useLibraryStore((s) => s.playlists);
-  const liked = track ? Boolean(useLibraryStore((s) => s.likedIds[track.id])) : false;
+  const likedIds = useLibraryStore((s) => s.likedIds);
+  const liked = track ? Boolean(likedIds[track.id]) : false;
 
-  // Chorus Preview
-  const { isPreviewing } = useChorusPreview(track?.id || '');
+  // Chorus preview state (synchronous check)
+  const isPreviewing = isChorusPreviewActive(track?.id);
 
-  // Track offline status
-  const [isOffline, setIsOffline] = useState(false);
-  useEffect(() => {
-    if (track) {
-      setIsOffline(isTrackOffline(track.id));
-    }
-  }, [track, isOpen]);
+  // Offline status with local toggle state
+  const [offlineOverride, setOfflineOverride] = useState<boolean | null>(null);
+  const isOffline =
+    offlineOverride !== null
+      ? offlineOverride
+      : track
+      ? isTrackOffline(track.id)
+      : false;
 
-  // Viewport-safe coordinates
-  const [menuPos, setMenuPos] = useState({ left: 0, top: 0 });
-
+  // Reset local submenu states when closing
   useEffect(() => {
     if (!isOpen) {
       setShowPlaylistSubmenu(false);
       setIsCreatingPlaylist(false);
-      return;
+      setOfflineOverride(null);
+      setToastMessage(null);
     }
+  }, [isOpen]);
 
-    const menuWidth = 240;
-    const menuHeight = type === 'track' ? 420 : 360;
-    const margin = 12;
-
-    let computedX = x;
-    let computedY = y;
-
-    if (computedX + menuWidth > window.innerWidth - margin) {
-      computedX = Math.max(margin, window.innerWidth - menuWidth - margin);
-    }
-    if (computedY + menuHeight > window.innerHeight - margin) {
-      computedY = Math.max(margin, window.innerHeight - menuHeight - margin);
-    }
-
-    setMenuPos({ left: computedX, top: computedY });
-  }, [isOpen, x, y, type]);
-
-  // Click outside & Escape key listeners
+  // Escape key listener
   useEffect(() => {
     if (!isOpen) return;
-
-    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        closeMenu();
-      }
-    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -92,21 +93,8 @@ export default function ContextMenu() {
       }
     };
 
-    const handleScroll = () => {
-      closeMenu();
-    };
-
-    window.addEventListener('mousedown', handlePointerDown);
-    window.addEventListener('touchstart', handlePointerDown);
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('scroll', handleScroll, true);
-
-    return () => {
-      window.removeEventListener('mousedown', handlePointerDown);
-      window.removeEventListener('touchstart', handlePointerDown);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', handleScroll, true);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, closeMenu]);
 
   const showToast = useCallback((msg: string) => {
@@ -118,6 +106,17 @@ export default function ContextMenu() {
   }, [closeMenu]);
 
   if (!isOpen) return null;
+  if (typeof document === 'undefined') return null;
+
+  // Viewport-safe bounds calculation (Synchronous during render)
+  const menuWidth = 240;
+  const menuHeight = type === 'track' ? 440 : 360;
+  const margin = 12;
+  const winW = typeof window !== 'undefined' ? window.innerWidth : 1024;
+  const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
+
+  const safeX = Math.max(margin, Math.min(x, winW - menuWidth - margin));
+  const safeY = Math.max(margin, Math.min(y, winH - menuHeight - margin));
 
   // --- ACTIONS: TRACK CONTEXT ---
   const isThisTrackPlaying = Boolean(track && currentTrack?.id === track.id && isPlaying);
@@ -188,13 +187,13 @@ export default function ContextMenu() {
     if (!track) return;
     if (isOffline) {
       removeTrackOffline(track.id);
-      setIsOffline(false);
+      setOfflineOverride(false);
       showToast('Removed from Offline Vault');
     } else {
       showToast('Downloading 320kbps offline...');
       const ok = await saveTrackOffline(track);
       if (ok) {
-        setIsOffline(true);
+        setOfflineOverride(true);
       }
     }
   };
@@ -268,19 +267,29 @@ export default function ContextMenu() {
     showToast(isMuted ? 'Audio Unmuted' : 'Audio Muted');
   };
 
-  return (
-    <div className="fixed inset-0 pointer-events-none z-[99999] overflow-hidden select-none">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[99999] select-none"
+      onClick={closeMenu}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        closeMenu();
+      }}
+    >
       <motion.div
         ref={menuRef}
-        initial={{ opacity: 0, scale: 0.94, y: 4 }}
+        onClick={(e) => e.stopPropagation()}
+        onContextMenu={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.95, y: 4 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.94, y: 4 }}
-        transition={{ duration: 0.14, ease: 'easeOut' }}
+        exit={{ opacity: 0, scale: 0.95, y: 4 }}
+        transition={{ duration: 0.12, ease: 'easeOut' }}
         style={{
-          left: `${menuPos.left}px`,
-          top: `${menuPos.top}px`
+          position: 'fixed',
+          left: `${safeX}px`,
+          top: `${safeY}px`
         }}
-        className="pointer-events-auto absolute w-[240px] rounded-2xl border border-white/15 bg-black/85 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.08)] py-1.5 px-1.5 flex flex-col gap-0.5 text-xs text-white/90"
+        className="w-[240px] rounded-2xl border border-white/20 bg-[#0d0d14]/95 backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.1)] py-1.5 px-1.5 flex flex-col gap-0.5 text-xs text-white/90"
       >
         {/* Toast confirmation feedback if action triggered */}
         {toastMessage && (
@@ -295,7 +304,7 @@ export default function ContextMenu() {
         {type === 'track' && track && (
           <>
             {/* Header: Track mini banner */}
-            <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1 rounded-xl bg-white/[0.05] border border-white/10">
+            <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1 rounded-xl bg-white/[0.06] border border-white/10">
               <img
                 src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                 alt={track.title}
@@ -443,7 +452,7 @@ export default function ContextMenu() {
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: -6, scale: 0.95 }}
                     transition={{ duration: 0.12 }}
-                    className="absolute left-[calc(100%+6px)] -top-2 w-[210px] max-h-[260px] overflow-y-auto no-scrollbar rounded-2xl border border-white/15 bg-black/90 backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.85)] p-1.5 flex flex-col gap-1 z-30"
+                    className="absolute left-[calc(100%+6px)] -top-2 w-[210px] max-h-[260px] overflow-y-auto no-scrollbar rounded-2xl border border-white/20 bg-[#0d0d14]/98 backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.92)] p-1.5 flex flex-col gap-1 z-30"
                   >
                     {/* Create New Playlist Form */}
                     {isCreatingPlaylist ? (
@@ -609,7 +618,7 @@ export default function ContextMenu() {
         {type === 'page' && (
           <>
             {/* Header: WaveCraft Studio Banner */}
-            <div className="flex items-center justify-between px-3 py-2 mb-1 rounded-xl bg-white/[0.05] border border-white/10">
+            <div className="flex items-center justify-between px-3 py-2 mb-1 rounded-xl bg-white/[0.06] border border-white/10">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-75 ${!isPlaying ? 'hidden' : ''}`} />
@@ -794,6 +803,16 @@ export default function ContextMenu() {
           </>
         )}
       </motion.div>
-    </div>
+    </div>,
+    document.body
+  );
+}
+
+export default function ContextMenu() {
+  const closeMenu = useContextMenuStore((s) => s.closeMenu);
+  return (
+    <ContextMenuErrorBoundary onClose={closeMenu}>
+      <ContextMenuInner />
+    </ContextMenuErrorBoundary>
   );
 }

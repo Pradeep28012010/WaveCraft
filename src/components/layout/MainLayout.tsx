@@ -81,7 +81,9 @@ export default function MainLayout() {
       return;
     }
     e.preventDefault();
-    useContextMenuStore.getState().openPageMenu(e);
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    useContextMenuStore.getState().openPageMenu({ clientX, clientY });
   };
 
   return (

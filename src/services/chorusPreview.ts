@@ -71,6 +71,11 @@ export function stopChorusPreview(resumeMain = true) {
   }
 }
 
+export function isChorusPreviewActive(trackId?: string): boolean {
+  if (!trackId) return false;
+  return previewState.trackId === trackId;
+}
+
 export async function toggleChorusPreview(track: Track) {
   if (previewState.trackId === track.id) {
     stopChorusPreview(true);

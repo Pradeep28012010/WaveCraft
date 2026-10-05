@@ -216,7 +216,9 @@ const TrackRow = memo(({
         if (onContextMenu) {
           onContextMenu(e, track);
         } else {
-          useContextMenuStore.getState().openTrackMenu(e, track, tracks);
+          const clientX = e.clientX;
+          const clientY = e.clientY;
+          useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
         }
       }}
       className={`relative flex items-center gap-4 px-4 py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 ${

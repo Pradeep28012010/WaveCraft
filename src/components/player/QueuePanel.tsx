@@ -344,7 +344,9 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       if (e.shiftKey) return;
                       e.preventDefault();
                       e.stopPropagation();
-                      useContextMenuStore.getState().openTrackMenu(e, currentTrack, queue);
+                      const clientX = e.clientX;
+                      const clientY = e.clientY;
+                      useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, currentTrack, queue);
                     }}
                     className="p-3 rounded-2xl bg-gradient-to-r from-white/[0.12] via-white/[0.07] to-white/[0.04] border border-white/20 shadow-[0_12px_30px_rgba(0,0,0,0.45)] flex items-center gap-3.5"
                   >
@@ -481,7 +483,9 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                               if (e.shiftKey) return;
                               e.preventDefault();
                               e.stopPropagation();
-                              useContextMenuStore.getState().openTrackMenu(e, track, queue);
+                              const clientX = e.clientX;
+                              const clientY = e.clientY;
+                              useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, queue);
                             }}
                             className={`group flex items-center gap-2.5 p-2 rounded-2xl border transition-all duration-150 ${
                               isDragTarget
@@ -640,7 +644,9 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                             if (e.shiftKey) return;
                             e.preventDefault();
                             e.stopPropagation();
-                            useContextMenuStore.getState().openTrackMenu(e, track, queue);
+                            const clientX = e.clientX;
+                            const clientY = e.clientY;
+                            useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, queue);
                           }}
                           className="group flex items-center gap-3 p-2 rounded-2xl bg-white/[0.025] hover:bg-white/[0.08] border border-white/[0.05] hover:border-white/15 transition-all cursor-pointer"
                         >

@@ -150,7 +150,9 @@ export default function TrendingSection({
                     if (e.shiftKey) return;
                     e.preventDefault();
                     e.stopPropagation();
-                    useContextMenuStore.getState().openTrackMenu(e, track, tracks);
+                    const clientX = e.clientX;
+                    const clientY = e.clientY;
+                    useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
                   }}
                   onClick={() => {
                     if (isActive) {

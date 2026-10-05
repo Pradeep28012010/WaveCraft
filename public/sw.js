@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wavecraft-shell-v7.1-controls-menus';
+const CACHE_NAME = 'wavecraft-shell-v7.2-safe-context-menu';
 const SHELL_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
