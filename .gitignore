@@ -46,3 +46,12 @@ Thumbs.db
 # Agent scratch & teamwork artifacts
 .agents/
 
+# Android build outputs & local config
+.gradle/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/public/
+*.apk
+

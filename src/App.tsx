@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
 import { Suspense, useEffect, useRef, lazy } from 'react';
 import { MotionConfig } from 'framer-motion';
 import MainLayout from './components/layout/MainLayout';
@@ -10,6 +10,7 @@ import { usePlayerStore } from './stores/playerStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useMediaSession } from './hooks/useMediaSession';
 import { searchTracks, getTrending } from './services/youtube';
+import { initNativeAndroid } from './services/nativeAndroid';
 
 const SearchResults = lazy(() => import('./components/search/SearchResults'));
 const LibraryPage = lazy(() => import('./components/library/LibraryPage'));
@@ -25,11 +26,18 @@ const SonicGalaxyPage = lazy(() => import('./components/galaxy/SonicGalaxyPage')
 const LandingPage = lazy(() => import('./components/landing/LandingPage'));
 
 function AppContent() {
+  const navigate = useNavigate();
   const loadLibrary = useLibraryStore((s) => s.loadFromStorage);
   const loadSettings = useSettingsStore((s) => s.loadFromStorage);
   const playTrack = usePlayerStore((s) => s.playTrack);
   const [searchParams, setSearchParams] = useSearchParams();
   const handledPlayParam = useRef<string | null>(null);
+
+  // Initialize Native Android Hardware Back button & edge-to-edge status bar
+  useEffect(() => {
+    const cleanup = initNativeAndroid((step) => navigate(step));
+    return cleanup;
+  }, [navigate]);
 
   // Initialize stores from IndexedDB on mount + idle pre-warm route chunks & trending feed
   useEffect(() => {
