@@ -318,9 +318,6 @@ function ContextMenuInner() {
                   {track.artist}
                 </p>
               </div>
-              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 flex-shrink-0 border border-amber-500/30">
-                320k
-              </span>
             </div>
 
             {/* 1. Play / Pause */}
@@ -628,9 +625,6 @@ function ContextMenuInner() {
                   WaveCraft Studio
                 </span>
               </div>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-white/60">
-                v7.1
-              </span>
             </div>
 
             {/* 1. Play / Pause */}
@@ -654,7 +648,6 @@ function ContextMenuInner() {
               <span className="font-bold flex-1">
                 {isPlaying ? 'Pause Playback' : 'Resume Playback'}
               </span>
-              <span className="text-[10px] text-white/40 font-mono">Space</span>
             </button>
 
             {/* 2. Next Track */}
@@ -670,7 +663,6 @@ function ContextMenuInner() {
                 </svg>
               </span>
               <span className="font-semibold flex-1">Next Track</span>
-              <span className="text-[10px] text-white/40 font-mono">N</span>
             </button>
 
             {/* 3. Previous Track */}
@@ -686,7 +678,6 @@ function ContextMenuInner() {
                 </svg>
               </span>
               <span className="font-semibold flex-1">Previous Track</span>
-              <span className="text-[10px] text-white/40 font-mono">P</span>
             </button>
 
             {/* 4. Shuffle */}
@@ -772,7 +763,6 @@ function ContextMenuInner() {
                 </svg>
               </span>
               <span className="font-semibold flex-1">Command Palette</span>
-              <span className="text-[10px] text-white/40 font-mono">Ctrl+K</span>
             </button>
 
             {/* 8. Mute / Unmute */}
@@ -798,7 +788,6 @@ function ContextMenuInner() {
               <span className="font-semibold flex-1">
                 {isMuted ? 'Unmute Audio' : 'Mute Audio'}
               </span>
-              <span className="text-[10px] text-white/40 font-mono">M</span>
             </button>
           </>
         )}

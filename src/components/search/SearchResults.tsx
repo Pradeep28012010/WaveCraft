@@ -72,7 +72,6 @@ export default function SearchResults() {
   const [trendingTerms, setTrendingTerms] = useState<string[]>(buildInitialTrendingPool);
   const [allLiveTerms, setAllLiveTerms] = useState<string[]>(FALLBACK_LIVE_POOL);
   const [isRefreshingTrends, setIsRefreshingTrends] = useState(false);
-  const [lastTrendUpdate, setLastTrendUpdate] = useState<string>('Just now');
 
   // Selected Album View state
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumResult | null>(null);
@@ -123,9 +122,6 @@ export default function SearchResults() {
           : Math.floor(Date.now() / 45000) % Math.max(1, discovered.length);
       const rotated = [...discovered.slice(start), ...discovered.slice(0, start)].slice(0, 12);
       setTrendingTerms(rotated);
-      setLastTrendUpdate(
-        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      );
     } catch {
       // keep existing pool
     } finally {
@@ -144,9 +140,6 @@ export default function SearchResults() {
           const offset = tick % pool.length;
           const nextSlice = [...pool.slice(offset), ...pool.slice(0, offset)].slice(0, 12);
           setTrendingTerms(nextSlice);
-          setLastTrendUpdate(
-            new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-          );
         }
         return pool;
       });
@@ -162,9 +155,6 @@ export default function SearchResults() {
         ...allLiveTerms.slice(0, randomOffset)
       ].slice(0, 12);
       setTrendingTerms(nextSlice);
-      setLastTrendUpdate(
-        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      );
     }
     fetchLiveTrendingSearches(randomOffset);
   };
@@ -266,21 +256,15 @@ export default function SearchResults() {
         <div>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
             <h1 className="text-3xl font-extrabold tracking-tight">Search & Discover</h1>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass-button-emerald text-[11px] font-bold text-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                Live Global & India Charts • {lastTrendUpdate}
-              </span>
-              <button
-                type="button"
-                onClick={handleCycleLiveTrends}
-                className="px-3 py-1 rounded-full glass-button text-[11px] font-bold text-white/80 hover:text-white flex items-center gap-1.5 cursor-pointer"
-                title="Fetch & rotate latest live chart searches"
-              >
-                <span className={isRefreshingTrends ? 'animate-spin inline-block' : ''}>↻</span>
-                <span>Refresh Live</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleCycleLiveTrends}
+              className="px-3 py-1 rounded-full glass-button text-[11px] font-bold text-white/80 hover:text-white flex items-center gap-1.5 cursor-pointer"
+              title="Rotate trending suggestions"
+            >
+              <span className={isRefreshingTrends ? 'animate-spin inline-block' : ''}>↻</span>
+              <span>Rotate Trends</span>
+            </button>
           </div>
           <p className="text-sm text-white/55 mb-5">
             Trending searches right now — updated live from global & regional streaming charts
@@ -370,8 +354,8 @@ export default function SearchResults() {
                 className="w-40 h-40 sm:w-48 sm:h-48 rounded-2xl object-cover shadow-2xl border border-white/15 flex-shrink-0"
               />
               <div className="flex-1 min-w-0">
-                <span className="px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest text-[var(--color-accent)]">
-                  Studio Album • 320kbps HD
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-accent)]">
+                  Album
                 </span>
                 <h2 className="text-2xl sm:text-4xl font-extrabold text-white mt-2">
                   {selectedAlbum.title || selectedAlbum.name}
@@ -511,14 +495,9 @@ export default function SearchResults() {
                       </div>
 
                       <div className="mt-6">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/15 text-white">
-                            Song
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/20">
-                            {topTrack.quality || '320kbps Studio HD'}
-                          </span>
-                        </div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-accent)] block mb-1">
+                          Song
+                        </span>
                         <h3 className="text-2xl font-extrabold text-white truncate">{topTrack.title}</h3>
                         <p className="text-sm text-white/65 truncate mt-1">
                           {topTrack.artist} • {topTrack.album}

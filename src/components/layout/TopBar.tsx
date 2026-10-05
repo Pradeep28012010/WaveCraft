@@ -82,7 +82,6 @@ export default function TopBar() {
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
   const sleepActive = useStudioStore((s) => s.sleepActive);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
-  const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
 
   const hasActiveAmbient = Object.values(ambientVolumes).some((v) => v > 0.01);
   const activeFxLabel =
@@ -429,14 +428,6 @@ export default function TopBar() {
                   <line x1="8" y1="23" x2="16" y2="23" />
                 </svg>
               </button>
-              <button
-                type="button"
-                onClick={() => setCommandPaletteOpen(true)}
-                title="Open Spotlight Command Palette (Ctrl+K)"
-                className="h-7 px-2.5 rounded-full glass-button flex items-center justify-center text-[11px] font-extrabold text-white/80 hover:text-white transition-colors cursor-pointer"
-              >
-                ⌘K
-              </button>
             </div>
           </div>
 
@@ -529,11 +520,6 @@ export default function TopBar() {
               <span>Install App</span>
             </button>
           )}
-
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full glass text-xs font-medium text-white/80">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
-            <span>Studio 320k</span>
-          </div>
         </div>
       </header>
 

@@ -1,6 +1,5 @@
 import { useRef } from 'react';
 import type { Track } from '../../types';
-import GlassCard from '../ui/GlassCard';
 import Skeleton from '../ui/Skeleton';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
@@ -87,8 +86,7 @@ export default function TrendingSection({
       {onSelectCategory && (
         <div
           ref={categoriesRef}
-          className="flex items-center flex-wrap gap-2.5 overflow-visible py-3 px-1 mb-4 relative z-10"
-          style={{ background: 'transparent' }}
+          className="flex items-center flex-wrap gap-2 py-2 px-1 mb-4 relative z-10"
         >
           {SPOTIFY_TRENDING_CATEGORIES.map((cat) => {
             const isSelected = cat.key === activeCategory;
@@ -97,19 +95,11 @@ export default function TrendingSection({
                 key={cat.key}
                 type="button"
                 onClick={() => onSelectCategory(cat.key)}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer flex-shrink-0 ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
                   isSelected
-                    ? 'relative z-20 bg-[#1ed760] text-black font-extrabold border border-[#1ed760]'
-                    : 'relative z-10 bg-white/[0.07] hover:bg-white/[0.14] border border-white/10 text-white/75 hover:text-white'
+                    ? 'bg-[#1ed760] text-black font-bold shadow-md'
+                    : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white'
                 }`}
-                style={
-                  isSelected
-                    ? {
-                        boxShadow:
-                          '0 0 14px rgba(30, 215, 96, 0.8), 0 0 28px rgba(30, 215, 96, 0.5), 0 0 50px rgba(30, 215, 96, 0.25)'
-                      }
-                    : undefined
-                }
               >
                 <span>{cat.icon}</span>
                 <span>{cat.name}</span>
@@ -122,14 +112,14 @@ export default function TrendingSection({
       {/* Track Cards Horizontal Scroll */}
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto no-scrollbar pt-6 pb-8 px-4"
+        className="flex gap-5 overflow-x-auto no-scrollbar pt-2 pb-6 px-1"
       >
         {isLoading
           ? Array(8)
               .fill(0)
               .map((_, i) => (
-                <div key={i} className="min-w-[190px] flex-shrink-0">
-                  <Skeleton className="w-[190px] h-[190px] rounded-2xl mb-3" />
+                <div key={i} className="min-w-[170px] max-w-[170px] flex-shrink-0">
+                  <Skeleton className="w-[170px] h-[170px] rounded-2xl mb-3" />
                   <Skeleton className="w-3/4 h-4 mb-2 rounded" />
                   <Skeleton className="w-1/2 h-3 rounded" />
                 </div>
@@ -137,15 +127,9 @@ export default function TrendingSection({
           : tracks.map((track, i) => {
               const isActive = currentTrack?.id === track.id || currentTrack?.title === track.title;
               return (
-                <GlassCard
+                <div
                   key={`${track.id}-${i}`}
-                  padding="sm"
-                  hover
-                  className={`min-w-[190px] max-w-[190px] flex-shrink-0 group cursor-pointer relative transition-all duration-300 ${
-                    isActive
-                      ? '!border-2 !border-[var(--color-accent)] ring-1 ring-inset ring-[var(--color-accent)]/60 bg-white/15 shadow-[0_14px_34px_rgba(0,0,0,0.5)]'
-                      : 'hover:bg-white/[0.11] hover:border-white/25'
-                  }`}
+                  className="min-w-[170px] max-w-[170px] flex-shrink-0 group cursor-pointer relative"
                   onContextMenu={(e) => {
                     if (e.shiftKey) return;
                     e.preventDefault();
@@ -162,38 +146,35 @@ export default function TrendingSection({
                     }
                   }}
                 >
-                  {/* Rank Badge */}
-                  <div className="absolute top-4 left-4 px-2.5 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-xs font-black z-10 shadow-lg">
-                    #{i + 1}
-                  </div>
-
-                  <div className="aspect-square rounded-xl overflow-hidden mb-3.5 relative bg-white/5 shadow-lg">
+                  <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 ${
+                    isActive ? 'ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-black' : ''
+                  }`}>
                     <img
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                       alt={track.title}
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                       }}
-                      className="w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                      className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out will-change-transform"
                     />
                     <div
-                      className={`absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent flex items-center justify-center transition-opacity duration-300 ${
+                      className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity duration-300 ${
                         isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                       }`}
                     >
                       <div
-                        className={`w-12 h-12 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(250,45,72,0.55)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                        className={`w-11 h-11 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] transition-all duration-300 ${
                           isActive
                             ? 'scale-100 translate-y-0'
-                            : 'scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0'
+                            : 'scale-90 translate-y-2 group-hover:scale-100 group-hover:translate-y-0'
                         }`}
                       >
                         {isActive && isPlaying ? (
-                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                           </svg>
                         ) : (
-                          <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z" />
                           </svg>
                         )}
@@ -201,11 +182,13 @@ export default function TrendingSection({
                     </div>
                   </div>
 
-                  <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">
+                  <h3 className={`font-bold text-sm truncate transition-colors duration-200 ${
+                    isActive ? 'text-[var(--color-accent)]' : 'text-white group-hover:text-[var(--color-accent)]'
+                  }`}>
                     {track.title}
                   </h3>
-                  <p className="text-xs text-white/60 truncate mt-1">{track.artist}</p>
-                </GlassCard>
+                  <p className="text-xs text-white/50 truncate mt-0.5">{track.artist}</p>
+                </div>
               );
             })}
       </div>

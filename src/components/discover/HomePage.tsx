@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
-import { useStudioStore } from '../../stores/studioStore';
 import { getTrending, getCachedTrending, searchTracks } from '../../services/youtube';
 import { getNewReleases, getCachedNewReleases, getAlbumTracks } from '../../services/itunes';
 import GlassCard from '../ui/GlassCard';
@@ -184,107 +182,19 @@ export default function HomePage() {
     }
   };
 
-  const featuredTrack = trendingTracks[0];
-
   return (
     <div className="pb-24 pt-2 text-white min-h-screen">
-      {/* WaveCraft Spatial Glass Hero Banner */}
-      <section className="mb-12">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl liquid-glass p-7 sm:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8"
-        >
-          <div className="absolute -right-20 -top-20 w-96 h-96 rounded-full bg-gradient-to-br from-[var(--color-accent)]/30 via-purple-600/25 to-transparent blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-semibold text-white/90 mb-4">
-              <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
-              <span>WAVECRAFT SPATIAL GLASS AUDIO</span>
-            </div>
-            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              {getGreeting()}, Welcome to WaveCraft
-            </h1>
-            <p className="text-white/65 text-sm sm:text-base mt-3 leading-relaxed">
-              Stream full-length songs in 320kbps studio quality with spatial glass aesthetics, time-synced lyrics, real-time audio visualizers, and zero ads.
-            </p>
-            <div className="flex flex-wrap items-center gap-3 mt-6">
-              <button
-                onClick={() => {
-                  if (trendingTracks.length > 0) {
-                    playTrack(trendingTracks[0], trendingTracks, 0);
-                  } else {
-                    handlePlayMood('hero', 'top global hits');
-                  }
-                }}
-                className="px-6 py-3 rounded-full glass-button-primary text-white font-bold text-sm flex items-center gap-2.5 cursor-pointer"
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-                <span>Play Top Hits Now</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/vibe')}
-                className="px-5 py-3 rounded-full glass-button text-sm font-bold text-white flex items-center gap-2 cursor-pointer"
-              >
-                <span>✨ AI Vibe DJ</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/jam')}
-                className="px-5 py-3 rounded-full glass-button-emerald text-sm font-bold flex items-center gap-2 cursor-pointer"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>Live Jam Room</span>
-              </button>
-
-              <button
-                onClick={() => useStudioStore.getState().setStudioModalOpen(true)}
-                className="px-5 py-3 rounded-full glass-button-purple text-sm font-bold flex items-center gap-2 cursor-pointer"
-              >
-                <span>🎛️ Studio FX & Ambient Focus</span>
-              </button>
-            </div>
-          </div>
-
-          {featuredTrack && (
-            <div
-              onClick={() => playTrack(featuredTrack, trendingTracks, 0)}
-              onContextMenu={(e) => {
-                if (e.shiftKey) return;
-                e.preventDefault();
-                e.stopPropagation();
-                useContextMenuStore.getState().openTrackMenu(
-                  { clientX: e.clientX, clientY: e.clientY },
-                  featuredTrack,
-                  trendingTracks
-                );
-              }}
-              className="relative z-10 hidden lg:flex items-center gap-4 p-4 rounded-2xl glass-heavy cursor-pointer group hover:scale-[1.02] transition-transform w-80 flex-shrink-0"
-            >
-              <img
-                src={featuredTrack.thumbnail || DEFAULT_THUMBNAIL}
-                alt={featuredTrack.title}
-                className="w-20 h-20 rounded-xl object-cover shadow-lg"
-              />
-              <div className="min-w-0 flex-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-accent)]">
-                  #1 Trending Track
-                </span>
-                <h3 className="text-base font-bold text-white truncate mt-0.5">
-                  {featuredTrack.title}
-                </h3>
-                <p className="text-xs text-white/60 truncate mt-0.5">{featuredTrack.artist}</p>
-                <span className="inline-block mt-2 text-[11px] font-semibold text-white/80 group-hover:text-white">
-                  Tap to play →
-                </span>
-              </div>
-            </div>
-          )}
-        </motion.div>
-      </section>
+      {/* Clean Welcome Header */}
+      <div className="flex items-center justify-between mb-8 px-1 pt-2">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            {getGreeting()}
+          </h1>
+          <p className="text-xs sm:text-sm text-white/50 mt-1">
+            Jump into your music
+          </p>
+        </div>
+      </div>
 
       {/* Recently Played */}
       {recentlyPlayed.length > 0 && (
@@ -293,11 +203,9 @@ export default function HomePage() {
             const track = historyItem.track;
             if (!track) return null;
             return (
-              <GlassCard
+              <div
                 key={`${track.id}-${i}`}
-                padding="sm"
-                hover
-                className="min-w-[175px] max-w-[175px] flex-shrink-0 snap-start group cursor-pointer hover:border-white/25 transition-colors duration-300"
+                className="min-w-[155px] max-w-[155px] sm:min-w-[170px] sm:max-w-[170px] flex-shrink-0 snap-start group cursor-pointer"
                 onContextMenu={(e) => {
                   if (e.shiftKey) return;
                   e.preventDefault();
@@ -317,15 +225,15 @@ export default function HomePage() {
                   )
                 }
               >
-                <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5 shadow-md">
+                <div className="aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300">
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                     alt={track.title}
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                    className="w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+                    className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out will-change-transform"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center">
-                    <div className="w-11 h-11 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] scale-90 translate-y-2 group-hover:scale-100 group-hover:translate-y-0 transition-all duration-300">
                       <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
@@ -333,8 +241,8 @@ export default function HomePage() {
                   </div>
                 </div>
                 <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{track.title}</h3>
-                <p className="text-xs text-white/55 truncate mt-0.5">{track.artist}</p>
-              </GlassCard>
+                <p className="text-xs text-white/50 truncate mt-0.5">{track.artist}</p>
+              </div>
             );
           })}
         </HorizontalScroll>
@@ -393,29 +301,24 @@ export default function HomePage() {
                 </div>
               ))
           : newReleases.map((album) => (
-              <GlassCard
+              <div
                 key={album.id}
-                padding="sm"
-                hover
-                className="min-w-[190px] max-w-[190px] flex-shrink-0 snap-start group cursor-pointer hover:border-white/25 transition-all duration-300"
+                className="min-w-[165px] max-w-[165px] sm:min-w-[180px] sm:max-w-[180px] flex-shrink-0 snap-start group cursor-pointer"
                 onClick={() =>
                   navigate(`/search?q=${encodeURIComponent(`${album.title || album.name} ${album.artist}`)}`)
                 }
               >
-                <div className="aspect-square rounded-xl overflow-hidden mb-3.5 relative bg-white/5 shadow-lg">
+                <div className="aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300">
                   <img
                     src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                     alt={album.title || album.name}
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                    className="w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+                    className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out will-change-transform"
                   />
-                  <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-[10px] font-bold text-white/90">
-                    Album
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                     <button
                       onClick={(e) => handlePlayAlbum(album, e)}
-                      className="w-12 h-12 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(250,45,72,0.55)] scale-90 translate-y-2.5 group-hover:scale-105 group-hover:translate-y-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer hover:brightness-110 active:scale-95"
+                      className="w-12 h-12 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-lg scale-90 translate-y-2 group-hover:scale-100 group-hover:translate-y-0 transition-all duration-300 cursor-pointer hover:brightness-110 active:scale-95"
                       title={`Play ${album.title || album.name}`}
                     >
                       {playingAlbumId === album.id ? (
@@ -429,8 +332,8 @@ export default function HomePage() {
                   </div>
                 </div>
                 <h3 className="font-bold text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{album.title || album.name}</h3>
-                <p className="text-xs text-white/55 truncate mt-1">{album.artist}</p>
-              </GlassCard>
+                <p className="text-xs text-white/50 truncate mt-0.5">{album.artist}</p>
+              </div>
             ))}
       </HorizontalScroll>
 

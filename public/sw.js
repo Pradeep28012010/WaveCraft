@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wavecraft-shell-v7.3-track-switching';
+const CACHE_NAME = 'wavecraft-shell-v7.4-declutter';
 const SHELL_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {

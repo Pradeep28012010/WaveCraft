@@ -333,10 +333,6 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/45">
                       Now Playing
                     </span>
-                    <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      320K MASTER
-                    </span>
                   </div>
 
                   <div

@@ -91,8 +91,7 @@ export default function JamRoomPage() {
     playTrackInJam,
     togglePlayInJam,
     skipTrackInJam,
-    syncNow,
-    triggerSyncClick
+    syncNow
   } = useJamStore();
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -622,18 +621,6 @@ export default function JamRoomPage() {
                     {isHost ? '👑 BROADCASTING ANCHOR' : '⚡ PHASE-LOCKING'}
                   </span>
                 )}
-
-                {/* Acoustic Test Click Verification Button */}
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  type="button"
-                  onClick={() => triggerSyncClick()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 text-xs font-black transition-colors cursor-pointer"
-                  title="Play 880Hz acoustic test click on all devices to verify zero-latency lockstep"
-                >
-                  <span>🎯 Test Sync Click</span>
-                </motion.button>
               </div>
 
               {/* Hardware Speaker / Bluetooth Latency Calibration Presets */}

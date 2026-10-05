@@ -225,7 +225,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               </div>
               {nextUpTrack && (
                 <span className="text-[11px] text-white/45 truncate max-w-xs mt-0.5">
-                  Next Preloaded: <strong className="text-white/75">{nextUpTrack.title}</strong>
+                  Up Next: <strong className="text-white/75">{nextUpTrack.title}</strong>
                 </span>
               )}
             </div>
