@@ -5,6 +5,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
+import { useContextMenuStore } from '../../stores/contextMenuStore';
 import QueuePanel from './QueuePanel';
 import LyricsView from '../lyrics/LyricsView';
 import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
@@ -425,6 +426,16 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                 <motion.div
                   layout
                   transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.7 }}
+                  onContextMenu={(e) => {
+                    if (e.shiftKey) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    useContextMenuStore.getState().openTrackMenu(
+                      { clientX: e.clientX, clientY: e.clientY },
+                      currentTrack,
+                      usePlayerStore.getState().queue
+                    );
+                  }}
                   className={`flex flex-col items-center justify-center w-full ${
                     showLyrics ? 'lg:w-5/12 max-w-md' : 'max-w-lg'
                   }`}

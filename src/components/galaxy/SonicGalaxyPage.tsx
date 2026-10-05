@@ -7,6 +7,7 @@ import { searchTracks } from '../../services/youtube';
 import { unlockAudioEngine, getAudioFrequencyData } from '../player/YouTubeEmbed';
 import GlassCard from '../ui/GlassCard';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { useContextMenuStore } from '../../stores/contextMenuStore';
 import type { Track } from '../../types';
 
 interface SonicDNA {
@@ -1480,7 +1481,18 @@ export default function SonicGalaxyPage() {
           {/* Bottom-Left Floating Selected Star Quick-Play Bar */}
           {selectedStar && (
             <div className="absolute bottom-3.5 left-3.5 right-32 sm:right-auto sm:max-w-xs pointer-events-auto">
-              <div className="p-2.5 rounded-2xl liquid-glass border border-white/25 shadow-2xl flex items-center gap-3">
+              <div
+                onContextMenu={(e) => {
+                  if (e.shiftKey) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  useContextMenuStore.getState().openTrackMenu(
+                    { clientX: e.clientX, clientY: e.clientY },
+                    selectedStar.track
+                  );
+                }}
+                className="p-2.5 rounded-2xl liquid-glass border border-white/25 shadow-2xl flex items-center gap-3 cursor-pointer"
+              >
                 <img
                   src={selectedStar.track.thumbnail || DEFAULT_THUMBNAIL}
                   alt={selectedStar.track.title}

@@ -11,6 +11,7 @@ import Skeleton from '../ui/Skeleton';
 import GenreBrowser from '../search/GenreBrowser';
 import TrendingSection from './TrendingSection';
 import { MOOD_PLAYLISTS, DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { useContextMenuStore } from '../../stores/contextMenuStore';
 import type { Track, AlbumResult } from '../../types';
 
 const HorizontalScroll = ({
@@ -251,6 +252,16 @@ export default function HomePage() {
           {featuredTrack && (
             <div
               onClick={() => playTrack(featuredTrack, trendingTracks, 0)}
+              onContextMenu={(e) => {
+                if (e.shiftKey) return;
+                e.preventDefault();
+                e.stopPropagation();
+                useContextMenuStore.getState().openTrackMenu(
+                  { clientX: e.clientX, clientY: e.clientY },
+                  featuredTrack,
+                  trendingTracks
+                );
+              }}
               className="relative z-10 hidden lg:flex items-center gap-4 p-4 rounded-2xl glass-heavy cursor-pointer group hover:scale-[1.02] transition-transform w-80 flex-shrink-0"
             >
               <img
@@ -287,10 +298,21 @@ export default function HomePage() {
                 padding="sm"
                 hover
                 className="min-w-[175px] max-w-[175px] flex-shrink-0 snap-start group cursor-pointer hover:border-white/25 transition-colors duration-300"
+                onContextMenu={(e) => {
+                  if (e.shiftKey) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const recentTracks = recentlyPlayed.map((r) => r.track).filter(Boolean) as Track[];
+                  useContextMenuStore.getState().openTrackMenu(
+                    { clientX: e.clientX, clientY: e.clientY },
+                    track,
+                    recentTracks
+                  );
+                }}
                 onClick={() =>
                   playTrack(
                     track,
-                    recentlyPlayed.map((r) => r.track).filter(Boolean),
+                    recentlyPlayed.map((r) => r.track).filter(Boolean) as Track[],
                     i
                   )
                 }

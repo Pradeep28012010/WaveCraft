@@ -2,6 +2,7 @@ import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import NowPlaying from '../player/NowPlaying';
 import QueuePanel from '../player/QueuePanel';
@@ -135,7 +136,19 @@ export default function MiniPlayer() {
             <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 
             {/* Left: Artwork & Track Info */}
-            <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+            <div
+              className="flex items-center gap-3 min-w-0 flex-1 pr-2"
+              onContextMenu={(e) => {
+                if (e.shiftKey) return;
+                e.preventDefault();
+                e.stopPropagation();
+                useContextMenuStore.getState().openTrackMenu(
+                  { clientX: e.clientX, clientY: e.clientY },
+                  currentTrack,
+                  usePlayerStore.getState().queue
+                );
+              }}
+            >
               <img
                 src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
                 alt={currentTrack.title}
@@ -223,7 +236,19 @@ export default function MiniPlayer() {
           <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 
           {/* Left: Track Artwork & Info */}
-          <div className="w-1/3 flex items-center min-w-0 pr-4 gap-3.5">
+          <div
+            className="w-1/3 flex items-center min-w-0 pr-4 gap-3.5"
+            onContextMenu={(e) => {
+              if (e.shiftKey) return;
+              e.preventDefault();
+              e.stopPropagation();
+              useContextMenuStore.getState().openTrackMenu(
+                { clientX: e.clientX, clientY: e.clientY },
+                currentTrack,
+                usePlayerStore.getState().queue
+              );
+            }}
+          >
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentTrack.id}

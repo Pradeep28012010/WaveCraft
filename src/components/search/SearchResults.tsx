@@ -12,6 +12,7 @@ import TrackRow from '../ui/TrackRow';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from './GenreBrowser';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { useContextMenuStore } from '../../stores/contextMenuStore';
 import type { Track, AlbumResult, ArtistResult } from '../../types';
 
 const FALLBACK_LIVE_POOL = [
@@ -481,6 +482,16 @@ export default function SearchResults() {
                       variant="liquid"
                       padding="lg"
                       onClick={() => handlePlayTrack(topTrack)}
+                      onContextMenu={(e) => {
+                        if (e.shiftKey) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        useContextMenuStore.getState().openTrackMenu(
+                          { clientX: e.clientX, clientY: e.clientY },
+                          topTrack,
+                          tracks
+                        );
+                      }}
                       className="flex-1 flex flex-col justify-between cursor-pointer group relative overflow-hidden"
                     >
                       <div className="flex items-start justify-between gap-4">
