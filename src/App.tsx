@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
 import { Suspense, useEffect, useRef, lazy } from 'react';
 import { MotionConfig } from 'framer-motion';
 import MainLayout from './components/layout/MainLayout';
@@ -25,6 +25,12 @@ const DJConsolePage = lazy(() => import('./components/dj/DJConsolePage'));
 const SonicGalaxyPage = lazy(() => import('./components/galaxy/SonicGalaxyPage'));
 const LandingPage = lazy(() => import('./components/landing/LandingPage'));
 
+const isElectronOrFile =
+  typeof window !== 'undefined' &&
+  (window.location.protocol === 'file:' || Boolean(window.electronAPI));
+
+const RouterComponent = isElectronOrFile ? HashRouter : BrowserRouter;
+
 function AppContent() {
   const navigate = useNavigate();
   const loadLibrary = useLibraryStore((s) => s.loadFromStorage);
@@ -38,6 +44,21 @@ function AppContent() {
     const cleanup = initNativeAndroid((step) => navigate(step));
     return cleanup;
   }, [navigate]);
+
+  // Listen to global Windows media shortcuts from Electron main process
+  useEffect(() => {
+    if (window.electronAPI?.onMediaKey) {
+      const cleanup = window.electronAPI.onMediaKey((action) => {
+        const player = usePlayerStore.getState();
+        if (action === 'togglePlay') player.togglePlay();
+        else if (action === 'nextTrack') player.nextTrack();
+        else if (action === 'prevTrack') player.prevTrack();
+        else if (action === 'pause') player.pause();
+        else if (action === 'toggleMute') player.toggleMute();
+      });
+      return cleanup;
+    }
+  }, []);
 
   // Initialize stores from IndexedDB on mount + idle pre-warm route chunks & trending feed
   useEffect(() => {
@@ -129,9 +150,9 @@ function AppContent() {
 export default function App() {
   return (
     <MotionConfig reducedMotion="never">
-      <BrowserRouter>
+      <RouterComponent>
         <AppContent />
-      </BrowserRouter>
+      </RouterComponent>
     </MotionConfig>
   );
 }

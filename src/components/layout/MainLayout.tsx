@@ -2,6 +2,7 @@ import { Component, Suspense, type ErrorInfo, type ReactNode, useEffect, useRef 
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
+import WindowsTitleBar from './WindowsTitleBar';
 import MiniPlayer from './MiniPlayer';
 import MobileBottomNav from './MobileBottomNav';
 import CommandPalette from './CommandPalette';
@@ -101,6 +102,9 @@ export default function MainLayout() {
       <CommandPalette />
       <StudioFXModal />
       <ContextMenu />
+
+      {/* Windows 11 Acrylic Frameless Title Bar (Desktop / Electron) */}
+      <WindowsTitleBar />
 
       <div className="flex flex-1 overflow-hidden relative z-10">
         <Sidebar />

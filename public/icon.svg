@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fa2d48" />
+      <stop offset="50%" stop-color="#c026d3" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#fa2d48" flood-opacity="0.35" />
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" filter="url(#shadow)" />
+  <rect width="512" height="256" rx="128" fill="url(#glowGrad)" />
+  <g stroke="#ffffff" stroke-width="36" stroke-linecap="round">
+    <line x1="140" y1="180" x2="140" y2="332" />
+    <line x1="200" y1="130" x2="200" y2="382" />
+    <line x1="256" y1="90" x2="256" y2="422" />
+    <line x1="312" y1="130" x2="312" y2="382" />
+    <line x1="372" y1="180" x2="372" y2="332" />
+  </g>
+</svg>
