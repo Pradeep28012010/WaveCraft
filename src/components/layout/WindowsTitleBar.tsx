@@ -20,15 +20,14 @@ declare global {
 }
 
 export default function WindowsTitleBar() {
+  const isElectronApp = typeof window !== 'undefined' && Boolean(window.electronAPI);
   const { isPhone } = useDevicePreset();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [isElectron, setIsElectron] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI) {
-      setIsElectron(true);
       window.electronAPI.isMaximized().then(setIsMaximized);
       const unsubscribe = window.electronAPI.onMaximizedChange(setIsMaximized);
       return unsubscribe;
@@ -45,8 +44,11 @@ export default function WindowsTitleBar() {
     }
   }, [currentTrack]);
 
-  // Hide on phone screen or native Android APK
-  if (isPhone) return null;
+  // CRITICAL: NEVER render on web browsers (Chrome, Edge, Safari, Firefox) or mobile.
+  // ONLY render when running inside the native Windows Electron desktop app package.
+  if (!isElectronApp || isPhone) {
+    return null;
+  }
 
   const handleMinimize = () => {
     if (window.electronAPI) {
