@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 export default function MobileBottomNav() {
   const { isPhone, setMobileDrawerOpen } = useDevicePreset();
@@ -72,7 +73,10 @@ export default function MobileBottomNav() {
           key={tab.path}
           to={tab.path}
           end={tab.path === '/'}
-          onClick={() => setMobileDrawerOpen(false)}
+          onClick={() => {
+            triggerAndroidHaptic('light');
+            setMobileDrawerOpen(false);
+          }}
           className={({ isActive }) =>
             `relative flex flex-col items-center justify-center flex-1 h-12 rounded-2xl transition-colors ${
               isActive ? 'text-white' : 'text-white/50 hover:text-white/80'

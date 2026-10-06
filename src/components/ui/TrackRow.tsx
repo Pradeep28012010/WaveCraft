@@ -14,6 +14,7 @@ import {
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 // Shared module-level hover coordinator so moving the cursor from one TrackRow
 // to another TrackRow bridges the 6px row gap and smoothly glides a single
@@ -160,7 +161,32 @@ const TrackRow = memo(({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [showPlaylistMenu]);
 
+  const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isPhone) return;
+    const touch = e.touches[0];
+    const clientX = touch.clientX;
+    const clientY = touch.clientY;
+    touchTimerRef.current = setTimeout(() => {
+      triggerAndroidHaptic('medium');
+      if (onContextMenu) {
+        onContextMenu(e as any, track);
+      } else {
+        useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
+      }
+    }, 450);
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+  };
+
   const handleTriggerPlay = () => {
+    triggerAndroidHaptic('light');
     stopChorusPreview(false);
     const player = usePlayerStore.getState();
     if (isCurrentTrack) {
@@ -207,12 +233,16 @@ const TrackRow = memo(({
   return (
     <div
       onClick={handleTriggerPlay}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onContextMenu={(e) => {
         if (e.shiftKey) return;
         e.preventDefault();
         e.stopPropagation();
+        triggerAndroidHaptic('medium');
         if (onContextMenu) {
           onContextMenu(e, track);
         } else {
@@ -221,7 +251,7 @@ const TrackRow = memo(({
           useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
         }
       }}
-      className={`relative flex items-center gap-4 px-4 py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 ${
+      className={`relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 ${
         isCurrentTrack
           ? 'bg-white/[0.10] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
           : 'bg-white/[0.015] border-transparent'
@@ -320,86 +350,139 @@ const TrackRow = memo(({
       </div>
 
       {/* Actions */}
-      <div className="relative z-10 flex items-center gap-1.5 flex-shrink-0">
-        {/* 15s Smart Chorus Audio Preview Button — fixed single-line Liquid Glass pill */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleChorusPreview(track);
-          }}
-          title={
-            isPreviewing
-              ? 'Stop 15s Chorus Preview'
-              : 'Preview 15s Chorus Drop (without losing your current queue)'
-          }
-          className={`px-2.5 h-8 rounded-full text-[10px] font-extrabold whitespace-nowrap flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer inline-flex items-center justify-center gap-1 ${
-            isPreviewing
-              ? 'glass-button-primary text-white opacity-100'
-              : isPhone
-              ? 'glass-button text-white/75 opacity-100'
-              : activeVisual
-              ? 'glass-button text-white/85 opacity-100 translate-x-0 hover:text-white'
-              : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
-          }`}
-        >
-          {isPreviewLoading ? (
-            <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <span>{isPreviewing ? `⏹ ${remainingSec}s` : '⚡ 15s'}</span>
+      {isPhone ? (
+        <div className="relative z-10 flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          {onRemove && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerAndroidHaptic('light');
+                onRemove(track);
+              }}
+              title="Remove from playlist"
+              className="w-9 h-9 flex items-center justify-center rounded-full text-white/50 hover:text-rose-400 active:scale-80"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           )}
-        </button>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleOfflineTrack(track);
-          }}
-          title={trackIsOffline ? 'Saved in Offline Vault (Click to Remove)' : 'Save 320kbps Audio to Offline Vault'}
-          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
-            trackIsOffline
-              ? 'glass-button-emerald text-emerald-300 opacity-100'
-              : isSavingOffline
-              ? 'glass-button text-amber-300 opacity-100 animate-pulse'
-              : isPhone
-              ? 'glass-button text-white/60 opacity-100'
-              : activeVisual
-              ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
-              : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
-          }`}
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            {trackIsOffline ? (
-              <polyline points="20 6 9 17 4 12" />
+          {/* Quick Like Button (40x40 touch hit target) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              triggerAndroidHaptic('light');
+              handleLike(e);
+            }}
+            title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
+            className={`w-9 h-9 flex items-center justify-center rounded-full transition-transform active:scale-80 cursor-pointer ${
+              liked ? 'text-[var(--color-accent)]' : 'text-white/40 hover:text-white'
+            }`}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+          </button>
+
+          {/* Dedicated 3-Dots Button -> Triggers Android Bottom Sheet */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              triggerAndroidHaptic('light');
+              const clientX = e.clientX;
+              const clientY = e.clientY;
+              if (onContextMenu) {
+                onContextMenu(e, track);
+              } else {
+                useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
+              }
+            }}
+            title="Track options"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-white/55 hover:text-white active:scale-80 cursor-pointer"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="12" cy="19" r="2" />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="relative z-10 flex items-center gap-1.5 flex-shrink-0">
+          {/* 15s Smart Chorus Audio Preview Button — fixed single-line Liquid Glass pill */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleChorusPreview(track);
+            }}
+            title={
+              isPreviewing
+                ? 'Stop 15s Chorus Preview'
+                : 'Preview 15s Chorus Drop (without losing your current queue)'
+            }
+            className={`px-2.5 h-8 rounded-full text-[10px] font-extrabold whitespace-nowrap flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer inline-flex items-center justify-center gap-1 ${
+              isPreviewing
+                ? 'glass-button-primary text-white opacity-100'
+                : activeVisual
+                ? 'glass-button text-white/85 opacity-100 translate-x-0 hover:text-white'
+                : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
+            }`}
+          >
+            {isPreviewLoading ? (
+              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </>
+              <span>{isPreviewing ? `⏹ ${remainingSec}s` : '⚡ 15s'}</span>
             )}
-          </svg>
-        </button>
+          </button>
 
-        <button
-          onClick={handleLike}
-          title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
-          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
-            liked
-              ? 'glass-button-primary text-[var(--color-accent)] opacity-100'
-              : isPhone
-              ? 'glass-button text-white/60 opacity-100'
-              : activeVisual
-              ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
-              : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
-          }`}
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-        </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleOfflineTrack(track);
+            }}
+            title={trackIsOffline ? 'Saved in Offline Vault (Click to Remove)' : 'Save 320kbps Audio to Offline Vault'}
+            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+              trackIsOffline
+                ? 'glass-button-emerald text-emerald-300 opacity-100'
+                : isSavingOffline
+                ? 'glass-button text-amber-300 opacity-100 animate-pulse'
+                : activeVisual
+                ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
+                : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              {trackIsOffline ? (
+                <polyline points="20 6 9 17 4 12" />
+              ) : (
+                <>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </>
+              )}
+            </svg>
+          </button>
 
-        {!isPhone && (
+          <button
+            onClick={handleLike}
+            title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
+            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+              liked
+                ? 'glass-button-primary text-[var(--color-accent)] opacity-100'
+                : activeVisual
+                ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
+                : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+          </button>
+
           <button
             onClick={handleQueue}
             title="Add to Queue"
@@ -414,62 +497,59 @@ const TrackRow = memo(({
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
-        )}
 
-        {hasPlaylists && (
-          <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            <button
-              ref={menuBtnRef}
-              onClick={handleToggleMenu}
-              title="Add to Playlist"
-              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
-                isPhone
-                  ? 'glass-button text-white/60 opacity-100'
-                  : activeVisual || showPlaylistMenu
-                  ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
-                  : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="1" />
-                <circle cx="19" cy="12" r="1" />
-                <circle cx="5" cy="12" r="1" />
-              </svg>
-            </button>
-            {showPlaylistMenu &&
-              typeof document !== 'undefined' &&
-              createPortal(
-                <div
-                  ref={menuPopupRef}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    position: 'fixed',
-                    top: menuCoords.top,
-                    left: menuCoords.left,
-                    zIndex: 9999
-                  }}
-                  className="w-48 glass-heavy rounded-2xl p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.9)] border border-white/25"
-                >
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/45 px-2.5 py-1">
-                    Add to Playlist
-                  </div>
-                  {useLibraryStore.getState().playlists.map((pl) => (
-                    <button
-                      key={pl.id}
-                      onClick={() => {
-                        useLibraryStore.getState().addToPlaylist(pl.id, track);
-                        setShowPlaylistMenu(false);
-                      }}
-                      className="w-full text-left px-2.5 py-2 text-xs font-medium text-white/85 hover:text-white hover:bg-white/12 rounded-xl truncate cursor-pointer"
-                    >
-                      {pl.name}
-                    </button>
-                  ))}
-                </div>,
-                document.body
-              )}
-          </div>
-        )}
+          {hasPlaylists && (
+            <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+              <button
+                ref={menuBtnRef}
+                onClick={handleToggleMenu}
+                title="Add to Playlist"
+                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+                  activeVisual || showPlaylistMenu
+                    ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
+                    : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="19" cy="12" r="1" />
+                  <circle cx="5" cy="12" r="1" />
+                </svg>
+              </button>
+              {showPlaylistMenu &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                  <div
+                    ref={menuPopupRef}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'fixed',
+                      top: menuCoords.top,
+                      left: menuCoords.left,
+                      zIndex: 9999
+                    }}
+                    className="w-48 glass-heavy rounded-2xl p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.9)] border border-white/25"
+                  >
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-white/45 px-2.5 py-1">
+                      Add to Playlist
+                    </div>
+                    {useLibraryStore.getState().playlists.map((pl) => (
+                      <button
+                        key={pl.id}
+                        onClick={() => {
+                          useLibraryStore.getState().addToPlaylist(pl.id, track);
+                          setShowPlaylistMenu(false);
+                        }}
+                        className="w-full text-left px-2.5 py-2 text-xs font-medium text-white/85 hover:text-white hover:bg-white/12 rounded-xl truncate cursor-pointer"
+                      >
+                        {pl.name}
+                      </button>
+                    ))}
+                  </div>,
+                  document.body
+                )}
+            </div>
+          )}
 
         {onRemove && (
           <button
@@ -479,9 +559,7 @@ const TrackRow = memo(({
             }}
             title="Remove from playlist"
             className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
-              isPhone
-                ? 'glass-button text-white/60 opacity-100'
-                : activeVisual
+              activeVisual
                 ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-rose-300'
                 : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
             }`}
@@ -492,6 +570,7 @@ const TrackRow = memo(({
           </button>
         )}
       </div>
+      )}
 
       {/* Duration */}
       <div className="relative z-10 text-xs font-medium text-white/45 w-11 text-right tabular-nums flex-shrink-0">

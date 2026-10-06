@@ -16,6 +16,7 @@ import {
   getPlaylistOfflineCount,
   type PlaylistDownloadProgress
 } from '../../services/offlineVault';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
@@ -52,6 +53,7 @@ export default function PlaylistView() {
 
   const handleDownloadAll = async () => {
     if (!playlist || playlist.tracks.length === 0 || downloadProgress?.isDownloading) return;
+    triggerAndroidHaptic('light');
     await savePlaylistOffline(playlist.tracks, (prog) => {
       setDownloadProgress({ ...prog });
     });
@@ -156,12 +158,14 @@ export default function PlaylistView() {
   };
 
   const handlePlayAll = () => {
+    triggerAndroidHaptic('medium');
     if (playlist.tracks.length > 0) {
       playTrack(playlist.tracks[0], playlist.tracks, 0);
     }
   };
 
   const handleShuffleAll = () => {
+    triggerAndroidHaptic('medium');
     if (playlist.tracks.length > 0) {
       const shuffled = [...playlist.tracks].sort(() => Math.random() - 0.5);
       playTrack(shuffled[0], shuffled, 0);

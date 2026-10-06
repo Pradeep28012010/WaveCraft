@@ -11,6 +11,8 @@ import { isTrackOffline, saveTrackOffline, removeTrackOffline } from '../../serv
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { useDevicePreset } from '../../hooks/useDevicePreset';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import type { Playlist } from '../../types';
 
 class ContextMenuErrorBoundary extends Component<
@@ -42,6 +44,7 @@ function ContextMenuInner() {
   const track = useContextMenuStore((s) => s.track);
   const contextTracks = useContextMenuStore((s) => s.tracks);
   const closeMenu = useContextMenuStore((s) => s.closeMenu);
+  const { isPhone } = useDevicePreset();
 
   const menuRef = useRef<HTMLDivElement>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -266,6 +269,448 @@ function ContextMenuInner() {
     usePlayerStore.getState().toggleMute();
     showToast(isMuted ? 'Audio Unmuted' : 'Audio Muted');
   };
+
+  if (isPhone) {
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[99999] select-none flex flex-col justify-end"
+        onClick={closeMenu}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          closeMenu();
+        }}
+      >
+        {/* Semi-transparent blur backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 bg-black/75 backdrop-blur-md"
+        />
+
+        {/* Fluid Android Bottom Sheet */}
+        <motion.div
+          ref={menuRef}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.stopPropagation()}
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+          style={{
+            paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)'
+          }}
+          className="relative z-10 w-full max-h-[85vh] overflow-y-auto no-scrollbar rounded-t-[32px] border-t border-white/20 bg-[#0d0d16]/98 backdrop-blur-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.95)] px-4 pt-3 flex flex-col text-white"
+        >
+          {/* Top Sheet Drag Pill */}
+          <div className="w-12 h-1.5 rounded-full bg-white/25 mx-auto mb-3.5 flex-shrink-0" />
+
+          {/* Action Confirmation Toast Feedback */}
+          {toastMessage && (
+            <div className="px-4 py-2.5 mb-3 rounded-2xl bg-[var(--color-accent)]/25 border border-[var(--color-accent)]/45 text-xs font-extrabold text-white text-center animate-pulse shadow-lg">
+              ✓ {toastMessage}
+            </div>
+          )}
+
+          {/* ------------------------------------------------------------- */}
+          {/* TRACK CONTEXT BOTTOM SHEET                                    */}
+          {/* ------------------------------------------------------------- */}
+          {type === 'track' && track && (
+            <>
+              {/* Header: Album Art & Track Meta */}
+              <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-white/[0.06] border border-white/10 mb-4">
+                <img
+                  src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
+                  alt={track.title}
+                  className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-md border border-white/10"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-extrabold text-white text-base truncate leading-snug">
+                    {track.title}
+                  </p>
+                  <p className="text-xs text-white/60 truncate leading-snug mt-0.5">
+                    {track.artist} {track.album && track.album !== 'Single' ? `• ${track.album}` : ''}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-white/75 uppercase tracking-wider">
+                      {track.quality || '320kbps AAC'}
+                    </span>
+                    {isOffline && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-400/30">
+                        OFFLINE
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions 5-Pill Row */}
+              <div className="grid grid-cols-5 gap-2 mb-4 p-2 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
+                {/* 1. Play / Pause */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('medium');
+                    handlePlayNow();
+                  }}
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-md mb-1">
+                    {isThisTrackPlaying ? (
+                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="4" width="4" height="16" rx="1" />
+                        <rect x="14" y="4" width="4" height="16" rx="1" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4.5 h-4.5 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-bold text-white/80">
+                    {isThisTrackPlaying ? 'Pause' : 'Play'}
+                  </span>
+                </button>
+
+                {/* 2. Like */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    handleToggleLike();
+                  }}
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border border-white/15 mb-1 ${liked ? 'bg-rose-500/25 border-rose-500/40 text-rose-500' : 'bg-white/10 text-white/70'}`}>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.2">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-bold text-white/80">
+                    {liked ? 'Liked' : 'Like'}
+                  </span>
+                </button>
+
+                {/* 3. Chorus Preview */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    handleTogglePreview();
+                  }}
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border mb-1 ${isPreviewing ? 'bg-amber-500 text-black border-amber-400 font-black' : 'bg-white/10 border-white/15 text-amber-400'}`}>
+                    {isPreviewing ? '⏹' : '⚡'}
+                  </div>
+                  <span className="text-[10px] font-bold text-white/80">
+                    {isPreviewing ? 'Stop' : '15s Drop'}
+                  </span>
+                </button>
+
+                {/* 4. Offline Vault */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    handleToggleOffline();
+                  }}
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border mb-1 ${isOffline ? 'bg-emerald-500/25 border-emerald-400/40 text-emerald-400' : 'bg-white/10 border-white/15 text-white/70'}`}>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      {isOffline ? (
+                        <polyline points="20 6 9 17 4 12" />
+                      ) : (
+                        <>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </>
+                      )}
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-bold text-white/80">
+                    {isOffline ? 'Saved' : 'Save'}
+                  </span>
+                </button>
+
+                {/* 5. Share */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    handleShare();
+                  }}
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                >
+                  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white/70 mb-1">
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-bold text-white/80">Share</span>
+                </button>
+              </div>
+
+              {/* Full-Width Action Rows */}
+              <div className="flex flex-col divide-y divide-white/[0.06] mb-2">
+                {/* Play Next */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    handlePlayNext();
+                  }}
+                  className="flex items-center gap-3.5 px-3 py-3.5 rounded-xl hover:bg-white/10 active:bg-white/15 transition-colors text-left"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/80">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M5 4l10 8-10 8V4z" />
+                      <line x1="19" y1="5" x2="19" y2="19" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm text-white">Play Next in Queue</p>
+                    <p className="text-[11px] text-white/50">Inserts directly after current song</p>
+                  </div>
+                </button>
+
+                {/* Add to Queue */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    handleAddToQueue();
+                  }}
+                  className="flex items-center gap-3.5 px-3 py-3.5 rounded-xl hover:bg-white/10 active:bg-white/15 transition-colors text-left"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/80">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm text-white">Add to Queue</p>
+                    <p className="text-[11px] text-white/50">Appends to the end of your queue</p>
+                  </div>
+                </button>
+
+                {/* Add to Playlist */}
+                <div className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setShowPlaylistSubmenu((prev) => !prev);
+                    }}
+                    className="flex items-center justify-between px-3 py-3.5 rounded-xl hover:bg-white/10 active:bg-white/15 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/80">
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <line x1="8" y1="6" x2="21" y2="6" />
+                          <line x1="8" y1="12" x2="21" y2="12" />
+                          <line x1="8" y1="18" x2="16" y2="18" />
+                          <line x1="3" y1="6" x2="3.01" y2="6" />
+                          <line x1="3" y1="12" x2="3.01" y2="12" />
+                          <line x1="3" y1="18" x2="3.01" y2="18" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm text-white">Add to Playlist</p>
+                        <p className="text-[11px] text-white/50">{playlists.length} playlists available</p>
+                      </div>
+                    </div>
+                    <svg className={`w-4 h-4 text-white/50 transition-transform ${showPlaylistSubmenu ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+
+                  {/* Inline Playlist Submenu */}
+                  {showPlaylistSubmenu && (
+                    <div className="px-3 pb-3 pt-1 flex flex-col gap-2 bg-white/[0.03] rounded-2xl border border-white/10 my-1">
+                      {isCreatingPlaylist ? (
+                        <div className="p-2 flex flex-col gap-2">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={newPlaylistName}
+                            onChange={(e) => setNewPlaylistName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleCreatePlaylistAndAdd();
+                              if (e.key === 'Escape') setIsCreatingPlaylist(false);
+                            }}
+                            placeholder="New playlist name..."
+                            className="px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-xs outline-none focus:border-[var(--color-accent)]"
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setIsCreatingPlaylist(false)}
+                              className="px-3 py-1 rounded-lg text-xs text-white/60 hover:text-white"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCreatePlaylistAndAdd}
+                              className="px-3 py-1 rounded-lg bg-[var(--color-accent)] text-white text-xs font-bold"
+                            >
+                              Create & Add
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsCreatingPlaylist(true)}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/30 text-xs font-bold text-white hover:bg-[var(--color-accent)]/25"
+                        >
+                          <span>+</span>
+                          <span>Create New Playlist</span>
+                        </button>
+                      )}
+
+                      {playlists.map((pl) => (
+                        <button
+                          key={pl.id}
+                          type="button"
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            handleAddToPlaylist(pl);
+                          }}
+                          className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/10 active:bg-white/15 text-left text-xs font-semibold text-white/90"
+                        >
+                          <span className="truncate pr-2">{pl.name}</span>
+                          <span className="text-[10px] text-white/40 tabular-nums">
+                            {pl.tracks?.length || 0} tracks
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Studio FX & EQ */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    handleOpenStudio();
+                  }}
+                  className="flex items-center gap-3.5 px-3 py-3.5 rounded-xl hover:bg-white/10 active:bg-white/15 transition-colors text-left"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/30 flex items-center justify-center text-[var(--color-accent)]">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="4" y1="21" x2="4" y2="14" />
+                      <line x1="4" y1="10" x2="4" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12" y2="3" />
+                      <line x1="20" y1="21" x2="20" y2="16" />
+                      <line x1="20" y1="12" x2="20" y2="3" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm text-white">Audio FX, 8D Spatial & EQ</p>
+                    <p className="text-[11px] text-white/50">Slowed + Reverb, Nightcore, Spatial Radar</p>
+                  </div>
+                </button>
+
+                {/* Synced Lyrics */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    handleViewLyrics();
+                  }}
+                  className="flex items-center gap-3.5 px-3 py-3.5 rounded-xl hover:bg-white/10 active:bg-white/15 transition-colors text-left"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/80">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm text-white">View Synchronized Lyrics</p>
+                    <p className="text-[11px] text-white/50">Karaoke-style line-by-line lyrics</p>
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* PAGE CONTEXT MENU (Mobile Bottom Sheet) */}
+          {type === 'page' && (
+            <div className="flex flex-col gap-2 pb-2">
+              <h3 className="font-extrabold text-base text-white px-2 mb-2">Player Controls</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  handleTogglePlay();
+                }}
+                className="flex items-center gap-3 px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+              >
+                <span>{isPlaying ? '⏸ Pause' : '▶ Play'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  handleNextTrack();
+                }}
+                className="flex items-center gap-3 px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+              >
+                <span>⏭ Next Track</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  handlePrevTrack();
+                }}
+                className="flex items-center gap-3 px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+              >
+                <span>⏮ Previous Track</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  handleToggleShuffle();
+                }}
+                className="flex items-center justify-between px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+              >
+                <span>🔀 Shuffle</span>
+                <span className="text-xs text-white/50">{isShuffled ? 'ON' : 'OFF'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  handleOpenStudio();
+                }}
+                className="flex items-center gap-3 px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+              >
+                <span>🎛️ Studio FX & EQ</span>
+              </button>
+            </div>
+          )}
+        </motion.div>
+      </div>,
+      document.body
+    );
+  }
 
   return createPortal(
     <div

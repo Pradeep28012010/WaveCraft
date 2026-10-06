@@ -1,9 +1,10 @@
-import { useState, memo } from 'react';
+import { useState, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import NowPlaying from '../player/NowPlaying';
 import QueuePanel from '../player/QueuePanel';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
@@ -124,14 +125,47 @@ export default function MiniPlayer() {
     setVolume(ratio);
   };
 
-  // Phone UI Preset: Compact Native-Style Floating MiniPlayer Pill
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleMiniPlayerTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleMiniPlayerTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+
+    if (Math.abs(deltaX) > 42 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      if (deltaX < 0) {
+        // Swiped left -> Skip forward
+        triggerAndroidHaptic('medium');
+        nextTrack();
+      } else {
+        // Swiped right -> Skip back
+        triggerAndroidHaptic('medium');
+        prevTrack();
+      }
+    }
+  };
+
+  // Phone UI Preset: Compact Native-Style Floating MiniPlayer Pill with Swipe-to-Skip
   if (isPhone) {
     return (
       <>
         <div className="px-2.5 pb-1.5 pt-0.5 relative z-30 gpu-layer select-none">
           <div
-            onClick={() => setIsNowPlayingOpen(true)}
-            className="h-15 liquid-glass rounded-2xl flex items-center justify-between px-3 relative overflow-visible shadow-[0_14px_40px_rgba(0,0,0,0.85)] border border-white/15 cursor-pointer"
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              setIsNowPlayingOpen(true);
+            }}
+            onTouchStart={handleMiniPlayerTouchStart}
+            onTouchEnd={handleMiniPlayerTouchEnd}
+            className="h-15 liquid-glass rounded-2xl flex items-center justify-between px-3 relative overflow-visible shadow-[0_14px_40px_rgba(0,0,0,0.85)] border border-white/15 cursor-pointer active:scale-[0.99] transition-transform"
           >
             <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 
@@ -142,6 +176,7 @@ export default function MiniPlayer() {
                 if (e.shiftKey) return;
                 e.preventDefault();
                 e.stopPropagation();
+                triggerAndroidHaptic('medium');
                 useContextMenuStore.getState().openTrackMenu(
                   { clientX: e.clientX, clientY: e.clientY },
                   currentTrack,
@@ -171,8 +206,11 @@ export default function MiniPlayer() {
               onClick={(e) => e.stopPropagation()}
             >
               <button
-                onClick={() => toggleLike(currentTrack)}
-                className={`w-9 h-9 flex items-center justify-center rounded-full ${
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  toggleLike(currentTrack);
+                }}
+                className={`w-9 h-9 flex items-center justify-center rounded-full active:scale-75 transition-transform ${
                   isLiked ? 'text-[var(--color-accent)]' : 'text-white/55'
                 }`}
               >
@@ -188,8 +226,11 @@ export default function MiniPlayer() {
               </button>
 
               <button
-                onClick={togglePlay}
-                className="w-9 h-9 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-md active:scale-90 transition-transform cursor-pointer"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  togglePlay();
+                }}
+                className="w-9 h-9 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-md active:scale-80 transition-transform cursor-pointer"
               >
                 {isLoading ? (
                   <div className="w-4 h-4 border-2 border-white/25 border-t-white rounded-full animate-spin" />
@@ -206,8 +247,11 @@ export default function MiniPlayer() {
               </button>
 
               <button
-                onClick={nextTrack}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-white/85 active:scale-90"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  nextTrack();
+                }}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-white/85 active:scale-80 transition-transform"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />

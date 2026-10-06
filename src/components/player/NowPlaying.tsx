@@ -12,6 +12,8 @@ import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
 import WaveCardModal from './WaveCardModal';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
+import { useDevicePreset } from '../../hooks/useDevicePreset';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 interface NowPlayingProps {
   isOpen: boolean;
@@ -80,6 +82,7 @@ NowPlayingScrubber.displayName = 'NowPlayingScrubber';
 const DECK_MODE_KEY = 'wavecraft_deck_mode_v1';
 
 function NowPlayingContent({ onClose }: { onClose: () => void }) {
+  const { isPhone } = useDevicePreset();
   const [showQueue, setShowQueue] = useState(false);
   const [deckMode, setDeckModeState] = useState<'cover' | 'vinyl'>(() => {
     try {
@@ -133,6 +136,31 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const fxMode = useStudioStore((s) => s.fxMode);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
 
+  const handleTogglePlay = () => {
+    triggerAndroidHaptic('medium');
+    togglePlay();
+  };
+  const handleNextTrack = () => {
+    triggerAndroidHaptic('light');
+    nextTrack();
+  };
+  const handlePrevTrack = () => {
+    triggerAndroidHaptic('light');
+    prevTrack();
+  };
+  const handleToggleShuffle = () => {
+    triggerAndroidHaptic('light');
+    toggleShuffle();
+  };
+  const handleCycleRepeat = () => {
+    triggerAndroidHaptic('light');
+    cycleRepeat();
+  };
+  const handleToggleLike = () => {
+    triggerAndroidHaptic('medium');
+    if (currentTrack) toggleLike(currentTrack);
+  };
+
   if (!currentTrack) return null;
 
   const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
@@ -144,6 +172,15 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: '100%', opacity: 0 }}
       transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.75 }}
+      drag={isPhone ? 'y' : false}
+      dragConstraints={{ top: 0, bottom: 0 }}
+      dragElastic={{ top: 0.05, bottom: 0.6 }}
+      onDragEnd={(_, info) => {
+        if (isPhone && (info.offset.y > 100 || info.velocity.y > 500)) {
+          triggerAndroidHaptic('light');
+          onClose();
+        }
+      }}
       className="fixed inset-0 z-[90] flex flex-col bg-[#06060b] overflow-hidden select-none"
     >
           {/* Seamless Full-Bleed Ambient Album Art Backdrop */}
@@ -176,157 +213,218 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* Top Bar */}
-          <div className="relative z-10 h-16 px-6 sm:px-10 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
-                title="Minimize Player"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
+          {/* Top Drag Indicator (Phone Only) */}
+          {isPhone && (
+            <div className="relative z-10 pt-2 pb-0.5 flex justify-center w-full">
+              <div className="w-10 h-1 rounded-full bg-white/30" />
+            </div>
+          )}
 
-              {/* Cover vs Vinyl Turntable Switcher */}
-              {!zenMode && (
-                <div className="hidden sm:flex items-center gap-1 p-1 rounded-full liquid-glass border border-white/15">
+          {/* Top Bar */}
+          <div
+            className={`relative z-10 ${
+              isPhone ? 'h-14 px-4' : 'h-16 px-6 sm:px-10'
+            } flex items-center justify-between flex-shrink-0`}
+            style={{
+              paddingTop: isPhone ? 'max(env(safe-area-inset-top), 6px)' : undefined
+            }}
+          >
+            {isPhone ? (
+              <>
+                <button
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    onClose();
+                  }}
+                  className="w-10 h-10 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
+                  title="Minimize Player"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                <div className="flex flex-col items-center max-w-[200px] text-center">
+                  <span className="text-[10px] font-bold tracking-[0.16em] text-white/50 uppercase">
+                    PLAYING FROM QUEUE
+                  </span>
+                  <span className="text-xs font-bold text-white/85 truncate">
+                    {currentTrack.album || currentTrack.artist}
+                  </span>
+                </div>
+
+                <button
+                  onClick={(e) => {
+                    triggerAndroidHaptic('light');
+                    useContextMenuStore.getState().openTrackMenu(
+                      { clientX: e.clientX, clientY: e.clientY },
+                      currentTrack,
+                      usePlayerStore.getState().queue
+                    );
+                  }}
+                  className="w-10 h-10 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
+                  title="Track Options"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2.5">
                   <button
-                    onClick={() => setDeckMode('cover')}
-                    className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                      deckMode === 'cover'
-                        ? 'glass-button-primary text-white'
-                        : 'text-white/65 hover:text-white'
-                    }`}
+                    onClick={onClose}
+                    className="w-10 h-10 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
+                    title="Minimize Player"
                   >
-                    Cover
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
                   </button>
+
+                  {/* Cover vs Vinyl Turntable Switcher */}
+                  {!zenMode && (
+                    <div className="hidden sm:flex items-center gap-1 p-1 rounded-full liquid-glass border border-white/15">
+                      <button
+                        onClick={() => setDeckMode('cover')}
+                        className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                          deckMode === 'cover'
+                            ? 'glass-button-primary text-white'
+                            : 'text-white/65 hover:text-white'
+                        }`}
+                      >
+                        Cover
+                      </button>
+                      <button
+                        onClick={() => setDeckMode('vinyl')}
+                        className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                          deckMode === 'vinyl'
+                            ? 'glass-button-primary text-white'
+                            : 'text-white/65 hover:text-white'
+                        }`}
+                      >
+                        Vinyl Deck
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[11px] font-bold tracking-[0.18em] text-white/60 uppercase">
+                      {currentTrack.quality || '320kbps Studio AAC'}
+                    </span>
+                  </div>
+                  {nextUpTrack && (
+                    <span className="text-[11px] text-white/45 truncate max-w-xs mt-0.5">
+                      Up Next: <strong className="text-white/75">{nextUpTrack.title}</strong>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Studio Audio FX & Ambient Mixer Button */}
                   <button
-                    onClick={() => setDeckMode('vinyl')}
-                    className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                      deckMode === 'vinyl'
+                    onClick={() => setStudioModalOpen(true)}
+                    className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+                      fxMode !== 'normal'
                         ? 'glass-button-primary text-white'
-                        : 'text-white/65 hover:text-white'
+                        : 'glass-button text-white/85 hover:text-white'
                     }`}
+                    title="Open Studio Audio FX & Ambient Mixer"
                   >
-                    Vinyl Deck
+                    <svg className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="4" x2="4" y1="21" y2="14" />
+                      <line x1="4" x2="4" y1="10" y2="3" />
+                      <line x1="12" x2="12" y1="21" y2="12" />
+                      <line x1="12" x2="12" y1="8" y2="3" />
+                      <line x1="20" x2="20" y1="21" y2="16" />
+                      <line x1="20" x2="20" y1="12" y2="3" />
+                      <line x1="2" x2="6" y1="14" y2="14" />
+                      <line x1="10" x2="14" y1="8" y2="8" />
+                      <line x1="18" x2="22" y1="16" y2="16" />
+                    </svg>
+                    <span>
+                      {fxMode !== 'normal'
+                        ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
+                        : 'Studio FX'}
+                    </span>
+                  </button>
+
+                  {/* Share WaveCard Button */}
+                  <button
+                    onClick={() => {
+                      setWaveCardQuote('');
+                      setShowWaveCard(true);
+                    }}
+                    className="px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white flex items-center gap-1.5 cursor-pointer transition-all"
+                    title="Generate Shareable Poster"
+                  >
+                    <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <rect x="3" y="3" width="18" height="18" rx="3" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    <span>Poster</span>
+                  </button>
+
+                  {/* Background Visualizer Style Switcher */}
+                  <button
+                    onClick={() => {
+                      if (!showVisualizer) {
+                        setShowVisualizer(true);
+                        return;
+                      }
+                      const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
+                      const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
+                      if (next) setVisualizerStyle(next.id);
+                    }}
+                    className="hidden md:flex px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white items-center gap-1.5 cursor-pointer transition-all"
+                    title="Cycle Player Background Visualizer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                      <path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 9v6M22 12h-2" />
+                    </svg>
+                    <span>
+                      {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula'}
+                    </span>
+                  </button>
+
+                  {/* 3D Zen Mode Toggle */}
+                  <button
+                    onClick={() => {
+                      const nextZen = !zenMode;
+                      setZenMode(nextZen);
+                      if (nextZen) setShowVisualizer(true);
+                    }}
+                    className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      zenMode
+                        ? 'glass-button-primary text-white'
+                        : 'glass-button text-white/85 hover:text-white'
+                    }`}
+                    title="Toggle Fullscreen 3D Visualizer Zen Mode"
+                  >
+                    {zenMode ? 'Exit Zen' : '3D Zen'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const speeds = [0.75, 1, 1.25, 1.5];
+                      const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
+                      setPlaybackSpeed(next);
+                    }}
+                    className="px-3 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer transition-all tabular-nums"
+                    title="Playback Speed"
+                  >
+                    {playbackSpeed}x
                   </button>
                 </div>
-              )}
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[11px] font-bold tracking-[0.18em] text-white/60 uppercase">
-                  {currentTrack.quality || '320kbps Studio AAC'}
-                </span>
-              </div>
-              {nextUpTrack && (
-                <span className="text-[11px] text-white/45 truncate max-w-xs mt-0.5">
-                  Up Next: <strong className="text-white/75">{nextUpTrack.title}</strong>
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Studio Audio FX & Ambient Mixer Button */}
-              <button
-                onClick={() => setStudioModalOpen(true)}
-                className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
-                  fxMode !== 'normal'
-                    ? 'glass-button-primary text-white'
-                    : 'glass-button text-white/85 hover:text-white'
-                }`}
-                title="Open Studio Audio FX (Slowed + Reverb, 3D Spatial Radar, Nightcore) & Ambient Mixer"
-              >
-                <svg className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="4" x2="4" y1="21" y2="14" />
-                  <line x1="4" x2="4" y1="10" y2="3" />
-                  <line x1="12" x2="12" y1="21" y2="12" />
-                  <line x1="12" x2="12" y1="8" y2="3" />
-                  <line x1="20" x2="20" y1="21" y2="16" />
-                  <line x1="20" x2="20" y1="12" y2="3" />
-                  <line x1="2" x2="6" y1="14" y2="14" />
-                  <line x1="10" x2="14" y1="8" y2="8" />
-                  <line x1="18" x2="22" y1="16" y2="16" />
-                </svg>
-                <span className="hidden sm:inline">
-                  {fxMode !== 'normal'
-                    ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
-                    : 'Studio FX'}
-                </span>
-              </button>
-
-              {/* Share WaveCard Button */}
-              <button
-                onClick={() => {
-                  setWaveCardQuote('');
-                  setShowWaveCard(true);
-                }}
-                className="px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white flex items-center gap-1.5 cursor-pointer transition-all"
-                title="Generate Shareable 1080×1920 Lyric Story Poster"
-              >
-                <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <rect x="3" y="3" width="18" height="18" rx="3" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
-                <span className="hidden sm:inline">Poster</span>
-              </button>
-
-              {/* Background Visualizer Style Switcher (Persisted across refreshes) */}
-              <button
-                onClick={() => {
-                  if (!showVisualizer) {
-                    setShowVisualizer(true);
-                    return;
-                  }
-                  const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
-                  const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
-                  if (next) setVisualizerStyle(next.id);
-                }}
-                className="hidden md:flex px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white items-center gap-1.5 cursor-pointer transition-all"
-                title="Cycle Player Background Visualizer (Saved Automatically)"
-              >
-                <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                  <path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 9v6M22 12h-2" />
-                </svg>
-                <span>
-                  {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula'}
-                </span>
-              </button>
-
-              {/* 3D Zen Mode Toggle */}
-              <button
-                onClick={() => {
-                  const nextZen = !zenMode;
-                  setZenMode(nextZen);
-                  if (nextZen) setShowVisualizer(true);
-                }}
-                className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  zenMode
-                    ? 'glass-button-primary text-white'
-                    : 'glass-button text-white/85 hover:text-white'
-                }`}
-                title="Toggle Fullscreen 3D Visualizer Zen Mode"
-              >
-                {zenMode ? 'Exit Zen' : '3D Zen'}
-              </button>
-
-              <button
-                onClick={() => {
-                  const speeds = [0.75, 1, 1.25, 1.5];
-                  const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
-                  setPlaybackSpeed(next);
-                }}
-                className="px-3 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer transition-all tabular-nums"
-                title="Playback Speed"
-              >
-                {playbackSpeed}x
-              </button>
-            </div>
+              </>
+            )}
           </div>
 
           {/* ZEN MODE FLOATING 3D VISUALIZER HUD */}
@@ -558,10 +656,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                     <button
                       type="button"
-                      onClick={() => toggleLike(currentTrack)}
+                      onClick={handleToggleLike}
                       aria-label={isLiked ? 'Unlike track' : 'Like track'}
                       title={isLiked ? 'Unlike' : 'Like'}
-                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer ${
+                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer active:scale-75 ${
                         isLiked
                           ? 'glass-button-primary text-[var(--color-accent)] scale-105'
                           : 'glass-button text-white/65 hover:text-white'
@@ -585,9 +683,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   {/* Symmetric Centered Transport Buttons */}
                   <div className="w-full flex items-center justify-center gap-5 sm:gap-6 mt-3">
                     <button
-                      onClick={toggleShuffle}
+                      onClick={handleToggleShuffle}
                       title={isShuffled ? 'Shuffle On' : 'Shuffle Off'}
-                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer ${
+                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer active:scale-90 ${
                         isShuffled
                           ? 'glass-button-primary text-white'
                           : 'glass-button text-white/60 hover:text-white'
@@ -599,9 +697,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </button>
 
                     <button
-                      onClick={prevTrack}
+                      onClick={handlePrevTrack}
                       title="Previous Track"
-                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
+                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90"
                     >
                       <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
@@ -609,9 +707,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </button>
 
                     <button
-                      onClick={togglePlay}
+                      onClick={handleTogglePlay}
                       title={isPlaying ? 'Pause' : 'Play'}
-                      className="w-16 h-16 p-0 flex items-center justify-center rounded-full glass-button-primary text-white hover:scale-105 active:scale-95 transition-transform cursor-pointer shadow-[0_10px_32px_rgba(250,45,72,0.38)]"
+                      className="w-16 h-16 p-0 flex items-center justify-center rounded-full glass-button-primary text-white hover:scale-105 active:scale-90 transition-transform cursor-pointer shadow-[0_10px_32px_rgba(250,45,72,0.38)]"
                     >
                       {isPlaying ? (
                         <svg className="w-7 h-7 block" viewBox="0 0 24 24" fill="currentColor">
@@ -626,9 +724,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </button>
 
                     <button
-                      onClick={nextTrack}
+                      onClick={handleNextTrack}
                       title="Next Track"
-                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
+                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90"
                     >
                       <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
@@ -636,7 +734,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </button>
 
                     <button
-                      onClick={cycleRepeat}
+                      onClick={handleCycleRepeat}
                       title={
                         repeatMode === 'one'
                           ? 'Repeat One Track'
@@ -651,7 +749,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           ? 'Repeat All'
                           : 'Repeat Off'
                       }
-                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer relative ${
+                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer relative active:scale-90 ${
                         repeatMode !== 'off'
                           ? 'glass-button-primary text-white'
                           : 'glass-button text-white/60 hover:text-white'
@@ -685,58 +783,40 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </button>
                   </div>
 
-                  {/* Volume & Feature Toggles Row */}
-                  <div className="w-full flex items-center justify-between gap-3 mt-5 pt-3 border-t border-white/10">
-                    <div className="flex items-center gap-2.5">
+                  {/* Mobile Actions vs Desktop Volume & Feature Toggles */}
+                  {isPhone ? (
+                    <div
+                      className="w-full flex items-center justify-between gap-1.5 mt-5 pt-3 border-t border-white/10"
+                      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}
+                    >
+                      {/* Studio FX Pill */}
                       <button
-                        onClick={toggleMute}
-                        title={isMuted || volume === 0 ? 'Unmute Audio' : 'Mute Audio'}
-                        className={`w-9 h-9 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
-                          isMuted || volume === 0
-                            ? 'glass-button-primary text-rose-300'
-                            : 'glass-button text-white/85 hover:text-white'
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setStudioModalOpen(true);
+                        }}
+                        className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+                          fxMode !== 'normal'
+                            ? 'glass-button-primary text-white'
+                            : 'glass-button text-white/75 hover:text-white'
                         }`}
                       >
-                        {isMuted || volume === 0 ? (
-                          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                            <line x1="22" y1="9" x2="16" y2="15" />
-                            <line x1="16" y1="9" x2="22" y2="15" />
-                          </svg>
-                        ) : volume < 0.4 ? (
-                          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                          </svg>
-                        )}
+                        <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="4" x2="4" y1="21" y2="14" /><line x1="4" x2="4" y1="10" y2="3" /><line x1="12" x2="12" y1="21" y2="12" /><line x1="12" x2="12" y1="8" y2="3" />
+                        </svg>
+                        <span className="truncate">{fxMode !== 'normal' ? 'FX' : 'Studio'}</span>
                       </button>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={isMuted ? 0 : volume}
-                        onChange={(e) => setVolume(Number(e.target.value))}
-                        className="w-20 sm:w-24"
-                      />
-                      <span className="text-[11px] font-bold text-white/55 tabular-nums w-8">
-                        {Math.round((isMuted ? 0 : volume) * 100)}%
-                      </span>
-                    </div>
 
-                    <div className="flex items-center gap-2">
+                      {/* Lyrics Pill */}
                       <button
-                        onClick={() => setShowLyrics(!showLyrics)}
-                        className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setShowLyrics(!showLyrics);
+                        }}
+                        className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
                           showLyrics
                             ? 'glass-button-primary text-white'
-                            : 'glass-button text-white/70 hover:text-white'
+                            : 'glass-button text-white/75 hover:text-white'
                         }`}
                       >
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -744,23 +824,117 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         </svg>
                         <span>Lyrics</span>
                       </button>
+
+                      {/* Queue Pill */}
                       <button
-                        onClick={() => setShowQueue(!showQueue)}
-                        className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setShowQueue(!showQueue);
+                        }}
+                        className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
                           showQueue
                             ? 'glass-button-primary text-white'
-                            : 'glass-button text-white/70 hover:text-white'
+                            : 'glass-button text-white/75 hover:text-white'
                         }`}
                       >
                         <svg className="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="4" y1="6" x2="20" y2="6" />
-                          <line x1="4" y1="12" x2="20" y2="12" />
-                          <line x1="4" y1="18" x2="20" y2="18" />
+                          <line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" />
                         </svg>
                         <span>Queue</span>
                       </button>
+
+                      {/* Poster Pill */}
+                      <button
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setWaveCardQuote('');
+                          setShowWaveCard(true);
+                        }}
+                        className="flex-1 py-2 px-2 rounded-xl glass-button text-[11px] font-bold text-white/75 hover:text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                      >
+                        <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <span>Poster</span>
+                      </button>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="w-full flex items-center justify-between gap-3 mt-5 pt-3 border-t border-white/10">
+                      <div className="flex items-center gap-2.5">
+                        <button
+                          onClick={toggleMute}
+                          title={isMuted || volume === 0 ? 'Unmute Audio' : 'Mute Audio'}
+                          className={`w-9 h-9 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
+                            isMuted || volume === 0
+                              ? 'glass-button-primary text-rose-300'
+                              : 'glass-button text-white/85 hover:text-white'
+                          }`}
+                        >
+                          {isMuted || volume === 0 ? (
+                            <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                              <line x1="22" y1="9" x2="16" y2="15" />
+                              <line x1="16" y1="9" x2="22" y2="15" />
+                            </svg>
+                          ) : volume < 0.4 ? (
+                            <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                            </svg>
+                          )}
+                        </button>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={isMuted ? 0 : volume}
+                          onChange={(e) => setVolume(Number(e.target.value))}
+                          className="w-20 sm:w-24"
+                        />
+                        <span className="text-[11px] font-bold text-white/55 tabular-nums w-8">
+                          {Math.round((isMuted ? 0 : volume) * 100)}%
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setShowLyrics(!showLyrics)}
+                          className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                            showLyrics
+                              ? 'glass-button-primary text-white'
+                              : 'glass-button text-white/70 hover:text-white'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                          <span>Lyrics</span>
+                        </button>
+                        <button
+                          onClick={() => setShowQueue(!showQueue)}
+                          className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                            showQueue
+                              ? 'glass-button-primary text-white'
+                              : 'glass-button text-white/70 hover:text-white'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="4" y1="6" x2="20" y2="6" />
+                            <line x1="4" y1="12" x2="20" y2="12" />
+                            <line x1="4" y1="18" x2="20" y2="18" />
+                          </svg>
+                          <span>Queue</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
 
                 {/* Right Column: Synced Lyrics Panel (Pure GPU transform/opacity entrance) */}
