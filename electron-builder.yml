@@ -19,11 +19,16 @@ win:
   icon: build/icon.ico
 
 nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
-  createDesktopShortcut: true
+  oneClick: true
+  perMachine: false
+  allowElevation: true
+  createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: WaveCraft Pro
-  artifactName: WaveCraft-Pro-Setup-${version}.${ext}
+  artifactName: WaveCraft-Pro-Setup.${ext}
   uninstallDisplayName: WaveCraft Pro
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  deleteAppDataOnUninstall: false
   runAfterFinish: true

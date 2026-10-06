@@ -14,6 +14,7 @@ import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import WindowsTitleBar from '../layout/WindowsTitleBar';
 
 interface NowPlayingProps {
   isOpen: boolean;
@@ -183,6 +184,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       }}
       className="fixed inset-0 z-[90] flex flex-col bg-[#06060b] overflow-hidden select-none"
     >
+      {/* Windows 11 Acrylic Frameless Title Bar (Electron Desktop App ONLY) */}
+      <WindowsTitleBar />
+
           {/* Seamless Full-Bleed Ambient Album Art Backdrop */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <img
@@ -222,7 +226,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
           {/* Top Bar */}
           <div
-            className={`relative z-10 ${
+            className={`relative z-20 app-region-no-drag ${
               isPhone ? 'h-14 px-4' : 'h-16 px-6 sm:px-10'
             } flex items-center justify-between flex-shrink-0`}
             style={{
@@ -274,10 +278,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               </>
             ) : (
               <>
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 app-region-no-drag">
                   <button
                     onClick={onClose}
-                    className="w-10 h-10 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
+                    className="w-10 h-10 flex items-center justify-center rounded-full glass-button text-white cursor-pointer app-region-no-drag"
                     title="Minimize Player"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -287,10 +291,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                   {/* Cover vs Vinyl Turntable Switcher */}
                   {!zenMode && (
-                    <div className="hidden sm:flex items-center gap-1 p-1 rounded-full liquid-glass border border-white/15">
+                    <div className="hidden sm:flex items-center gap-1 p-1 rounded-full liquid-glass border border-white/15 app-region-no-drag">
                       <button
                         onClick={() => setDeckMode('cover')}
-                        className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                        className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer app-region-no-drag ${
                           deckMode === 'cover'
                             ? 'glass-button-primary text-white'
                             : 'text-white/65 hover:text-white'
@@ -300,7 +304,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       </button>
                       <button
                         onClick={() => setDeckMode('vinyl')}
-                        className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                        className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer app-region-no-drag ${
                           deckMode === 'vinyl'
                             ? 'glass-button-primary text-white'
                             : 'text-white/65 hover:text-white'
@@ -312,7 +316,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
 
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center app-region-no-drag">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="text-[11px] font-bold tracking-[0.18em] text-white/60 uppercase">
@@ -326,11 +330,11 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 app-region-no-drag">
                   {/* Studio Audio FX & Ambient Mixer Button */}
                   <button
                     onClick={() => setStudioModalOpen(true)}
-                    className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+                    className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all app-region-no-drag ${
                       fxMode !== 'normal'
                         ? 'glass-button-primary text-white'
                         : 'glass-button text-white/85 hover:text-white'
@@ -361,7 +365,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       setWaveCardQuote('');
                       setShowWaveCard(true);
                     }}
-                    className="px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white flex items-center gap-1.5 cursor-pointer transition-all"
+                    className="px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white flex items-center gap-1.5 cursor-pointer transition-all app-region-no-drag"
                     title="Generate Shareable Poster"
                   >
                     <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -383,7 +387,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
                       if (next) setVisualizerStyle(next.id);
                     }}
-                    className="hidden md:flex px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white items-center gap-1.5 cursor-pointer transition-all"
+                    className="hidden md:flex px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white items-center gap-1.5 cursor-pointer transition-all app-region-no-drag"
                     title="Cycle Player Background Visualizer"
                   >
                     <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -401,7 +405,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       setZenMode(nextZen);
                       if (nextZen) setShowVisualizer(true);
                     }}
-                    className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer app-region-no-drag ${
                       zenMode
                         ? 'glass-button-primary text-white'
                         : 'glass-button text-white/85 hover:text-white'
@@ -417,7 +421,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
                       setPlaybackSpeed(next);
                     }}
-                    className="px-3 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer transition-all tabular-nums"
+                    className="px-3 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer transition-all tabular-nums app-region-no-drag"
                     title="Playback Speed"
                   >
                     {playbackSpeed}x

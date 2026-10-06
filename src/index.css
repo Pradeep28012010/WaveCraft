@@ -556,6 +556,17 @@ input[type='range']::-moz-range-thumb {
 }
 
 .app-region-no-drag {
-  -webkit-app-region: no-drag;
+  -webkit-app-region: no-drag !important;
+}
+
+/* Ensure all buttons, links, inputs, and interactive controls are clickable in Electron */
+button,
+a,
+input,
+select,
+textarea,
+[role="button"],
+.clickable-control {
+  -webkit-app-region: no-drag !important;
 }
 
