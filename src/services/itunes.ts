@@ -1,6 +1,7 @@
 import type { ArtistResult, AlbumResult, Track } from '../types';
 import { DEFAULT_THUMBNAIL } from '../utils/constants';
 import { searchTracks, getTrending, getCachedTrending } from './youtube';
+import { apiUrl } from './apiConfig';
 
 const artCache = new Map<string, string | null>();
 const albumsCache = new Map<string, AlbumResult[]>();
@@ -198,7 +199,7 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
   }
 
   try {
-    const res = await fetch('/api/music?action=new-releases');
+    const res = await fetch(apiUrl('/api/music?action=new-releases'));
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.releases) && data.releases.length > 0) {

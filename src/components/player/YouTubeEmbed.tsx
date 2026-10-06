@@ -25,6 +25,7 @@ import {
   seekToTime
 } from '../../services/audioEngine';
 import { jamSyncEngine } from '../../services/jamSyncEngine';
+import { isAndroidNative, PROD_API_ORIGIN } from '../../services/apiConfig';
 import type { Track } from '../../types';
 
 declare global {
@@ -80,6 +81,21 @@ export default function YouTubeEmbed() {
   const tickPomodoro = useStudioStore((s) => s.tickPomodoro);
   const sleepActive = useStudioStore((s) => s.sleepActive);
   const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
+
+  // Proactively unlock AudioContext and HTMLAudioElement on first user touch / pointer interaction
+  useEffect(() => {
+    const unlockOnInteraction = () => {
+      unlockAudioEngine();
+      window.removeEventListener('pointerdown', unlockOnInteraction);
+      window.removeEventListener('touchstart', unlockOnInteraction);
+    };
+    window.addEventListener('pointerdown', unlockOnInteraction, { passive: true });
+    window.addEventListener('touchstart', unlockOnInteraction, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlockOnInteraction);
+      window.removeEventListener('touchstart', unlockOnInteraction);
+    };
+  }, []);
 
   // Sync 10-band Equalizer gains + Studio FX in real time
   useEffect(() => {
@@ -270,9 +286,16 @@ export default function YouTubeEmbed() {
     const initPlayer = () => {
       if (!containerRef.current || !window.YT || !window.YT.Player) return;
 
+      const ytOrigin =
+        isAndroidNative() ||
+        window.location.origin.includes('localhost') ||
+        window.location.origin.includes('capacitor://')
+          ? PROD_API_ORIGIN
+          : window.location.origin;
+
       const player = new window.YT.Player(containerRef.current, {
-        height: '1',
-        width: '1',
+        height: '180',
+        width: '320',
         playerVars: {
           autoplay: 0,
           controls: 0,
@@ -282,7 +305,7 @@ export default function YouTubeEmbed() {
           modestbranding: 1,
           playsinline: 1,
           rel: 0,
-          origin: window.location.origin
+          origin: ytOrigin
         },
         events: {
           onReady: (e: any) => {
@@ -949,18 +972,20 @@ export default function YouTubeEmbed() {
 
   return (
     <div
+      aria-hidden="true"
       style={{
         position: 'fixed',
-        bottom: '-9999px',
-        left: '-9999px',
-        width: '1px',
-        height: '1px',
+        bottom: 0,
+        right: 0,
+        width: '320px',
+        height: '180px',
         opacity: 0.001,
         pointerEvents: 'none',
-        zIndex: -1
+        zIndex: -9999,
+        overflow: 'hidden'
       }}
     >
-      <div ref={containerRef} />
+      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
       <audio
         ref={audioRef}
         playsInline

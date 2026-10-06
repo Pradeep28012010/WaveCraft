@@ -1,4 +1,5 @@
 import type { LyricLine } from '../types';
+import { apiUrl } from './apiConfig';
 
 export interface LyricsCandidate {
   id: string | number;
@@ -349,7 +350,7 @@ export async function getLyricsData(
   // 2. Fallback to backend /api/music?action=lyrics (LRCLIB targeted + lyrics.ovh)
   try {
     const res = await fetch(
-      `/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`
+      apiUrl(`/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`)
     );
     if (res.ok) {
       const data = await res.json();

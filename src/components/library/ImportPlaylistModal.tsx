@@ -5,6 +5,7 @@ import GlassButton from '../ui/GlassButton';
 import { useLibraryStore, normalizeQueryFingerprint } from '../../stores/libraryStore';
 import { searchTracks } from '../../services/youtube';
 import { parseM3U8String, parseJSONPlaylistString, type ParsedPlaylistFile } from '../../utils/playlistExport';
+import { apiUrl } from '../../services/apiConfig';
 import type { Track, Playlist } from '../../types';
 
 interface ImportPlaylistModalProps {
@@ -225,7 +226,7 @@ export default function ImportPlaylistModal({
 
     try {
       const res = await fetch(
-        `/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`
+        apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`)
       );
       const data = await res.json();
 

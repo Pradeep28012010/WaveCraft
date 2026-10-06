@@ -1,4 +1,5 @@
 import type { Track } from '../types';
+import { apiUrl } from './apiConfig';
 
 export function decodeHtmlEntities(str?: string): string {
   if (!str) return '';
@@ -334,7 +335,7 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
 
   const requestPromise = (async () => {
     try {
-      const res = await fetch(`/api/music?action=search&q=${encodeURIComponent(query.trim())}`);
+      const res = await fetch(apiUrl(`/api/music?action=search&q=${encodeURIComponent(query.trim())}`));
       if (res.ok) {
         const data = await res.json();
         const rawTracks: Track[] = data.tracks || data.youtube || [];
@@ -442,7 +443,7 @@ export async function getTrending(category = 'global'): Promise<Track[]> {
   }
 
   try {
-    const res = await fetch(`/api/music?action=trending&category=${encodeURIComponent(category)}`);
+    const res = await fetch(apiUrl(`/api/music?action=trending&category=${encodeURIComponent(category)}`));
     if (res.ok) {
       const data = await res.json();
       const tracks: Track[] = data.tracks || data.youtube || [];
@@ -483,7 +484,7 @@ export async function searchSuggestions(query: string): Promise<string[]> {
   }
 
   try {
-    const res = await fetch(`/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`);
+    const res = await fetch(apiUrl(`/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`));
     if (res.ok) {
       const data = await res.json();
       const sugs: string[] = data.suggestions || [];

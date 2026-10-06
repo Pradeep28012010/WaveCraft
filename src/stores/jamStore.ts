@@ -6,6 +6,7 @@ import { getPreciseAudioTime, seekToTime } from '../services/audioEngine';
 import { jamSyncEngine, type JamAudioAnchor } from '../services/jamSyncEngine';
 import { jamWebRtc } from '../services/jamWebRtc';
 import { searchTracks } from '../services/youtube';
+import { apiUrl } from '../services/apiConfig';
 
 export interface JamReaction {
   id: string;
@@ -146,7 +147,7 @@ function publishRealtimeEvent(roomCode: string, eventPayload: JamRoomSnapshot) {
   } catch {}
 
   // 3. Local API server broadcast (via SSE to all room clients)
-  fetch(`/api/music?action=jam&op=sync&room=${encodeURIComponent(roomCode)}`, {
+  fetch(apiUrl(`/api/music?action=jam&op=sync&room=${encodeURIComponent(roomCode)}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(eventPayload)
@@ -551,7 +552,7 @@ export const useJamStore = create<JamStore>((set, get) => {
     if (typeof EventSource !== 'undefined') {
       try {
         const es = new EventSource(
-          `/api/music?action=jam&op=stream&room=${encodeURIComponent(roomCode)}`
+          apiUrl(`/api/music?action=jam&op=stream&room=${encodeURIComponent(roomCode)}`)
         );
         es.onmessage = (ev) => {
           try {
@@ -688,9 +689,9 @@ export const useJamStore = create<JamStore>((set, get) => {
           await get().pushHostState();
         } else {
           const res = await fetch(
-            `/api/music?action=jam&op=get&room=${encodeURIComponent(
+            apiUrl(`/api/music?action=jam&op=get&room=${encodeURIComponent(
               roomCode
-            )}&userId=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`
+            )}&userId=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`)
           );
           if (res.ok) {
             const data = await res.json();
@@ -797,9 +798,9 @@ export const useJamStore = create<JamStore>((set, get) => {
 
       try {
         const res = await fetch(
-          `/api/music?action=jam&op=get&room=${encodeURIComponent(
+          apiUrl(`/api/music?action=jam&op=get&room=${encodeURIComponent(
             cleanCode
-          )}&userId=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`
+          )}&userId=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`)
         );
         if (res.ok) {
           const data = await res.json();
@@ -839,9 +840,9 @@ export const useJamStore = create<JamStore>((set, get) => {
 
       if (roomCode && userId) {
         fetch(
-          `/api/music?action=jam&op=leave&room=${encodeURIComponent(
+          apiUrl(`/api/music?action=jam&op=leave&room=${encodeURIComponent(
             roomCode
-          )}&userId=${encodeURIComponent(userId)}`,
+          )}&userId=${encodeURIComponent(userId)}`),
           { method: 'POST' }
         ).catch(() => {});
       }
@@ -879,7 +880,7 @@ export const useJamStore = create<JamStore>((set, get) => {
 
       try {
         await fetch(
-          `/api/music?action=jam&op=react&room=${encodeURIComponent(roomCode)}`,
+          apiUrl(`/api/music?action=jam&op=react&room=${encodeURIComponent(roomCode)}`),
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -912,7 +913,7 @@ export const useJamStore = create<JamStore>((set, get) => {
 
       try {
         await fetch(
-          `/api/music?action=jam&op=chat&room=${encodeURIComponent(roomCode)}`,
+          apiUrl(`/api/music?action=jam&op=chat&room=${encodeURIComponent(roomCode)}`),
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1009,7 +1010,7 @@ export const useJamStore = create<JamStore>((set, get) => {
 
       try {
         await fetch(
-          `/api/music?action=jam&op=add-track&room=${encodeURIComponent(roomCode)}`,
+          apiUrl(`/api/music?action=jam&op=add-track&room=${encodeURIComponent(roomCode)}`),
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

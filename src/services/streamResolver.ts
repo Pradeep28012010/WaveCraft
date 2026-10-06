@@ -1,4 +1,5 @@
 import { decryptSaavnUrl } from '../utils/saavnDecrypt';
+import { apiUrl } from './apiConfig';
 
 const streamCache = new Map<string, string>();
 const MAX_CACHE_ENTRIES = 250;
@@ -53,9 +54,9 @@ export async function resolveDirectAudio(
       title: cleanTitle,
       artist: cleanArtist
     });
-    const res = await fetch(`/api/music?${apiQuery.toString()}`, {
+    const res = await fetch(apiUrl(`/api/music?${apiQuery.toString()}`), {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(3500)
+      signal: AbortSignal.timeout(5000)
     });
     if (res.ok) {
       const data = await res.json();

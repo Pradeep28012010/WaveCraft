@@ -3,6 +3,7 @@ import type { Track, Playlist, LibraryState } from '../types';
 import * as storage from '../services/storage';
 import { usePlayerStore } from './playerStore';
 import { searchTracks } from '../services/youtube';
+import { apiUrl } from '../services/apiConfig';
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
@@ -169,7 +170,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     try {
       onProgress?.('Checking original source playlist for live updates...', 10);
       const res = await fetch(
-        `/api/music?action=import-playlist&url=${encodeURIComponent(target.sourceUrl)}`
+        apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(target.sourceUrl)}`)
       );
       const data = await res.json();
 
