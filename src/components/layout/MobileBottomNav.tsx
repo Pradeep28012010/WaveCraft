@@ -60,7 +60,13 @@ export default function MobileBottomNav() {
   ];
 
   return (
-    <nav className="h-16 w-full bg-black/85 backdrop-blur-2xl border-t border-white/12 px-2 flex items-center justify-around flex-shrink-0 z-40 select-none">
+    <nav
+      style={{
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 4px)'
+      }}
+      className="w-full bg-[#06060b]/92 backdrop-blur-2xl border-t border-white/[0.08] px-2 flex-shrink-0 z-40 select-none"
+    >
+      <div className="h-14 w-full flex items-center justify-around">
       {tabs.map((tab) => (
         <NavLink
           key={tab.path}
@@ -92,6 +98,7 @@ export default function MobileBottomNav() {
           )}
         </NavLink>
       ))}
+      </div>
     </nav>
   );
 }

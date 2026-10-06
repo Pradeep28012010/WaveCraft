@@ -38,11 +38,11 @@ export const triggerAndroidHaptic = async (type: 'light' | 'medium' | 'heavy' = 
 export const initNativeAndroid = (navigate?: (to: number) => void) => {
   if (!Capacitor.isNativePlatform()) return () => {};
 
-  // 1. Edge-to-Edge Status Bar setup
+  // 1. Native Status Bar setup (non-overlapping, matching deep pitch-black theme)
   try {
-    StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+    StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
     StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-    StatusBar.setBackgroundColor({ color: '#00000000' }).catch(() => {});
+    StatusBar.setBackgroundColor({ color: '#06060b' }).catch(() => {});
   } catch {}
 
   // 2. Hardware Back Button Navigation Stack

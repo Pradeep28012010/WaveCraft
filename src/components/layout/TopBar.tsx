@@ -1,4 +1,4 @@
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { searchSuggestions } from '../../services/youtube';
@@ -62,6 +62,7 @@ const SleepTimerPill = memo(function SleepTimerPill({
 
 export default function TopBar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
   const [searchQuery, setSearchQuery] = useState(urlQuery);
@@ -221,27 +222,47 @@ export default function TopBar() {
     navigate('/search', { replace: true });
   };
 
-  // Phone UI Preset Header (clean, thumb-friendly, zero horizontal crowding)
+  // Phone UI Preset Header (clean, thumb-friendly, zero horizontal crowding, safe-area aware)
   if (isPhone) {
+    const isRoot = location.pathname === '/';
     return (
-      <header className="h-14 flex items-center justify-between gap-2.5 px-3.5 sticky top-0 z-40 bg-black/65 backdrop-blur-2xl border-b border-white/[0.08]">
-        {/* Left: Drawer Trigger + WaveCraft Icon */}
-        <button
-          onClick={toggleMobileDrawer}
-          aria-label="Open Navigation Menu"
-          className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg flex-shrink-0 active:scale-95 transition-transform"
-        >
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-            <line x1="4" y1="7" x2="20" y2="7" />
-            <line x1="4" y1="12" x2="16" y2="12" />
-            <line x1="4" y1="17" x2="20" y2="17" />
-          </svg>
-        </button>
+      <header
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)'
+        }}
+        className="flex items-center justify-between gap-2.5 px-3.5 pb-2.5 sticky top-0 z-40 bg-[#06060b]/92 backdrop-blur-2xl border-b border-white/[0.08] transition-all"
+      >
+        {/* Left: Back Navigation or Mobile Drawer Menu */}
+        {isRoot ? (
+          <button
+            onClick={toggleMobileDrawer}
+            aria-label="Open Navigation Menu"
+            className="w-9.5 h-9.5 rounded-full liquid-glass border border-white/15 flex items-center justify-center text-white/90 hover:text-white shadow-md flex-shrink-0 active:scale-90 transition-transform cursor-pointer"
+            title="Menu"
+          >
+            <svg className="w-4.5 h-4.5 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="16" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate(-1)}
+            aria-label="Go Back"
+            className="w-9.5 h-9.5 rounded-full liquid-glass border border-white/15 flex items-center justify-center text-white/90 hover:text-white shadow-md flex-shrink-0 active:scale-90 transition-transform cursor-pointer"
+            title="Back"
+          >
+            <svg className="w-4.5 h-4.5 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+        )}
 
         {/* Center: Full-Width Mobile Search Bar */}
         <div className="flex-1 relative min-w-0">
           <div className="relative flex items-center">
-            <div className="absolute left-3.5 pointer-events-none text-white/45">
+            <div className="absolute left-3.5 pointer-events-none text-white/40">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -257,38 +278,43 @@ export default function TopBar() {
               }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
               placeholder={
-                isListeningVoice ? '🎙️ Say a song or lyric...' : 'Search songs, lyrics, moods...'
+                isListeningVoice ? '🎙️ Listening...' : 'Search songs, artists...'
               }
-              className="w-full liquid-glass rounded-full py-2 pl-9 pr-14 text-xs text-white placeholder-white/45 focus:outline-none focus:border-white/30"
+              className="w-full h-9.5 bg-white/[0.08] border border-white/15 focus:border-[var(--color-accent)]/60 focus:bg-white/[0.12] rounded-full pl-9 pr-16 text-xs text-white placeholder-white/40 focus:outline-none transition-all shadow-inner"
             />
-            {searchQuery && (
+            <div className="absolute right-1.5 inset-y-0 flex items-center gap-1">
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  aria-label="Clear search"
+                  className="w-6.5 h-6.5 rounded-full flex items-center justify-center text-white/50 hover:text-white active:scale-90 transition-transform cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={handleClear}
-                aria-label="Clear search query"
-                className="absolute right-8 p-1 rounded-full text-white/60 hover:text-white"
+                onClick={toggleVoiceSearch}
+                aria-label="Voice search"
+                title="Voice search"
+                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                  isListeningVoice
+                    ? 'bg-[var(--color-accent)] text-white animate-pulse shadow-[0_0_12px_var(--color-accent)]'
+                    : 'text-white/50 hover:text-white active:scale-90'
+                }`}
               >
-                ✕
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" y1="19" x2="12" y2="23" />
+                  <line x1="8" y1="23" x2="16" y2="23" />
+                </svg>
               </button>
-            )}
-            <button
-              type="button"
-              onClick={toggleVoiceSearch}
-              aria-label="Voice search"
-              title="Voice / Lyric-Line Song Finder"
-              className={`absolute right-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                isListeningVoice
-                  ? 'bg-[var(--color-accent)] text-white animate-pulse shadow-[0_0_12px_var(--color-accent)]'
-                  : 'text-white/55 hover:text-white'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </button>
+            </div>
           </div>
 
           {showSuggestions && searchQuery.trim().length > 0 && suggestions.length > 0 && (
@@ -314,7 +340,7 @@ export default function TopBar() {
         {/* Offline Mode Badge */}
         {!isOnline && (
           <span
-            className="h-10 px-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-[11px] font-black flex items-center gap-1.5 flex-shrink-0 animate-pulse"
+            className="h-8 px-2 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-[10px] font-black flex items-center gap-1 flex-shrink-0 animate-pulse"
             title="Offline Mode — Playing from Vault"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
@@ -322,18 +348,32 @@ export default function TopBar() {
           </span>
         )}
 
-        {/* Right: Studio FX & Sleep Timer Hub Button */}
+        {/* Right: Studio FX & Sleep Timer Button */}
         <button
           onClick={() => setStudioModalOpen(true)}
           aria-label="Open Studio FX & Sleep Timer Hub"
-          className={`h-10 px-3 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 flex-shrink-0 border ${
+          className={`w-9.5 h-9.5 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-90 cursor-pointer ${
             fxMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
-              ? 'bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white border-white/25 shadow-lg'
-              : 'liquid-glass border-white/15 text-white/90'
+              ? 'bg-gradient-to-tr from-[var(--color-accent)] to-purple-600 text-white shadow-[0_0_14px_rgba(250,45,72,0.4)] border border-white/30'
+              : 'liquid-glass border border-white/15 text-white/80 hover:text-white'
           }`}
+          title="Studio FX, 8D Spatial Audio & Sleep Timer"
         >
-          <span>{sleepActive ? '🌙' : '🎛️'}</span>
-          {sleepActive ? <MobileSleepCountdown /> : null}
+          {sleepActive ? (
+            <span className="text-sm">🌙</span>
+          ) : (
+            <svg className="w-4.5 h-4.5 text-white/85" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="4" y1="21" x2="4" y2="14" />
+              <line x1="4" y1="10" x2="4" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" y2="3" />
+              <line x1="20" y1="21" x2="20" y2="16" />
+              <line x1="20" y1="12" x2="20" y2="3" />
+              <line x1="1" y1="14" x2="7" y2="14" />
+              <line x1="9" y1="8" x2="15" y2="8" />
+              <line x1="17" y1="16" x2="23" y2="16" />
+            </svg>
+          )}
         </button>
       </header>
     );
@@ -341,7 +381,12 @@ export default function TopBar() {
 
   return (
     <>
-      <header className="h-20 flex items-center justify-between px-6 lg:px-8 sticky top-0 z-40 bg-black/25 backdrop-blur-2xl border-b border-white/[0.08]">
+      <header
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)'
+        }}
+        className="h-20 flex items-center justify-between px-6 lg:px-8 sticky top-0 z-40 bg-black/25 backdrop-blur-2xl border-b border-white/[0.08]"
+      >
         {/* Navigation Controls */}
         <div className="flex items-center gap-2.5">
           <button
