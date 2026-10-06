@@ -225,6 +225,28 @@ export default function YouTubeEmbed() {
         audio.play().catch(() => {});
         return;
       }
+      if (
+        pState.repeatMode === 'off' &&
+        pState.queueIndex >= pState.queue.length - 1 &&
+        useSettingsStore.getState().autoplay &&
+        pState.currentTrack
+      ) {
+        getSmartRecommendations(pState.currentTrack, pState.queue, 8)
+          .then((recs) => {
+            if (recs.length > 0) {
+              const existingIds = new Set(usePlayerStore.getState().queue.map((t) => t.id));
+              const fresh = recs.filter((t) => !existingIds.has(t.id));
+              fresh.forEach((t) => usePlayerStore.getState().addToQueue(t));
+              usePlayerStore.getState().nextTrack();
+            } else {
+              nextTrack();
+            }
+          })
+          .catch(() => {
+            nextTrack();
+          });
+        return;
+      }
       nextTrack();
     };
 
