@@ -35,6 +35,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Dedicated Native Android Foreground Media Service for background audio streaming -->
+        <service
+            android:name=".WaveCraftMediaService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
     </application>
 
     <!-- Essential Android Audio & Streaming Permissions -->
@@ -45,4 +51,5 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

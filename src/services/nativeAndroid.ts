@@ -79,7 +79,55 @@ export const initNativeAndroid = (navigate?: (to: number) => void) => {
     }
   });
 
+  // 3. App state change background audio continuity
+  const stateListenerPromise = CapApp.addListener('appStateChange', ({ isActive }) => {
+    if (!isActive) {
+      const state = usePlayerStore.getState();
+      if (state.isPlaying && state.currentTrack) {
+        startAndroidBackgroundAudio(state.currentTrack.title, state.currentTrack.artist);
+      }
+    }
+  });
+
   return () => {
     backListenerPromise.then((handle) => handle.remove()).catch(() => {});
+    stateListenerPromise.then((handle) => handle.remove()).catch(() => {});
   };
 };
+
+declare global {
+  interface Window {
+    AndroidAudioBridge?: {
+      startPlayback: (title: string, artist: string) => void;
+      stopPlayback: () => void;
+    };
+  }
+}
+
+/**
+ * Starts Android native Foreground Service with notification and WakeLock,
+ * ensuring continuous audio streaming when app is minimized or screen is locked.
+ */
+export const startAndroidBackgroundAudio = (title: string, artist: string) => {
+  if (typeof window !== 'undefined' && window.AndroidAudioBridge?.startPlayback) {
+    try {
+      window.AndroidAudioBridge.startPlayback(title, artist);
+    } catch (e) {
+      console.warn('Could not start Android foreground playback service:', e);
+    }
+  }
+};
+
+/**
+ * Stops Android native Foreground Service and releases WakeLock.
+ */
+export const stopAndroidBackgroundAudio = () => {
+  if (typeof window !== 'undefined' && window.AndroidAudioBridge?.stopPlayback) {
+    try {
+      window.AndroidAudioBridge.stopPlayback();
+    } catch (e) {
+      console.warn('Could not stop Android foreground playback service:', e);
+    }
+  }
+};
+

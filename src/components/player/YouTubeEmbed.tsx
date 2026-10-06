@@ -26,6 +26,10 @@ import {
 } from '../../services/audioEngine';
 import { jamSyncEngine } from '../../services/jamSyncEngine';
 import { isAndroidNative, PROD_API_ORIGIN } from '../../services/apiConfig';
+import {
+  startAndroidBackgroundAudio,
+  stopAndroidBackgroundAudio
+} from '../../services/nativeAndroid';
 import type { Track } from '../../types';
 
 declare global {
@@ -412,6 +416,13 @@ export default function YouTubeEmbed() {
             } else if (state === window.YT.PlayerState.PAUSED) {
               // Ignore transient PAUSED event during track transition or when awaiting a new track
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
+                return;
+              }
+              // If paused automatically by Chromium/YouTube when app was minimized or document hidden:
+              if (!userInitiatedPauseRef.current && (typeof document !== 'undefined' && document.hidden)) {
+                try {
+                  e.target.playVideo?.();
+                } catch {}
                 return;
               }
               usePlayerStore.setState({ isPlaying: false, isLoading: false });
@@ -877,6 +888,11 @@ export default function YouTubeEmbed() {
   // Sync Play / Pause when isPlaying toggles on the current track
   useEffect(() => {
     if (!currentTrack) return;
+    if (isPlaying) {
+      startAndroidBackgroundAudio(currentTrack.title, currentTrack.artist);
+    } else {
+      stopAndroidBackgroundAudio();
+    }
     if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
       return;
     }
