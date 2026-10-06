@@ -55,4 +55,6 @@ android/local.properties
 android/app/src/main/assets/public/
 *.apk
 release/
+dist-electron/
 *.exe
+build/*.blockmap

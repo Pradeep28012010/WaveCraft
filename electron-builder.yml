@@ -1,0 +1,29 @@
+appId: com.wavecraft.pro
+productName: WaveCraft Pro
+copyright: Copyright © 2026 WaveCraft
+
+directories:
+  output: dist-electron
+
+files:
+  - dist/**/*
+  - electron/**/*
+  - public/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: WaveCraft Pro
+  artifactName: WaveCraft-Pro-Setup-${version}.${ext}
+  uninstallDisplayName: WaveCraft Pro
+  runAfterFinish: true

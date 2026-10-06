@@ -20,7 +20,10 @@ if (!gotSingleInstanceLock) {
 }
 
 function createMainWindow() {
-  const iconPath = path.join(__dirname, '../public/icon.png');
+  const fs = require('fs');
+  const icoPath = path.join(__dirname, '../public/icon.ico');
+  const pngPath = path.join(__dirname, '../public/icon.png');
+  const iconPath = fs.existsSync(icoPath) ? icoPath : pngPath;
   const appIcon = nativeImage.createFromPath(iconPath);
 
   mainWindow = new BrowserWindow({
