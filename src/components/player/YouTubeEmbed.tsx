@@ -711,20 +711,39 @@ export default function YouTubeEmbed() {
         const best = findStrictTrackMatch(track.title, track.artist, results, track.duration);
         const resolved = best || (results.length > 0 ? results[0] : null);
 
-        if (resolved?.youtubeId) {
-          track.youtubeId = resolved.youtubeId;
+        const ytid =
+          resolved?.youtubeId ||
+          (resolved?.id.startsWith('yt_') ? resolved.id.replace('yt_', '') : '') ||
+          (resolved?.id.startsWith('yt-') ? resolved.id.replace('yt-', '') : '');
+
+        if (ytid) {
+          track.youtubeId = ytid;
           usePlayerStore.setState((s) => ({
             currentTrack:
               s.currentTrack?.id === track.id
-                ? { ...s.currentTrack, youtubeId: resolved.youtubeId, duration: resolved.duration || s.currentTrack.duration }
+                ? { ...s.currentTrack, youtubeId: ytid, duration: resolved?.duration || s.currentTrack.duration }
                 : s.currentTrack,
             queue: s.queue.map((t) =>
               t.id === track.id
-                ? { ...t, youtubeId: resolved.youtubeId, duration: resolved.duration || t.duration }
+                ? { ...t, youtubeId: ytid, duration: resolved?.duration || t.duration }
                 : t
             )
           }));
-          fallbackToYouTube(track, resolved.youtubeId, shouldPlay);
+          fallbackToYouTube(track, ytid, shouldPlay);
+        } else if (resolved?.audioUrl) {
+          track.audioUrl = resolved.audioUrl;
+          usePlayerStore.setState((s) => ({
+            currentTrack:
+              s.currentTrack?.id === track.id
+                ? { ...s.currentTrack, audioUrl: resolved.audioUrl, quality: resolved.quality || '320kbps Studio AAC' }
+                : s.currentTrack,
+            queue: s.queue.map((t) =>
+              t.id === track.id
+                ? { ...t, audioUrl: resolved.audioUrl, quality: resolved.quality || '320kbps Studio AAC' }
+                : t
+            )
+          }));
+          playNativeAudio(resolved.audioUrl, shouldPlay);
         } else {
           console.warn(`[WaveCraft] Could not match audio stream for: "${track.title}" by "${track.artist}"`);
           setIsLoading(false);

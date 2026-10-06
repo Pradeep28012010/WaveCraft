@@ -1,7 +1,7 @@
 import type { ArtistResult, AlbumResult, Track } from '../types';
 import { DEFAULT_THUMBNAIL } from '../utils/constants';
 import { searchTracks, getTrending, getCachedTrending } from './youtube';
-import { apiUrl } from './apiConfig';
+import { apiUrl, PROD_API_ORIGIN } from './apiConfig';
 
 const artCache = new Map<string, string | null>();
 const albumsCache = new Map<string, AlbumResult[]>();
@@ -121,6 +121,39 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
     return albumTracksCache.get(cacheKey)!;
   }
 
+  // 1. Direct Apple iTunes lookup if album has iTunes collection ID
+  if (album.id.startsWith('itunes_alb_')) {
+    try {
+      const collectionId = album.id.replace('itunes_alb_', '');
+      const res = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=song&limit=100`, {
+        signal: AbortSignal.timeout(4500)
+      }).catch(() => null);
+      if (res?.ok) {
+        const data = await res.json();
+        const results = data?.results || [];
+        const songEntries = results.filter((r: any) => r.wrapperType === 'track');
+        if (songEntries.length > 0) {
+          const albumArt = album.coverUrl || album.coverArt || DEFAULT_THUMBNAIL;
+          const mappedTracks: Track[] = songEntries.map((s: any) => ({
+            id: `itunes_${s.trackId}`,
+            title: s.trackName || 'Track',
+            artist: s.artistName || album.artist,
+            album: s.collectionName || album.title || album.name,
+            duration: Math.round((s.trackTimeMillis || 210000) / 1000),
+            thumbnail: albumArt,
+            thumbnailLarge: albumArt,
+            thumbnailUrl: albumArt,
+            audioUrl: s.previewUrl || undefined,
+            audioPreviewUrl: s.previewUrl || undefined,
+            quality: 'Apple Master'
+          }));
+          albumTracksCache.set(cacheKey, mappedTracks);
+          return mappedTracks;
+        }
+      }
+    } catch {}
+  }
+
   const cleanQuery = cleanAlbumSearchQuery(album.title || album.name, album.artist);
   try {
     const tracks = await searchTracks(cleanQuery);
@@ -129,7 +162,7 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
       return tracks;
     }
   } catch (err) {
-    console.warn('Error fetching album tracks from YouTube:', err);
+    console.warn('Error fetching album tracks from search:', err);
   }
 
   return [];
@@ -140,6 +173,39 @@ export async function searchAlbums(query: string): Promise<AlbumResult[]> {
   if (!key) return [];
   if (albumsCache.has(key)) return albumsCache.get(key)!;
 
+  try {
+    // 1. Direct Apple iTunes Album Search (instant, verified albums with high-res art)
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=15`;
+    const res = await fetch(itunesUrl, {
+      signal: AbortSignal.timeout(4500)
+    }).catch(() => null);
+    if (res?.ok) {
+      const data = await res.json();
+      const results: any[] = data?.results || [];
+      if (results.length > 0) {
+        const albums: AlbumResult[] = results.map((item) => {
+          const rawArt = item.artworkUrl100 || DEFAULT_THUMBNAIL;
+          const highRes = rawArt.replace('100x100bb', '600x600bb');
+          const year = item.releaseDate ? new Date(item.releaseDate).getFullYear() : new Date().getFullYear();
+          return {
+            id: `itunes_alb_${item.collectionId}`,
+            name: item.collectionName || 'Untitled Album',
+            title: item.collectionName || 'Untitled Album',
+            artist: item.artistName || 'Various Artists',
+            coverUrl: highRes,
+            coverArt: highRes,
+            thumbnail: highRes,
+            year,
+            trackCount: item.trackCount || 10
+          };
+        });
+        albumsCache.set(key, albums);
+        return albums;
+      }
+    }
+  } catch {}
+
+  // 2. Fallback: Extract distinct albums from track search
   try {
     const tracks = await searchTracks(`${query} album`);
     const seen = new Set<string>();
@@ -166,12 +232,15 @@ export async function searchAlbums(query: string): Promise<AlbumResult[]> {
       if (results.length >= 12) break;
     }
 
-    albumsCache.set(key, results);
-    return results;
+    if (results.length > 0) {
+      albumsCache.set(key, results);
+      return results;
+    }
   } catch (error) {
-    console.error('Error in searchAlbums:', error);
-    return [];
+    console.error('Error in searchAlbums fallback:', error);
   }
+
+  return [];
 }
 
 export async function getAlbumArt(trackTitle: string, artistName: string): Promise<string | null> {
@@ -199,8 +268,14 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
   }
 
   try {
-    const res = await fetch(apiUrl('/api/music?action=new-releases'));
-    if (res.ok) {
+    const endpoint = apiUrl('/api/music?action=new-releases');
+    let res = await fetch(endpoint, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+    if (!res?.ok && !endpoint.startsWith('http')) {
+      res = await fetch(`${PROD_API_ORIGIN}/api/music?action=new-releases`, {
+        signal: AbortSignal.timeout(4500)
+      }).catch(() => null);
+    }
+    if (res?.ok) {
       const data = await res.json();
       if (Array.isArray(data.releases) && data.releases.length > 0) {
         cachedNewReleases = data.releases;
@@ -213,7 +288,9 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
 
   // Client-side direct Apple RSS fallback
   try {
-    const r = await fetch('https://itunes.apple.com/us/rss/topalbums/limit=25/json');
+    const r = await fetch('https://itunes.apple.com/us/rss/topalbums/limit=25/json', {
+      signal: AbortSignal.timeout(4500)
+    });
     if (r.ok) {
       const data = await r.json();
       const entries = data.feed?.entry || [];
@@ -288,6 +365,43 @@ export async function searchArtists(query: string): Promise<ArtistResult[]> {
   if (artistsCache.has(key)) return artistsCache.get(key)!;
 
   try {
+    // 1. Direct Apple iTunes Artist search (verified artist profiles with high reliability)
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=musicArtist&limit=10`;
+    const res = await fetch(itunesUrl, {
+      signal: AbortSignal.timeout(4500)
+    }).catch(() => null);
+    if (res?.ok) {
+      const data = await res.json();
+      const results: any[] = data?.results || [];
+      if (results.length > 0) {
+        const tracks = await searchTracks(query).catch(() => []);
+        const artistArtMap = new Map<string, string>();
+        for (const t of tracks) {
+          const lead = t.artist.split(/[,&/]/)[0].trim().toLowerCase();
+          if (lead && !artistArtMap.has(lead) && t.thumbnail) {
+            artistArtMap.set(lead, t.thumbnailLarge || t.thumbnail);
+          }
+        }
+
+        const artists: ArtistResult[] = results.map((item) => {
+          const name = item.artistName || 'Unknown Artist';
+          const art = artistArtMap.get(name.toLowerCase()) || (tracks[0]?.thumbnailLarge || tracks[0]?.thumbnail || DEFAULT_THUMBNAIL);
+          return {
+            id: `itunes_artist_${item.artistId}`,
+            name,
+            genre: item.primaryGenreName || 'Music',
+            thumbnail: art,
+            imageUrl: art
+          };
+        });
+        artistsCache.set(key, artists);
+        return artists;
+      }
+    }
+  } catch {}
+
+  // 2. Fallback: extract distinct artists from searchTracks
+  try {
     const tracks = await searchTracks(query);
     const seen = new Set<string>();
     const artists: ArtistResult[] = [];
@@ -310,10 +424,13 @@ export async function searchArtists(query: string): Promise<ArtistResult[]> {
       if (artists.length >= 8) break;
     }
 
-    artistsCache.set(key, artists);
-    return artists;
+    if (artists.length > 0) {
+      artistsCache.set(key, artists);
+      return artists;
+    }
   } catch (error) {
-    console.error('Error in searchArtists:', error);
-    return [];
+    console.error('Error in searchArtists fallback:', error);
   }
+
+  return [];
 }

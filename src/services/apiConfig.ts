@@ -9,8 +9,9 @@ export function isAndroidNative(): boolean {
   if (typeof window === 'undefined') return false;
   return (
     Capacitor.isNativePlatform() ||
+    Capacitor.getPlatform() === 'android' ||
     window.location.protocol === 'capacitor:' ||
-    (window.location.hostname === 'localhost' && window.location.port !== '3000')
+    (window.location.hostname === 'localhost' && !['3000', '5173', '4173'].includes(window.location.port))
   );
 }
 

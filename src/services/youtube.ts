@@ -1,5 +1,7 @@
 import type { Track } from '../types';
-import { apiUrl } from './apiConfig';
+import { apiUrl, PROD_API_ORIGIN } from './apiConfig';
+import { decryptSaavnUrl } from '../utils/saavnDecrypt';
+import { DEFAULT_THUMBNAIL } from '../utils/constants';
 
 export function decodeHtmlEntities(str?: string): string {
   if (!str) return '';
@@ -321,6 +323,86 @@ function deduplicateTracks(tracks: Track[]): Track[] {
   return result;
 }
 
+async function fetchSaavnFallbackTracks(query: string): Promise<Track[]> {
+  try {
+    const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=25&q=${encodeURIComponent(query)}`;
+    const res = await fetch(saavnUrl, {
+      signal: AbortSignal.timeout(4500)
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results = data?.results || [];
+    if (!Array.isArray(results) || results.length === 0) return [];
+
+    const tracks: Track[] = [];
+    for (const item of results) {
+      if (!item.title) continue;
+      const cleanTitle = decodeHtmlEntities(item.title);
+      const rawArtist = item.subtitle || item.more_info?.music || item.more_info?.singers || 'Unknown Artist';
+      const cleanArtist = decodeHtmlEntities(rawArtist);
+      const album = item.more_info?.album ? decodeHtmlEntities(item.more_info.album) : 'WaveCraft Cloud';
+      const duration = parseInt(item.more_info?.duration || item.duration || '210', 10);
+      const rawImg = item.image || '';
+      const highResThumb = rawImg.replace(/150x150/g, '500x500') || DEFAULT_THUMBNAIL;
+
+      let directUrl: string | undefined = undefined;
+      const enc = item.more_info?.encrypted_media_url;
+      if (enc) {
+        directUrl = decryptSaavnUrl(enc);
+      }
+
+      tracks.push({
+        id: `saavn_${item.id}`,
+        title: cleanTitle,
+        artist: cleanArtist,
+        album,
+        duration: isNaN(duration) || duration <= 0 ? 210 : duration,
+        thumbnail: highResThumb,
+        thumbnailLarge: highResThumb,
+        thumbnailUrl: highResThumb,
+        audioUrl: directUrl,
+        audioPreviewUrl: directUrl,
+        quality: directUrl ? '320kbps Studio AAC' : 'Studio Audio'
+      });
+    }
+    return tracks;
+  } catch {
+    return [];
+  }
+}
+
+async function fetchItunesFallbackTracks(query: string): Promise<Track[]> {
+  try {
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=25`;
+    const res = await fetch(itunesUrl, {
+      signal: AbortSignal.timeout(4500)
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results = data?.results || [];
+    if (!Array.isArray(results) || results.length === 0) return [];
+
+    return results.map((item: any) => {
+      const art = item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : DEFAULT_THUMBNAIL;
+      return {
+        id: `itunes_${item.trackId}`,
+        title: item.trackName || 'Unknown Title',
+        artist: item.artistName || 'Unknown Artist',
+        album: item.collectionName || 'WaveCraft Cloud',
+        duration: Math.round((item.trackTimeMillis || 210000) / 1000),
+        thumbnail: art,
+        thumbnailLarge: art,
+        thumbnailUrl: art,
+        audioUrl: item.previewUrl || undefined,
+        audioPreviewUrl: item.previewUrl || undefined,
+        quality: 'Apple Master'
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
   const cleanKey = query.trim().toLowerCase();
   if (!cleanKey) return [];
@@ -334,9 +416,21 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
   }
 
   const requestPromise = (async () => {
+    // 1. Primary backend API call with robust timeout and automatic absolute-URL retry
     try {
-      const res = await fetch(apiUrl(`/api/music?action=search&q=${encodeURIComponent(query.trim())}`));
-      if (res.ok) {
+      const endpoint = apiUrl(`/api/music?action=search&q=${encodeURIComponent(query.trim())}`);
+      let res = await fetch(endpoint, {
+        signal: AbortSignal.timeout(6500)
+      }).catch(() => null);
+
+      // On Android / mobile if relative endpoint failed, retry with full PROD_API_ORIGIN
+      if (!res?.ok && !endpoint.startsWith('http')) {
+        res = await fetch(`${PROD_API_ORIGIN}/api/music?action=search&q=${encodeURIComponent(query.trim())}`, {
+          signal: AbortSignal.timeout(5500)
+        }).catch(() => null);
+      }
+
+      if (res?.ok) {
         const data = await res.json();
         const rawTracks: Track[] = data.tracks || data.youtube || [];
         const deduped = deduplicateTracks(rawTracks);
@@ -348,48 +442,27 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
         }
       }
     } catch (err) {
-      console.warn('API /api/music search failed, falling back to direct YouTube search:', err);
+      console.warn('Primary /api/music search error, switching to resilient fallback:', err);
     }
 
-    // Client-side direct YouTube fallback if /api/music endpoint fails
+    // 2. High-speed client-side JioSaavn Fallback (provides direct 320kbps streams with zero CORS restrictions)
     try {
-      const ytQuery = /song|remix|official|audio|music|album/i.test(query) ? query : `${query} official audio`;
-      const directRes = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          context: {
-            client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' }
-          },
-          query: ytQuery
-        })
-      });
-      if (directRes.ok) {
-        const data = await directRes.json();
-        const sections =
-          data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
-        const rawItems: any[] = [];
-        for (const sec of sections) {
-          const items = sec?.itemSectionRenderer?.contents || [];
-          for (const item of items) {
-            const v = item.videoRenderer;
-            if (v && v.videoId) {
-              const lengthText = v.lengthText?.simpleText || '';
-              const parts = lengthText.split(':').map(Number);
-              let seconds = 0;
-              if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
-              else if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-              rawItems.push({
-                videoId: v.videoId,
-                title: v.title?.runs?.[0]?.text || '',
-                author: v.ownerText?.runs?.[0]?.text || '',
-                lengthSeconds: seconds || 210
-              });
-            }
-          }
+      const saavnTracks = await fetchSaavnFallbackTracks(query);
+      if (saavnTracks.length > 0) {
+        const deduped = deduplicateTracks(saavnTracks);
+        const ranked = rankTracksByRelevance(deduped, query);
+        if (ranked.length > 0) {
+          setBoundedCache(searchCache, cleanKey, ranked, MAX_SEARCH_CACHE_ENTRIES);
+          return ranked;
         }
-        const mapped = rawItems.map(mapYouTubeItemToTrack);
-        const deduped = deduplicateTracks(mapped);
+      }
+    } catch {}
+
+    // 3. Apple iTunes Fallback (100% reliable global music catalogue with high-res artwork)
+    try {
+      const itunesTracks = await fetchItunesFallbackTracks(query);
+      if (itunesTracks.length > 0) {
+        const deduped = deduplicateTracks(itunesTracks);
         const ranked = rankTracksByRelevance(deduped, query);
         if (ranked.length > 0) {
           setBoundedCache(searchCache, cleanKey, ranked, MAX_SEARCH_CACHE_ENTRIES);
@@ -443,8 +516,14 @@ export async function getTrending(category = 'global'): Promise<Track[]> {
   }
 
   try {
-    const res = await fetch(apiUrl(`/api/music?action=trending&category=${encodeURIComponent(category)}`));
-    if (res.ok) {
+    const endpoint = apiUrl(`/api/music?action=trending&category=${encodeURIComponent(category)}`);
+    let res = await fetch(endpoint, { signal: AbortSignal.timeout(6500) }).catch(() => null);
+    if (!res?.ok && !endpoint.startsWith('http')) {
+      res = await fetch(`${PROD_API_ORIGIN}/api/music?action=trending&category=${encodeURIComponent(category)}`, {
+        signal: AbortSignal.timeout(5500)
+      }).catch(() => null);
+    }
+    if (res?.ok) {
       const data = await res.json();
       const tracks: Track[] = data.tracks || data.youtube || [];
       if (tracks.length > 0) {
@@ -484,18 +563,27 @@ export async function searchSuggestions(query: string): Promise<string[]> {
   }
 
   try {
-    const res = await fetch(apiUrl(`/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`));
-    if (res.ok) {
+    const endpoint = apiUrl(`/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`);
+    let res = await fetch(endpoint, { signal: AbortSignal.timeout(4000) }).catch(() => null);
+    if (!res?.ok && !endpoint.startsWith('http')) {
+      res = await fetch(`${PROD_API_ORIGIN}/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`, {
+        signal: AbortSignal.timeout(3500)
+      }).catch(() => null);
+    }
+    if (res?.ok) {
       const data = await res.json();
       const sugs: string[] = data.suggestions || [];
-      setBoundedCache(suggestionsCache, key, sugs, MAX_SUGGESTIONS_CACHE_ENTRIES);
-      return sugs;
+      if (sugs.length > 0) {
+        setBoundedCache(suggestionsCache, key, sugs, MAX_SUGGESTIONS_CACHE_ENTRIES);
+        return sugs;
+      }
     }
   } catch {
     // client-side direct suggest fallback
     try {
       const fallbackRes = await fetch(
-        `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query.trim())}`
+        `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query.trim())}`,
+        { signal: AbortSignal.timeout(3000) }
       );
       if (fallbackRes.ok) {
         const d = await fallbackRes.json();
