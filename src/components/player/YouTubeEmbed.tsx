@@ -272,7 +272,12 @@ export default function YouTubeEmbed() {
         (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
         (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
       const ytPlayer = getPlayer();
-      if (effectiveYtId && ytPlayer && window.ytPlayerReady) {
+      if (
+        effectiveYtId &&
+        ytPlayer &&
+        window.ytPlayerReady &&
+        (typeof navigator === 'undefined' || navigator.onLine)
+      ) {
         setActiveEngine('youtube');
         setIsLoading(true);
         if (usePlayerStore.getState().isPlaying) {
@@ -569,7 +574,7 @@ export default function YouTubeEmbed() {
             cur?.youtubeId ||
             (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
             (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
-          if (cur && effectiveYtId) {
+          if (cur && effectiveYtId && (typeof navigator === 'undefined' || navigator.onLine)) {
             fallbackToYouTube(cur, effectiveYtId, true);
           } else if (err?.name === 'NotAllowedError') {
             usePlayerStore.getState().pause();
@@ -630,6 +635,19 @@ export default function YouTubeEmbed() {
     proceedOnline();
 
     function proceedOnline() {
+      // 1b. If device is offline, check if blob exists in storage before attempting online stream
+      if (typeof navigator !== 'undefined' && !navigator.onLine && audio) {
+        getOfflineAudioObjectUrl(track.id).then((blobUrl) => {
+          if (resolveToken !== resolvingTokenRef.current) return;
+          if (blobUrl) {
+            playNativeAudio(blobUrl, shouldPlay);
+          } else {
+            setIsLoading(false);
+          }
+        });
+        return;
+      }
+
       // 2. Direct 320kbps Audio Stream already available (skip Spotify previews)
       const isDirectCdnStream =
         Boolean(track.audioUrl) &&
@@ -652,7 +670,7 @@ export default function YouTubeEmbed() {
       // 3. Proactively resolve Direct 320kbps Audio Stream for full Web Audio 8D & Live Concert
       if (audio && (track.title || track.artist)) {
         setIsLoading(true);
-        resolveDirectAudio(track.title, track.artist, track.duration)
+        resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
           .then((resolvedUrl) => {
             if (resolveToken !== resolvingTokenRef.current) return;
             if (usePlayerStore.getState().currentTrack?.id !== track.id) return;

@@ -13,6 +13,7 @@ export interface Track {
   genre?: string;
   year?: number;
   quality?: string;
+  fileSizeBytes?: number;
 }
 
 export interface Playlist {

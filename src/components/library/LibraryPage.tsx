@@ -139,17 +139,12 @@ export default function LibraryPage() {
           </GlassCard>
         </Link>
 
-        <div
-          onClick={() => setShowOfflineVault((v) => !v)}
-          className="group cursor-pointer"
-        >
+        <Link to="/downloads" className="group">
           <GlassCard
             variant="liquid"
             padding="md"
             hover
-            className={`flex items-center gap-4 h-full overflow-hidden border ${
-              showOfflineVault ? 'border-emerald-400/50 bg-emerald-500/10' : ''
-            }`}
+            className="flex items-center gap-4 h-full overflow-hidden border border-emerald-400/20 hover:border-emerald-400/50 transition-colors"
           >
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center flex-shrink-0 shadow-xl group-hover:scale-105 transition-transform">
               <span className="text-2xl">⚡</span>
@@ -161,7 +156,7 @@ export default function LibraryPage() {
               </p>
             </div>
           </GlassCard>
-        </div>
+        </Link>
       </div>
 
       {/* Expandable Offline Vault Section */}

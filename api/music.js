@@ -181,14 +181,22 @@ export default async function handler(req, res) {
     if (action === 'resolve-stream') {
       const title = (url.searchParams.get('title') || '').trim();
       const artist = (url.searchParams.get('artist') || '').trim();
-      if (!title) return res.status(400).json({ error: 'Title required' });
+      const videoId = (url.searchParams.get('videoId') || '').trim();
+      if (!title && !videoId) return res.status(400).json({ error: 'Title or videoId required' });
 
-      const cacheKey = `stream:${title.toLowerCase()}__${artist.toLowerCase()}`;
+      const cacheKey = `stream:${videoId || `${title.toLowerCase()}__${artist.toLowerCase()}`}`;
       const cached = getCached(cacheKey);
       res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=3600');
       if (cached) return res.status(200).json(cached);
 
-      const streamData = await resolveDirectAudioStream(title, artist);
+      let streamData = null;
+      if (title) {
+        streamData = await resolveDirectAudioStream(title, artist);
+      }
+      if (!streamData && videoId) {
+        streamData = await resolveYouTubeAudioStream(videoId);
+      }
+
       if (streamData?.audioUrl) {
         setCached(cacheKey, streamData, 3_600_000);
         return res.status(200).json(streamData);
@@ -1539,6 +1547,47 @@ async function resolveDirectAudioStream(title, artist) {
     }
   } catch {}
 
+  return null;
+}
+
+async function resolveYouTubeAudioStream(videoId) {
+  if (!videoId) return null;
+  try {
+    const res = await fetchWithTimeout(
+      'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: 'ANDROID',
+              clientVersion: '19.09.37',
+              hl: 'en',
+              gl: 'US'
+            }
+          },
+          videoId
+        })
+      },
+      4500
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const formats = data?.streamingData?.adaptiveFormats || [];
+    const audioFormats = formats.filter(
+      (f) => f.mimeType && f.mimeType.startsWith('audio/') && f.url
+    );
+    if (audioFormats.length > 0) {
+      audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+      return {
+        audioUrl: audioFormats[0].url,
+        quality: `${Math.round((audioFormats[0].bitrate || 128000) / 1000)}kbps Audio`,
+        title: data.videoDetails?.title || '',
+        artist: data.videoDetails?.author || ''
+      };
+    }
+  } catch {}
   return null;
 }
 

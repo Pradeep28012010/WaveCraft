@@ -5,6 +5,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { useTrackOfflineStatus } from '../../services/offlineVault';
 import NowPlaying from '../player/NowPlaying';
 import QueuePanel from '../player/QueuePanel';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
@@ -114,6 +115,9 @@ export default function MiniPlayer() {
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) =>
     currentTrack ? Boolean(s.likedIds[currentTrack.id]) : false
+  );
+  const { trackIsOffline, isSavingOffline, toggleOfflineTrack } = useTrackOfflineStatus(
+    currentTrack?.id || ''
   );
 
   if (!currentTrack) return null;
@@ -349,6 +353,38 @@ export default function MiniPlayer() {
                 <p className="text-xs text-white/60 truncate mt-0.5">{currentTrack.artist}</p>
               </motion.div>
             </AnimatePresence>
+
+            <motion.button
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.75 }}
+              onClick={() => toggleOfflineTrack(currentTrack)}
+              title={
+                trackIsOffline
+                  ? 'Saved in Offline Vault (Click to remove)'
+                  : isSavingOffline
+                  ? 'Downloading 320kbps audio...'
+                  : 'Save to Offline Vault'
+              }
+              className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors flex-shrink-0 cursor-pointer ${
+                trackIsOffline
+                  ? 'text-emerald-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                  : isSavingOffline
+                  ? 'text-amber-300'
+                  : 'text-white/45 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              {isSavingOffline ? (
+                <span className="w-3.5 h-3.5 border-2 border-amber-300/30 border-t-amber-300 rounded-full animate-spin" />
+              ) : trackIsOffline ? (
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              )}
+            </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.15 }}

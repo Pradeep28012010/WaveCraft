@@ -37,11 +37,12 @@ export function cleanTrackQuery(title: string, artist: string): { cleanTitle: st
 export async function resolveDirectAudio(
   title: string,
   artist: string,
-  _duration?: number
+  _duration?: number,
+  videoId?: string
 ): Promise<string | null> {
-  if (!title) return null;
+  if (!title && !videoId) return null;
   const { cleanTitle, cleanArtist } = cleanTrackQuery(title, artist);
-  const cacheKey = getCacheKey(cleanTitle, cleanArtist);
+  const cacheKey = videoId ? `vid:${videoId}` : getCacheKey(cleanTitle, cleanArtist);
 
   if (streamCache.has(cacheKey)) {
     return streamCache.get(cacheKey)!;
@@ -54,11 +55,27 @@ export async function resolveDirectAudio(
       title: cleanTitle,
       artist: cleanArtist
     });
-    const res = await fetch(apiUrl(`/api/music?${apiQuery.toString()}`), {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(5000)
-    });
-    if (res.ok) {
+    if (videoId) apiQuery.set('videoId', videoId);
+
+    let res: Response | null = null;
+    try {
+      res = await fetch(apiUrl(`/api/music?${apiQuery.toString()}`), {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(5000)
+      });
+    } catch {}
+
+    // Fallback to direct PROD_API_ORIGIN if needed
+    if (!res || !res.ok) {
+      try {
+        res = await fetch(`https://wavecraft-alpha.vercel.app/api/music?${apiQuery.toString()}`, {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(5000)
+        });
+      } catch {}
+    }
+
+    if (res && res.ok) {
       const data = await res.json();
       if (data?.audioUrl && typeof data.audioUrl === 'string' && data.audioUrl.startsWith('https://')) {
         if (streamCache.size >= MAX_CACHE_ENTRIES) {

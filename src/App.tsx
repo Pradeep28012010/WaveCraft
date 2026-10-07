@@ -66,6 +66,7 @@ const JamRoomPage = lazy(() => import('./components/jam/JamRoomPage'));
 const DJConsolePage = lazy(() => import('./components/dj/DJConsolePage'));
 const SonicGalaxyPage = lazy(() => import('./components/galaxy/SonicGalaxyPage'));
 const LandingPage = lazy(() => import('./components/landing/LandingPage'));
+const DownloadsPage = lazy(() => import('./components/library/DownloadsPage'));
 
 const isElectronOrFile =
   typeof window !== 'undefined' &&
@@ -176,6 +177,7 @@ function AppContent() {
         <Route path="/search" element={<SearchResults />} />
         <Route path="/genres" element={<GenreBrowser />} />
         <Route path="/library" element={<LibraryPage />} />
+        <Route path="/downloads" element={<DownloadsPage />} />
         <Route path="/liked" element={<LikedSongs />} />
         <Route path="/recent" element={<RecentlyPlayed />} />
         <Route path="/playlist/:id" element={<PlaylistView />} />

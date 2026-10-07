@@ -14,6 +14,7 @@ import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { useTrackOfflineStatus } from '../../services/offlineVault';
 import WindowsTitleBar from '../layout/WindowsTitleBar';
 
 interface NowPlayingProps {
@@ -126,6 +127,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) =>
     currentTrack ? Boolean(s.likedIds[currentTrack.id]) : false
+  );
+  const { trackIsOffline, isSavingOffline, toggleOfflineTrack } = useTrackOfflineStatus(
+    currentTrack?.id || ''
   );
 
   const showVisualizer = useSettingsStore((s) => s.showVisualizer);
@@ -650,35 +654,80 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   {/* Track Title & Artist */}
                   <div className="mt-5 w-full flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1 text-left">
-                      <h2 className="text-xl sm:text-2xl font-extrabold text-white truncate">
-                        {currentTrack.title}
-                      </h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl sm:text-2xl font-extrabold text-white truncate">
+                          {currentTrack.title}
+                        </h2>
+                        {trackIsOffline && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 whitespace-nowrap flex-shrink-0">
+                            ⚡ OFFLINE
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm sm:text-base text-white/60 mt-0.5 font-medium truncate">
                         {currentTrack.artist}
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleToggleLike}
-                      aria-label={isLiked ? 'Unlike track' : 'Like track'}
-                      title={isLiked ? 'Unlike' : 'Like'}
-                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer active:scale-75 ${
-                        isLiked
-                          ? 'glass-button-primary text-[var(--color-accent)] scale-105'
-                          : 'glass-button text-white/65 hover:text-white'
-                      }`}
-                    >
-                      <svg
-                        className="w-5 h-5 block"
-                        viewBox="0 0 24 24"
-                        fill={isLiked ? 'currentColor' : 'none'}
-                        stroke="currentColor"
-                        strokeWidth="2"
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* One-tap Offline Vault Download */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerAndroidHaptic('medium');
+                          if (currentTrack) toggleOfflineTrack(currentTrack);
+                        }}
+                        aria-label={trackIsOffline ? 'Saved in Offline Vault (Click to remove)' : 'Download for offline playback'}
+                        title={
+                          trackIsOffline
+                            ? 'Saved in Offline Vault (Click to remove)'
+                            : isSavingOffline
+                            ? 'Downloading 320kbps audio...'
+                            : 'Download for 100% Offline Playback'
+                        }
+                        className={`w-10 h-10 p-0 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer active:scale-75 ${
+                          trackIsOffline
+                            ? 'glass-button-emerald text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                            : isSavingOffline
+                            ? 'glass-button text-amber-300'
+                            : 'glass-button text-white/65 hover:text-white'
+                        }`}
                       >
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                      </svg>
-                    </button>
+                        {isSavingOffline ? (
+                          <span className="w-4 h-4 border-2 border-amber-300/30 border-t-amber-300 rounded-full animate-spin" />
+                        ) : trackIsOffline ? (
+                          <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleToggleLike}
+                        aria-label={isLiked ? 'Unlike track' : 'Like track'}
+                        title={isLiked ? 'Unlike' : 'Like'}
+                        className={`w-10 h-10 p-0 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer active:scale-75 ${
+                          isLiked
+                            ? 'glass-button-primary text-[var(--color-accent)] scale-105'
+                            : 'glass-button text-white/65 hover:text-white'
+                        }`}
+                      >
+                        <svg
+                          className="w-5 h-5 block"
+                          viewBox="0 0 24 24"
+                          fill={isLiked ? 'currentColor' : 'none'}
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Isolated 120fps Progress Bar */}
