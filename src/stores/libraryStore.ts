@@ -169,12 +169,35 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
 
     try {
       onProgress?.('Checking original source playlist for live updates...', 10);
-      const res = await fetch(
-        apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(target.sourceUrl)}`)
-      );
-      const data = await res.json();
+      let data: any = null;
 
-      if (!res.ok || data.error || !Array.isArray(data.queries) || data.queries.length === 0) {
+      try {
+        const res = await fetch(
+          apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(target.sourceUrl)}`)
+        );
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (err) {
+        console.warn('Initial live sync fetch failed:', err);
+      }
+
+      // Fallback directly to PROD_API_ORIGIN if needed
+      if (!data || data.error || !Array.isArray(data.queries) || data.queries.length === 0) {
+        try {
+          const directRes = await fetch(
+            `https://wavecraft-alpha.vercel.app/api/music?action=import-playlist&url=${encodeURIComponent(target.sourceUrl)}`
+          );
+          if (directRes.ok) {
+            const directData = await directRes.json();
+            if (Array.isArray(directData?.queries) && directData.queries.length > 0) {
+              data = directData;
+            }
+          }
+        } catch {}
+      }
+
+      if (!data || data.error || !Array.isArray(data.queries) || data.queries.length === 0) {
         set((s) => ({
           syncingPlaylistIds: { ...s.syncingPlaylistIds, [playlistId]: false }
         }));
@@ -237,16 +260,6 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         await Promise.all(
           slice.map(async (qIdx) => {
             const q = remoteQueries[qIdx];
-            const searchStr = `${q.title} ${q.artist || ''}`.trim();
-            if (!searchStr) return;
-            try {
-              const results = await searchTracks(searchStr);
-              if (results && results.length > 0) {
-                resolvedRemoteTracks[qIdx].track = results[0];
-                newlyAddedCount++;
-                return;
-              }
-            } catch {}
             if (q.videoId) {
               resolvedRemoteTracks[qIdx].track = {
                 id: `yt-${q.videoId}`,
@@ -259,7 +272,19 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
                 youtubeId: q.videoId
               };
               newlyAddedCount++;
+              return;
             }
+
+            const searchStr = `${q.title} ${q.artist || ''}`.trim();
+            if (!searchStr) return;
+            try {
+              const results = await searchTracks(searchStr);
+              if (results && results.length > 0) {
+                resolvedRemoteTracks[qIdx].track = results[0];
+                newlyAddedCount++;
+                return;
+              }
+            } catch {}
           })
         );
       }

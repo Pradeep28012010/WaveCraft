@@ -16,13 +16,21 @@ export function isAndroidNative(): boolean {
 }
 
 /**
+ * Returns true if running inside Windows Electron desktop application.
+ */
+export function isElectronApp(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean((window as any).electronAPI) || window.location.protocol === 'file:';
+}
+
+/**
  * Returns the base API URL:
- * - In Android Native APK: 'https://wavecraft-alpha.vercel.app'
+ * - In Android Native APK & Windows Desktop App: 'https://wavecraft-alpha.vercel.app'
  * - In local dev (localhost:3000) or Web: '' (relative)
  */
 export function getApiBaseUrl(): string {
   if (typeof window === 'undefined') return PROD_API_ORIGIN;
-  if (isAndroidNative()) {
+  if (isAndroidNative() || isElectronApp()) {
     return PROD_API_ORIGIN;
   }
   return '';

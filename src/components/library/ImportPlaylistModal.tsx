@@ -146,15 +146,9 @@ export default function ImportPlaylistModal({
       const batchResults = await Promise.all(
         batch.map(async (q): Promise<{ track: Track | null; fp: string }> => {
           const fp = normalizeQueryFingerprint(q.title, q.artist);
-          const searchStr = `${q.title} ${q.artist || ''}`.trim();
-          if (!searchStr) return { track: null, fp };
-          try {
-            const results = await searchTracks(searchStr);
-            if (results && results.length > 0) {
-              return { track: results[0], fp };
-            }
-          } catch {}
 
+          // Fast-path: If videoId is already provided (e.g. YouTube playlist or video link),
+          // build track directly without firing redundant search requests
           if (q.videoId) {
             return {
               fp,
@@ -170,6 +164,17 @@ export default function ImportPlaylistModal({
               }
             };
           }
+
+          // Slow-path: Search YouTube for Spotify/Apple Music titles
+          const searchStr = `${q.title} ${q.artist || ''}`.trim();
+          if (!searchStr) return { track: null, fp };
+          try {
+            const results = await searchTracks(searchStr);
+            if (results && results.length > 0) {
+              return { track: results[0], fp };
+            }
+          } catch {}
+
           return { track: null, fp };
         })
       );
@@ -225,14 +230,39 @@ export default function ImportPlaylistModal({
     setProgressPct(5);
 
     try {
-      const res = await fetch(
-        apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`)
-      );
-      const data = await res.json();
+      let data: any = null;
 
-      if (!res.ok || data.error || !Array.isArray(data.queries) || data.queries.length === 0) {
+      try {
+        const res = await fetch(
+          apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`)
+        );
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (err) {
+        console.warn('Initial import fetch failed:', err);
+      }
+
+      // If initial fetch failed, returned an error, or had no queries, retry with direct PROD_API_ORIGIN
+      if (!data || data.error || !Array.isArray(data.queries) || data.queries.length === 0) {
+        try {
+          const directRes = await fetch(
+            `https://wavecraft-alpha.vercel.app/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`
+          );
+          if (directRes.ok) {
+            const directData = await directRes.json();
+            if (Array.isArray(directData?.queries) && directData.queries.length > 0) {
+              data = directData;
+            }
+          }
+        } catch (dirErr) {
+          console.warn('Direct fallback import fetch failed:', dirErr);
+        }
+      }
+
+      if (!data || data.error || !Array.isArray(data.queries) || data.queries.length === 0) {
         setErrorMsg(
-          data.error ||
+          data?.error ||
             'Could not read tracks from this link. Make sure the playlist URL is public, or use the "Paste Song List" tab.'
         );
         setIsImporting(false);
