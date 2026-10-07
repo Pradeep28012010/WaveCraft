@@ -87,8 +87,7 @@ const Visualizer = memo(
         if (!ctx) return;
 
         if (typeof document !== 'undefined' && document.hidden) {
-          lastTimeRef.current = now;
-          requestRef.current = requestAnimationFrame(draw);
+          // Pause drawing loop when minimized or tab/app is hidden in background
           return;
         }
 
@@ -446,13 +445,25 @@ const Visualizer = memo(
         }
       };
 
+      const handleVisibilityChange = () => {
+        if (!document.hidden) {
+          cancelAnimationFrame(requestRef.current);
+          lastTimeRef.current = performance.now();
+          requestRef.current = requestAnimationFrame(draw);
+        } else {
+          cancelAnimationFrame(requestRef.current);
+        }
+      };
+
       handleResize();
       window.addEventListener('resize', handleResize);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
       lastTimeRef.current = performance.now();
       requestRef.current = requestAnimationFrame(draw);
 
       return () => {
         window.removeEventListener('resize', handleResize);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         cancelAnimationFrame(requestRef.current);
       };
     }, [draw]);

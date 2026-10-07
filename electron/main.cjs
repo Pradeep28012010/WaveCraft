@@ -70,9 +70,8 @@ function createMainWindow() {
 
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
-      // Keep running in Windows taskbar/tray if user clicks close
-      // To quit completely, right click Tray icon -> Exit
-      // Or if user presses Alt+F4
+      event.preventDefault();
+      mainWindow.hide();
     }
   });
 
@@ -206,6 +205,10 @@ app.whenReady().then(() => {
       createMainWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
 });
 
 app.on('will-quit', () => {

@@ -1069,11 +1069,15 @@ export function attachAudioEngineSubscriptions(): void {
 
 // Automatic gesture unlock without touching stores during module evaluation
 if (typeof window !== 'undefined') {
+  const GESTURE_EVENTS = ['click', 'touchstart', 'pointerdown', 'keydown'] as const;
   const unlockOnGesture = () => {
     unlockAudioEngine();
     attachAudioEngineSubscriptions();
+    GESTURE_EVENTS.forEach((evt) => {
+      window.removeEventListener(evt, unlockOnGesture);
+    });
   };
-  ['click', 'touchstart', 'pointerdown', 'keydown'].forEach((evt) => {
+  GESTURE_EVENTS.forEach((evt) => {
     window.addEventListener(evt, unlockOnGesture, { passive: true });
   });
 }

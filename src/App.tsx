@@ -1,5 +1,5 @@
 import { BrowserRouter, HashRouter, Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
-import { Suspense, useEffect, useRef, lazy } from 'react';
+import { Component, Suspense, useEffect, useRef, lazy, type ReactNode, type ErrorInfo } from 'react';
 import { MotionConfig } from 'framer-motion';
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './components/discover/HomePage';
@@ -11,6 +11,48 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useMediaSession } from './hooks/useMediaSession';
 import { searchTracks, getTrending } from './services/youtube';
 import { initNativeAndroid } from './services/nativeAndroid';
+
+class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('Root application crash caught by AppErrorBoundary:', error, info);
+  }
+
+  handleReload = () => {
+    this.setState({ hasError: false });
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 bg-[#06060b] text-white flex items-center justify-center p-6 z-[999999]">
+          <div className="max-w-md w-full p-8 rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-2xl text-center shadow-2xl space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center mx-auto text-2xl">
+              🎵
+            </div>
+            <h1 className="text-xl font-black tracking-tight text-white">WaveCraft Recovered</h1>
+            <p className="text-sm text-white/60 leading-relaxed">
+              An unexpected render issue occurred. Your saved playlists and audio settings remain safe.
+            </p>
+            <button
+              onClick={this.handleReload}
+              className="w-full py-3 rounded-full bg-gradient-to-r from-[#fa2d48] to-[#ff5b79] text-white font-bold text-sm shadow-lg shadow-rose-500/25 hover:opacity-90 active:scale-[0.98] transition cursor-pointer"
+            >
+              Relaunch WaveCraft
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const SearchResults = lazy(() => import('./components/search/SearchResults'));
 const LibraryPage = lazy(() => import('./components/library/LibraryPage'));
@@ -67,20 +109,17 @@ function AppContent() {
 
     const prewarm = () => {
       getTrending().catch(() => {});
+      // Pre-warm only lightweight core navigation pages to avoid mobile GC spikes
       import('./components/library/LibraryPage').catch(() => {});
       import('./components/search/SearchResults').catch(() => {});
-      import('./components/vibe/VibeDJPage').catch(() => {});
-      import('./components/galaxy/SonicGalaxyPage').catch(() => {});
-      import('./components/dj/DJConsolePage').catch(() => {});
-      import('./components/stats/StatsPage').catch(() => {});
       import('./components/library/LikedSongs').catch(() => {});
     };
 
     if ('requestIdleCallback' in window) {
-      const id = (window as any).requestIdleCallback(prewarm, { timeout: 1500 });
+      const id = (window as any).requestIdleCallback(prewarm, { timeout: 2500 });
       return () => (window as any).cancelIdleCallback?.(id);
     } else {
-      const timer = setTimeout(prewarm, 900);
+      const timer = setTimeout(prewarm, 1200);
       return () => clearTimeout(timer);
     }
   }, [loadLibrary, loadSettings]);
@@ -149,10 +188,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <MotionConfig reducedMotion="never">
-      <RouterComponent>
-        <AppContent />
-      </RouterComponent>
-    </MotionConfig>
+    <AppErrorBoundary>
+      <MotionConfig reducedMotion="never">
+        <RouterComponent>
+          <AppContent />
+        </RouterComponent>
+      </MotionConfig>
+    </AppErrorBoundary>
   );
 }
