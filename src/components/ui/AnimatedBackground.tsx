@@ -28,6 +28,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const intensity = useSettingsStore((s) => s.ambientGlowIntensity ?? 'vibrant');
   const dynamicEnabled = useSettingsStore((s) => s.dynamicAmbientGlow ?? true);
+  const performanceProfile = useSettingsStore((s) => s.performanceProfile ?? 'balanced');
 
   // Dual-buffer state for liquid cross-fading
   const [activeBuffer, setActiveBuffer] = useState<'A' | 'B'>('A');
@@ -73,6 +74,9 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
   const tertiaryOpacity =
     intensity === 'subtle' ? 0.10 : intensity === 'aurora' ? 0.26 : 0.18;
 
+  const isPerformance = performanceProfile === 'performance';
+  const isUltra = performanceProfile === 'ultra';
+
   const renderAuroraLayer = (buf: BufferState, isVisible: boolean) => (
     <div
       className={`absolute inset-0 transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none will-change-opacity ${
@@ -87,52 +91,66 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
         `
       }}
     >
-      {/* Radiant Floating Node 1: Primary Dominant Glow (Top Left) */}
-      <div
-        className={`absolute -top-12 left-[12%] w-[42rem] h-[42rem] rounded-full animate-float blur-[80px] will-change-transform transition-transform duration-1000 ${
-          isPlaying ? 'scale-105' : 'scale-95'
-        }`}
-        style={{
-          background: `radial-gradient(circle, ${buf.c1} 0%, transparent 70%)`,
-          opacity: baseOpacity,
-          transform: 'translate3d(0,0,0)'
-        }}
-      />
+      {/* Performance Profile turns off complex multi-mesh floating nodes for 120fps battery saving */}
+      {!isPerformance && (
+        <>
+          {/* Radiant Floating Node 1: Primary Dominant Glow (Top Left) */}
+          <div
+            className={`absolute -top-12 left-[12%] w-[42rem] h-[42rem] rounded-full animate-float ${
+              isUltra ? 'blur-[80px]' : 'blur-[55px]'
+            } will-change-transform transition-transform duration-1000 ${
+              isPlaying ? 'scale-105' : 'scale-95'
+            }`}
+            style={{
+              background: `radial-gradient(circle, ${buf.c1} 0%, transparent 70%)`,
+              opacity: baseOpacity,
+              transform: 'translate3d(0,0,0)'
+            }}
+          />
 
-      {/* Radiant Floating Node 2: Secondary Harmonic Glow (Top Right) */}
-      <div
-        className={`absolute top-[18%] -right-16 w-[46rem] h-[46rem] rounded-full animate-float blur-[90px] will-change-transform transition-transform duration-1000 ${
-          isPlaying ? 'scale-105' : 'scale-95'
-        }`}
-        style={{
-          background: `radial-gradient(circle, ${buf.c2} 0%, transparent 68%)`,
-          animationDelay: '-3.2s',
-          opacity: secondaryOpacity,
-          transform: 'translate3d(0,0,0)'
-        }}
-      />
+          {/* Radiant Floating Node 2: Secondary Harmonic Glow (Top Right) */}
+          <div
+            className={`absolute top-[18%] -right-16 w-[46rem] h-[46rem] rounded-full animate-float ${
+              isUltra ? 'blur-[90px]' : 'blur-[60px]'
+            } will-change-transform transition-transform duration-1000 ${
+              isPlaying ? 'scale-105' : 'scale-95'
+            }`}
+            style={{
+              background: `radial-gradient(circle, ${buf.c2} 0%, transparent 68%)`,
+              animationDelay: '-3.2s',
+              opacity: secondaryOpacity,
+              transform: 'translate3d(0,0,0)'
+            }}
+          />
 
-      {/* Radiant Floating Node 3: Deep Ambient Foundation (Bottom Center) */}
-      <div
-        className="absolute -bottom-20 left-[28%] w-[52rem] h-[52rem] rounded-full animate-float blur-[100px] will-change-transform"
-        style={{
-          background: `radial-gradient(circle, ${buf.c3} 0%, transparent 65%)`,
-          animationDelay: '-5.8s',
-          opacity: tertiaryOpacity,
-          transform: 'translate3d(0,0,0)'
-        }}
-      />
+          {/* Ultra profile adds deep foundation & accent core */}
+          {isUltra && (
+            <>
+              {/* Radiant Floating Node 3: Deep Ambient Foundation (Bottom Center) */}
+              <div
+                className="absolute -bottom-20 left-[28%] w-[52rem] h-[52rem] rounded-full animate-float blur-[100px] will-change-transform"
+                style={{
+                  background: `radial-gradient(circle, ${buf.c3} 0%, transparent 65%)`,
+                  animationDelay: '-5.8s',
+                  opacity: tertiaryOpacity,
+                  transform: 'translate3d(0,0,0)'
+                }}
+              />
 
-      {/* Radiant Floating Node 4: High-Energy Accent Heart (Subtle Core) */}
-      <div
-        className="absolute top-[42%] left-[45%] w-[30rem] h-[30rem] rounded-full animate-float blur-[75px] will-change-transform"
-        style={{
-          background: `radial-gradient(circle, ${buf.accent} 0%, transparent 72%)`,
-          animationDelay: '-8.4s',
-          opacity: baseOpacity * 0.75,
-          transform: 'translate3d(0,0,0)'
-        }}
-      />
+              {/* Radiant Floating Node 4: High-Energy Accent Heart (Subtle Core) */}
+              <div
+                className="absolute top-[42%] left-[45%] w-[30rem] h-[30rem] rounded-full animate-float blur-[75px] will-change-transform"
+                style={{
+                  background: `radial-gradient(circle, ${buf.accent} 0%, transparent 72%)`,
+                  animationDelay: '-8.4s',
+                  opacity: baseOpacity * 0.75,
+                  transform: 'translate3d(0,0,0)'
+                }}
+              />
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 

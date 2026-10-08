@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, memo } from 'react';
+import { useState, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -37,45 +37,191 @@ const VISUALIZER_MODES: Array<{ id: VisualizerStyle; label: string }> = [
  * Isolated 120fps GPU-Composited Scrubber (`transform: scaleX`)
  * Subscribes to `currentTime` independently so NowPlaying NEVER re-renders during song playback.
  */
+/**
+ * iOS / Apple Music style Elastic Snap Slider
+ * Zero playback jitter, elastic resistance at bounds, tactile spring release & haptic feedback.
+ */
 const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: number }) => {
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
   const seekTo = usePlayerStore((s) => s.seekTo);
 
-  const activeDuration = duration || fallbackDuration || 210;
-  const ratio = Math.min(1, Math.max(0, currentTime / activeDuration));
+  const [isDragging, setIsDragging] = useState(false);
+  const [isSnapping, setIsSnapping] = useState(false);
+  const [dragRatio, setDragRatio] = useState(0);
+  const [elasticOffset, setElasticOffset] = useState(0);
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverX, setHoverX] = useState<number>(0);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const targetRatio = Math.max(0, Math.min(1, x / rect.width));
-    seekTo(targetRatio * activeDuration);
+  const activeDuration = duration || fallbackDuration || 210;
+  const playbackRatio = Math.min(1, Math.max(0, currentTime / activeDuration));
+  const activeRatio = isDragging ? dragRatio : playbackRatio;
+  const activeDisplayTime = isDragging ? dragRatio * activeDuration : currentTime;
+
+  const calculateRatioAndOffset = (clientX: number) => {
+    if (!trackRef.current) return { ratio: 0, offset: 0 };
+    const rect = trackRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const width = rect.width;
+
+    if (x < 0) {
+      // Elastic stretch before start (rubber-band resistance)
+      const pull = -x;
+      const resisted = -Math.min(32, Math.pow(pull, 0.68) * 1.5);
+      return { ratio: 0, offset: resisted };
+    } else if (x > width) {
+      // Elastic stretch beyond end (rubber-band resistance)
+      const pull = x - width;
+      const resisted = Math.min(32, Math.pow(pull, 0.68) * 1.5);
+      return { ratio: 1, offset: resisted };
+    } else {
+      return { ratio: Math.max(0, Math.min(1, x / width)), offset: 0 };
+    }
   };
 
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (snapTimerRef.current) {
+      clearTimeout(snapTimerRef.current);
+      snapTimerRef.current = null;
+    }
+    setIsSnapping(false);
+    setIsDragging(true);
+    triggerAndroidHaptic('light');
+    const { ratio, offset } = calculateRatioAndOffset(e.clientX);
+    setDragRatio(ratio);
+    setElasticOffset(offset);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      const { ratio, offset } = calculateRatioAndOffset(e.clientX);
+      setDragRatio(ratio);
+      setElasticOffset(offset);
+    } else if (trackRef.current) {
+      const rect = trackRef.current.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      setHoverX(x);
+      setHoverTime((x / rect.width) * activeDuration);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    const { ratio, offset } = calculateRatioAndOffset(e.clientX);
+    triggerAndroidHaptic('medium');
+    seekTo(ratio * activeDuration);
+    setIsDragging(false);
+
+    if (offset !== 0) {
+      setIsSnapping(true);
+      setElasticOffset(0);
+      snapTimerRef.current = setTimeout(() => {
+        setIsSnapping(false);
+      }, 360);
+    } else {
+      setElasticOffset(0);
+    }
+  };
+
+  const percent = activeRatio * 100;
+  const fillLeft = elasticOffset < 0 ? elasticOffset : 0;
+  const fillWidth =
+    elasticOffset < 0
+      ? -elasticOffset
+      : `calc(${percent}% + ${elasticOffset}px)`;
+
+  const transitionStyle = isDragging
+    ? 'none'
+    : isSnapping
+    ? 'all 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+    : 'width 150ms linear, left 150ms linear';
+
   return (
-    <div className="w-full mt-4">
+    <div className="w-full mt-4 select-none touch-none">
       <div
-        className="h-2 bg-white/15 rounded-full cursor-pointer relative group"
-        onClick={handleProgressClick}
+        ref={trackRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onMouseLeave={() => setHoverTime(null)}
+        className="relative cursor-pointer py-2 group flex items-center touch-none"
       >
-        {/* Soft diffused ambient glow underneath */}
+        {/* Hover / Scrub Floating Time Bubble */}
+        {(hoverTime !== null || isDragging) && (
+          <div
+            style={{
+              left: isDragging ? `calc(${percent}% + ${elasticOffset}px)` : `${hoverX}px`,
+              transform: 'translate3d(-50%, -100%, 0)',
+              transition: isDragging
+                ? 'none'
+                : isSnapping
+                ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+                : 'none'
+            }}
+            className="pointer-events-none absolute -top-1 px-2.5 py-1 rounded-lg bg-black/95 border border-white/25 text-[11px] font-extrabold tabular-nums text-white shadow-xl will-change-transform z-30 flex items-center gap-1"
+          >
+            <span>{formatTime(isDragging ? activeDisplayTime : (hoverTime || 0))}</span>
+          </div>
+        )}
+
+        {/* Track Groove Background */}
         <div
-          className="pointer-events-none absolute top-1/2 -translate-y-1/2 left-0 h-3.5 rounded-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 opacity-50 blur-md transition-[width] duration-150 ease-linear"
-          style={{ width: `${(ratio * 100).toFixed(2)}%` }}
-        />
-        <div
-          className="relative h-full bg-gradient-to-r from-[var(--color-accent)] via-rose-400 to-white rounded-full transition-[width] duration-150 ease-linear"
-          style={{
-            width: `${(ratio * 100).toFixed(2)}%`,
-            boxShadow: '0 0 12px 1px var(--color-accent)'
-          }}
+          className={`w-full rounded-full bg-white/15 transition-all duration-200 ease-out overflow-visible relative ${
+            isDragging ? 'h-2.5 bg-white/20' : 'h-1.5 group-hover:h-2'
+          }`}
         >
-          <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_12px_2px_var(--color-accent)] scale-90 group-hover:scale-110 transition-transform" />
+          {/* Ambient Glow Diffusion Layer underneath */}
+          <div
+            className={`pointer-events-none absolute top-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 blur-md ${
+              isDragging ? 'h-5 opacity-75' : 'h-3 opacity-45'
+            }`}
+            style={{
+              left: typeof fillLeft === 'number' ? `${fillLeft}px` : fillLeft,
+              width: typeof fillWidth === 'number' ? `${fillWidth}px` : fillWidth,
+              transition: transitionStyle
+            }}
+          />
+
+          {/* Active Progress Fill Bar with elastic bounds */}
+          <div
+            className="relative h-full bg-gradient-to-r from-[var(--color-accent)] via-rose-400 to-white rounded-full"
+            style={{
+              left: typeof fillLeft === 'number' ? `${fillLeft}px` : fillLeft,
+              width: typeof fillWidth === 'number' ? `${fillWidth}px` : fillWidth,
+              boxShadow: isDragging ? '0 0 16px 2px var(--color-accent)' : '0 0 10px 1px var(--color-accent)',
+              transition: transitionStyle
+            }}
+          />
+
+          {/* iOS Style Elastic Thumb Head - positioned independently for true rubber-band stretch */}
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-white shadow-[0_0_14px_2px_var(--color-accent)] pointer-events-none z-10 transition-transform duration-150 ${
+              isDragging ? 'w-4 h-4 scale-125' : 'w-3 h-3 scale-90 group-hover:scale-115'
+            }`}
+            style={{
+              left: `calc(${percent}% + ${elasticOffset}px)`,
+              transition: isDragging
+                ? 'transform 150ms ease-out'
+                : isSnapping
+                ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 150ms ease-out'
+                : 'left 150ms linear, transform 150ms ease-out'
+            }}
+          />
         </div>
       </div>
-      <div className="flex justify-between mt-1.5 text-[11px] text-white/50 font-semibold tabular-nums">
-        <span>{formatTime(currentTime)}</span>
-        <span>-{formatTime(Math.max(0, activeDuration - currentTime))}</span>
+
+      {/* Symmetric Time Readout */}
+      <div className="flex justify-between -mt-1 text-[11px] text-white/55 font-semibold tabular-nums">
+        <span>{formatTime(activeDisplayTime)}</span>
+        <span>-{formatTime(Math.max(0, activeDuration - activeDisplayTime))}</span>
       </div>
     </div>
   );
@@ -179,11 +325,11 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: '100%', opacity: 0 }}
       transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.75 }}
-      drag={isPhone ? 'y' : false}
+      drag="y"
       dragConstraints={{ top: 0, bottom: 0 }}
-      dragElastic={{ top: 0.05, bottom: 0.6 }}
+      dragElastic={{ top: 0.04, bottom: 0.65 }}
       onDragEnd={(_, info) => {
-        if (isPhone && (info.offset.y > 100 || info.velocity.y > 500)) {
+        if (info.offset.y > 100 || info.velocity.y > 400) {
           triggerAndroidHaptic('light');
           onClose();
         }
@@ -251,12 +397,17 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* Top Drag Indicator (Phone Only) */}
-          {isPhone && (
-            <div className="relative z-10 pt-2 pb-0.5 flex justify-center w-full">
-              <div className="w-10 h-1 rounded-full bg-white/30" />
-            </div>
-          )}
+          {/* Top Drag Handle Pill (Native Music App Fluid Drag Sheet) */}
+          <div
+            className="relative z-30 pt-2.5 pb-1 flex justify-center w-full cursor-grab active:cursor-grabbing group touch-none select-none"
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              onClose();
+            }}
+            title="Drag down or click to collapse to mini-player"
+          >
+            <div className="w-12 h-1.5 rounded-full bg-white/35 group-hover:bg-white/60 group-active:scale-95 transition-all shadow-sm" />
+          </div>
 
           {/* Top Bar */}
           <div
@@ -682,8 +833,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       <motion.div
                         onClick={() => setDeckMode('vinyl')}
                         title="Click to switch to Spinning Vinyl Turntable"
-                        animate={{ scale: isPlaying ? 1 : 0.95 }}
-                        transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+                        initial={{ scale: 0.88, opacity: 0.7 }}
+                        animate={{ scale: isPlaying ? 1 : 0.95, opacity: 1 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 26, mass: 0.7 }}
                         className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border border-white/15 flex-shrink-0 cursor-pointer will-change-transform ${
                           showLyrics
                             ? 'w-[min(26vh,220px)] h-[min(26vh,220px)] sm:w-[min(32vh,260px)] sm:h-[min(32vh,260px)]'
@@ -703,7 +855,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   )}
 
                   {/* Track Title & Artist */}
-                  <div className="mt-5 w-full flex items-center justify-between gap-3">
+                  <motion.div
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 340, damping: 28, delay: 0.05 }}
+                    className="mt-5 w-full flex items-center justify-between gap-3"
+                  >
                     <div className="min-w-0 flex-1 text-left">
                       <div className="flex items-center gap-2">
                         <h2 className="text-xl sm:text-2xl font-extrabold text-white truncate">
@@ -779,7 +936,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         </svg>
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Isolated 120fps Progress Bar */}
                   <NowPlayingScrubber fallbackDuration={currentTrack.duration || 210} />
@@ -1000,7 +1157,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           step="0.01"
                           value={isMuted ? 0 : volume}
                           onChange={(e) => setVolume(Number(e.target.value))}
-                          className="w-20 sm:w-24"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          className="w-20 sm:w-24 touch-none"
                         />
                         <span className="text-[11px] font-bold text-white/55 tabular-nums w-8">
                           {Math.round((isMuted ? 0 : volume) * 100)}%
@@ -1050,6 +1209,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: 32, scale: 0.96 }}
                       transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.65 }}
+                      onPointerDown={(e) => e.stopPropagation()}
                       className="w-full lg:w-7/12 h-[42vh] lg:h-[72vh] flex-shrink-0 will-change-transform"
                     >
                       <LyricsView

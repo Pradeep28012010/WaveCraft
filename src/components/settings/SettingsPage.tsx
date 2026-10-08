@@ -328,6 +328,32 @@ export default function SettingsPage() {
             />
           </SettingRow>
 
+          <SettingRow
+            label="Glass Engine & Performance Profile"
+            description="Adapt GPU backdrop-filter passes and particle count for 120fps speed and battery efficiency"
+          >
+            <div className="flex gap-2">
+              {[
+                { id: 'ultra', label: 'Ultra Fidelity' },
+                { id: 'balanced', label: 'Balanced' },
+                { id: 'performance', label: 'High-FPS Saver' }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => settings.setPerformanceProfile(item.id as any)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    (settings.performanceProfile ?? 'balanced') === item.id
+                      ? 'bg-[var(--color-accent)] text-white shadow-md'
+                      : 'glass text-white/60 hover:text-white'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </SettingRow>
+
           {(settings.dynamicAmbientGlow ?? true) && (
             <SettingRow
               label="Ambient Aura Radiance"

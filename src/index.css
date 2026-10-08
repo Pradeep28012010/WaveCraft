@@ -379,6 +379,37 @@
     backdrop-filter: none;
   }
 
+  /* Adaptive High-FPS Glass Engine: Performance Mode disables expensive blur passes */
+  [data-perf-profile="performance"] .glass,
+  [data-perf-profile="performance"] .glass-heavy,
+  [data-perf-profile="performance"] .liquid-glass,
+  [data-perf-profile="performance"] .glass-light,
+  [data-perf-profile="performance"] .glass-button,
+  [data-perf-profile="performance"] .glass-button-primary,
+  [data-perf-profile="performance"] .glass-button-emerald,
+  [data-perf-profile="performance"] .glass-button-purple,
+  [data-perf-profile="performance"] .glass-button-cyan,
+  [data-perf-profile="performance"] .glass-input,
+  [data-perf-profile="performance"] .modal-backdrop-blur,
+  [data-perf-profile="performance"] .modal-glass-panel {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: rgba(14, 15, 25, 0.94);
+  }
+  [data-perf-profile="performance"] .animate-float {
+    animation: none !important;
+  }
+
+  /* Adaptive High-FPS Glass Engine: Ultra Mode enables deep multi-pass saturation & blur */
+  [data-perf-profile="ultra"] .liquid-glass {
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    backdrop-filter: blur(32px) saturate(200%);
+  }
+  [data-perf-profile="ultra"] .glass-heavy {
+    -webkit-backdrop-filter: blur(40px) saturate(210%);
+    backdrop-filter: blur(40px) saturate(210%);
+  }
+
   /* Realistic Anodized Vinyl Platter with Concentric Micro-Grooves */
   .vinyl-disc {
     background:

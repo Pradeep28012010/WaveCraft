@@ -1,5 +1,6 @@
 import { Component, Suspense, type ErrorInfo, type ReactNode, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import WindowsTitleBar from './WindowsTitleBar';
@@ -120,15 +121,29 @@ export default function MainLayout() {
           >
             <div className="max-w-7xl mx-auto pb-24">
               <RouteErrorBoundary resetKey={location.pathname}>
-                <Suspense
-                  fallback={
-                    <div className="min-h-[55vh] flex items-center justify-center">
-                      <div className="w-8 h-8 border-2 border-white/15 border-t-[var(--color-accent)] rounded-full animate-spin" />
-                    </div>
-                  }
-                >
-                  <Outlet />
-                </Suspense>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={location.pathname}
+                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                    transition={{
+                      duration: 0.2,
+                      ease: [0.22, 1, 0.36, 1]
+                    }}
+                    className="w-full will-change-transform"
+                  >
+                    <Suspense
+                      fallback={
+                        <div className="min-h-[55vh] flex items-center justify-center">
+                          <div className="w-8 h-8 border-2 border-white/15 border-t-[var(--color-accent)] rounded-full animate-spin" />
+                        </div>
+                      }
+                    >
+                      <Outlet />
+                    </Suspense>
+                  </motion.div>
+                </AnimatePresence>
               </RouteErrorBoundary>
             </div>
           </main>

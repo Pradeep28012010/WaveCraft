@@ -84,6 +84,7 @@ export interface SettingsState {
   accentColor: string;
   dynamicAmbientGlow: boolean;
   ambientGlowIntensity: 'subtle' | 'vibrant' | 'aurora';
+  performanceProfile: 'ultra' | 'balanced' | 'performance';
   crossfadeDuration: number;
   audioQuality: 'auto' | 'high' | 'medium' | 'low';
   showVisualizer: boolean;

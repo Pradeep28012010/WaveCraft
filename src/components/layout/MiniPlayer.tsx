@@ -12,66 +12,178 @@ import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
 
 /**
- * Isolated 120fps GPU-Composited Scrubber (`transform: scaleX`)
- * Prevents the main MiniPlayer tree from re-rendering on `timeupdate`.
+/**
+ * iOS / Apple Music style Elastic Snap Slider for MiniPlayer
+ * Zero playback jitter, elastic boundary stretch with resistance, tactile spring release & haptic feedback.
  */
 const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: number }) => {
-  const [hoverTime, setHoverTime] = useState<number | null>(null);
-  const [hoverX, setHoverX] = useState<number>(0);
-
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
   const seekTo = usePlayerStore((s) => s.seekTo);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const [isSnapping, setIsSnapping] = useState(false);
+  const [dragRatio, setDragRatio] = useState(0);
+  const [elasticOffset, setElasticOffset] = useState(0);
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverX, setHoverX] = useState<number>(0);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const activeDuration = duration || fallbackDuration || 210;
-  const ratio = Math.min(1, Math.max(0, currentTime / activeDuration));
+  const playbackRatio = Math.min(1, Math.max(0, currentTime / activeDuration));
+  const activeRatio = isDragging ? dragRatio : playbackRatio;
+  const activeDisplayTime = isDragging ? dragRatio * activeDuration : currentTime;
 
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const targetRatio = Math.max(0, Math.min(1, x / rect.width));
-    seekTo(targetRatio * activeDuration);
+  const calculateRatioAndOffset = (clientX: number) => {
+    if (!trackRef.current) return { ratio: 0, offset: 0 };
+    const rect = trackRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const width = rect.width;
+
+    if (x < 0) {
+      const pull = -x;
+      const resisted = -Math.min(24, Math.pow(pull, 0.68) * 1.4);
+      return { ratio: 0, offset: resisted };
+    } else if (x > width) {
+      const pull = x - width;
+      const resisted = Math.min(24, Math.pow(pull, 0.68) * 1.4);
+      return { ratio: 1, offset: resisted };
+    } else {
+      return { ratio: Math.max(0, Math.min(1, x / width)), offset: 0 };
+    }
   };
 
-  const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    setHoverX(x);
-    setHoverTime((x / rect.width) * activeDuration);
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (snapTimerRef.current) {
+      clearTimeout(snapTimerRef.current);
+      snapTimerRef.current = null;
+    }
+    setIsSnapping(false);
+    setIsDragging(true);
+    triggerAndroidHaptic('light');
+    const { ratio, offset } = calculateRatioAndOffset(e.clientX);
+    setDragRatio(ratio);
+    setElasticOffset(offset);
   };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      const { ratio, offset } = calculateRatioAndOffset(e.clientX);
+      setDragRatio(ratio);
+      setElasticOffset(offset);
+    } else if (trackRef.current) {
+      const rect = trackRef.current.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      setHoverX(x);
+      setHoverTime((x / rect.width) * activeDuration);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    const { ratio, offset } = calculateRatioAndOffset(e.clientX);
+    triggerAndroidHaptic('medium');
+    seekTo(ratio * activeDuration);
+    setIsDragging(false);
+
+    if (offset !== 0) {
+      setIsSnapping(true);
+      setElasticOffset(0);
+      snapTimerRef.current = setTimeout(() => {
+        setIsSnapping(false);
+      }, 360);
+    } else {
+      setElasticOffset(0);
+    }
+  };
+
+  const percent = activeRatio * 100;
+  const fillLeft = elasticOffset < 0 ? elasticOffset : 0;
+  const fillWidth =
+    elasticOffset < 0
+      ? -elasticOffset
+      : `calc(${percent}% + ${elasticOffset}px)`;
+
+  const transitionStyle = isDragging
+    ? 'none'
+    : isSnapping
+    ? 'all 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+    : 'width 150ms linear, left 150ms linear';
 
   return (
     <div
-      className="absolute top-0 left-4 right-4 h-1.5 bg-white/10 rounded-full cursor-pointer group hover:h-2 transition-all z-20"
-      onClick={handleProgressClick}
-      onMouseMove={handleProgressHover}
+      ref={trackRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       onMouseLeave={() => setHoverTime(null)}
+      className={`absolute top-0 left-4 right-4 cursor-pointer group z-20 select-none touch-none ${
+        isDragging ? 'h-3 -top-0.5' : 'h-1.5 hover:h-2.5'
+      } transition-all duration-150`}
     >
-      {hoverTime !== null && (
+      {(hoverTime !== null || isDragging) && (
         <div
-          style={{ transform: `translate3d(${hoverX}px, 0, 0)` }}
-          className="pointer-events-none absolute -top-7 left-0 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/90 border border-white/20 text-[10px] font-bold tabular-nums text-white shadow-lg will-change-transform"
+          style={{
+            left: isDragging ? `calc(${percent}% + ${elasticOffset}px)` : `${hoverX}px`,
+            transform: 'translate3d(-50%, -100%, 0)',
+            transition: isDragging
+              ? 'none'
+              : isSnapping
+              ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+              : 'none'
+          }}
+          className="pointer-events-none absolute -top-2 px-2 py-0.5 rounded-md bg-black/95 border border-white/20 text-[10px] font-bold tabular-nums text-white shadow-xl will-change-transform z-30"
         >
-          {formatTime(hoverTime)}
+          {formatTime(isDragging ? activeDisplayTime : (hoverTime || 0))}
         </div>
       )}
-      {/* Soft diffused ambient glow layer underneath (never clipped or horizontally squashed) */}
+
+      {/* Ambient glow */}
       <div
-        className="pointer-events-none absolute top-1/2 -translate-y-1/2 left-0 h-3 rounded-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 opacity-55 blur-md transition-[width] duration-150 ease-linear"
-        style={{ width: `${(ratio * 100).toFixed(2)}%` }}
+        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 blur-md ${
+          isDragging ? 'h-4 opacity-75' : 'h-3 opacity-55'
+        }`}
+        style={{
+          left: typeof fillLeft === 'number' ? `${fillLeft}px` : fillLeft,
+          width: typeof fillWidth === 'number' ? `${fillWidth}px` : fillWidth,
+          transition: transitionStyle
+        }}
       />
+
       {/* Crisp rounded progress fill with glowing playhead tip */}
       <div
-        className="relative h-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 rounded-full transition-[width] duration-150 ease-linear"
+        className="relative h-full bg-gradient-to-r from-[var(--color-accent)] via-rose-500 to-purple-500 rounded-full"
         style={{
-          width: `${(ratio * 100).toFixed(2)}%`,
-          boxShadow: '0 0 10px 1px var(--color-accent)'
+          left: typeof fillLeft === 'number' ? `${fillLeft}px` : fillLeft,
+          width: typeof fillWidth === 'number' ? `${fillWidth}px` : fillWidth,
+          boxShadow: isDragging ? '0 0 14px 2px var(--color-accent)' : '0 0 10px 1px var(--color-accent)',
+          transition: transitionStyle
         }}
-      >
-        <div
-          className=" -right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all shadow-[0_0_10px_2px_var(--color-accent)] absolute"
-        />
-      </div>
+      />
+
+      {/* iOS Style Elastic Thumb Head */}
+      <div
+        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-white shadow-[0_0_10px_2px_var(--color-accent)] pointer-events-none z-10 transition-transform duration-150 ${
+          isDragging
+            ? 'w-3.5 h-3.5 scale-125 opacity-100'
+            : 'w-2.5 h-2.5 opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100'
+        }`}
+        style={{
+          left: `calc(${percent}% + ${elasticOffset}px)`,
+          transition: isDragging
+            ? 'transform 150ms ease-out'
+            : isSnapping
+            ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 150ms ease-out'
+            : 'left 150ms linear, transform 150ms ease-out'
+        }}
+      />
     </div>
   );
 });
@@ -144,6 +256,13 @@ export default function MiniPlayer() {
     touchStartX.current = null;
     touchStartY.current = null;
 
+    if (deltaY < -35 && Math.abs(deltaY) > Math.abs(deltaX) * 0.8) {
+      // Swiped up -> expand to Fullscreen NowPlaying
+      triggerAndroidHaptic('light');
+      setIsNowPlayingOpen(true);
+      return;
+    }
+
     if (Math.abs(deltaX) > 42 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
       if (deltaX < 0) {
         // Swiped left -> Skip forward
@@ -157,11 +276,22 @@ export default function MiniPlayer() {
     }
   };
 
-  // Phone UI Preset: Compact Native-Style Floating MiniPlayer Pill with Swipe-to-Skip
+  // Phone UI Preset: Compact Native-Style Floating MiniPlayer Pill with Swipe-to-Skip & Drag-to-Expand
   if (isPhone) {
     return (
       <>
-        <div className="px-2.5 pb-1.5 pt-0.5 relative z-30 gpu-layer select-none">
+        <motion.div
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={{ top: 0.35, bottom: 0.04 }}
+          onDragEnd={(_, info) => {
+            if (info.offset.y < -35 || info.velocity.y < -250) {
+              triggerAndroidHaptic('light');
+              setIsNowPlayingOpen(true);
+            }
+          }}
+          className="px-2.5 pb-1.5 pt-0.5 relative z-30 gpu-layer select-none"
+        >
           <div
             onClick={() => {
               triggerAndroidHaptic('light');
@@ -188,20 +318,36 @@ export default function MiniPlayer() {
                 );
               }}
             >
-              <img
-                src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
-                alt={currentTrack.title}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                }}
-                className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-white/15 shadow-md"
-              />
-              <div className="min-w-0 flex-1">
-                <h4 className="text-xs font-extrabold text-white truncate">
-                  {currentTrack.title}
-                </h4>
-                <p className="text-[11px] text-white/60 truncate">{currentTrack.artist}</p>
-              </div>
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={currentTrack.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ type: 'spring', stiffness: 360, damping: 26 }}
+                  src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
+                  alt={currentTrack.title}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                  }}
+                  className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-white/15 shadow-md"
+                />
+              </AnimatePresence>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentTrack.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                  className="min-w-0 flex-1"
+                >
+                  <h4 className="text-xs font-extrabold text-white truncate">
+                    {currentTrack.title}
+                  </h4>
+                  <p className="text-[11px] text-white/60 truncate">{currentTrack.artist}</p>
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             {/* Right: Thumb-friendly Like, Play/Pause, Next */}
@@ -263,7 +409,7 @@ export default function MiniPlayer() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
         <NowPlaying isOpen={isNowPlayingOpen} onClose={() => setIsNowPlayingOpen(false)} />
@@ -277,6 +423,15 @@ export default function MiniPlayer() {
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+        drag="y"
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0.25, bottom: 0.04 }}
+        onDragEnd={(_, info) => {
+          if (info.offset.y < -35 || info.velocity.y < -250) {
+            triggerAndroidHaptic('light');
+            setIsNowPlayingOpen(true);
+          }
+        }}
         className="px-4 pb-3 pt-1 relative z-30 gpu-layer"
       >
         <div className="h-20 liquid-glass rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)]">
