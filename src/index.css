@@ -67,6 +67,17 @@
   will-change: transform, opacity;
 }
 
+/* High-FPS Virtualization & Rendering Optimization for smooth fast scroll */
+.contain-track-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 58px;
+}
+
+.contain-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
 @layer components {
   .glass {
     background: linear-gradient(

@@ -98,7 +98,22 @@ export const FALLBACK_NEW_RELEASES: AlbumResult[] = [
   }
 ];
 
-let cachedNewReleases: AlbumResult[] | null = null;
+const NEW_RELEASES_STORAGE_KEY = 'wavecraft_cached_releases_v1';
+
+function getStoredNewReleases(): AlbumResult[] {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(NEW_RELEASES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    }
+  } catch {}
+  return FALLBACK_NEW_RELEASES;
+}
+
+let cachedNewReleases: AlbumResult[] | null = getStoredNewReleases();
 
 export function getCachedNewReleases(): AlbumResult[] | null {
   return cachedNewReleases && cachedNewReleases.length > 0 ? cachedNewReleases : FALLBACK_NEW_RELEASES;
@@ -279,6 +294,11 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
       const data = await res.json();
       if (Array.isArray(data.releases) && data.releases.length > 0) {
         cachedNewReleases = data.releases;
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(NEW_RELEASES_STORAGE_KEY, JSON.stringify(data.releases.slice(0, 25)));
+          }
+        } catch {}
         return data.releases;
       }
     }
@@ -314,6 +334,11 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
 
       if (releases.length > 0) {
         cachedNewReleases = releases;
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(NEW_RELEASES_STORAGE_KEY, JSON.stringify(releases.slice(0, 25)));
+          }
+        } catch {}
         return releases;
       }
     }
@@ -349,6 +374,11 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
 
     if (releases.length > 0) {
       cachedNewReleases = releases;
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(NEW_RELEASES_STORAGE_KEY, JSON.stringify(releases.slice(0, 25)));
+        }
+      } catch {}
       return releases;
     }
     cachedNewReleases = FALLBACK_NEW_RELEASES;

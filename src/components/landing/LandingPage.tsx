@@ -88,13 +88,13 @@ const TECH_BADGES = [
 
 function AnimatedCounter({ value, suffix }: { value: number; suffix: string }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-80px' });
+  const inView = useInView(ref, { once: true, margin: '50px' });
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
     if (!inView) return;
     const controls = animate(0, value, {
-      duration: 2.2,
+      duration: 1.4,
       ease: [0.16, 1, 0.3, 1],
       onUpdate: (v) => setDisplay(Math.floor(v)),
     });
@@ -120,15 +120,17 @@ function Preloader({ onComplete }: { onComplete: () => void }) {
   cbRef.current = onComplete;
 
   useEffect(() => {
+    const isFirstVisit = typeof sessionStorage !== 'undefined' ? !sessionStorage.getItem('wavecraft_intro_seen') : true;
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('wavecraft_intro_seen', '1');
+    const animDuration = isFirstVisit ? 0.6 : 0.2;
+
     const controls = animate(0, 100, {
-      duration: 2.2,
+      duration: animDuration,
       ease: [0.16, 1, 0.3, 1],
       onUpdate: (v) => setPercent(Math.floor(v)),
       onComplete: () => {
-        setTimeout(() => {
-          setVisible(false);
-          setTimeout(() => cbRef.current(), 100);
-        }, 400);
+        setVisible(false);
+        cbRef.current();
       },
     });
     return () => controls.stop();
@@ -466,24 +468,24 @@ function FeatureShowcase() {
     offset: ['start start', 'end end'],
   });
 
-  const sp = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
+  const sp = useSpring(scrollYProgress, { stiffness: 220, damping: 24, restDelta: 0.002 });
 
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
     setActiveStep(Math.min(FEATURES.length - 1, Math.max(0, Math.floor(v * FEATURES.length))));
   });
 
-  // Step text transforms (hardcoded for hook rules compliance)
-  const o0 = useTransform(sp, [0.0, 0.04, 0.20, 0.25], [0, 1, 1, 0]);
-  const y0 = useTransform(sp, [0.0, 0.04, 0.20, 0.25], [50, 0, 0, -50]);
+  // Step text transforms with direct cross-fading so no dead zones exist during fast scrolling
+  const o0 = useTransform(sp, [0.0, 0.03, 0.22, 0.28], [0, 1, 1, 0]);
+  const y0 = useTransform(sp, [0.0, 0.03, 0.22, 0.28], [40, 0, 0, -40]);
 
-  const o1 = useTransform(sp, [0.25, 0.29, 0.45, 0.50], [0, 1, 1, 0]);
-  const y1 = useTransform(sp, [0.25, 0.29, 0.45, 0.50], [50, 0, 0, -50]);
+  const o1 = useTransform(sp, [0.22, 0.28, 0.47, 0.53], [0, 1, 1, 0]);
+  const y1 = useTransform(sp, [0.22, 0.28, 0.47, 0.53], [40, 0, 0, -40]);
 
-  const o2 = useTransform(sp, [0.50, 0.54, 0.70, 0.75], [0, 1, 1, 0]);
-  const y2 = useTransform(sp, [0.50, 0.54, 0.70, 0.75], [50, 0, 0, -50]);
+  const o2 = useTransform(sp, [0.47, 0.53, 0.72, 0.78], [0, 1, 1, 0]);
+  const y2 = useTransform(sp, [0.47, 0.53, 0.72, 0.78], [40, 0, 0, -40]);
 
-  const o3 = useTransform(sp, [0.75, 0.79, 1.0], [0, 1, 1]);
-  const y3 = useTransform(sp, [0.75, 0.79, 1.0], [50, 0, 0]);
+  const o3 = useTransform(sp, [0.72, 0.78, 1.0], [0, 1, 1]);
+  const y3 = useTransform(sp, [0.72, 0.78, 1.0], [40, 0, 0]);
 
   const stepStyles = [
     { opacity: o0, y: y0 },
@@ -628,7 +630,7 @@ function AppShowcase() {
     target: containerRef,
     offset: ['start start', 'end end'],
   });
-  const smooth = useSpring(scrollYProgress, { stiffness: 80, damping: 25, restDelta: 0.001 });
+  const smooth = useSpring(scrollYProgress, { stiffness: 200, damping: 24, restDelta: 0.002 });
   const x = useTransform(smooth, [0, 1], ['5%', '-55%']);
 
   return (
@@ -677,7 +679,7 @@ function AppShowcase() {
 
 function StatsSection() {
   const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-100px' });
+  const inView = useInView(ref, { once: true, margin: '50px' });
 
   return (
     <section ref={ref} className="py-24 lg:py-32 px-6 lg:px-16">
@@ -726,7 +728,7 @@ function StatsSection() {
 
 function FeatureGrid() {
   const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-80px' });
+  const inView = useInView(ref, { once: true, margin: '50px' });
 
   return (
     <section ref={ref} className="py-20 lg:py-28 px-6 lg:px-16">
@@ -775,7 +777,7 @@ function FeatureGrid() {
 function FooterCTA() {
   const navigate = useNavigate();
   const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-60px' });
+  const inView = useInView(ref, { once: true, margin: '50px' });
 
   return (
     <section ref={ref} className="relative py-28 lg:py-36 px-6 overflow-hidden">

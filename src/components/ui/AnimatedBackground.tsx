@@ -87,54 +87,58 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
         `
       }}
     >
-      {/* Radiant Floating Node 1: Primary Dominant Glow (Top Left) */}
-      <div
-        className={`absolute -top-12 left-[12%] w-[42rem] h-[42rem] rounded-full animate-float blur-[80px] will-change-transform transition-transform duration-1000 ${
-          isPlaying ? 'scale-105' : 'scale-95'
-        }`}
-        style={{
-          background: `radial-gradient(circle, ${buf.c1} 0%, transparent 70%)`,
-          opacity: baseOpacity,
-          transform: 'translate3d(0,0,0)'
-        }}
-      />
+      {isVisible && (
+      <>
+        {/* Radiant Floating Node 1: Primary Dominant Glow (Top Left) */}
+        <div
+          className={`absolute -top-12 left-[12%] w-[42rem] h-[42rem] rounded-full animate-float blur-[60px] will-change-transform transition-transform duration-1000 ${
+            isPlaying ? 'scale-105' : 'scale-95'
+          }`}
+          style={{
+            background: `radial-gradient(circle, ${buf.c1} 0%, transparent 70%)`,
+            opacity: baseOpacity,
+            transform: 'translate3d(0,0,0)'
+          }}
+        />
 
-      {/* Radiant Floating Node 2: Secondary Harmonic Glow (Top Right) */}
-      <div
-        className={`absolute top-[18%] -right-16 w-[46rem] h-[46rem] rounded-full animate-float blur-[90px] will-change-transform transition-transform duration-1000 ${
-          isPlaying ? 'scale-105' : 'scale-95'
-        }`}
-        style={{
-          background: `radial-gradient(circle, ${buf.c2} 0%, transparent 68%)`,
-          animationDelay: '-3.2s',
-          opacity: secondaryOpacity,
-          transform: 'translate3d(0,0,0)'
-        }}
-      />
+        {/* Radiant Floating Node 2: Secondary Harmonic Glow (Top Right) */}
+        <div
+          className={`absolute top-[18%] -right-16 w-[46rem] h-[46rem] rounded-full animate-float blur-[70px] will-change-transform transition-transform duration-1000 ${
+            isPlaying ? 'scale-105' : 'scale-95'
+          }`}
+          style={{
+            background: `radial-gradient(circle, ${buf.c2} 0%, transparent 68%)`,
+            animationDelay: '-3.2s',
+            opacity: secondaryOpacity,
+            transform: 'translate3d(0,0,0)'
+          }}
+        />
 
-      {/* Radiant Floating Node 3: Deep Ambient Foundation (Bottom Center) */}
-      <div
-        className="absolute -bottom-20 left-[28%] w-[52rem] h-[52rem] rounded-full animate-float blur-[100px] will-change-transform"
-        style={{
-          background: `radial-gradient(circle, ${buf.c3} 0%, transparent 65%)`,
-          animationDelay: '-5.8s',
-          opacity: tertiaryOpacity,
-          transform: 'translate3d(0,0,0)'
-        }}
-      />
+        {/* Radiant Floating Node 3: Deep Ambient Foundation (Bottom Center) */}
+        <div
+          className="absolute -bottom-20 left-[28%] w-[52rem] h-[52rem] rounded-full animate-float blur-[80px] will-change-transform"
+          style={{
+            background: `radial-gradient(circle, ${buf.c3} 0%, transparent 65%)`,
+            animationDelay: '-5.8s',
+            opacity: tertiaryOpacity,
+            transform: 'translate3d(0,0,0)'
+          }}
+        />
 
-      {/* Radiant Floating Node 4: High-Energy Accent Heart (Subtle Core) */}
-      <div
-        className="absolute top-[42%] left-[45%] w-[30rem] h-[30rem] rounded-full animate-float blur-[75px] will-change-transform"
-        style={{
-          background: `radial-gradient(circle, ${buf.accent} 0%, transparent 72%)`,
-          animationDelay: '-8.4s',
-          opacity: baseOpacity * 0.75,
-          transform: 'translate3d(0,0,0)'
-        }}
-      />
-    </div>
-  );
+        {/* Radiant Floating Node 4: High-Energy Accent Heart (Subtle Core) */}
+        <div
+          className="absolute top-[42%] left-[45%] w-[30rem] h-[30rem] rounded-full animate-float blur-[60px] will-change-transform"
+          style={{
+            background: `radial-gradient(circle, ${buf.accent} 0%, transparent 72%)`,
+            animationDelay: '-8.4s',
+            opacity: baseOpacity * 0.75,
+            transform: 'translate3d(0,0,0)'
+          }}
+        />
+      </>
+    )}
+  </div>
+);
 
   return (
     <div

@@ -251,7 +251,7 @@ const TrackRow = memo(({
           useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
         }
       }}
-      className={`relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 ${
+      className={`contain-track-row relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 ${
         isCurrentTrack
           ? 'bg-white/[0.10] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
           : 'bg-white/[0.015] border-transparent'

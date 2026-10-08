@@ -93,7 +93,23 @@ const MAX_SUGGESTIONS_CACHE_ENTRIES = 150;
 const searchCache = new Map<string, Track[]>();
 const inFlightSearch = new Map<string, Promise<Track[]>>();
 const suggestionsCache = new Map<string, string[]>();
-let cachedTrending: Track[] | null = null;
+
+const TRENDING_STORAGE_KEY = 'wavecraft_cached_trending_v1';
+
+function getStoredTrending(): Track[] | null {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(TRENDING_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+let cachedTrending: Track[] | null = getStoredTrending();
 
 function setBoundedCache<K, V>(map: Map<K, V>, key: K, value: V, maxEntries: number) {
   if (map.has(key)) {
@@ -529,7 +545,14 @@ export async function getTrending(category = 'global'): Promise<Track[]> {
       const tracks: Track[] = data.tracks || data.youtube || [];
       if (tracks.length > 0) {
         trendingCategoryCache.set(category, tracks);
-        if (category === 'global') cachedTrending = tracks;
+        if (category === 'global') {
+          cachedTrending = tracks;
+          try {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(TRENDING_STORAGE_KEY, JSON.stringify(tracks.slice(0, 30)));
+            }
+          } catch {}
+        }
         return tracks;
       }
     }
@@ -540,6 +563,14 @@ export async function getTrending(category = 'global'): Promise<Track[]> {
   const fallback = await searchTracks('top global hits 2025');
   if (fallback.length > 0) {
     trendingCategoryCache.set(category, fallback);
+    if (category === 'global') {
+      cachedTrending = fallback;
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(TRENDING_STORAGE_KEY, JSON.stringify(fallback.slice(0, 30)));
+        }
+      } catch {}
+    }
   }
   return fallback;
 }

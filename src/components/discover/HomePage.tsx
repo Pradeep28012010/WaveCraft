@@ -287,6 +287,8 @@ export default function HomePage() {
               <img
                 src={track.thumbnail || DEFAULT_THUMBNAIL}
                 alt={track.title}
+                loading="lazy"
+                decoding="async"
                 onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                 className="w-12 h-12 rounded-lg object-cover flex-shrink-0 shadow-sm"
               />
@@ -338,8 +340,10 @@ export default function HomePage() {
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                     alt={track.title}
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                    className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out will-change-transform"
+                    className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
                   />
                   {/* Dedicated 3-Dots Button for Mobile */}
                   <button
@@ -483,6 +487,8 @@ export default function HomePage() {
                     <img
                       src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                       alt={album.title || album.name}
+                      loading="lazy"
+                      decoding="async"
                       onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                       className="w-full h-full object-cover"
                     />
@@ -531,8 +537,10 @@ export default function HomePage() {
                       <img
                         src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                         alt={album.title || album.name}
+                        loading="lazy"
+                        decoding="async"
                         onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                        className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out will-change-transform"
+                        className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                         <button

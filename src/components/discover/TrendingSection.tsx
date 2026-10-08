@@ -152,10 +152,12 @@ export default function TrendingSection({
                     <img
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                       alt={track.title}
+                      loading="lazy"
+                      decoding="async"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                       }}
-                      className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out will-change-transform"
+                      className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
                     />
                     <div
                       className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity duration-300 ${
