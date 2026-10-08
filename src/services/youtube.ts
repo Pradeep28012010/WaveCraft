@@ -395,6 +395,7 @@ async function fetchItunesFallbackTracks(query: string): Promise<Track[]> {
         thumbnailUrl: art,
         audioUrl: item.previewUrl || undefined,
         audioPreviewUrl: item.previewUrl || undefined,
+        youtubeId: '',
         quality: 'Apple Master'
       };
     });

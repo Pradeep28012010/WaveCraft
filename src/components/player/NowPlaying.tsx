@@ -15,6 +15,7 @@ import { formatTime } from '../../utils/formatTime';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useTrackOfflineStatus } from '../../services/offlineVault';
+import { useColorExtract } from '../../hooks/useColorExtract';
 import WindowsTitleBar from '../layout/WindowsTitleBar';
 
 interface NowPlayingProps {
@@ -170,6 +171,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
   const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
   const artSrc = currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL;
+  const { palette } = useColorExtract(artSrc);
 
   return (
     <motion.div
@@ -191,19 +193,47 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       {/* Windows 11 Acrylic Frameless Title Bar (Electron Desktop App ONLY) */}
       <WindowsTitleBar />
 
-          {/* Seamless Full-Bleed Ambient Album Art Backdrop */}
+          {/* Seamless Full-Bleed Ambient Album Art & Aurora Backdrop */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {/* Dynamic Mesh Aurora Orbs that pulse with the album palette */}
+            <div
+              className="absolute -top-24 -left-20 w-[48rem] h-[48rem] rounded-full blur-[100px] pointer-events-none transition-all duration-1000"
+              style={{
+                background: `radial-gradient(circle, ${palette.primary} 0%, transparent 68%)`,
+                opacity: zenMode ? 0.16 : 0.32
+              }}
+            />
+            <div
+              className="absolute top-[20%] -right-24 w-[52rem] h-[52rem] rounded-full blur-[110px] pointer-events-none transition-all duration-1000"
+              style={{
+                background: `radial-gradient(circle, ${palette.secondary} 0%, transparent 65%)`,
+                opacity: zenMode ? 0.14 : 0.28
+              }}
+            />
+            <div
+              className="absolute -bottom-28 left-[25%] w-[56rem] h-[56rem] rounded-full blur-[120px] pointer-events-none transition-all duration-1000"
+              style={{
+                background: `radial-gradient(circle, ${palette.tertiary} 0%, transparent 62%)`,
+                opacity: zenMode ? 0.10 : 0.22
+              }}
+            />
+            {/* Diffused Art Layer */}
             <img
               src={artSrc}
               alt=""
               onError={(e) => {
                 (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
               }}
-              className={`w-full h-full object-cover blur-3xl scale-150 transition-opacity duration-500 ${
-                zenMode ? 'opacity-20' : 'opacity-40'
+              className={`w-full h-full object-cover blur-3xl scale-150 transition-opacity duration-700 ${
+                zenMode ? 'opacity-15' : 'opacity-30'
               }`}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/55 to-black/75" />
+            <div
+              className="absolute inset-0 transition-colors duration-1000"
+              style={{
+                background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.62) 60%, ${palette.backgroundDark}dd 100%)`
+              }}
+            />
           </div>
 
           {/* Background or Fullscreen 3D Zen Visualizer Layer */}
@@ -557,6 +587,16 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           : 'w-[min(36vh,295px)] h-[min(36vh,295px)] sm:w-[min(40vh,325px)] sm:h-[min(40vh,325px)]'
                       }`}
                     >
+                      {/* Dynamic Ambient Album Glow behind Turntable */}
+                      <div
+                        className="absolute -inset-12 rounded-full pointer-events-none blur-3xl transition-all duration-1000 will-change-transform"
+                        style={{
+                          background: `radial-gradient(circle, ${palette.primary}70 0%, ${palette.secondary}35 50%, transparent 72%)`,
+                          opacity: isPlaying ? 0.95 : 0.5,
+                          transform: isPlaying ? 'scale(1.06)' : 'scale(0.96)'
+                        }}
+                      />
+
                       {/* Pure circular radial-gradient aura (zero CSS box-shadow quad / zero tile seam) */}
                       <div
                         className="absolute -inset-6 rounded-full pointer-events-none"
@@ -629,26 +669,37 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       </div>
                     </div>
                   ) : (
-                    <motion.div
-                      onClick={() => setDeckMode('vinyl')}
-                      title="Click to switch to Spinning Vinyl Turntable"
-                      animate={{ scale: isPlaying ? 1 : 0.95 }}
-                      transition={{ type: 'spring', stiffness: 280, damping: 24 }}
-                      className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border border-white/15 flex-shrink-0 cursor-pointer will-change-transform ${
-                        showLyrics
-                          ? 'w-[min(26vh,220px)] h-[min(26vh,220px)] sm:w-[min(32vh,260px)] sm:h-[min(32vh,260px)]'
-                          : 'w-[min(36vh,290px)] h-[min(36vh,290px)] sm:w-[min(40vh,320px)] sm:h-[min(40vh,320px)]'
-                      }`}
-                    >
-                      <img
-                        src={artSrc}
-                        alt={currentTrack.title}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                    <div className="relative flex items-center justify-center flex-shrink-0">
+                      {/* Dynamic Ambient Album Glow behind Album Cover */}
+                      <div
+                        className="absolute -inset-8 rounded-3xl pointer-events-none blur-3xl transition-all duration-1000 will-change-transform"
+                        style={{
+                          background: `radial-gradient(circle, ${palette.primary}65 0%, ${palette.secondary}30 55%, transparent 75%)`,
+                          opacity: isPlaying ? 0.9 : 0.45,
+                          transform: isPlaying ? 'scale(1.04)' : 'scale(0.96)'
                         }}
-                        className="w-full h-full object-cover"
                       />
-                    </motion.div>
+                      <motion.div
+                        onClick={() => setDeckMode('vinyl')}
+                        title="Click to switch to Spinning Vinyl Turntable"
+                        animate={{ scale: isPlaying ? 1 : 0.95 }}
+                        transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+                        className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border border-white/15 flex-shrink-0 cursor-pointer will-change-transform ${
+                          showLyrics
+                            ? 'w-[min(26vh,220px)] h-[min(26vh,220px)] sm:w-[min(32vh,260px)] sm:h-[min(32vh,260px)]'
+                            : 'w-[min(36vh,290px)] h-[min(36vh,290px)] sm:w-[min(40vh,320px)] sm:h-[min(40vh,320px)]'
+                        }`}
+                      >
+                        <img
+                          src={artSrc}
+                          alt={currentTrack.title}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                          }}
+                          className="w-full h-full object-cover"
+                        />
+                      </motion.div>
+                    </div>
                   )}
 
                   {/* Track Title & Artist */}

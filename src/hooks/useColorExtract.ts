@@ -1,75 +1,62 @@
 import { useState, useEffect } from 'react';
+import {
+  extractPaletteFromImage,
+  synthesizeHarmonicPalette,
+  DEFAULT_AMBIENT_PALETTE
+} from '../services/colorEngine';
+import { useSettingsStore } from '../stores/settingsStore';
+import type { AmbientPalette } from '../types';
 
-interface ExtractedPalette {
+export interface UseColorExtractResult {
+  palette: AmbientPalette;
   colors: string[];
   dominantColor: string;
   gradient: string;
+  glowCss: string;
+  isDynamic: boolean;
 }
 
-const DEFAULT_PALETTE: ExtractedPalette = {
-  colors: ['#1a1a2e', '#16213e', '#0f3460'],
-  dominantColor: '#1a1a2e',
-  gradient: 'linear-gradient(to bottom, #1a1a2e, #16213e)'
-};
+export function useColorExtract(imageUrl: string | undefined): UseColorExtractResult {
+  const dynamicEnabled = useSettingsStore((s) => s.dynamicAmbientGlow ?? true);
+  const intensity = useSettingsStore((s) => s.ambientGlowIntensity ?? 'vibrant');
+  const userAccent = useSettingsStore((s) => s.accentColor || '#fa2d48');
 
-const paletteCache = new Map<string, ExtractedPalette>();
-
-export function useColorExtract(imageUrl: string | undefined) {
-  const [palette, setPalette] = useState<ExtractedPalette>(() =>
-    imageUrl && paletteCache.has(imageUrl) ? paletteCache.get(imageUrl)! : DEFAULT_PALETTE
-  );
+  const [palette, setPalette] = useState<AmbientPalette>(() => {
+    if (!dynamicEnabled) {
+      return synthesizeHarmonicPalette(userAccent);
+    }
+    return DEFAULT_AMBIENT_PALETTE;
+  });
 
   useEffect(() => {
-    if (!imageUrl) return;
-    if (paletteCache.has(imageUrl)) {
-      setPalette(paletteCache.get(imageUrl)!);
+    if (!dynamicEnabled) {
+      setPalette(synthesizeHarmonicPalette(userAccent));
       return;
     }
 
-    let cancelled = false;
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-      if (cancelled) return;
-      // Downsample to 16x16 (256 pixels instead of 250,000 pixels — 976x faster!)
-      const canvas = document.createElement('canvas');
-      canvas.width = 16;
-      canvas.height = 16;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return;
+    if (!imageUrl) {
+      setPalette(synthesizeHarmonicPalette(userAccent));
+      return;
+    }
 
-      ctx.drawImage(img, 0, 0, 16, 16);
-      try {
-        const imageData = ctx.getImageData(0, 0, 16, 16).data;
-        let r = 0, g = 0, b = 0, count = 0;
-        for (let i = 0; i < imageData.length; i += 16) {
-          r += imageData[i];
-          g += imageData[i + 1];
-          b += imageData[i + 2];
-          count++;
-        }
-        r = Math.floor(r / count);
-        g = Math.floor(g / count);
-        b = Math.floor(b / count);
-
-        const domHex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-        const result: ExtractedPalette = {
-          dominantColor: domHex,
-          colors: [domHex, '#16213e', '#0f3460'],
-          gradient: `linear-gradient(to bottom, ${domHex}88, #16213e)`
-        };
-        paletteCache.set(imageUrl, result);
-        if (!cancelled) setPalette(result);
-      } catch {
-        // Ignore CORS-tainted canvas fallback
+    let isMounted = true;
+    extractPaletteFromImage(imageUrl, userAccent, intensity).then((extracted) => {
+      if (isMounted) {
+        setPalette(extracted);
       }
-    };
-    img.src = imageUrl;
+    });
 
     return () => {
-      cancelled = true;
+      isMounted = false;
     };
-  }, [imageUrl]);
+  }, [imageUrl, dynamicEnabled, intensity, userAccent]);
 
-  return palette;
+  return {
+    palette,
+    colors: [palette.primary, palette.secondary, palette.tertiary],
+    dominantColor: palette.primary,
+    gradient: palette.gradientCss,
+    glowCss: palette.glowCss,
+    isDynamic: palette.isDynamic
+  };
 }

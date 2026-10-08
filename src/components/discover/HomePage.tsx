@@ -81,7 +81,6 @@ export default function HomePage() {
   const playTrack = usePlayerStore((state) => state.playTrack);
   const recentlyPlayed = useLibraryStore((state) => state.recentlyPlayed);
   const likedSongs = useLibraryStore((state) => state.likedSongs);
-  const { isPhone } = useDevicePreset();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'music' | 'albums' | 'moods'>('all');
   const [trendingTracks, setTrendingTracks] = useState<Track[]>(() => getCachedTrending() || []);

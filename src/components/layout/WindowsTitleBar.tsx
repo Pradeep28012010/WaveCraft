@@ -2,22 +2,6 @@ import { useState, useEffect } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 
-interface ElectronAPI {
-  platform: string;
-  isElectron: boolean;
-  minimize: () => void;
-  maximize: () => void;
-  close: () => void;
-  isMaximized: () => Promise<boolean>;
-  onMaximizedChange: (callback: (isMax: boolean) => void) => () => void;
-  updateTrack: (track: { title: string; artist: string }) => void;
-}
-
-declare global {
-  interface Window {
-    electronAPI?: ElectronAPI;
-  }
-}
 
 export default function WindowsTitleBar() {
   const isElectronApp = typeof window !== 'undefined' && Boolean(window.electronAPI);

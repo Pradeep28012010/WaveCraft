@@ -10,7 +10,6 @@ import CreatePlaylist from './CreatePlaylist';
 import ImportPlaylistModal from './ImportPlaylistModal';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
-import TrackRow from '../ui/TrackRow';
 
 export default function LibraryPage() {
   const playlists = useLibraryStore((state) => state.playlists);
@@ -27,7 +26,6 @@ export default function LibraryPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importInitialMode, setImportInitialMode] = useState<'live' | 'url' | 'text' | 'file'>('live');
-  const [showOfflineVault, setShowOfflineVault] = useState(false);
   const [savedBanner, setSavedBanner] = useState('');
 
   const livePlaylistsCount = playlists.filter((p) => p.isLiveSync && p.sourceUrl).length;
@@ -158,50 +156,6 @@ export default function LibraryPage() {
           </GlassCard>
         </Link>
       </div>
-
-      {/* Expandable Offline Vault Section */}
-      {showOfflineVault && (
-        <GlassCard variant="liquid" padding="lg" className="mb-10 border border-emerald-400/30">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-            <div>
-              <h3 className="text-xl font-extrabold text-white flex items-center gap-2 flex-wrap">
-                <span className="whitespace-nowrap">⚡ Offline 320kbps Audio Vault</span>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 whitespace-nowrap flex-shrink-0">
-                  {offlineTracks.length} Cached
-                </span>
-              </h3>
-              <p className="text-xs text-white/55 mt-1">
-                Stored directly in your browser CacheStorage for 0ms instant playback—even without Wi-Fi. Click the download icon on any song row across WaveCraft to add it here.
-              </p>
-            </div>
-            {offlineTracks.length > 0 && (
-              <GlassButton
-                variant="primary"
-                size="sm"
-                onClick={() => playTrack(offlineTracks[0], offlineTracks, 0)}
-              >
-                ▶ Play Offline Vault
-              </GlassButton>
-            )}
-          </div>
-          {offlineTracks.length === 0 ? (
-            <div className="py-8 text-center text-sm text-white/50">
-              Your Offline Vault is empty. Hover any song and click the <strong className="text-emerald-300">↓ Download</strong> button to cache 320kbps audio locally!
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {offlineTracks.map((track, idx) => (
-                <TrackRow
-                  key={track.id}
-                  track={track}
-                  tracks={offlineTracks}
-                  index={idx + 1}
-                />
-              ))}
-            </div>
-          )}
-        </GlassCard>
-      )}
 
       {/* Toast Notification Banner */}
       {savedBanner && (

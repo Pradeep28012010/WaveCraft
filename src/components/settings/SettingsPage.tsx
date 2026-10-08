@@ -318,7 +318,45 @@ export default function SettingsPage() {
       <section>
         <h2 className="text-xl font-bold text-white mb-4">Liquid Glass & Visualizer</h2>
         <GlassCard variant="liquid" padding="md">
-          <SettingRow label="Accent Glow Color" description="Personalize your Liquid Glass highlights">
+          <SettingRow
+            label="Dynamic Album Ambient Aura"
+            description="Extract and morph background aurora colors in real time from the active album cover"
+          >
+            <ToggleSwitch
+              checked={settings.dynamicAmbientGlow ?? true}
+              onChange={settings.setDynamicAmbientGlow}
+            />
+          </SettingRow>
+
+          {(settings.dynamicAmbientGlow ?? true) && (
+            <SettingRow
+              label="Ambient Aura Radiance"
+              description="Adjust the atmospheric diffusion and brightness of the background glow"
+            >
+              <div className="flex gap-2">
+                {[
+                  { id: 'subtle', label: 'Subtle' },
+                  { id: 'vibrant', label: 'Radiant' },
+                  { id: 'aurora', label: 'Aurora Immersion' }
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => settings.setAmbientGlowIntensity(item.id as any)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      (settings.ambientGlowIntensity ?? 'vibrant') === item.id
+                        ? 'bg-[var(--color-accent)] text-white shadow-md'
+                        : 'glass text-white/60 hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </SettingRow>
+          )}
+
+          <SettingRow label="Base Accent Glow Color" description="Personalize fallback highlights and active controls">
             <div className="flex gap-2.5">
               {[
                 { color: '#fa2d48', name: 'Crimson Pulse' },

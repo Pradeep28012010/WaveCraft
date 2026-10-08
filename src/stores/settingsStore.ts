@@ -34,12 +34,16 @@ interface SettingsStore extends SettingsState {
   toggleLyrics: () => void;
   setShowLyrics: (show: boolean) => void;
   setLanguage: (lang: string) => void;
+  setDynamicAmbientGlow: (enabled: boolean) => void;
+  setAmbientGlowIntensity: (intensity: 'subtle' | 'vibrant' | 'aurora') => void;
   resetSettings: () => void;
 }
 
 const defaultSettings: SettingsState = {
   theme: 'dark',
   accentColor: '#fa2d48',
+  dynamicAmbientGlow: true,
+  ambientGlowIntensity: 'vibrant',
   crossfadeDuration: 0,
   audioQuality: 'high',
   showVisualizer: true,
@@ -69,7 +73,9 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
       : [...defaultSettings.equalizerBands],
     autoplay: state.autoplay,
     showLyrics: state.showLyrics,
-    language: state.language
+    language: state.language,
+    dynamicAmbientGlow: state.dynamicAmbientGlow ?? true,
+    ambientGlowIntensity: state.ambientGlowIntensity ?? 'vibrant'
   };
 }
 
@@ -238,6 +244,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setLanguage: (lang) => {
     set({ language: lang });
+    persistSettings(get());
+  },
+
+  setDynamicAmbientGlow: (enabled: boolean) => {
+    set({ dynamicAmbientGlow: enabled });
+    persistSettings(get());
+  },
+
+  setAmbientGlowIntensity: (intensity: 'subtle' | 'vibrant' | 'aurora') => {
+    set({ ambientGlowIntensity: intensity });
     persistSettings(get());
   },
 

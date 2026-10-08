@@ -61,7 +61,7 @@ export default function MainLayout() {
   const mainRef = useRef<HTMLElement | null>(null);
   const hasCurrentTrack = usePlayerStore((s) => Boolean(s.currentTrack));
   const currentThumbnail = usePlayerStore((s) => s.currentTrack?.thumbnail);
-  const { colors } = useColorExtract(currentThumbnail);
+  const { palette, colors } = useColorExtract(currentThumbnail);
   const { isPhone } = useDevicePreset();
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function MainLayout() {
       className="h-[100dvh] w-screen flex flex-col overflow-hidden text-white bg-black"
     >
       {/* GPU-composited Ambient Background layer */}
-      <AnimatedBackground colors={colors} />
+      <AnimatedBackground colors={colors} palette={palette} />
 
       {/* Hidden YouTube & Web Audio DSP Player */}
       <YouTubeEmbed />

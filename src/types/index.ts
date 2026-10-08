@@ -6,9 +6,10 @@ export interface Track {
   duration: number; // seconds
   thumbnail: string;
   thumbnailLarge: string;
-   thumbnailUrl?: string; // alias for compatibility
-  youtubeId: string;
+  thumbnailUrl?: string; // alias for compatibility
+  youtubeId?: string;
   audioUrl?: string; // Direct 320kbps AAC/MP4 stream URL when available
+  audioPreviewUrl?: string;
   encryptedMediaUrl?: string;
   genre?: string;
   year?: number;
@@ -67,6 +68,8 @@ export interface LibraryState {
 export interface SettingsState {
   theme: 'dark' | 'light' | 'auto';
   accentColor: string;
+  dynamicAmbientGlow: boolean;
+  ambientGlowIntensity: 'subtle' | 'vibrant' | 'aurora';
   crossfadeDuration: number;
   audioQuality: 'auto' | 'high' | 'medium' | 'low';
   showVisualizer: boolean;
@@ -117,4 +120,34 @@ export interface StatsData {
   topArtists: { name: string; playCount: number; totalTime: number }[];
   dailyListening: { date: string; minutes: number }[];
   genreDistribution: { genre: string; count: number }[];
+}
+
+export interface AmbientPalette {
+  primary: string;         // Vibrant dominant color
+  secondary: string;       // Harmonic companion color
+  tertiary: string;        // Deep ambient tone
+  accent: string;          // High-energy highlight
+  backgroundDark: string;  // Deep dark base tint
+  gradientCss: string;     // Multi-point radial gradient
+  glowCss: string;         // Diffusion box-shadow
+  isDynamic: boolean;      // True if extracted from artwork
+}
+
+export interface ElectronAPI {
+  platform: string;
+  isElectron: boolean;
+  minimize: () => void;
+  maximize: () => void;
+  close: () => void;
+  isMaximized: () => Promise<boolean>;
+  onMaximizeChange?: (callback: (isMax: boolean) => void) => () => void;
+  onMaximizedChange: (callback: (isMax: boolean) => void) => () => void;
+  onMediaKey?: (callback: (action: string) => void) => () => void;
+  updateTrack: (track: { title: string; artist: string }) => void;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
 }
