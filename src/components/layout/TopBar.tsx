@@ -584,9 +584,24 @@ export default function TopBar() {
                   ? '🎙️ Listening... say a song title, artist, or lyric line...'
                   : 'Search songs, artists, lyrics, or moods...'
               }
-              className="w-full liquid-glass rounded-full py-2.5 pl-11 pr-32 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/30 transition-all duration-300"
+              className="w-full liquid-glass rounded-full py-2.5 pl-11 pr-52 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/30 transition-all duration-300"
             />
             <div className="absolute right-2.5 inset-y-0 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  if (searchQuery.trim()) {
+                    navigate(`/vibe?prompt=${encodeURIComponent(searchQuery.trim())}&auto=1`);
+                  } else {
+                    navigate('/vibe');
+                  }
+                }}
+                title="Curate an instant AI DJ Mix from this query"
+                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--color-accent)]/20 hover:bg-[var(--color-accent)]/35 text-[var(--color-accent)] hover:text-white border border-[var(--color-accent)]/40 text-[10px] font-black tracking-wide transition-all cursor-pointer whitespace-nowrap active:scale-95"
+              >
+                <span>✨ AI DJ Mix</span>
+              </button>
               {searchQuery ? (
                 <button
                   type="button"

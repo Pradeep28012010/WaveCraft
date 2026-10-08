@@ -22,7 +22,8 @@ import {
   ensureAudioGraph,
   getAudioFrequencyData,
   unlockAudioEngine,
-  seekToTime
+  seekToTime,
+  triggerFrequencyCarvedTransition
 } from '../../services/audioEngine';
 import { jamSyncEngine } from '../../services/jamSyncEngine';
 import { isAndroidNative, PROD_API_ORIGIN } from '../../services/apiConfig';
@@ -230,6 +231,7 @@ export default function YouTubeEmbed() {
       ) {
         isCrossfadingRef.current = true;
         setSmoothOutputGain(audio, 0, crossfadeDuration * 0.7);
+        triggerFrequencyCarvedTransition(crossfadeDuration);
         setTimeout(() => {
           trackTransitionIntentRef.current = true;
           usePlayerStore.getState().nextTrack();

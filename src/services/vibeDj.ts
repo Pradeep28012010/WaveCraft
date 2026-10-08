@@ -476,3 +476,6 @@ export async function generateVibeMix(
     tracks: finalTracks
   };
 }
+
+export * from './aiDjEngine';
+

@@ -136,6 +136,7 @@ export default function SettingsPage() {
   const { offlineTracks, toggleOfflineTrack, removeTrackOffline } = useOfflineVault();
   const [isBulkDownloading, setIsBulkDownloading] = React.useState(false);
   const [bulkProgress, setBulkProgress] = React.useState({ current: 0, total: 0 });
+  const [showApiKey, setShowApiKey] = React.useState(false);
 
   const handleDownloadAllLiked = async () => {
     if (isBulkDownloading || library.likedSongs.length === 0) return;
@@ -331,6 +332,86 @@ export default function SettingsPage() {
               onChange={settings.setOfflineModeOnly}
             />
           </SettingRow>
+
+          <SettingRow
+            label="Frequency-Carved Auto-Mixer Sweeps"
+            description="Apply gentle low-pass sweeps on outgoing tracks and high-frequency tilts on incoming tracks for seamless harmonic DJ transitions"
+          >
+            <ToggleSwitch
+              checked={settings.autoMixerFilterSweeps ?? true}
+              onChange={settings.setAutoMixerFilterSweeps}
+            />
+          </SettingRow>
+        </GlassCard>
+      </section>
+
+      {/* AI Smart DJ & Studio Intelligence Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>✨ AI Smart DJ & Studio Intelligence</span>
+              <span className="px-2 py-0.5 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 text-[10px] font-black text-[var(--color-accent)] uppercase">
+                HYBRID ENGINE
+              </span>
+            </h2>
+            <p className="text-xs text-white/50 mt-0.5">
+              Natural-language acoustic curation, energy curves, and optional LLM storytelling
+            </p>
+          </div>
+        </div>
+
+        <GlassCard variant="liquid" padding="md">
+          <SettingRow
+            label="AI Reasoning Engine Provider"
+            description="Built-in Semantic Engine works 100% out of the box with zero config or keys. Optionally connect Google Gemini or OpenAI for bespoke prompt reasoning."
+          >
+            <GlassSelect
+              value={settings.aiApiProvider || 'none'}
+              onChange={(val) => settings.setAiApiProvider(val as any)}
+              options={[
+                { value: 'none', label: 'Built-in Semantic Engine (Zero Config / Offline)' },
+                { value: 'gemini', label: 'Google Gemini (Gemini 1.5 Flash)' },
+                { value: 'openai', label: 'OpenAI (GPT-4o-mini)' }
+              ]}
+            />
+          </SettingRow>
+
+          {settings.aiApiProvider && settings.aiApiProvider !== 'none' && (
+            <SettingRow
+              label={`${settings.aiApiProvider === 'gemini' ? 'Google Gemini' : 'OpenAI'} API Key`}
+              description="Stored securely on this device in local settings. Never transmitted to third parties."
+            >
+              <div className="flex items-center gap-2 w-64 sm:w-80">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={settings.aiApiKey || ''}
+                  onChange={(e) => settings.setAiApiKey(e.target.value)}
+                  placeholder={
+                    settings.aiApiProvider === 'gemini'
+                      ? 'AIzaSy...'
+                      : 'sk-proj-...'
+                  }
+                  className="flex-1 h-9 px-3 rounded-xl bg-white/[0.08] border border-white/15 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[var(--color-accent)] font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="px-2.5 h-9 rounded-xl glass text-[11px] font-bold text-white/70 hover:text-white cursor-pointer whitespace-nowrap"
+                >
+                  {showApiKey ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </SettingRow>
+          )}
+
+          <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 mt-3 flex items-start gap-3">
+            <span className="text-xl">💡</span>
+            <div className="text-xs text-white/60 leading-relaxed">
+              <span className="font-semibold text-white/90">Zero Configuration Guarantee: </span>
+              WaveCraft's built-in Semantic Engine features over 60 micro-vibes, natural-language parsing, harmonic energy sequencing, and acoustic estimation without requiring any external account or API key.
+            </div>
+          </div>
         </GlassCard>
       </section>
 

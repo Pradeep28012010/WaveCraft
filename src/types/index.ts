@@ -15,6 +15,10 @@ export interface Track {
   year?: number;
   quality?: string;
   fileSizeBytes?: number;
+  bpm?: number;
+  mood?: string;
+  energy?: number;
+  vibeTag?: string;
 }
 
 export interface PlaylistFolder {
@@ -96,6 +100,9 @@ export interface SettingsState {
   loudnessNormalization: boolean;
   offlineModeOnly: boolean;
   performanceProfile: 'ultra' | 'balanced' | 'performance';
+  aiApiProvider?: 'none' | 'gemini' | 'openai';
+  aiApiKey?: string;
+  autoMixerFilterSweeps?: boolean;
 }
 
 export interface SearchResult {
@@ -168,3 +175,32 @@ declare global {
     electronAPI?: ElectronAPI;
   }
 }
+
+export type VibeEnergyCurve = 'wave' | 'peak' | 'steady';
+
+export interface AcousticInsights {
+  bpm: number;
+  mood: string;
+  energy: number; // 1-10
+  vibeTag: string;
+  genre: string;
+}
+
+export interface AiDjMix {
+  title: string;
+  subtitle: string;
+  prompt: string;
+  storyNotes?: string;
+  energyCurve: VibeEnergyCurve;
+  eqPreset: string;
+  fxMode: string;
+  visualizerStyle: string;
+  accentColor: string;
+  energyLabel: string;
+  queries: string[];
+  tracks: Track[];
+  coverArt?: string;
+  providerUsed: 'semantic' | 'gemini' | 'openai';
+  generatedAt: number;
+}
+

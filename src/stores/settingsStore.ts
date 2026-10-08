@@ -44,6 +44,10 @@ interface SettingsStore extends SettingsState {
   setOfflineModeOnly: (enabled: boolean) => void;
   toggleOfflineModeOnly: () => void;
   setPerformanceProfile: (profile: 'ultra' | 'balanced' | 'performance') => void;
+  setAiApiProvider: (provider: 'none' | 'gemini' | 'openai') => void;
+  setAiApiKey: (key: string) => void;
+  setAutoMixerFilterSweeps: (enabled: boolean) => void;
+  toggleAutoMixerFilterSweeps: () => void;
   resetSettings: () => void;
 }
 
@@ -63,7 +67,10 @@ const defaultSettings: SettingsState = {
   language: 'en',
   loudnessNormalization: true,
   offlineModeOnly: false,
-  performanceProfile: 'ultra'
+  performanceProfile: 'ultra',
+  aiApiProvider: 'none',
+  aiApiKey: '',
+  autoMixerFilterSweeps: true
 };
 
 /**
@@ -89,7 +96,10 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
     ambientGlowIntensity: state.ambientGlowIntensity ?? 'vibrant',
     loudnessNormalization: state.loudnessNormalization ?? true,
     offlineModeOnly: state.offlineModeOnly ?? false,
-    performanceProfile: state.performanceProfile ?? 'ultra'
+    performanceProfile: state.performanceProfile ?? 'ultra',
+    aiApiProvider: state.aiApiProvider ?? 'none',
+    aiApiKey: state.aiApiKey ?? '',
+    autoMixerFilterSweeps: state.autoMixerFilterSweeps ?? true
   };
 }
 
@@ -296,6 +306,26 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     persistSettings(get());
   },
 
+  setAiApiProvider: (provider) => {
+    set({ aiApiProvider: provider });
+    persistSettings(get());
+  },
+
+  setAiApiKey: (key) => {
+    set({ aiApiKey: key });
+    persistSettings(get());
+  },
+
+  setAutoMixerFilterSweeps: (enabled) => {
+    set({ autoMixerFilterSweeps: enabled });
+    persistSettings(get());
+  },
+
+  toggleAutoMixerFilterSweeps: () => {
+    set((state) => ({ autoMixerFilterSweeps: !(state.autoMixerFilterSweeps ?? true) }));
+    persistSettings(get());
+  },
+
   resetSettings: () => {
     document.documentElement.style.setProperty('--color-accent', defaultSettings.accentColor);
     set({
@@ -305,7 +335,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       loudnessNormalization: true,
       offlineModeOnly: false,
-      performanceProfile: 'ultra'
+      performanceProfile: 'ultra',
+      aiApiProvider: 'none',
+      aiApiKey: '',
+      autoMixerFilterSweeps: true
     });
     persistSettings(defaultSettings);
   }

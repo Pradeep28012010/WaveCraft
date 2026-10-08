@@ -183,6 +183,15 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         run: () => setStudioModalOpen(true)
       },
       {
+        id: 'summon-ai-dj',
+        category: 'AI Smart DJ',
+        title: 'Summon AI DJ Studio',
+        subtitle: 'Curate bespoke flow-sequenced playlists from natural-language prompts',
+        badge: 'AI DJ',
+        icon: '✨',
+        run: () => navigate('/vibe')
+      },
+      {
         id: 'nav-vibe',
         category: 'Navigation',
         title: 'Go to AI Vibe DJ',
@@ -269,6 +278,26 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
 
   const filteredActions = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const isAiSyntax = /^\s*ai\s*[:\s]/i.test(query) || /^\s*ai$/i.test(query);
+    const rawAiPrompt = query.replace(/^\s*ai\s*[:\s]*/i, '').trim();
+
+    if (isAiSyntax) {
+      const aiSpecialAction: CommandAction = {
+        id: 'ai-prompt-action',
+        category: 'AI Smart DJ',
+        title: rawAiPrompt ? `Summon AI DJ: "${rawAiPrompt}"` : 'Summon AI DJ Studio',
+        subtitle: rawAiPrompt
+          ? 'Launch AI DJ Studio & curate an uncompressed 320kbps set from this vibe'
+          : 'Type "ai [your mood]" to immediately curate an intelligent mix',
+        badge: 'SUMMON',
+        icon: '✨',
+        run: () => {
+          navigate(rawAiPrompt ? `/vibe?prompt=${encodeURIComponent(rawAiPrompt)}&auto=1` : '/vibe');
+        }
+      };
+      return [aiSpecialAction, ...actions.filter((a) => a.id === 'summon-ai-dj')];
+    }
+
     if (!q) return actions;
     return actions.filter(
       (a) =>
@@ -276,7 +305,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         a.subtitle.toLowerCase().includes(q) ||
         a.category.toLowerCase().includes(q)
     );
-  }, [actions, query]);
+  }, [actions, query, navigate]);
 
   const totalItems = trackResults.length + filteredActions.length;
 
@@ -343,7 +372,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
               setSelectedIndex(0);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Play any song, toggle Slowed + Reverb, 8D Orbit, Rain, or Focus Timer..."
+            placeholder="Type 'ai [vibe]' to summon AI DJ, search songs, or toggle 8D Orbit..."
             className="flex-1 bg-transparent text-sm sm:text-base font-medium text-white placeholder-white/40 focus:outline-none"
           />
           {isSearchingTracks && (

@@ -52,6 +52,8 @@ let masterLimiter: DynamicsCompressorNode | null = null;
 let gainNode: GainNode | null = null;
 let analyserNode: AnalyserNode | null = null;
 let lastExciterDrive = -1;
+let autoMixerLowPass: BiquadFilterNode | null = null;
+let autoMixerHighTilt: BiquadFilterNode | null = null;
 
 function createAnalogSaturationCurve(driveAmount: number): Float32Array<ArrayBuffer> {
   const samples = 4096;
@@ -210,6 +212,9 @@ export function crossfadeAudioTransition(
     gainNode.gain.setValueAtTime(gainNode.gain.value, now);
     gainNode.gain.linearRampToValueAtTime(0.001, now + dur * 0.45);
 
+    // Trigger frequency-carved transition filter sweep if Auto-Mixer mode is active
+    triggerFrequencyCarvedTransition(dur);
+
     setTimeout(() => {
       if (audioCtx && gainNode) {
         const nextNow = audioCtx.currentTime;
@@ -220,6 +225,58 @@ export function crossfadeAudioTransition(
       resolve();
     }, dur * 450);
   });
+}
+
+/**
+ * Triggers a frequency-carved transition filter sweep:
+ * - Gentle low-pass sweep on outgoing track (20kHz down to 450Hz) to carve out highs and presence.
+ * - Gentle high-frequency tilt on incoming track (+3dB at 4kHz) to give harmonic presence,
+ *   while the low-pass opens smoothly back to 20kHz.
+ */
+export function triggerFrequencyCarvedTransition(durationSec = 2.0): void {
+  const isEnabled = useSettingsStore.getState().autoMixerFilterSweeps ?? true;
+  if (!isEnabled || !audioCtx || !autoMixerLowPass || !autoMixerHighTilt) return;
+
+  const now = audioCtx.currentTime;
+  const dur = Math.max(0.4, durationSec);
+  const outgoingDur = dur * 0.45;
+  const incomingDur = dur * 0.55;
+
+  // 1. Outgoing Low-Pass Sweep (roll-off harsh highs/mids)
+  autoMixerLowPass.frequency.cancelScheduledValues(now);
+  autoMixerLowPass.frequency.setValueAtTime(Math.max(20, autoMixerLowPass.frequency.value), now);
+  autoMixerLowPass.frequency.exponentialRampToValueAtTime(450, now + outgoingDur);
+
+  // 2. Outgoing High-Tilt duck
+  autoMixerHighTilt.gain.cancelScheduledValues(now);
+  autoMixerHighTilt.gain.setValueAtTime(autoMixerHighTilt.gain.value, now);
+  autoMixerHighTilt.gain.linearRampToValueAtTime(-2.5, now + outgoingDur);
+
+  // 3. Incoming High-Tilt boost & Low-Pass smooth opening
+  setTimeout(() => {
+    if (!audioCtx || !autoMixerLowPass || !autoMixerHighTilt) return;
+    const midNow = audioCtx.currentTime;
+    autoMixerHighTilt.gain.cancelScheduledValues(midNow);
+    autoMixerHighTilt.gain.setValueAtTime(3.0, midNow);
+    autoMixerHighTilt.gain.linearRampToValueAtTime(0.0, midNow + incomingDur);
+
+    autoMixerLowPass.frequency.cancelScheduledValues(midNow);
+    autoMixerLowPass.frequency.setValueAtTime(550, midNow);
+    autoMixerLowPass.frequency.exponentialRampToValueAtTime(20000, midNow + incomingDur);
+  }, outgoingDur * 1000);
+}
+
+export function resetAutoMixerFilters(): void {
+  if (!audioCtx || !autoMixerLowPass || !autoMixerHighTilt) return;
+  const now = audioCtx.currentTime;
+  autoMixerLowPass.frequency.cancelScheduledValues(now);
+  autoMixerLowPass.frequency.setTargetAtTime(20000, now, 0.05);
+  autoMixerHighTilt.gain.cancelScheduledValues(now);
+  autoMixerHighTilt.gain.setTargetAtTime(0, now, 0.05);
+}
+
+export function isAutoMixerFilterActive(): boolean {
+  return Boolean(useSettingsStore.getState().autoMixerFilterSweeps ?? true);
 }
 
 /**
@@ -435,7 +492,19 @@ export function initAudioGraph(
         useStudioStore.getState().harmonicDrive || 0
       );
 
-      preGainNode.connect(eqFilters[0]);
+      autoMixerLowPass = audioCtx.createBiquadFilter();
+      autoMixerLowPass.type = 'lowpass';
+      autoMixerLowPass.frequency.value = 20000;
+      autoMixerLowPass.Q.value = 0.707;
+
+      autoMixerHighTilt = audioCtx.createBiquadFilter();
+      autoMixerHighTilt.type = 'highshelf';
+      autoMixerHighTilt.frequency.value = 4000;
+      autoMixerHighTilt.gain.value = 0;
+
+      preGainNode.connect(autoMixerLowPass);
+      autoMixerLowPass.connect(autoMixerHighTilt);
+      autoMixerHighTilt.connect(eqFilters[0]);
       let prev: AudioNode = eqFilters[0];
       for (let i = 1; i < eqFilters.length; i++) {
         prev.connect(eqFilters[i]);

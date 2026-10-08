@@ -1,241 +1,457 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  CURATED_VIBE_PRESETS,
-  generateVibeMix,
-  type VibeBlueprint,
-  type VibePreset
-} from '../../services/vibeDj';
+  generateAiDjMix,
+  regenerateTrackInMix,
+  generateLiquidVibeCoverArt,
+  INSPIRATIONAL_PRESETS,
+  type InspirationalPreset
+} from '../../services/aiDjEngine';
+import type { AiDjMix, VibeEnergyCurve } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
-import TrackRow from '../ui/TrackRow';
 import GlassCard from '../ui/GlassCard';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 export default function VibeDJPage() {
-  const [prompt, setPrompt] = useState('');
+  const [searchParams] = useSearchParams();
+  const urlPrompt = searchParams.get('prompt') || '';
+  const urlAuto = searchParams.get('auto') === '1';
+
+  const [prompt, setPrompt] = useState(urlPrompt);
+  const [energyCurve, setEnergyCurve] = useState<VibeEnergyCurve>('wave');
   const [autoTuneStudio, setAutoTuneStudio] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [activeBlueprint, setActiveBlueprint] = useState<VibeBlueprint | null>(null);
+  const [activeMix, setActiveMix] = useState<AiDjMix | null>(null);
   const [savedToast, setSavedToast] = useState(false);
+  const [swappingTrackIndex, setSwappingTrackIndex] = useState<number | null>(null);
+  const hasAutoLaunchedRef = useRef(false);
 
   const playTrack = usePlayerStore((s) => s.playTrack);
-  const setEqualizerPreset = useSettingsStore((s) => s.setEqualizerPreset);
-  const setVisualizerStyle = useSettingsStore((s) => s.setVisualizerStyle);
-  const setAccentColor = useSettingsStore((s) => s.setAccentColor);
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
   const createPlaylist = useLibraryStore((s) => s.createPlaylist);
   const addToPlaylist = useLibraryStore((s) => s.addToPlaylist);
 
-  const launchVibe = async (input: string | VibePreset) => {
-    // Synchronously unlock browser audio engine inside user gesture before async fetch
+  const launchAiMix = async (inputPrompt: string, curve: VibeEnergyCurve = energyCurve) => {
+    const query = inputPrompt.trim();
+    if (!query || isGenerating) return;
+
     unlockAudioEngine();
     setIsGenerating(true);
     setSavedToast(false);
+
     try {
-      const blueprint = await generateVibeMix(input);
-      setActiveBlueprint(blueprint);
-
-      if (autoTuneStudio) {
-        setEqualizerPreset(blueprint.eqPreset);
-        setVisualizerStyle(blueprint.visualizerStyle);
-        setAccentColor(blueprint.accentColor);
-      }
-
-      if (blueprint.tracks.length > 0) {
-        playTrack(blueprint.tracks[0], blueprint.tracks, 0);
-      }
+      const mix = await generateAiDjMix({
+        prompt: query,
+        energyCurve: curve,
+        autoTuneStudio
+      });
+      setActiveMix(mix);
+    } catch (err) {
+      console.error('[WaveCraft AI DJ] Generation error:', err);
     } finally {
       setIsGenerating(false);
     }
   };
 
+  // Auto-launch if prompt was passed in URL (from Command Palette, TopBar, or Search)
+  useEffect(() => {
+    if (urlPrompt && !hasAutoLaunchedRef.current) {
+      hasAutoLaunchedRef.current = true;
+      setPrompt(urlPrompt);
+      if (urlAuto) {
+        launchAiMix(urlPrompt, energyCurve);
+      }
+    }
+  }, [urlPrompt, urlAuto]);
+
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim() || isGenerating) return;
-    launchVibe(prompt.trim());
+    launchAiMix(prompt.trim());
+  };
+
+  const handleCurveChange = async (newCurve: VibeEnergyCurve) => {
+    setEnergyCurve(newCurve);
+    triggerAndroidHaptic('light');
+    if (activeMix && activeMix.prompt) {
+      launchAiMix(activeMix.prompt, newCurve);
+    }
+  };
+
+  const handlePresetSelect = (preset: InspirationalPreset) => {
+    triggerAndroidHaptic('medium');
+    setPrompt(preset.prompt);
+    launchAiMix(preset.prompt);
+  };
+
+  const handlePlayMixNow = () => {
+    if (!activeMix || activeMix.tracks.length === 0) return;
+    unlockAudioEngine();
+    triggerAndroidHaptic('medium');
+    playTrack(activeMix.tracks[0], activeMix.tracks, 0);
+  };
+
+  const handleSingleTrackSwap = async (index: number) => {
+    if (!activeMix || isGenerating || swappingTrackIndex !== null) return;
+    triggerAndroidHaptic('light');
+    setSwappingTrackIndex(index);
+    try {
+      const replacement = await regenerateTrackInMix(activeMix.tracks, index, activeMix);
+      if (replacement) {
+        const nextTracks = [...activeMix.tracks];
+        nextTracks[index] = replacement;
+        setActiveMix({
+          ...activeMix,
+          tracks: nextTracks
+        });
+      }
+    } finally {
+      setSwappingTrackIndex(null);
+    }
   };
 
   const handleSaveAsPlaylist = () => {
-    if (!activeBlueprint || activeBlueprint.tracks.length === 0) return;
+    if (!activeMix || activeMix.tracks.length === 0) return;
+    triggerAndroidHaptic('medium');
+
+    const coverArtUrl =
+      activeMix.coverArt ||
+      generateLiquidVibeCoverArt(
+        activeMix.title,
+        activeMix.accentColor,
+        activeMix.energyLabel
+      );
+
     const pl = createPlaylist(
-      `✨ ${activeBlueprint.title}`,
-      activeBlueprint.curatedDescription || `Generated by WaveCraft AI Vibe DJ — "${activeBlueprint.prompt}"`,
-      activeBlueprint.tracks[0]?.thumbnail || ''
+      `✨ ${activeMix.title}`,
+      activeMix.storyNotes || `Generated by WaveCraft AI DJ — "${activeMix.prompt}"`,
+      coverArtUrl || activeMix.tracks[0]?.thumbnail || ''
     );
-    activeBlueprint.tracks.forEach((t) => addToPlaylist(pl.id, t));
+
+    activeMix.tracks.forEach((t) => addToPlaylist(pl.id, t));
     setSavedToast(true);
-    setTimeout(() => setSavedToast(false), 3000);
+    setTimeout(() => setSavedToast(false), 3500);
   };
 
   return (
-    <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-8 pb-28">
-      {/* Hero Banner */}
-      <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-7 sm:p-10 shadow-2xl">
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[var(--color-accent)]/25 blur-[100px] pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-purple-600/25 blur-[100px] pointer-events-none" />
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-8 pb-32 select-none">
+      {/* Hero Studio Soundstage Banner */}
+      <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-6 sm:p-10 shadow-2xl">
+        <div
+          className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-[100px] pointer-events-none transition-all duration-700"
+          style={{ backgroundColor: activeMix?.accentColor ? `${activeMix.accentColor}33` : 'rgba(250,45,72,0.25)' }}
+        />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-indigo-600/20 blur-[100px] pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-bold uppercase tracking-widest text-[var(--color-accent)] mb-4">
             <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
-            WaveCraft AI Vibe DJ
+            AI Smart DJ & Vibe Studio
           </div>
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
+          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
             Describe your moment. <br />
-            <span className="bg-gradient-to-r from-white via-rose-200 to-purple-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-white via-rose-200 to-indigo-300 bg-clip-text text-transparent">
               We’ll engineer the soundstage.
             </span>
           </h1>
-          <p className="text-sm sm:text-base text-white/65 mt-3 max-w-2xl">
-            Type any mood, activity, language, or artist fusion. WaveCraft automatically curates a continuous 320kbps flow and tunes your 10-Band EQ & 3D Visualizer to match.
+          <p className="text-sm sm:text-base text-white/65 mt-3 max-w-2xl leading-relaxed">
+            Type any mood, activity, language, tempo, or artist crossover. WaveCraft automatically extracts acoustic attributes, balances energy flow curves, and sequences an uncompressed 320kbps DJ set.
           </p>
 
-          {/* AI Vibe Prompt Bar */}
-          <form onSubmit={handleFormSubmit} className="mt-6 space-y-3">
+          {/* AI Vibe Prompt Input */}
+          <form onSubmit={handleFormSubmit} className="mt-6 space-y-4">
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="text"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder='e.g. "2AM coding in Tokyo rain", "Telugu mass gym PR", "90s AR Rahman nostalgia"...'
-                className="flex-1 h-14 px-5 rounded-2xl bg-black/45 border border-white/20 text-white placeholder-white/40 text-sm sm:text-base focus:outline-none focus:border-[var(--color-accent)] transition-colors"
+                placeholder='e.g. "late night coding synthwave with rain", "high energy gym phonk", "cozy autumn acoustic afternoon"...'
+                className="flex-1 h-14 px-5 rounded-2xl bg-black/50 border border-white/20 text-white placeholder-white/40 text-sm sm:text-base focus:outline-none focus:border-[var(--color-accent)] transition-all shadow-inner"
               />
               <button
                 type="submit"
                 disabled={isGenerating || !prompt.trim()}
-                className="h-14 px-7 rounded-2xl glass-button-primary text-white font-extrabold text-sm sm:text-base cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2.5 flex-shrink-0"
+                className="h-14 px-8 rounded-2xl glass-button-primary text-white font-extrabold text-sm sm:text-base cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2.5 flex-shrink-0 shadow-lg"
               >
                 {isGenerating ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Mixing Vibe...</span>
+                    <span>Sequencing Set...</span>
                   </>
                 ) : (
                   <>
-                    <span>✨ Generate Mix</span>
+                    <span>✨ Curate DJ Set</span>
                   </>
                 )}
               </button>
             </div>
 
-            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+            {/* Studio Options Row */}
+            <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
               <label className="inline-flex items-center gap-2.5 text-xs text-white/70 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={autoTuneStudio}
                   onChange={(e) => setAutoTuneStudio(e.target.checked)}
-                  className="rounded accent-[var(--color-accent)] w-4 h-4"
+                  className="rounded accent-[var(--color-accent)] w-4 h-4 cursor-pointer"
                 />
                 <span>
-                  Auto-tune <strong>10-Band Equalizer</strong>, <strong>3D Visualizer</strong> &{' '}
-                  <strong>Ambient Glow</strong> to match vibe
+                  Auto-tune <strong>10-Band EQ</strong>, <strong>Visualizer Mode</strong> &{' '}
+                  <strong>Ambient Glow</strong>
                 </span>
               </label>
+
+              {useSettingsStore.getState().aiApiProvider && useSettingsStore.getState().aiApiProvider !== 'none' && (
+                <span className="text-[11px] font-bold text-white/50 bg-white/[0.06] px-2.5 py-1 rounded-full border border-white/10">
+                  ⚡ LLM Mode: {useSettingsStore.getState().aiApiProvider?.toUpperCase()}
+                </span>
+              )}
             </div>
           </form>
         </div>
       </div>
 
-      {/* 1-Tap Curated Vibe Orbs */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white">Instant Vibe Spheres</h2>
-          <span className="text-xs text-white/45">1-Click AI Soundstage Presets</span>
+      {/* Energy Flow Curve Selector */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+            <span>Harmonic Energy Flow Curve</span>
+          </h2>
+          <span className="text-xs text-white/45">BPM & Velocity Sequencing</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CURATED_VIBE_PRESETS.map((preset) => (
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            {
+              id: 'wave' as VibeEnergyCurve,
+              name: 'Wave Flow',
+              icon: '🌊',
+              desc: 'Gentle warm-up → Peak crescendo → Smooth cool-down'
+            },
+            {
+              id: 'peak' as VibeEnergyCurve,
+              name: 'Peak Energy',
+              icon: '⚡',
+              desc: 'High octane, sustained fast BPM throughout'
+            },
+            {
+              id: 'steady' as VibeEnergyCurve,
+              name: 'Deep Steady',
+              icon: '🔄',
+              desc: 'Consistent hypnotic flow with minimal tempo variance'
+            }
+          ].map((curve) => {
+            const active = energyCurve === curve.id;
+            return (
+              <button
+                key={curve.id}
+                type="button"
+                onClick={() => handleCurveChange(curve.id)}
+                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden ${
+                  active
+                    ? 'bg-white/[0.12] border-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/20'
+                    : 'liquid-glass border-white/10 hover:border-white/20'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">{curve.icon}</span>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-white">{curve.name}</h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent)]">
+                      {active ? 'Active Flow' : 'Select'}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-white/60 mt-2 leading-relaxed">{curve.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Inspirational Preset Chips */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-bold text-white">Instant Vibe Spheres</h2>
+          <span className="text-xs text-white/45">1-Click Curated Prompts</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {INSPIRATIONAL_PRESETS.map((preset) => (
             <motion.button
               key={preset.id}
-              whileHover={{ y: -3, scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                setPrompt(preset.prompt);
-                launchVibe(preset);
-              }}
-              className="text-left p-5 rounded-2xl liquid-glass border border-white/15 hover:border-white/30 transition-all group relative overflow-hidden cursor-pointer"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => handlePresetSelect(preset)}
+              className="p-3 rounded-2xl liquid-glass border border-white/15 hover:border-white/30 text-left transition-all cursor-pointer group flex flex-col justify-between"
             >
-              <div
-                className={`absolute -right-8 -bottom-8 w-28 h-28 rounded-full bg-gradient-to-br ${preset.gradient} opacity-25 blur-2xl group-hover:opacity-50 transition-opacity`}
-              />
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-3xl">{preset.emoji}</span>
-                <span className="px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-bold text-white/75 uppercase tracking-wider whitespace-nowrap flex-shrink-0">
-                  EQ: {preset.eqPreset}
-                </span>
+              <div>
+                <span className="text-2xl">{preset.emoji}</span>
+                <h3 className="text-xs font-extrabold text-white mt-2 line-clamp-1">
+                  {preset.title}
+                </h3>
               </div>
-              <h3 className="text-base font-extrabold text-white mt-3">{preset.title}</h3>
-              <p className="text-xs text-white/55 mt-1 line-clamp-2">{preset.prompt}</p>
-              <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-2 text-[11px] font-semibold text-white/65">
-                <span className="whitespace-nowrap truncate">{preset.energyLabel}</span>
-                <span className="text-[var(--color-accent)] group-hover:translate-x-1 transition-transform whitespace-nowrap flex-shrink-0">
-                  Launch →
-                </span>
-              </div>
+              <span className="text-[10px] text-white/50 mt-1 font-semibold group-hover:text-[var(--color-accent)] transition-colors">
+                Launch →
+              </span>
             </motion.button>
           ))}
         </div>
       </section>
 
-      {/* Active Generated Vibe Blueprint & Tracklist */}
-      {activeBlueprint && (
+      {/* Staged Interactive Preview List */}
+      {activeMix && (
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-4"
         >
           <GlassCard variant="liquid" padding="lg" className="border border-white/20">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-white/10">
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 text-[11px] font-bold text-white">
-                    {activeBlueprint.energyLabel}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-bold text-white/80">
-                    EQ: {activeBlueprint.eqPreset}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-bold text-white/80">
-                    3D: {activeBlueprint.visualizerStyle.toUpperCase()}
-                  </span>
-                </div>
-                <h2 className="text-2xl font-extrabold text-white">{activeBlueprint.title}</h2>
-                <p className="text-xs text-white/70 mt-0.5">{activeBlueprint.subtitle}</p>
-                {activeBlueprint.curatedDescription && (
-                  <p className="text-xs text-white/60 mt-2 leading-relaxed max-w-2xl bg-white/[0.04] p-2.5 rounded-xl border border-white/10">
-                    💡 <span className="font-semibold text-white/90">DJ Set Notes:</span> {activeBlueprint.curatedDescription}
-                  </p>
+            {/* Header info */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 pb-5 border-b border-white/10">
+              <div className="flex items-start gap-4">
+                {activeMix.coverArt && (
+                  <img
+                    src={activeMix.coverArt}
+                    alt={activeMix.title}
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-xl border border-white/20 flex-shrink-0"
+                  />
                 )}
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 text-[10px] font-bold text-white">
+                      {activeMix.energyLabel}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-white/80">
+                      EQ: {activeMix.eqPreset}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-white/80">
+                      FLOW: {activeMix.energyCurve.toUpperCase()}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-white/70">
+                      {activeMix.tracks.length} Tracks
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white">{activeMix.title}</h2>
+                  <p className="text-xs text-white/60 mt-0.5">{activeMix.subtitle}</p>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              {/* Action buttons */}
+              <div className="flex items-center gap-3 flex-wrap">
                 <button
-                  onClick={() => {
-                    if (activeBlueprint.tracks.length > 0) {
-                      playTrack(activeBlueprint.tracks[0], activeBlueprint.tracks, 0);
-                    }
-                  }}
-                  className="px-5 py-2.5 rounded-full glass-button-primary text-white font-extrabold text-xs cursor-pointer"
+                  type="button"
+                  onClick={handlePlayMixNow}
+                  className="px-6 py-3 rounded-full glass-button-primary text-white font-extrabold text-sm cursor-pointer shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
                 >
-                  ▶ Play Full Flow
+                  <span>▶ Play Mix Now</span>
                 </button>
                 <button
+                  type="button"
                   onClick={handleSaveAsPlaylist}
-                  className="px-4 py-2.5 rounded-full glass-button text-white font-bold text-xs cursor-pointer"
+                  className="px-5 py-3 rounded-full glass-button text-white font-bold text-sm cursor-pointer hover:bg-white/15 transition-all flex items-center gap-1.5"
                 >
-                  {savedToast ? '✓ Saved to Playlists!' : '+ Save as Playlist'}
+                  <span>{savedToast ? '✓ Saved to Library!' : '+ Save as Playlist'}</span>
                 </button>
               </div>
             </div>
 
-            <div className="mt-4 space-y-1">
-              {activeBlueprint.tracks.map((track, idx) => (
-                <TrackRow
-                  key={track.id}
-                  track={track}
-                  index={idx + 1}
-                  tracks={activeBlueprint.tracks}
-                  onPlay={(t) => playTrack(t, activeBlueprint.tracks, idx)}
-                />
-              ))}
+            {/* Story / DJ Commentary */}
+            {activeMix.storyNotes && (
+              <div className="my-4 p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-start gap-3">
+                <span className="text-lg">💡</span>
+                <div className="text-xs text-white/70 leading-relaxed">
+                  <span className="font-bold text-white/90">DJ Set Notes: </span>
+                  {activeMix.storyNotes}
+                </div>
+              </div>
+            )}
+
+            {/* Tracklist Preview with Acoustic Metadata & Single-Track Quick Swap */}
+            <div className="mt-4 space-y-1.5">
+              {activeMix.tracks.map((track, idx) => {
+                const isCurrentPlaying = currentTrack?.id === track.id && isPlaying;
+                const isSwapping = swappingTrackIndex === idx;
+
+                return (
+                  <div
+                    key={`${track.id}-${idx}`}
+                    className={`flex items-center justify-between gap-3 p-3 rounded-2xl transition-all ${
+                      isCurrentPlaying
+                        ? 'bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 shadow-md'
+                        : 'bg-white/[0.03] hover:bg-white/[0.07] border border-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="w-6 text-center text-xs font-mono font-bold text-white/40">
+                        {idx + 1}
+                      </span>
+                      <img
+                        src={track.thumbnail || track.thumbnailLarge || ''}
+                        alt={track.title}
+                        className="w-11 h-11 rounded-xl object-cover border border-white/15 flex-shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-bold text-white truncate">{track.title}</h4>
+                        <p className="text-xs text-white/55 truncate">{track.artist}</p>
+                      </div>
+                    </div>
+
+                    {/* Acoustic metadata badges */}
+                    <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                      {track.vibeTag && (
+                        <span className="px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10 text-[10px] font-bold text-white/80">
+                          {track.vibeTag}
+                        </span>
+                      )}
+                      {track.bpm && (
+                        <span className="px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10 text-[10px] font-mono font-bold text-white/75">
+                          {track.bpm} BPM
+                        </span>
+                      )}
+                      {track.energy && (
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-400/30 text-[10px] font-bold text-amber-300">
+                          ⚡ {track.energy}/10
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Actions: Quick Swap & Play */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleSingleTrackSwap(idx)}
+                        disabled={isSwapping}
+                        title="Swap track with another vibe match"
+                        className="w-8 h-8 rounded-full glass flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 transition-all cursor-pointer disabled:opacity-50 text-xs"
+                      >
+                        {isSwapping ? (
+                          <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <span>↻</span>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          unlockAudioEngine();
+                          playTrack(track, activeMix.tracks, idx);
+                        }}
+                        title="Play track"
+                        className="w-8 h-8 rounded-full glass-button-primary flex items-center justify-center text-white text-xs cursor-pointer"
+                      >
+                        {isCurrentPlaying ? '❚❚' : '▶'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </GlassCard>
         </motion.section>

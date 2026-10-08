@@ -15,6 +15,7 @@ import GenreBrowser from './GenreBrowser';
 import { DEFAULT_THUMBNAIL, MOOD_PLAYLISTS } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { useSearchHistory } from '../../utils/searchHistory';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import type { Track, AlbumResult, ArtistResult } from '../../types';
 
 const FALLBACK_LIVE_POOL = [
@@ -433,6 +434,33 @@ export default function SearchResults() {
           )}
         </div>
       </div>
+
+      {/* Sleek AI DJ Mix Prompt Chip */}
+      {query.trim() && !selectedAlbum && (
+        <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl liquid-glass border border-[var(--color-accent)]/30 bg-gradient-to-r from-[var(--color-accent)]/15 via-purple-600/10 to-transparent">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-xl sm:text-2xl flex-shrink-0">✨</span>
+            <div className="min-w-0">
+              <h3 className="text-xs sm:text-sm font-extrabold text-white truncate">
+                Curate AI DJ Mix for “{query}”
+              </h3>
+              <p className="text-[11px] text-white/60 truncate">
+                Generate an intelligent flow-sequenced set with auto-tuned EQ & 3D visualizer
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              triggerAndroidHaptic('medium');
+              navigate(`/vibe?prompt=${encodeURIComponent(query.trim())}&auto=1`);
+            }}
+            className="px-4 py-2 rounded-xl glass-button-primary text-xs font-black text-white hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ml-3 shadow-md"
+          >
+            Launch Mix →
+          </button>
+        </div>
+      )}
 
       {/* INTERACTIVE ALBUM TRACKLIST VIEW */}
       {selectedAlbum ? (
