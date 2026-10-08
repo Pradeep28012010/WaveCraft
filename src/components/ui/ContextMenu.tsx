@@ -302,7 +302,7 @@ function ContextMenuInner() {
           style={{
             paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)'
           }}
-          className="relative z-10 w-full max-h-[85vh] overflow-y-auto no-scrollbar rounded-t-[32px] border-t border-white/20 bg-[#0d0d16]/98 backdrop-blur-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.95)] px-4 pt-3 flex flex-col text-white"
+          className="relative z-10 w-full max-h-[85vh] overflow-y-auto no-scrollbar rounded-t-[32px] border-t border-white/25 glass-heavy liquid-glass shadow-[0_-20px_60px_rgba(0,0,0,0.95)] px-4 pt-3 flex flex-col text-white"
         >
           {/* Top Sheet Drag Pill */}
           <div className="w-12 h-1.5 rounded-full bg-white/25 mx-auto mb-3.5 flex-shrink-0" />
@@ -320,11 +320,11 @@ function ContextMenuInner() {
           {type === 'track' && track && (
             <>
               {/* Header: Album Art & Track Meta */}
-              <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-white/[0.06] border border-white/10 mb-4">
+              <div className="flex items-center gap-3.5 p-3 rounded-2xl liquid-glass border border-white/15 mb-4">
                 <img
                   src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                   alt={track.title}
-                  className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-md border border-white/10"
+                  className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-md border border-white/15"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="font-extrabold text-white text-base truncate leading-snug">
@@ -334,11 +334,11 @@ function ContextMenuInner() {
                     {track.artist} {track.album && track.album !== 'Single' ? `• ${track.album}` : ''}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-white/75 uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded-full glass-button text-[10px] font-bold text-white/75 uppercase tracking-wider">
                       {track.quality || '320kbps AAC'}
                     </span>
                     {isOffline && (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-400/30">
+                      <span className="px-2 py-0.5 rounded-full glass-button-emerald text-emerald-300 text-[10px] font-bold">
                         OFFLINE
                       </span>
                     )}
@@ -347,7 +347,7 @@ function ContextMenuInner() {
               </div>
 
               {/* Quick Actions 5-Pill Row */}
-              <div className="grid grid-cols-5 gap-2 mb-4 p-2 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
+              <div className="grid grid-cols-5 gap-2 mb-4 p-2 rounded-2xl liquid-glass border border-white/12">
                 {/* 1. Play / Pause */}
                 <button
                   type="button"
@@ -355,9 +355,9 @@ function ContextMenuInner() {
                     triggerAndroidHaptic('medium');
                     handlePlayNow();
                   }}
-                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/[0.12] active:scale-95 transition-all text-center cursor-pointer"
                 >
-                  <div className="w-10 h-10 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-md mb-1">
+                  <div className="w-10 h-10 rounded-full glass-button-primary text-white flex items-center justify-center shadow-md mb-1">
                     {isThisTrackPlaying ? (
                       <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
                         <rect x="6" y="4" width="4" height="16" rx="1" />
@@ -381,9 +381,9 @@ function ContextMenuInner() {
                     triggerAndroidHaptic('light');
                     handleToggleLike();
                   }}
-                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/[0.12] active:scale-95 transition-all text-center cursor-pointer"
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border border-white/15 mb-1 ${liked ? 'bg-rose-500/25 border-rose-500/40 text-rose-500' : 'bg-white/10 text-white/70'}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 ${liked ? 'glass-button-primary text-white' : 'glass-button text-white/70'}`}>
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.2">
                       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                     </svg>
@@ -400,9 +400,9 @@ function ContextMenuInner() {
                     triggerAndroidHaptic('light');
                     handleTogglePreview();
                   }}
-                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/[0.12] active:scale-95 transition-all text-center cursor-pointer"
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border mb-1 ${isPreviewing ? 'bg-amber-500 text-black border-amber-400 font-black' : 'bg-white/10 border-white/15 text-amber-400'}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 ${isPreviewing ? 'glass-button-amber text-amber-200' : 'glass-button text-amber-400'}`}>
                     {isPreviewing ? '⏹' : '⚡'}
                   </div>
                   <span className="text-[10px] font-bold text-white/80">
@@ -417,9 +417,9 @@ function ContextMenuInner() {
                     triggerAndroidHaptic('light');
                     handleToggleOffline();
                   }}
-                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/[0.12] active:scale-95 transition-all text-center cursor-pointer"
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border mb-1 ${isOffline ? 'bg-emerald-500/25 border-emerald-400/40 text-emerald-400' : 'bg-white/10 border-white/15 text-white/70'}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 ${isOffline ? 'glass-button-emerald text-emerald-300' : 'glass-button text-white/70'}`}>
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       {isOffline ? (
                         <polyline points="20 6 9 17 4 12" />
@@ -444,9 +444,9 @@ function ContextMenuInner() {
                     triggerAndroidHaptic('light');
                     handleShare();
                   }}
-                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center"
+                  className="flex flex-col items-center justify-center py-2.5 rounded-xl hover:bg-white/[0.12] active:scale-95 transition-all text-center cursor-pointer"
                 >
-                  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white/70 mb-1">
+                  <div className="w-10 h-10 rounded-full glass-button flex items-center justify-center text-white/80 mb-1">
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <circle cx="18" cy="5" r="3" />
                       <circle cx="6" cy="12" r="3" />
@@ -757,7 +757,7 @@ function ContextMenuInner() {
           left: `${safeX}px`,
           top: `${safeY}px`
         }}
-        className="w-[240px] max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar rounded-2xl border border-white/20 bg-[#0d0d14]/95 backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.1)] py-1.5 px-1.5 flex flex-col gap-0.5 text-xs text-white/90"
+        className="w-[240px] max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar rounded-2xl border border-white/20 glass-heavy liquid-glass shadow-[0_24px_64px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.1)] py-1.5 px-1.5 flex flex-col gap-0.5 text-xs text-white/90"
       >
         {/* Toast confirmation feedback if action triggered */}
         {toastMessage && (
@@ -772,7 +772,7 @@ function ContextMenuInner() {
         {type === 'track' && track && (
           <>
             {/* Header: Track mini banner */}
-            <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1 rounded-xl bg-white/[0.06] border border-white/10">
+            <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1 rounded-xl liquid-glass border border-white/12">
               <img
                 src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                 alt={track.title}

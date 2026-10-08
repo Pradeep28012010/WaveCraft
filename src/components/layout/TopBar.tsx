@@ -33,7 +33,7 @@ const PomodoroTimerPill = memo(function PomodoroTimerPill({
   return (
     <button
       onClick={onOpenStudio}
-      className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-extrabold text-amber-300 hover:bg-amber-500/30 transition-colors cursor-pointer tabular-nums"
+      className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full glass-button-amber text-xs font-extrabold hover:scale-105 transition-all cursor-pointer tabular-nums"
       title="Focus Pomodoro Timer Active"
     >
       <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
@@ -54,7 +54,7 @@ const SleepTimerPill = memo(function SleepTimerPill({
   return (
     <button
       onClick={onOpenStudio}
-      className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full bg-purple-500/20 border border-purple-400/40 text-xs font-extrabold text-purple-200 hover:bg-purple-500/30 transition-colors cursor-pointer tabular-nums"
+      className="hidden md:flex items-center gap-1.5 px-3 h-9 rounded-full glass-button-purple text-xs font-extrabold text-purple-200 hover:scale-105 transition-all cursor-pointer tabular-nums"
       title="Sleep Timer Active — Click to manage"
     >
       <span>🌙</span>
@@ -347,7 +347,7 @@ export default function TopBar() {
                   placeholder={
                     isListeningVoice ? '🎙️ Listening...' : 'Search songs, albums, artists...'
                   }
-                  className="w-full h-9.5 bg-white/[0.08] border border-white/15 focus:border-[var(--color-accent)]/60 focus:bg-white/[0.12] rounded-full pl-9 pr-14 text-xs text-white placeholder-white/40 focus:outline-none transition-all shadow-inner"
+                  className="w-full h-9.5 liquid-glass rounded-full pl-9 pr-14 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/30 transition-all shadow-inner"
                 />
                 <div className="absolute right-1.5 inset-y-0 flex items-center gap-1">
                   {searchQuery ? (
@@ -491,10 +491,10 @@ export default function TopBar() {
                 triggerAndroidHaptic('medium');
                 toggleOfflineModeOnly();
               }}
-              className={`h-7 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all ${
+              className={`h-7 px-2.5 rounded-full text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all ${
                 offlineModeOnly
-                  ? 'bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
-                  : 'bg-amber-500/20 border border-amber-400/40 text-amber-200 animate-pulse'
+                  ? 'glass-button-emerald text-emerald-200'
+                  : 'glass-button-amber text-amber-200 animate-pulse'
               }`}
               title={offlineModeOnly ? "Offline Vault Mode Active — Click to turn off" : "Device offline — Click to toggle Offline Mode"}
             >
@@ -514,8 +514,8 @@ export default function TopBar() {
             aria-label="Open Studio FX"
             className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-90 cursor-pointer ${
               fxMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
-                ? 'bg-gradient-to-tr from-[var(--color-accent)] to-purple-600 text-white shadow-[0_0_12px_rgba(250,45,72,0.4)] border border-white/30'
-                : 'liquid-glass border border-white/15 text-white/80 hover:text-white'
+                ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(250,45,72,0.4)]'
+                : 'glass-button text-white/80 hover:text-white'
             }`}
             title="Studio FX (8D Audio, EQ & Spatial Radar)"
           >
@@ -537,7 +537,7 @@ export default function TopBar() {
                 toggleMobileDrawer();
               }}
               aria-label="Open Navigation Menu"
-              className="w-9 h-9 rounded-full liquid-glass border border-white/15 flex items-center justify-center text-white/80 hover:text-white active:scale-90 transition-transform cursor-pointer"
+              className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white/80 hover:text-white active:scale-90 transition-transform cursor-pointer"
               title="Menu"
             >
               <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -674,7 +674,7 @@ export default function TopBar() {
           {/* Search Suggestions & History Dropdown */}
           {showSuggestions && (
             searchQuery.trim().length > 0 && suggestions.length > 0 ? (
-              <div className="absolute left-0 right-0 top-13 glass-heavy rounded-2xl p-2 shadow-2xl border border-white/15 z-50">
+              <div className="absolute left-0 right-0 top-13 glass-heavy liquid-glass rounded-2xl p-2 shadow-2xl border border-white/20 z-50">
                 <button
                   onMouseDown={() => {
                     triggerAndroidHaptic('light');
@@ -700,7 +700,7 @@ export default function TopBar() {
                       navigate(`/search?q=${encodeURIComponent(clean)}`);
                       setShowSuggestions(false);
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                   >
                     <svg className="w-3.5 h-3.5 text-white/40 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="11" cy="11" r="8" />
@@ -711,7 +711,7 @@ export default function TopBar() {
                 ))}
               </div>
             ) : !searchQuery.trim() && history.length > 0 ? (
-              <div className="absolute left-0 right-0 top-13 glass-heavy rounded-2xl p-2 shadow-2xl border border-white/15 z-50">
+              <div className="absolute left-0 right-0 top-13 glass-heavy liquid-glass rounded-2xl p-2 shadow-2xl border border-white/20 z-50">
                 <div className="flex items-center justify-between px-3 py-1.5 text-xs text-white/45 font-bold border-b border-white/10 mb-1">
                   <span>RECENT SEARCHES</span>
                   <button
@@ -728,7 +728,7 @@ export default function TopBar() {
                 {history.slice(0, 6).map((term) => (
                   <div
                     key={term}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                     onMouseDown={() => {
                       lastPushedQueryRef.current = term;
                       setSearchQuery(term);
@@ -771,8 +771,8 @@ export default function TopBar() {
               }}
               className={`inline-flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer flex-shrink-0 ${
                 offlineModeOnly
-                  ? 'bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                  : 'bg-amber-500/20 border border-amber-400/40 text-amber-200 animate-pulse'
+                  ? 'glass-button-emerald text-emerald-200'
+                  : 'glass-button-amber text-amber-200 animate-pulse'
               }`}
               title={
                 offlineModeOnly

@@ -327,6 +327,43 @@
     transform: translate3d(0, -1px, 0);
   }
 
+  /* Tinted Liquid Glass Amber Button */
+  .glass-button-amber {
+    background: linear-gradient(
+      135deg,
+      rgba(245, 158, 11, 0.28) 0%,
+      rgba(217, 119, 6, 0.16) 55%,
+      rgba(251, 191, 36, 0.24) 100%
+    );
+    -webkit-backdrop-filter: blur(22px) saturate(190%);
+    backdrop-filter: blur(22px) saturate(190%);
+    border: 1px solid rgba(245, 158, 11, 0.42);
+    border-radius: var(--radius-full);
+    box-shadow:
+      0 8px 24px -4px rgba(245, 158, 11, 0.26),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
+      inset 0 -1px 0 0 rgba(245, 158, 11, 0.12);
+    color: #fef3c7;
+    white-space: nowrap;
+    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: pointer;
+  }
+
+  .glass-button-amber:hover:not(:disabled) {
+    background: linear-gradient(
+      135deg,
+      rgba(245, 158, 11, 0.38) 0%,
+      rgba(217, 119, 6, 0.24) 55%,
+      rgba(251, 191, 36, 0.34) 100%
+    );
+    border-color: rgba(252, 211, 77, 0.62);
+    color: #ffffff;
+    box-shadow:
+      0 12px 30px -4px rgba(245, 158, 11, 0.38),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.44);
+    transform: translate3d(0, -1px, 0);
+  }
+
   .glass-input {
     background: rgba(255, 255, 255, 0.06);
     -webkit-backdrop-filter: blur(16px);
@@ -375,6 +412,7 @@
   .glass-heavy .glass-button-emerald,
   .glass-heavy .glass-button-purple,
   .glass-heavy .glass-button-cyan,
+  .glass-heavy .glass-button-amber,
   .glass-heavy .glass-input,
   .glass-heavy .liquid-glass,
   .modal-glass-panel .glass-button,
@@ -382,6 +420,7 @@
   .modal-glass-panel .glass-button-emerald,
   .modal-glass-panel .glass-button-purple,
   .modal-glass-panel .glass-button-cyan,
+  .modal-glass-panel .glass-button-amber,
   .modal-glass-panel .glass-input,
   .modal-glass-panel .liquid-glass,
   .modal-glass-panel .glass,

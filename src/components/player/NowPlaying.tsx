@@ -169,7 +169,7 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
                 ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
                 : 'none'
             }}
-            className="pointer-events-none absolute -top-1 px-2.5 py-1 rounded-lg bg-black/95 border border-white/25 text-[11px] font-extrabold tabular-nums text-white shadow-xl will-change-transform z-30 flex items-center gap-1"
+            className="pointer-events-none absolute -top-1 px-2.5 py-1 rounded-lg liquid-glass glass-heavy border border-white/25 text-[11px] font-extrabold tabular-nums text-white shadow-xl will-change-transform z-30 flex items-center gap-1"
           >
             <span>{formatTime(isDragging ? activeDisplayTime : (hoverTime || 0))}</span>
           </div>
@@ -206,7 +206,7 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
 
           {/* iOS Style Elastic Thumb Head - positioned independently for true rubber-band stretch */}
           <div
-            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-white shadow-[0_0_14px_2px_var(--color-accent)] pointer-events-none z-10 transition-transform duration-150 ${
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full border border-white/60 bg-white/95 shadow-[0_0_14px_2px_var(--color-accent)] backdrop-blur-sm pointer-events-none z-10 transition-transform duration-150 ${
               isDragging ? 'w-4 h-4 scale-125' : 'w-3 h-3 scale-90 group-hover:scale-115'
             }`}
             style={{
@@ -454,16 +454,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               paddingTop: isPhone ? 'max(env(safe-area-inset-top), 6px)' : undefined
             }}
           >
-            {/* Subtle top gradient fade diffusing the header into the stage with smooth gradient blur */}
-            <div
-              className="absolute inset-x-0 -top-10 -bottom-12 bg-gradient-to-b from-[#06060b]/90 via-[#06060b]/40 to-transparent backdrop-blur-md pointer-events-none -z-10"
-              style={{
-                maskImage:
-                  'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
-                WebkitMaskImage:
-                  'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)'
-              }}
-            />
             {isPhone ? (
               <>
                 <button
@@ -528,7 +518,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer app-region-no-drag ${
                           deckMode === 'cover'
                             ? 'glass-button-primary text-white'
-                            : 'text-white/65 hover:text-white'
+                            : 'glass-button bg-white/[0.04] text-white/70 hover:text-white'
                         }`}
                       >
                         Cover
@@ -538,7 +528,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer app-region-no-drag ${
                           deckMode === 'vinyl'
                             ? 'glass-button-primary text-white'
-                            : 'text-white/65 hover:text-white'
+                            : 'glass-button bg-white/[0.04] text-white/70 hover:text-white'
                         }`}
                       >
                         Vinyl Deck
@@ -613,7 +603,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.96 }}
                         transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="absolute right-0 top-12 w-64 rounded-2xl bg-black/80 backdrop-blur-2xl border border-white/15 p-2 shadow-2xl z-50 space-y-1 text-xs"
+                        className="absolute right-0 top-12 w-64 rounded-2xl glass-heavy liquid-glass border border-white/20 p-2 shadow-[0_24px_64px_rgba(0,0,0,0.85)] z-50 space-y-1 text-xs"
                       >
                         {/* 1. Generate Poster */}
                         <button
@@ -623,7 +613,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             setShowWaveCard(true);
                             setShowToolsMenu(false);
                           }}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                         >
                           <div className="flex items-center gap-2.5">
                             <svg className="w-4 h-4 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -653,7 +643,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               if (next) setVisualizerStyle(next.id);
                             }
                           }}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                         >
                           <div className="flex items-center gap-2.5">
                             <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -662,7 +652,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             <span className="font-medium">Visualizer Mode</span>
                           </div>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            showVisualizer ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30' : 'bg-white/10 text-white/50'
+                            showVisualizer ? 'glass-button-cyan text-cyan-200' : 'glass-button text-white/50'
                           }`}>
                             {showVisualizer
                               ? (VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula')
@@ -679,14 +669,14 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             if (nextZen) setShowVisualizer(true);
                             setShowToolsMenu(false);
                           }}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                         >
                           <div className="flex items-center gap-2.5">
                             <span className="text-sm">🧘</span>
                             <span className="font-medium">3D Zen Mode</span>
                           </div>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            zenMode ? 'bg-[var(--color-accent)] text-white' : 'bg-white/10 text-white/60'
+                            zenMode ? 'glass-button-primary text-white' : 'glass-button text-white/60'
                           }`}>
                             {zenMode ? 'Active' : 'Off'}
                           </span>
@@ -706,14 +696,14 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               stopSleepTimer();
                             }
                           }}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                         >
                           <div className="flex items-center gap-2.5">
                             <span className="text-sm">🌙</span>
                             <span className="font-medium">Sleep Timer</span>
                           </div>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            sleepActive ? 'bg-purple-600/30 text-purple-200 border border-purple-400/30' : 'bg-white/10 text-white/60'
+                            sleepActive ? 'glass-button-purple text-purple-200' : 'glass-button text-white/60'
                           }`}>
                             {sleepActive ? (sleepEndAtTrack ? 'End of Song' : `${Math.ceil(sleepRemaining / 60)}m`) : 'Off'}
                           </span>
@@ -727,7 +717,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             const nextQ = qualities[(qualities.indexOf(audioQuality) + 1) % qualities.length] || 'auto';
                             setAudioQuality(nextQ);
                           }}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                         >
                           <div className="flex items-center gap-2.5">
                             <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -736,7 +726,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             </svg>
                             <span className="font-medium">Audio Quality</span>
                           </div>
-                          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-white/80 uppercase">
+                          <span className="px-2 py-0.5 rounded-full glass-button text-[10px] font-semibold text-white/80 uppercase">
                             {audioQuality === 'auto' ? 'HD (Auto)' : audioQuality === 'high' ? '320k AAC' : audioQuality === 'medium' ? '192k' : '128k'}
                           </span>
                         </button>
@@ -745,14 +735,14 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         <button
                           type="button"
                           onClick={() => setPreservePitch(!preservePitch)}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                         >
                           <div className="flex items-center gap-2.5">
                             <span className="text-sm">{preservePitch ? '🔒' : '🎵'}</span>
                             <span className="font-medium">Pitch Control</span>
                           </div>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            preservePitch ? 'bg-white/10 text-white/70' : 'bg-amber-500/25 text-amber-300 border border-amber-400/30'
+                            preservePitch ? 'glass-button text-white/70' : 'glass-button-amber text-amber-200'
                           }`}>
                             {preservePitch ? 'Pitch Locked' : 'Tape Shift'}
                           </span>
@@ -766,13 +756,13 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
                             setPlaybackSpeed(next);
                           }}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                         >
                           <div className="flex items-center gap-2.5">
                             <span className="text-sm">⚡</span>
                             <span className="font-medium">Playback Speed</span>
                           </div>
-                          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-white/80">
+                          <span className="px-2 py-0.5 rounded-full glass-button text-[10px] font-semibold text-white/80">
                             {playbackSpeed}x
                           </span>
                         </button>
@@ -871,12 +861,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
             <div
               className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-2 sm:pt-3 pb-6 overflow-y-auto no-scrollbar flex flex-col"
-              style={{
-                maskImage:
-                  'linear-gradient(to bottom, transparent 0px, black 48px, black calc(100% - 32px), transparent 100%)',
-                WebkitMaskImage:
-                  'linear-gradient(to bottom, transparent 0px, black 48px, black calc(100% - 32px), transparent 100%)'
-              }}
             >
               <div
                 className={`w-full max-w-6xl my-auto mx-auto flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12 ${
@@ -1059,10 +1043,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             triggerAndroidHaptic('light');
                             setShowAiInsightsDetail((prev) => !prev);
                           }}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 text-[11px] font-medium text-white/80 backdrop-blur-md transition-all cursor-pointer shadow-sm active:scale-95"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass glass-button border border-white/20 text-[11px] font-semibold text-white/90 transition-all cursor-pointer shadow-sm active:scale-95"
                           title="AI DJ Insights • Click to inspect acoustic metadata"
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shadow-[0_0_8px_var(--color-accent)]" />
                           <span className="text-white/90 font-medium">{trackAcoustics.vibeTag}</span>
                         </button>
                       </div>
@@ -1074,7 +1058,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             initial={{ opacity: 0, y: -6, scale: 0.98 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                            className="mt-2.5 p-3.5 rounded-2xl bg-black/60 backdrop-blur-2xl border border-white/15 shadow-2xl text-left space-y-2 max-w-sm"
+                            className="mt-2.5 p-4 rounded-2xl glass-heavy liquid-glass border border-white/20 shadow-2xl text-left space-y-2.5 max-w-sm"
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-black uppercase tracking-wider text-[var(--color-accent)] flex items-center gap-1.5">
@@ -1083,21 +1067,21 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               <button
                                 type="button"
                                 onClick={() => setShowAiInsightsDetail(false)}
-                                className="w-5 h-5 rounded-full text-white/40 hover:text-white flex items-center justify-center text-xs cursor-pointer"
+                                className="w-6 h-6 rounded-full glass-button text-white/60 hover:text-white flex items-center justify-center text-xs cursor-pointer"
                               >
                                 ×
                               </button>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-[11px] text-white/70">
-                              <div className="p-2 rounded-xl bg-white/[0.05] border border-white/10">
+                              <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
                                 <span className="block text-[10px] text-white/40 uppercase font-bold">Tempo</span>
                                 <span className="text-xs font-mono font-bold text-white">{trackAcoustics.bpm} BPM</span>
                               </div>
-                              <div className="p-2 rounded-xl bg-white/[0.05] border border-white/10">
+                              <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
                                 <span className="block text-[10px] text-white/40 uppercase font-bold">Energy Rating</span>
                                 <span className="text-xs font-bold text-amber-300">{trackAcoustics.energy} / 10 Intensity</span>
                               </div>
-                              <div className="p-2 rounded-xl bg-white/[0.05] border border-white/10 col-span-2">
+                              <div className="p-2.5 rounded-xl liquid-glass border border-white/12 col-span-2">
                                 <span className="block text-[10px] text-white/40 uppercase font-bold">Mood & Genre</span>
                                 <span className="text-xs font-semibold text-white/90">{trackAcoustics.mood} • {trackAcoustics.vibeTag}</span>
                               </div>
@@ -1109,7 +1093,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                 onClose();
                                 navigate(`/vibe?prompt=${encodeURIComponent(trackAcoustics.vibeTag)}&auto=1`);
                               }}
-                              className="w-full py-1.5 px-3 rounded-xl glass-button-primary text-[11px] font-extrabold text-white flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+                              className="w-full py-2 px-3 rounded-xl glass-button-primary text-[11px] font-extrabold text-white flex items-center justify-center gap-1.5 cursor-pointer mt-1"
                             >
                               <span>✨ Launch Vibe DJ with this Mood</span>
                             </button>

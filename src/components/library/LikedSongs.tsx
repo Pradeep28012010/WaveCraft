@@ -101,7 +101,7 @@ export default function LikedSongs() {
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={handlePlayAll}
-            className="px-6 py-2.5 rounded-full bg-[var(--color-accent)] text-white font-bold text-sm flex items-center gap-2 hover:scale-105 transition-transform shadow-lg disabled:opacity-50 cursor-pointer"
+            className="px-6 py-2.5 rounded-full glass-button-primary text-white font-bold text-sm flex items-center gap-2 hover:scale-105 transition-transform shadow-lg disabled:opacity-50 cursor-pointer"
             disabled={filteredAndSortedSongs.length === 0}
           >
             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -120,10 +120,10 @@ export default function LikedSongs() {
             disabled={filteredAndSortedSongs.length === 0 || downloadProgress?.isDownloading}
             className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
               downloadProgress?.isDownloading
-                ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-200'
+                ? 'glass-button-cyan text-cyan-200'
                 : isAllOffline
-                ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/30'
-                : 'glass-button text-white/90 hover:text-white border-white/15'
+                ? 'glass-button-emerald text-emerald-200'
+                : 'glass-button text-white/90 hover:text-white'
             }`}
             title={
               isAllOffline

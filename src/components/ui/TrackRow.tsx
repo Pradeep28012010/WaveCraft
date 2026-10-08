@@ -294,7 +294,7 @@ const TrackRow = memo(({
             damping: 36,
             mass: 0.48
           }}
-          className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/[0.09] via-white/[0.06] to-white/[0.03] border border-white/[0.15] pointer-events-none z-0"
+          className="absolute inset-0 rounded-2xl liquid-glass border border-white/20 pointer-events-none z-0 shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
         >
           <span className="absolute left-1.5 top-3 bottom-3 w-1 rounded-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
         </motion.div>
@@ -315,7 +315,7 @@ const TrackRow = memo(({
         onContextMenu={handleContextMenu}
         className={`relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 z-10 ${
           isCurrentTrack
-            ? 'bg-white/[0.10] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
+            ? 'liquid-glass border-white/25 shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
             : 'bg-[#0a0a10]/95 sm:bg-white/[0.015] hover:bg-white/[0.04] border-transparent'
         }`}
       >
@@ -421,11 +421,11 @@ const TrackRow = memo(({
             title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-75 flex-shrink-0 ${
               liked
-                ? 'text-[var(--color-accent)] opacity-100'
+                ? 'glass-button-primary text-white opacity-100'
                 : isPhone
-                ? 'text-white/40 opacity-70 hover:opacity-100'
+                ? 'glass-button text-white/60 opacity-80 hover:opacity-100'
                 : activeVisual
-                ? 'text-white/40 hover:text-white opacity-100'
+                ? 'glass-button text-white/60 hover:text-white opacity-100'
                 : 'opacity-0 pointer-events-none'
             }`}
           >
@@ -452,9 +452,9 @@ const TrackRow = memo(({
             title="More actions"
             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-75 flex-shrink-0 ${
               isPhone
-                ? 'text-white/50 hover:text-white'
+                ? 'glass-button text-white/70 hover:text-white'
                 : activeVisual
-                ? 'text-white/60 hover:text-white opacity-100'
+                ? 'glass-button text-white/70 hover:text-white opacity-100'
                 : 'text-white/35 opacity-60 hover:opacity-100'
             }`}
           >

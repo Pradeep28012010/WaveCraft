@@ -642,8 +642,8 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
                     onClick={() => handleSetOffset(sec)}
                     className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
                       userOffset === sec
-                        ? 'bg-[var(--color-accent)] text-white shadow-sm'
-                        : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white'
+                        ? 'glass-button-primary text-white shadow-sm'
+                        : 'glass-button text-white/70 hover:text-white'
                     }`}
                   >
                     {sec > 0 ? `+${sec}s` : `${sec}s`}

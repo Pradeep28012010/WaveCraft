@@ -369,8 +369,8 @@ export default function MiniPlayer() {
                   triggerAndroidHaptic('light');
                   toggleLike(currentTrack);
                 }}
-                className={`w-9 h-9 flex items-center justify-center rounded-full active:scale-75 transition-transform ${
-                  isLiked ? 'text-[var(--color-accent)]' : 'text-white/55'
+                className={`w-9 h-9 flex items-center justify-center rounded-full active:scale-75 transition-transform cursor-pointer ${
+                  isLiked ? 'glass-button-primary text-white' : 'glass-button text-white/70'
                 }`}
               >
                 <svg
@@ -410,7 +410,7 @@ export default function MiniPlayer() {
                   triggerAndroidHaptic('light');
                   nextTrack();
                 }}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-white/85 active:scale-80 transition-transform"
+                className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white/85 active:scale-80 transition-transform cursor-pointer"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
@@ -532,10 +532,10 @@ export default function MiniPlayer() {
               }
               className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors flex-shrink-0 cursor-pointer ${
                 trackIsOffline
-                  ? 'text-emerald-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                  ? 'glass-button-emerald text-emerald-200'
                   : isSavingOffline
-                  ? 'text-amber-300'
-                  : 'text-white/45 hover:text-white hover:bg-white/10'
+                  ? 'glass-button-amber text-amber-200'
+                  : 'glass-button text-white/70 hover:text-white'
               }`}
             >
               {isSavingOffline ? (
@@ -560,8 +560,8 @@ export default function MiniPlayer() {
               title={isLiked ? 'Unlike' : 'Like'}
               className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors flex-shrink-0 cursor-pointer ${
                 isLiked
-                  ? 'text-[var(--color-accent)] drop-shadow-[0_0_10px_rgba(250,45,72,0.6)]'
-                  : 'text-white/45 hover:text-white hover:bg-white/10'
+                  ? 'glass-button-primary text-white'
+                  : 'glass-button text-white/70 hover:text-white'
               }`}
             >
               <svg
@@ -585,7 +585,7 @@ export default function MiniPlayer() {
                 onClick={toggleShuffle}
                 title="Shuffle"
                 className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
-                  isShuffled ? 'glass-button-primary text-white' : 'text-white/50 hover:text-white'
+                  isShuffled ? 'glass-button-primary text-white' : 'glass-button text-white/70 hover:text-white'
                 }`}
               >
                 <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -598,7 +598,7 @@ export default function MiniPlayer() {
                 whileTap={{ scale: 0.88 }}
                 onClick={prevTrack}
                 title="Previous"
-                className="w-9 h-9 p-0 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white transition-colors cursor-pointer"
               >
                 <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
@@ -632,7 +632,7 @@ export default function MiniPlayer() {
                 whileTap={{ scale: 0.88 }}
                 onClick={nextTrack}
                 title="Next"
-                className="w-9 h-9 p-0 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white transition-colors cursor-pointer"
               >
                 <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
@@ -658,7 +658,7 @@ export default function MiniPlayer() {
                     : 'Repeat Off'
                 }
                 className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer relative ${
-                  repeatMode !== 'off' ? 'glass-button-primary text-white' : 'text-white/50 hover:text-white'
+                  repeatMode !== 'off' ? 'glass-button-primary text-white' : 'glass-button text-white/70 hover:text-white'
                 }`}
               >
                 <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -724,8 +724,8 @@ export default function MiniPlayer() {
                 title={isMuted || volume === 0 ? 'Unmute Audio' : 'Mute Audio'}
                 className={`w-7 h-7 p-0 rounded-full flex items-center justify-center transition-colors cursor-pointer flex-shrink-0 ${
                   isMuted || volume === 0
-                    ? 'text-rose-400 bg-rose-500/15'
-                    : 'text-white/75 hover:text-white'
+                    ? 'glass-button-primary text-rose-300'
+                    : 'glass-button text-white/75 hover:text-white'
                 }`}
               >
                 {isMuted || volume === 0 ? (

@@ -24,7 +24,7 @@ export default function GenreBrowser() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.04 }}
             onClick={() => handleGenreClick(genre.query || genre.name)}
-            className={`relative overflow-hidden rounded-2xl h-32 p-5 text-left group transition-all hover:scale-[1.02] active:scale-95 border border-white/15 shadow-xl cursor-pointer ${genre.colorClass}`}
+            className={`relative overflow-hidden rounded-2xl h-32 p-5 text-left group transition-all hover:scale-[1.02] active:scale-95 border border-white/20 liquid-glass shadow-xl cursor-pointer ${genre.colorClass}`}
           >
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/10 opacity-80" />
             <div className="absolute -bottom-3 -right-2 text-5xl opacity-75 group-hover:scale-115 group-hover:-rotate-12 transition-transform duration-300 select-none">

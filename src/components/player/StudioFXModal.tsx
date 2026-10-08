@@ -335,7 +335,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               onClick={resetToOriginal}
-              className="px-3 py-1.5 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold text-white/80 hover:text-white transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+              className="px-3 py-1.5 rounded-full border border-white/20 glass-button text-xs font-bold text-white/90 hover:text-white transition flex items-center gap-1.5 cursor-pointer active:scale-95"
               title="Reset all studio effects to flat master"
             >
               <span>↺</span>
@@ -347,7 +347,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             type="button"
             onClick={onClose}
             aria-label="Close Studio FX"
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-white/80 hover:text-white transition cursor-pointer text-sm font-bold active:scale-95"
+            className="w-8 h-8 rounded-full glass-button border border-white/20 flex items-center justify-center text-white/80 hover:text-white transition cursor-pointer text-sm font-bold active:scale-95"
             title="Close (Esc)"
           >
             ✕
@@ -382,8 +382,8 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   }}
                   className={`text-left p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
                     isSelected
-                      ? 'border-cyan-400/90 bg-cyan-500/15 shadow-[0_0_24px_rgba(6,182,212,0.25),inset_0_1px_0_rgba(255,255,255,0.25)]'
-                      : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/20'
+                      ? 'border-cyan-400/80 liquid-glass bg-cyan-500/15 shadow-[0_0_24px_rgba(6,182,212,0.25),inset_0_1px_0_rgba(255,255,255,0.25)]'
+                      : 'border-white/10 liquid-glass hover:bg-white/[0.08] hover:border-white/20'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -412,7 +412,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* ── Segmented Rack Navigation Tabs ── */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/10 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl liquid-glass border border-white/15 overflow-x-auto no-scrollbar">
           {[
             { id: 'spatial', label: '🪐 3D Spatial Radar', badge: fxMode === '8d-orbit' ? 'ACTIVE' : null },
             { id: 'mastering', label: '🎚️ Mastering Rack', badge: null },
@@ -436,7 +436,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 onClick={() => setActiveTab(tab.id as StudioTab)}
                 className={`flex-1 min-w-max px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   isActive
-                    ? 'bg-white/15 text-white shadow-sm border border-white/20'
+                    ? 'glass-button-cyan text-white shadow-sm'
                     : 'text-white/60 hover:text-white hover:bg-white/5 border border-transparent'
                 }`}
               >
@@ -458,7 +458,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* ── Active Tab Stage ── */}
-        <div className="p-4 sm:p-5 rounded-2xl border border-white/10 bg-black/25">
+        <div className="p-4 sm:p-5 rounded-2xl border border-white/12 liquid-glass">
           {/* TAB 1: 3D SPATIAL RADAR */}
           {activeTab === 'spatial' && (
             <div className="space-y-4">
@@ -751,7 +751,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         setTrebleAir(preset.air);
                         setReverbMix(preset.rev);
                       }}
-                      className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
+                      className="px-2.5 py-1 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
                     >
                       {preset.label}
                     </button>
@@ -843,7 +843,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         setSubBassBoost(preset.bass);
                         if (fxMode !== 'arena-live') setFxMode('arena-live');
                       }}
-                      className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
+                      className="px-2.5 py-1 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
                     >
                       {preset.label}
                     </button>
@@ -884,8 +884,8 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       key={layer.id}
                       className={`p-3 rounded-2xl border transition-all ${
                         isActive
-                          ? 'border-emerald-400/50 bg-emerald-500/10'
-                          : 'border-white/10 bg-white/[0.02]'
+                          ? 'border-emerald-400/50 liquid-glass bg-emerald-500/10'
+                          : 'border-white/10 liquid-glass'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -899,10 +899,10 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         <button
                           type="button"
                           onClick={() => setAmbientVolume(layer.id, isActive ? 0 : 0.5)}
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition cursor-pointer border ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition cursor-pointer ${
                             isActive
-                              ? 'bg-emerald-400 text-black border-emerald-300'
-                              : 'bg-white/10 text-white/60 border-white/15 hover:bg-white/15'
+                              ? 'glass-button-emerald text-emerald-200'
+                              : 'glass-button text-white/70'
                           }`}
                         >
                           {isActive ? `${Math.round(vol * 100)}%` : 'OFF'}
@@ -938,7 +938,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       key={p.label}
                       type="button"
                       onClick={() => applyAmbientPreset(p.preset as Partial<Record<AmbientLayerId, number>>)}
-                      className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
+                      className="px-2.5 py-1 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
                     >
                       {p.label}
                     </button>
@@ -986,7 +986,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                           key={mins}
                           type="button"
                           onClick={() => startSleepTimer(mins)}
-                          className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
                         >
                           {mins} mins
                         </button>
@@ -994,7 +994,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       <button
                         type="button"
                         onClick={() => setEndAtTrack(true)}
-                        className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
+                        className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
                       >
                         End of Song
                       </button>

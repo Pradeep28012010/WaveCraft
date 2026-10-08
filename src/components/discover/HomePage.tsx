@@ -267,8 +267,8 @@ export default function HomePage() {
                 }}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                   isSelected
-                    ? 'bg-[var(--color-accent)] text-white shadow-md shadow-[var(--color-accent)]/30'
-                    : 'bg-white/[0.07] border border-white/10 text-white/70 hover:text-white hover:bg-white/[0.12]'
+                    ? 'glass-button-primary text-white shadow-md'
+                    : 'glass-button text-white/70 hover:text-white'
                 }`}
               >
                 {chip.label}
@@ -299,7 +299,7 @@ export default function HomePage() {
                   quickMixTracks
                 );
               }}
-              className="flex items-center gap-2.5 p-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.10] active:scale-[0.98] border border-white/[0.08] transition-all cursor-pointer shadow-sm overflow-hidden group"
+              className="flex items-center gap-2.5 p-1 rounded-xl liquid-glass hover:bg-white/[0.12] active:scale-[0.98] border border-white/12 transition-all cursor-pointer shadow-sm overflow-hidden group"
             >
               <img
                 src={track.thumbnail || DEFAULT_THUMBNAIL}
@@ -476,7 +476,7 @@ export default function HomePage() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-3xl drop-shadow">{mood.emoji}</span>
-                      <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
+                      <div className="w-8 h-8 rounded-full glass-button-primary text-white flex items-center justify-center">
                         {isMoodLoading ? (
                           <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
@@ -507,7 +507,7 @@ export default function HomePage() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-3xl drop-shadow group-hover:scale-110 transition-transform">{mood.emoji}</span>
-                    <div className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-white/25 transition-all">
+                    <div className="w-8 h-8 rounded-full glass-button-primary text-white flex items-center justify-center group-hover:scale-110 transition-all">
                       {isMoodLoading ? (
                         <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : (
@@ -553,7 +553,7 @@ export default function HomePage() {
                     />
                     <button
                       onClick={(e) => handlePlayAlbum(album, e)}
-                      className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform"
+                      className="absolute bottom-2 right-2 w-10 h-10 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer"
                       title={`Play ${album.title || album.name}`}
                     >
                       {playingAlbumId === album.id ? (
@@ -604,7 +604,7 @@ export default function HomePage() {
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                         <button
                           onClick={(e) => handlePlayAlbum(album, e)}
-                          className="w-11 h-11 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-lg scale-90 translate-y-2 group-hover:scale-100 group-hover:translate-y-0 transition-all duration-300 cursor-pointer hover:brightness-110 active:scale-95"
+                          className="w-11 h-11 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg scale-90 translate-y-2 group-hover:scale-100 group-hover:translate-y-0 transition-all duration-300 cursor-pointer hover:brightness-110 active:scale-95"
                           title={`Play ${album.title || album.name}`}
                         >
                           {playingAlbumId === album.id ? (

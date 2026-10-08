@@ -424,8 +424,8 @@ export default function SearchResults() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
                   activeTab === tab.id
-                    ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/25'
-                    : 'glass text-white/65 hover:text-white'
+                    ? 'glass-button-primary text-white shadow-lg'
+                    : 'glass-button text-white/70 hover:text-white'
                 }`}
               >
                 {tab.label}
@@ -501,7 +501,7 @@ export default function SearchResults() {
                       }
                     }}
                     disabled={isAlbumLoading || albumTracks.length === 0}
-                    className="px-6 py-2.5 rounded-full bg-[var(--color-accent)] text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-[var(--color-accent)]/30 hover:scale-105 transition-transform cursor-pointer disabled:opacity-50"
+                    className="px-6 py-2.5 rounded-full glass-button-primary text-white font-extrabold text-xs sm:text-sm shadow-lg hover:scale-105 transition-transform cursor-pointer disabled:opacity-50"
                   >
                     ▶ Play Album
                   </button>
@@ -514,13 +514,13 @@ export default function SearchResults() {
                       }
                     }}
                     disabled={isAlbumLoading || albumTracks.length === 0}
-                    className="px-5 py-2.5 rounded-full liquid-glass text-white font-bold text-xs sm:text-sm hover:bg-white/15 transition-colors cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2.5 rounded-full glass-button text-white font-bold text-xs sm:text-sm hover:bg-white/15 transition-colors cursor-pointer disabled:opacity-50"
                   >
                     Shuffle Album
                   </button>
                   <button
                     onClick={() => setSelectedAlbum(null)}
-                    className="px-4 py-2.5 rounded-full glass text-white/70 hover:text-white text-xs font-bold cursor-pointer"
+                    className="px-4 py-2.5 rounded-full glass-button text-white/70 hover:text-white text-xs font-bold cursor-pointer"
                   >
                     ← All Results
                   </button>
@@ -613,7 +613,7 @@ export default function SearchResults() {
                           }}
                           className="w-28 h-28 rounded-2xl object-cover shadow-2xl group-hover:scale-105 transition-transform"
                         />
-                        <button className="w-14 h-14 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-xl shadow-[var(--color-accent)]/35 group-hover:scale-110 transition-transform">
+                        <button className="w-14 h-14 rounded-full glass-button-primary text-white flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform cursor-pointer">
                           <svg className="w-7 h-7 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z" />
                           </svg>
@@ -723,7 +723,7 @@ export default function SearchResults() {
                                 handleOpenAlbum(album, true);
                               }}
                               title="Play Album Now"
-                              className="bg-[var(--color-accent)] text-white p-3 rounded-full shadow-lg hover:scale-110 transition-transform cursor-pointer"
+                              className="glass-button-primary text-white p-3 rounded-full shadow-lg hover:scale-110 transition-transform cursor-pointer"
                             >
                               <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M8 5v14l11-7z" />

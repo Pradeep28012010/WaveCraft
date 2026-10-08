@@ -572,10 +572,10 @@ export default function PlaylistView() {
           disabled={playlist.tracks.length === 0 || downloadProgress?.isDownloading}
           className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
             downloadProgress?.isDownloading
-              ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-200'
+              ? 'glass-button-cyan text-cyan-200'
               : isAllOffline
-              ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/30'
-              : 'glass-button text-white/90 hover:text-white border-white/15'
+              ? 'glass-button-emerald text-emerald-200'
+              : 'glass-button text-white/90 hover:text-white'
           }`}
           title={
             isAllOffline
@@ -593,14 +593,14 @@ export default function PlaylistView() {
             </>
           ) : isAllOffline ? (
             <>
-              <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-emerald-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
               <span>Offline Ready ({offlineCount})</span>
             </>
           ) : (
             <>
-              <svg className="w-4 h-4 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-cyan-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               <span>Download All ({playlist.tracks.length - offlineCount})</span>
@@ -612,10 +612,10 @@ export default function PlaylistView() {
         <button
           type="button"
           onClick={() => togglePin(playlist.id)}
-          className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+          className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
             playlist.isPinned
-              ? 'bg-amber-500/20 border-amber-400/50 text-amber-200 hover:bg-amber-500/30'
-              : 'glass-button text-white/80 hover:text-white border-white/15'
+              ? 'glass-button-amber text-amber-200'
+              : 'glass-button text-white/80 hover:text-white'
           }`}
           title={playlist.isPinned ? 'Unpin from top' : 'Pin to top of library'}
         >
