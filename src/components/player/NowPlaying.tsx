@@ -454,8 +454,16 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               paddingTop: isPhone ? 'max(env(safe-area-inset-top), 6px)' : undefined
             }}
           >
-            {/* Subtle top gradient fade diffusing the header into the stage */}
-            <div className="absolute inset-x-0 -top-10 -bottom-12 bg-gradient-to-b from-[#06060b]/90 via-[#06060b]/40 to-transparent pointer-events-none -z-10" />
+            {/* Subtle top gradient fade diffusing the header into the stage with smooth gradient blur */}
+            <div
+              className="absolute inset-x-0 -top-10 -bottom-12 bg-gradient-to-b from-[#06060b]/90 via-[#06060b]/40 to-transparent backdrop-blur-md pointer-events-none -z-10"
+              style={{
+                maskImage:
+                  'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
+                WebkitMaskImage:
+                  'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)'
+              }}
+            />
             {isPhone ? (
               <>
                 <button
@@ -862,7 +870,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
           ) : (
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
             <div
-              className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pb-6 overflow-y-auto no-scrollbar flex flex-col"
+              className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-2 sm:pt-3 pb-6 overflow-y-auto no-scrollbar flex flex-col"
               style={{
                 maskImage:
                   'linear-gradient(to bottom, transparent 0px, black 48px, black calc(100% - 32px), transparent 100%)',
