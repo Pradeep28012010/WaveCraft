@@ -260,7 +260,7 @@ export default function LibraryPage() {
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar">
+          <div className="flex items-center gap-2 overflow-x-auto pt-2 pb-2.5 px-1 -my-1 -mx-1 scrollbar-none no-scrollbar">
             <button
               type="button"
               onClick={() => setSelectedTagFilter('all')}

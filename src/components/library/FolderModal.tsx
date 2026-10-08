@@ -76,7 +76,7 @@ export default function FolderModal({ isOpen, onClose, editFolder }: FolderModal
       onClose={onClose}
       title={editFolder ? 'Edit Folder' : 'Create New Folder'}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-white">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-white p-1">
         {/* Preview Card */}
         <div
           className="p-4 rounded-2xl border transition-all flex items-center gap-4 relative overflow-hidden liquid-glass"
@@ -140,7 +140,7 @@ export default function FolderModal({ isOpen, onClose, editFolder }: FolderModal
           <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase tracking-wider">
             Folder Icon
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2.5 py-1.5 px-2 -mx-1">
             {PRESET_ICONS.map((emoji) => (
               <button
                 key={emoji}
@@ -163,7 +163,7 @@ export default function FolderModal({ isOpen, onClose, editFolder }: FolderModal
           <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase tracking-wider">
             Theme Aura Color
           </label>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap items-center gap-3 py-2 px-2.5 -mx-1">
             {PRESET_COLORS.map((c) => (
               <button
                 key={c.hex}
@@ -171,11 +171,11 @@ export default function FolderModal({ isOpen, onClose, editFolder }: FolderModal
                 title={c.name}
                 onClick={() => setColor(c.hex)}
                 className={`w-7 h-7 rounded-full transition-transform cursor-pointer relative ${
-                  color === c.hex ? 'ring-2 ring-white scale-125' : 'hover:scale-110 opacity-80 hover:opacity-100'
+                  color === c.hex ? 'ring-2 ring-white scale-115' : 'hover:scale-105 opacity-80 hover:opacity-100'
                 }`}
                 style={{
                   backgroundColor: c.hex,
-                  boxShadow: color === c.hex ? `0 0 12px ${c.hex}` : undefined
+                  boxShadow: color === c.hex ? `0 0 14px ${c.hex}` : undefined
                 }}
               />
             ))}

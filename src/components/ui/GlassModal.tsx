@@ -117,7 +117,7 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
                 </button>
               </div>
             )}
-            <div className="overflow-y-auto no-scrollbar pr-0.5">{children}</div>
+            <div className="overflow-y-auto no-scrollbar px-2 py-1 -mx-2 -my-1">{children}</div>
           </motion.div>
         </div>
       )}

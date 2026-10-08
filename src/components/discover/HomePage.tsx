@@ -280,9 +280,21 @@ export default function HomePage() {
 
   return (
     <div className="relative pb-24 pt-2 text-white min-h-screen">
-      {/* Dynamic Ambient Aurora Background Glows (Eliminates flat muddy background) */}
-      <div className="absolute top-0 right-10 w-96 h-96 rounded-full bg-[var(--color-accent)]/15 blur-[120px] pointer-events-none -z-10" />
-      <div className="absolute top-40 left-0 w-80 h-80 rounded-full bg-purple-600/12 blur-[100px] pointer-events-none -z-10" />
+      {/* Dynamic Ambient Aurora Background Glows (Fades to transparent to prevent scroll boundary cutoffs) */}
+      <div
+        className="absolute top-0 right-0 w-[420px] h-[420px] pointer-events-none -z-10"
+        style={{
+          background: 'radial-gradient(circle at 70% 30%, var(--color-accent) 0%, transparent 70%)',
+          opacity: 0.14
+        }}
+      />
+      <div
+        className="absolute top-36 left-0 w-[380px] h-[380px] pointer-events-none -z-10"
+        style={{
+          background: 'radial-gradient(circle at 30% 50%, rgba(147, 51, 234, 0.9) 0%, transparent 70%)',
+          opacity: 0.12
+        }}
+      />
 
       {/* Welcome Header & Atmosphere Indicator */}
       <div className="mb-6 px-1 pt-1 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -302,7 +314,7 @@ export default function HomePage() {
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        <div className="flex items-center gap-2 overflow-x-auto sm:overflow-x-visible no-scrollbar py-3 px-1.5 -my-2 -mx-1.5">
           {([
             { id: 'all', label: 'All' },
             { id: 'music', label: 'Music' },
@@ -452,7 +464,7 @@ export default function HomePage() {
               </button>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+            <div className="flex items-center gap-2 overflow-x-auto sm:overflow-x-visible no-scrollbar py-2 px-1 -my-1.5 -mx-1">
               {VIBE_STUDIO_PRESETS.map((preset, idx) => (
                 <button
                   key={idx}
