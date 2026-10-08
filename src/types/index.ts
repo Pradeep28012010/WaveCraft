@@ -17,6 +17,16 @@ export interface Track {
   fileSizeBytes?: number;
 }
 
+export interface PlaylistFolder {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  isCollapsed?: boolean;
+  createdAt: number;
+}
+
 export interface Playlist {
   id: string;
   name: string;
@@ -27,7 +37,10 @@ export interface Playlist {
   createdAt: number;
   updatedAt: number;
   isSmartPlaylist?: boolean;
+  folderId?: string;
   folder?: string;
+  tags?: string[];
+  isPinned?: boolean;
   // Live Auto-Sync Playlist fields
   isLiveSync?: boolean;
   sourceUrl?: string;
@@ -60,6 +73,7 @@ export interface PlayerState {
 export interface LibraryState {
   likedSongs: Track[];
   playlists: Playlist[];
+  folders: PlaylistFolder[];
   recentlyPlayed: { track: Track; playedAt: number }[];
   playHistory: { trackId: string; title?: string; artist?: string; playedAt: number; duration: number }[];
   isLoading?: boolean;

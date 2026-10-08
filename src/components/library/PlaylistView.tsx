@@ -22,11 +22,16 @@ export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const playlists = useLibraryStore((state) => state.playlists);
+  const folders = useLibraryStore((state) => state.folders);
   const removeFromPlaylist = useLibraryStore((state) => state.removeFromPlaylist);
   const deletePlaylist = useLibraryStore((state) => state.deletePlaylist);
   const updatePlaylist = useLibraryStore((state) => state.updatePlaylist);
   const syncLivePlaylist = useLibraryStore((state) => state.syncLivePlaylist);
   const syncingPlaylistIds = useLibraryStore((state) => state.syncingPlaylistIds);
+  const togglePin = useLibraryStore((state) => state.togglePinPlaylist);
+  const movePlaylistToFolder = useLibraryStore((state) => state.movePlaylistToFolder);
+  const addPlaylistTag = useLibraryStore((state) => state.addPlaylistTag);
+  const removePlaylistTag = useLibraryStore((state) => state.removePlaylistTag);
   const playTrack = usePlayerStore((state) => state.playTrack);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -38,8 +43,12 @@ export default function PlaylistView() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<PlaylistDownloadProgress | null>(null);
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const [newTagInput, setNewTagInput] = useState('');
+  const [showFolderDropdown, setShowFolderDropdown] = useState(false);
 
   const playlist = playlists.find((p) => p.id === id);
+  const currentFolder = playlist?.folderId ? folders.find((f) => f.id === playlist.folderId) : undefined;
   const isSyncing = Boolean(id && syncingPlaylistIds[id]);
 
   const isAllOffline = useMemo(
@@ -190,6 +199,34 @@ export default function PlaylistView() {
 
   return (
     <div className="pb-24 pt-6 text-white min-h-screen">
+      {/* Navigation Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-white/50 mb-6 font-semibold">
+        <button
+          onClick={() => navigate('/library')}
+          className="hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+        >
+          <span>←</span> <span>Library</span>
+        </button>
+        <span>/</span>
+        {currentFolder ? (
+          <span
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs font-bold"
+            style={{
+              backgroundColor: `${currentFolder.color || '#6366f1'}20`,
+              borderColor: `${currentFolder.color || '#6366f1'}40`,
+              color: currentFolder.color || '#a5b4fc'
+            }}
+          >
+            <span>{currentFolder.icon || '📁'}</span>
+            <span>{currentFolder.name}</span>
+          </span>
+        ) : (
+          <span className="text-white/40">General</span>
+        )}
+        <span>/</span>
+        <span className="text-white/90 truncate">{playlist.name}</span>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row gap-8 items-end mb-8">
         <div className="w-48 h-48 md:w-60 md:h-60 flex-shrink-0 rounded-2xl shadow-2xl overflow-hidden bg-white/10 relative shadow-black/40">
@@ -215,6 +252,63 @@ export default function PlaylistView() {
             <span className="uppercase text-xs font-bold tracking-widest text-white/60 whitespace-nowrap">
               {playlist.isLiveSync ? 'Live Syncing Playlist' : 'Playlist'}
             </span>
+            {playlist.isPinned && (
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/35 text-[10px] font-bold text-amber-300 flex items-center gap-1 whitespace-nowrap">
+                <span>📌</span> Pinned
+              </span>
+            )}
+            {/* Folder Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowFolderDropdown(!showFolderDropdown)}
+                className="px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-[10px] font-bold text-white flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <span>{currentFolder ? currentFolder.icon || '📁' : '📁'}</span>
+                <span>{currentFolder ? currentFolder.name : 'Add to Folder'}</span>
+                <span className="text-[9px] opacity-60">▼</span>
+              </button>
+
+              {showFolderDropdown && (
+                <div className="absolute top-full left-0 mt-1.5 w-52 rounded-xl liquid-glass border border-white/20 p-1.5 shadow-2xl z-30">
+                  <div className="px-2 py-1 text-[10px] font-bold text-white/40 uppercase">
+                    Select Folder
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      movePlaylistToFolder(playlist.id, undefined);
+                      setShowFolderDropdown(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors ${
+                      !playlist.folderId
+                        ? 'bg-white/15 text-white'
+                        : 'text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <span>📁</span> <span>None (Unorganized)</span>
+                  </button>
+                  {folders.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => {
+                        movePlaylistToFolder(playlist.id, f.id);
+                        setShowFolderDropdown(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors ${
+                        playlist.folderId === f.id
+                          ? 'bg-white/15 text-white'
+                          : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <span>{f.icon || '📁'}</span> <span className="truncate">{f.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {playlist.sourcePlatform && (
               <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-[10px] font-bold text-cyan-300 whitespace-nowrap">
                 Source: {playlist.sourcePlatform}
@@ -232,6 +326,65 @@ export default function PlaylistView() {
               {playlist.description}
             </p>
           )}
+
+          {/* Smart Mood Tags */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {(playlist.tags || []).map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-medium"
+              >
+                #{t}
+                <button
+                  type="button"
+                  onClick={() => removePlaylistTag(playlist.id, t)}
+                  className="hover:text-white ml-0.5 cursor-pointer text-indigo-300 text-xs"
+                  title="Remove tag"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+
+            {isAddingTag ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (newTagInput.trim()) {
+                    addPlaylistTag(playlist.id, newTagInput);
+                    setNewTagInput('');
+                  }
+                  setIsAddingTag(false);
+                }}
+                className="inline-flex items-center gap-1"
+              >
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="tag name..."
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  onBlur={() => {
+                    if (newTagInput.trim()) {
+                      addPlaylistTag(playlist.id, newTagInput);
+                      setNewTagInput('');
+                    }
+                    setIsAddingTag(false);
+                  }}
+                  className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-xs text-white placeholder:text-white/40 w-24 outline-none"
+                />
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAddingTag(true)}
+                className="px-2 py-0.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-white/60 hover:text-white cursor-pointer transition-colors"
+              >
+                + Add Tag
+              </button>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-center gap-2 text-sm text-white/60 mt-2">
             <span className="font-medium text-white whitespace-nowrap">
               {playlist.tracks.length} songs
@@ -453,6 +606,21 @@ export default function PlaylistView() {
               <span>Download All ({playlist.tracks.length - offlineCount})</span>
             </>
           )}
+        </button>
+
+        {/* Toggle Pin to Top Button */}
+        <button
+          type="button"
+          onClick={() => togglePin(playlist.id)}
+          className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+            playlist.isPinned
+              ? 'bg-amber-500/20 border-amber-400/50 text-amber-200 hover:bg-amber-500/30'
+              : 'glass-button text-white/80 hover:text-white border-white/15'
+          }`}
+          title={playlist.isPinned ? 'Unpin from top' : 'Pin to top of library'}
+        >
+          <span>📌</span>
+          <span>{playlist.isPinned ? 'Pinned' : 'Pin to Top'}</span>
         </button>
 
         <div className="flex-grow" />

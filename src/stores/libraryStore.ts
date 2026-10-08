@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Track, Playlist, LibraryState } from '../types';
+import type { Track, Playlist, PlaylistFolder, LibraryState } from '../types';
 import * as storage from '../services/storage';
 import { usePlayerStore } from './playerStore';
 import { searchTracks } from '../services/youtube';
@@ -25,6 +25,7 @@ function buildLikedMap(tracks: Track[]): Record<string, boolean> {
 interface LibraryStore extends LibraryState {
   likedIds: Record<string, boolean>;
   syncingPlaylistIds: Record<string, boolean>;
+  folders: PlaylistFolder[];
   loadFromStorage: () => Promise<void>;
   toggleLike: (trackOrId: Track | string) => void;
   isLiked: (trackId: string) => boolean;
@@ -50,12 +51,26 @@ interface LibraryStore extends LibraryState {
   addToRecentlyPlayed: (track: Track) => void;
   clearHistory: () => void;
   recordPlay: (trackId: string, duration: number, title?: string, artist?: string) => void;
+
+  // Folder Actions
+  createFolder: (name: string, color?: string, icon?: string, description?: string) => PlaylistFolder;
+  updateFolder: (id: string, updates: Partial<PlaylistFolder>) => void;
+  deleteFolder: (id: string) => void;
+  toggleFolderCollapse: (id: string) => void;
+  movePlaylistToFolder: (playlistId: string, folderId?: string) => void;
+
+  // Smart Tag & Pin Actions
+  setPlaylistTags: (playlistId: string, tags: string[]) => void;
+  addPlaylistTag: (playlistId: string, tag: string) => void;
+  removePlaylistTag: (playlistId: string, tag: string) => void;
+  togglePinPlaylist: (playlistId: string) => void;
 }
 
 export const useLibraryStore = create<LibraryStore>((set, get) => ({
   likedSongs: [],
   likedIds: {},
   playlists: [],
+  folders: [],
   recentlyPlayed: [],
   playHistory: [],
   isLoading: true,
@@ -64,9 +79,10 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   loadFromStorage: async () => {
     set({ isLoading: true });
     try {
-      const [likedSongs, playlists, recentlyPlayed, playHistory] = await Promise.all([
+      const [likedSongs, playlists, folders, recentlyPlayed, playHistory] = await Promise.all([
         storage.getLikedSongs(),
         storage.getPlaylists(),
+        storage.getFolders(),
         storage.getRecentlyPlayed(),
         storage.getPlayHistory()
       ]);
@@ -74,10 +90,12 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         (t: unknown): t is Track => Boolean(t && typeof t === 'object' && 'id' in t && 'title' in t)
       );
       const loadedPlaylists = (playlists || []) as Playlist[];
+      const loadedFolders = (folders || []) as PlaylistFolder[];
       set({
         likedSongs: validLiked,
         likedIds: buildLikedMap(validLiked),
         playlists: loadedPlaylists,
+        folders: loadedFolders,
         recentlyPlayed: recentlyPlayed || [],
         playHistory: playHistory || [],
         isLoading: false
@@ -419,5 +437,94 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     ];
     set({ playHistory: newHistory });
     storage.savePlayHistory(newHistory);
+  },
+
+  createFolder: (name, color = '#6366f1', icon = '📁', description = '') => {
+    const newFolder: PlaylistFolder = {
+      id: generateId(),
+      name: name.trim(),
+      description: description.trim(),
+      color,
+      icon,
+      isCollapsed: false,
+      createdAt: Date.now()
+    };
+    const newFolders = [...get().folders, newFolder];
+    set({ folders: newFolders });
+    storage.saveFolders(newFolders);
+    return newFolder;
+  },
+
+  updateFolder: (id, updates) => {
+    const newFolders = get().folders.map((f) =>
+      f.id === id ? { ...f, ...updates } : f
+    );
+    set({ folders: newFolders });
+    storage.saveFolders(newFolders);
+  },
+
+  deleteFolder: (id) => {
+    // Safety: Remove folder, and disassociate any playlist pointing to it so no tracks are lost
+    const newFolders = get().folders.filter((f) => f.id !== id);
+    const newPlaylists = get().playlists.map((p) =>
+      p.folderId === id ? { ...p, folderId: undefined, folder: undefined, updatedAt: Date.now() } : p
+    );
+    set({ folders: newFolders, playlists: newPlaylists });
+    storage.saveFolders(newFolders);
+    storage.savePlaylists(newPlaylists);
+  },
+
+  toggleFolderCollapse: (id) => {
+    const newFolders = get().folders.map((f) =>
+      f.id === id ? { ...f, isCollapsed: !f.isCollapsed } : f
+    );
+    set({ folders: newFolders });
+    storage.saveFolders(newFolders);
+  },
+
+  movePlaylistToFolder: (playlistId, folderId) => {
+    const targetFolder = folderId ? get().folders.find((f) => f.id === folderId) : undefined;
+    get().updatePlaylist(playlistId, {
+      folderId: folderId || undefined,
+      folder: targetFolder ? targetFolder.name : undefined
+    });
+  },
+
+  setPlaylistTags: (playlistId, rawTags) => {
+    const cleanTags = Array.from(
+      new Set(
+        rawTags
+          .map((t) => t.trim().replace(/^#+/, '').toLowerCase())
+          .filter(Boolean)
+      )
+    );
+    get().updatePlaylist(playlistId, { tags: cleanTags });
+  },
+
+  addPlaylistTag: (playlistId, tag) => {
+    const clean = tag.trim().replace(/^#+/, '').toLowerCase();
+    if (!clean) return;
+    const pl = get().playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    const currentTags = pl.tags || [];
+    if (!currentTags.includes(clean)) {
+      get().updatePlaylist(playlistId, { tags: [...currentTags, clean] });
+    }
+  },
+
+  removePlaylistTag: (playlistId, tag) => {
+    const clean = tag.trim().replace(/^#+/, '').toLowerCase();
+    const pl = get().playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    const currentTags = pl.tags || [];
+    get().updatePlaylist(playlistId, {
+      tags: currentTags.filter((t) => t !== clean)
+    });
+  },
+
+  togglePinPlaylist: (playlistId) => {
+    const pl = get().playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    get().updatePlaylist(playlistId, { isPinned: !pl.isPinned });
   }
 }));

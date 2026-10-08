@@ -8,11 +8,16 @@ import { exportFullLibraryJSON } from '../../utils/playlistExport';
 import PlaylistCard from './PlaylistCard';
 import CreatePlaylist from './CreatePlaylist';
 import ImportPlaylistModal from './ImportPlaylistModal';
+import FolderModal from './FolderModal';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
+import type { PlaylistFolder, Playlist } from '../../types';
 
 export default function LibraryPage() {
   const playlists = useLibraryStore((state) => state.playlists);
+  const folders = useLibraryStore((state) => state.folders);
+  const deleteFolder = useLibraryStore((state) => state.deleteFolder);
+  const toggleFolderCollapse = useLibraryStore((state) => state.toggleFolderCollapse);
   const likedSongs = useLibraryStore((state) => state.likedSongs);
   const recentlyPlayed = useLibraryStore((state) => state.recentlyPlayed);
   const playHistory = useLibraryStore((state) => state.playHistory);
@@ -26,6 +31,9 @@ export default function LibraryPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importInitialMode, setImportInitialMode] = useState<'live' | 'url' | 'text' | 'file'>('live');
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<PlaylistFolder | null>(null);
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string>('all');
   const [savedBanner, setSavedBanner] = useState('');
 
   const livePlaylistsCount = playlists.filter((p) => p.isLiveSync && p.sourceUrl).length;
@@ -34,6 +42,41 @@ export default function LibraryPage() {
   const smartPlaylists = useMemo(
     () => computeSmartPlaylists(likedSongs, recentlyPlayed, playHistory, playlists),
     [likedSongs, recentlyPlayed, playHistory, playlists]
+  );
+
+  // Compute tag counts across all user playlists
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    playlists.forEach((p) => {
+      (p.tags || []).forEach((t) => {
+        const norm = t.toLowerCase();
+        counts[norm] = (counts[norm] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [playlists]);
+
+  const allTags = useMemo(() => Object.keys(tagCounts).sort(), [tagCounts]);
+
+  // Filter helper based on current tag
+  const matchesTag = (p: Playlist) => {
+    if (selectedTagFilter === 'all') return true;
+    return (p.tags || []).some((t) => t.toLowerCase() === selectedTagFilter);
+  };
+
+  const filteredPlaylists = useMemo(
+    () => playlists.filter(matchesTag),
+    [playlists, selectedTagFilter]
+  );
+
+  const pinnedPlaylists = useMemo(
+    () => filteredPlaylists.filter((p) => p.isPinned),
+    [filteredPlaylists]
+  );
+
+  const unorganizedPlaylists = useMemo(
+    () => filteredPlaylists.filter((p) => !p.folderId),
+    [filteredPlaylists]
   );
 
   const handleSaveSmartPlaylist = (smart: SmartPlaylistDef) => {
@@ -51,16 +94,44 @@ export default function LibraryPage() {
     setIsImportModalOpen(true);
   };
 
+  const handleOpenCreateFolder = () => {
+    setEditingFolder(null);
+    setIsFolderModalOpen(true);
+  };
+
+  const handleOpenEditFolder = (folder: PlaylistFolder) => {
+    setEditingFolder(folder);
+    setIsFolderModalOpen(true);
+  };
+
+  const handleDeleteFolder = (folder: PlaylistFolder) => {
+    if (
+      window.confirm(
+        `Delete folder "${folder.name}"? Playlists inside will be kept safely in your general library.`
+      )
+    ) {
+      deleteFolder(folder.id);
+    }
+  };
+
+  const handlePlayFolder = (folderPlaylists: Playlist[]) => {
+    const allTracks = folderPlaylists.flatMap((p) => p.tracks);
+    if (allTracks.length > 0) {
+      playTrack(allTracks[0], allTracks, 0);
+    }
+  };
+
   return (
-    <div className="pb-24 pt-2 text-white min-h-screen">
+    <div className="pb-28 pt-2 text-white min-h-screen">
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Your Library</h1>
           <p className="text-xs text-white/50 mt-1">
-            All your liked songs, offline 320kbps vault, live auto-syncing playlists, and custom mixes
+            All your liked songs, folders, smart tags, offline vault, and live auto-syncing mixes
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {livePlaylistsCount > 0 && (
             <button
               type="button"
@@ -89,8 +160,15 @@ export default function LibraryPage() {
             <span>📦 Backup JSON</span>
           </button>
           <GlassButton size="sm" onClick={() => openImportModal('url')}>
-            ↓ Import Playlist
+            ↓ Import
           </GlassButton>
+          <button
+            type="button"
+            onClick={handleOpenCreateFolder}
+            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-indigo-300 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap border border-indigo-400/30"
+          >
+            <span>📁 + New Folder</span>
+          </button>
           <GlassButton variant="primary" size="sm" onClick={() => setIsCreateModalOpen(true)}>
             + New Playlist
           </GlassButton>
@@ -98,7 +176,7 @@ export default function LibraryPage() {
       </div>
 
       {/* Quick Access Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
         <Link to="/liked" className="group">
           <GlassCard
             variant="liquid"
@@ -165,8 +243,61 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Smart Dynamic Playlists Shelf */}
-      {smartPlaylists.length > 0 && (
+      {/* Smart Tag Filter Ribbon */}
+      {allTags.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs font-bold uppercase tracking-widest text-white/50 flex items-center gap-1.5">
+              <span>🏷️</span> Smart Mood Tags
+            </span>
+            {selectedTagFilter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setSelectedTagFilter('all')}
+                className="text-xs text-indigo-300 hover:text-white cursor-pointer font-bold"
+              >
+                Clear filter (Show All)
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar">
+            <button
+              type="button"
+              onClick={() => setSelectedTagFilter('all')}
+              className={`px-3 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                selectedTagFilter === 'all'
+                  ? 'glass-button-primary text-white shadow-lg'
+                  : 'glass-button text-white/70 hover:text-white'
+              }`}
+            >
+              <span>All Mixes</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
+                {playlists.length}
+              </span>
+            </button>
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? 'all' : tag)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  selectedTagFilter === tag
+                    ? 'bg-indigo-600 border border-indigo-400 text-white shadow-lg shadow-indigo-500/30'
+                    : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white'
+                }`}
+              >
+                <span>#{tag}</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-white/15 text-[10px] text-white/80">
+                  {tagCounts[tag]}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Smart Dynamic Playlists Shelf (When no tag filter or relevant) */}
+      {selectedTagFilter === 'all' && smartPlaylists.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -192,7 +323,6 @@ export default function LibraryPage() {
                 className="relative overflow-hidden flex flex-col justify-between group hover:border-white/30 transition-all border border-white/12"
               >
                 <div>
-                  {/* Visual Header with Luxury Gradient & Badge */}
                   <div
                     className={`w-full h-28 rounded-2xl bg-gradient-to-br ${smart.gradient} p-3.5 flex flex-col justify-between shadow-lg relative overflow-hidden`}
                   >
@@ -245,97 +375,254 @@ export default function LibraryPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-2xl font-bold tracking-tight">Playlists</h2>
-        {livePlaylistsCount > 0 && (
-          <span className="text-xs text-emerald-300/90 font-semibold flex items-center gap-1.5 whitespace-nowrap">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            {livePlaylistsCount} Live Auto-Syncing Playlist{livePlaylistsCount === 1 ? '' : 's'} Active
-          </span>
-        )}
-      </div>
+      {/* Pinned Playlists Shelf */}
+      {pinnedPlaylists.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <span>📌</span> Pinned Playlists
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                {pinnedPlaylists.length}
+              </span>
+            </h2>
+            <span className="text-xs text-white/50">Your quick-access favorites</span>
+          </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-        {/* Create Playlist Card */}
-        <div
-          onClick={() => setIsCreateModalOpen(true)}
-          className="text-left group cursor-pointer"
-        >
-          <GlassCard
-            variant="liquid"
-            padding="md"
-            hover
-            className="h-full flex flex-col items-center justify-center border border-white/15 hover:border-white/30 transition-colors min-h-[230px]"
-          >
-            <div className="w-14 h-14 rounded-full glass-button flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <h3 className="font-bold text-base text-white whitespace-nowrap">Create Playlist</h3>
-            <p className="text-xs text-white/50 mt-1 text-center">Build a custom mix</p>
-          </GlassCard>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+            {pinnedPlaylists.map((playlist) => (
+              <PlaylistCard
+                key={`pinned-${playlist.id}`}
+                playlist={playlist}
+                onPlay={() => {
+                  if (playlist.tracks.length > 0) {
+                    playTrack(playlist.tracks[0], playlist.tracks, 0);
+                  }
+                }}
+              />
+            ))}
+          </div>
         </div>
+      )}
 
-        {/* Live Auto-Sync Playlist Card */}
-        <div
-          onClick={() => openImportModal('live')}
-          className="text-left group cursor-pointer"
-        >
-          <GlassCard
-            variant="liquid"
-            padding="md"
-            hover
-            className="h-full flex flex-col items-center justify-center border border-emerald-400/35 hover:border-emerald-400/60 transition-colors min-h-[230px] relative overflow-hidden"
-          >
-            <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/35 text-[9px] font-extrabold text-emerald-300 flex items-center gap-1 whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              AUTO-SYNC
+      {/* Custom Collapsible Folder Shelves */}
+      {folders.map((folder) => {
+        const folderPlaylists = filteredPlaylists.filter((p) => p.folderId === folder.id);
+        const isCollapsed = Boolean(folder.isCollapsed);
+        const folderColor = folder.color || '#6366f1';
+
+        // When tag filter is active, skip empty folders
+        if (selectedTagFilter !== 'all' && folderPlaylists.length === 0) {
+          return null;
+        }
+
+        return (
+          <div key={folder.id} className="mb-10">
+            {/* Folder Header Shelf */}
+            <div
+              className="p-3.5 sm:p-4 rounded-2xl border transition-all flex items-center justify-between mb-4 backdrop-blur-md"
+              style={{
+                borderColor: `${folderColor}45`,
+                background: `linear-gradient(90deg, ${folderColor}18, rgba(255, 255, 255, 0.02))`
+              }}
+            >
+              <div
+                className="flex items-center gap-3 cursor-pointer select-none min-w-0"
+                onClick={() => toggleFolderCollapse(folder.id)}
+              >
+                <button
+                  type="button"
+                  className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-white/80 hover:text-white flex-shrink-0 cursor-pointer"
+                >
+                  {isCollapsed ? '▶' : '▼'}
+                </button>
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  style={{
+                    backgroundColor: `${folderColor}35`,
+                    boxShadow: `0 0 10px ${folderColor}40`
+                  }}
+                >
+                  {folder.icon || '📁'}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg sm:text-xl font-extrabold text-white truncate">
+                      {folder.name}
+                    </h2>
+                    <span
+                      className="px-2 py-0.5 rounded-full text-[11px] font-bold border flex-shrink-0"
+                      style={{
+                        backgroundColor: `${folderColor}25`,
+                        borderColor: `${folderColor}50`,
+                        color: folderColor
+                      }}
+                    >
+                      {folderPlaylists.length} mix{folderPlaylists.length === 1 ? '' : 'es'}
+                    </span>
+                  </div>
+                  {folder.description && (
+                    <p className="text-xs text-white/50 truncate hidden sm:block mt-0.5">
+                      {folder.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {folderPlaylists.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handlePlayFolder(folderPlaylists)}
+                    className="px-3 py-1.5 rounded-full glass-button text-xs font-bold text-white hover:scale-105 transition-transform flex items-center gap-1 cursor-pointer"
+                    title="Play all tracks in folder"
+                  >
+                    <span>▶ Play All</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleOpenEditFolder(folder)}
+                  className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-xs text-white/70 hover:text-white cursor-pointer"
+                  title="Edit Folder"
+                >
+                  ✎
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteFolder(folder)}
+                  className="w-8 h-8 rounded-full glass-button hover:bg-rose-500/20 flex items-center justify-center text-xs text-white/70 hover:text-rose-300 cursor-pointer"
+                  title="Delete Folder"
+                >
+                  🗑
+                </button>
+              </div>
+            </div>
+
+            {/* Folder Playlists Grid */}
+            {!isCollapsed && (
+              <>
+                {folderPlaylists.length === 0 ? (
+                  <div className="p-8 rounded-2xl border border-dashed border-white/10 text-center text-white/40 text-xs">
+                    No playlists in this folder yet. Click &quot;+ New Playlist&quot; or edit an existing playlist to assign it here.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                    {folderPlaylists.map((playlist) => (
+                      <PlaylistCard
+                        key={playlist.id}
+                        playlist={playlist}
+                        showFolderBadge={false}
+                        onPlay={() => {
+                          if (playlist.tracks.length > 0) {
+                            playTrack(playlist.tracks[0], playlist.tracks, 0);
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })}
+
+      {/* General / Unorganized Playlists Shelf */}
+      <div className="mb-10">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-2xl font-bold tracking-tight">
+            {folders.length > 0 ? 'General Playlists' : 'Playlists'}
+          </h2>
+          {livePlaylistsCount > 0 && (
+            <span className="text-xs text-emerald-300/90 font-semibold flex items-center gap-1.5 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              {livePlaylistsCount} Live Auto-Syncing Playlist{livePlaylistsCount === 1 ? '' : 's'} Active
             </span>
-            <div className="w-14 h-14 rounded-full glass-button-emerald flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </div>
-            <h3 className="font-bold text-base text-white whitespace-nowrap">Live Sync Playlist</h3>
-            <p className="text-xs text-white/55 mt-1 text-center">
-              Auto-updates when original playlist changes
-            </p>
-          </GlassCard>
+          )}
         </div>
 
-        {/* Static Import Playlist Card */}
-        <div
-          onClick={() => openImportModal('url')}
-          className="text-left group cursor-pointer"
-        >
-          <GlassCard
-            variant="liquid"
-            padding="md"
-            hover
-            className="h-full flex flex-col items-center justify-center border border-cyan-400/25 hover:border-cyan-400/45 transition-colors min-h-[230px]"
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+          {/* Create Playlist Card */}
+          <div
+            onClick={() => setIsCreateModalOpen(true)}
+            className="text-left group cursor-pointer"
           >
-            <div className="w-14 h-14 rounded-full glass-button-cyan flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </div>
-            <h3 className="font-bold text-base text-white whitespace-nowrap">Import Playlist</h3>
-            <p className="text-xs text-white/50 mt-1 text-center">One-time URL or song list</p>
-          </GlassCard>
-        </div>
+            <GlassCard
+              variant="liquid"
+              padding="md"
+              hover
+              className="h-full flex flex-col items-center justify-center border border-white/15 hover:border-white/30 transition-colors min-h-[230px]"
+            >
+              <div className="w-14 h-14 rounded-full glass-button flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-base text-white whitespace-nowrap">Create Playlist</h3>
+              <p className="text-xs text-white/50 mt-1 text-center">Build a custom mix</p>
+            </GlassCard>
+          </div>
 
-        {playlists.map((playlist) => (
-          <PlaylistCard
-            key={playlist.id}
-            playlist={playlist}
-            onPlay={() => {
-              if (playlist.tracks.length > 0) {
-                playTrack(playlist.tracks[0], playlist.tracks, 0);
-              }
-            }}
-          />
-        ))}
+          {/* Live Auto-Sync Playlist Card */}
+          <div
+            onClick={() => openImportModal('live')}
+            className="text-left group cursor-pointer"
+          >
+            <GlassCard
+              variant="liquid"
+              padding="md"
+              hover
+              className="h-full flex flex-col items-center justify-center border border-emerald-400/35 hover:border-emerald-400/60 transition-colors min-h-[230px] relative overflow-hidden"
+            >
+              <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/35 text-[9px] font-extrabold text-emerald-300 flex items-center gap-1 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                AUTO-SYNC
+              </span>
+              <div className="w-14 h-14 rounded-full glass-button-emerald flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-base text-white whitespace-nowrap">Live Sync Playlist</h3>
+              <p className="text-xs text-white/55 mt-1 text-center">
+                Auto-updates when original playlist changes
+              </p>
+            </GlassCard>
+          </div>
+
+          {/* Static Import Playlist Card */}
+          <div
+            onClick={() => openImportModal('url')}
+            className="text-left group cursor-pointer"
+          >
+            <GlassCard
+              variant="liquid"
+              padding="md"
+              hover
+              className="h-full flex flex-col items-center justify-center border border-cyan-400/25 hover:border-cyan-400/45 transition-colors min-h-[230px]"
+            >
+              <div className="w-14 h-14 rounded-full glass-button-cyan flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-base text-white whitespace-nowrap">Import Playlist</h3>
+              <p className="text-xs text-white/50 mt-1 text-center">One-time URL or song list</p>
+            </GlassCard>
+          </div>
+
+          {unorganizedPlaylists.map((playlist) => (
+            <PlaylistCard
+              key={playlist.id}
+              playlist={playlist}
+              onPlay={() => {
+                if (playlist.tracks.length > 0) {
+                  playTrack(playlist.tracks[0], playlist.tracks, 0);
+                }
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       <CreatePlaylist isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
@@ -343,6 +630,11 @@ export default function LibraryPage() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         initialMode={importInitialMode}
+      />
+      <FolderModal
+        isOpen={isFolderModalOpen}
+        onClose={() => setIsFolderModalOpen(false)}
+        editFolder={editingFolder}
       />
     </div>
   );

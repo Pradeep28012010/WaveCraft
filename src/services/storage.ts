@@ -1,7 +1,7 @@
-import type { Track, Playlist } from '../types';
+import type { Track, Playlist, PlaylistFolder } from '../types';
 import { get, set, del, keys } from 'idb-keyval';
 
-export type { Playlist };
+export type { Playlist, PlaylistFolder };
 
 export interface SettingsState {
   theme?: string;
@@ -12,6 +12,7 @@ export interface SettingsState {
 const KEYS = {
   LIKED_SONGS: 'wavecraft_liked_songs',
   PLAYLISTS: 'wavecraft_playlists',
+  FOLDERS: 'wavecraft_playlist_folders',
   RECENTLY_PLAYED: 'wavecraft_recently_played',
   PLAY_HISTORY: 'wavecraft_play_history',
   SETTINGS: 'wavecraft_settings',
@@ -70,6 +71,20 @@ export async function loadPlaylists(): Promise<Playlist[]> {
 
 export async function savePlaylists(playlists: Playlist[]): Promise<void> {
   return scheduleIdbWrite(KEYS.PLAYLISTS, playlists);
+}
+
+export async function loadFolders(): Promise<PlaylistFolder[]> {
+  try {
+    const data = await get(KEYS.FOLDERS);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error loading folders:', error);
+    return [];
+  }
+}
+
+export async function saveFolders(folders: PlaylistFolder[]): Promise<void> {
+  return scheduleIdbWrite(KEYS.FOLDERS, folders);
 }
 
 export async function loadRecentlyPlayed(): Promise<{ track: Track; playedAt: number }[]> {
@@ -191,6 +206,7 @@ export async function clearAllData(): Promise<void> {
 
 export const getLikedSongs = loadLikedSongs;
 export const getPlaylists = loadPlaylists;
+export const getFolders = loadFolders;
 export const getRecentlyPlayed = loadRecentlyPlayed;
 export const getPlayHistory = loadPlayHistory;
 
