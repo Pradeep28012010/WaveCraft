@@ -149,6 +149,8 @@ const TrackRow = memo(({
   const { trackIsOffline } = useTrackOfflineStatus(track.id);
 
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+  const didLongPressRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -161,10 +163,14 @@ const TrackRow = memo(({
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!isPhone) return;
+    didLongPressRef.current = false;
     const touch = e.touches[0];
     const clientX = touch.clientX;
     const clientY = touch.clientY;
+    touchStartPos.current = { x: clientX, y: clientY };
     touchTimerRef.current = setTimeout(() => {
+      didLongPressRef.current = true;
+      touchTimerRef.current = null;
       triggerAndroidHaptic('medium');
       if (onContextMenu) {
         onContextMenu(e, track);
@@ -179,14 +185,30 @@ const TrackRow = memo(({
     }, 450);
   };
 
-  const handleTouchEnd = () => {
-    if (touchTimerRef.current) {
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchTimerRef.current || !touchStartPos.current) return;
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchStartPos.current.x);
+    const dy = Math.abs(touch.clientY - touchStartPos.current.y);
+    if (dx > 10 || dy > 10) {
       clearTimeout(touchTimerRef.current);
       touchTimerRef.current = null;
     }
   };
 
+  const handleTouchEnd = () => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+    touchStartPos.current = null;
+  };
+
   const handleTriggerPlay = () => {
+    if (didLongPressRef.current) {
+      didLongPressRef.current = false;
+      return;
+    }
     triggerAndroidHaptic('light');
     stopChorusPreview(false);
     const player = usePlayerStore.getState();
@@ -219,9 +241,14 @@ const TrackRow = memo(({
     if (onContextMenu) {
       onContextMenu(e, track);
     } else {
+      const menuStore = useContextMenuStore.getState();
+      if (menuStore.isOpen && menuStore.track?.id === track.id) {
+        menuStore.closeMenu();
+        return;
+      }
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      useContextMenuStore.getState().openTrackMenu(
-        { clientX: rect.left, clientY: rect.bottom + 4 },
+      menuStore.openTrackMenu(
+        { clientX: rect.right - 240, clientY: rect.bottom + 4 },
         track,
         tracks,
         onRemove ? () => onRemove(track) : undefined
@@ -282,6 +309,7 @@ const TrackRow = memo(({
       <div
         onClick={handleTriggerPlay}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
         onContextMenu={handleContextMenu}
@@ -295,7 +323,25 @@ const TrackRow = memo(({
         {showIndex && (
           <div className="relative z-10 w-6 sm:w-7 flex justify-center items-center text-sm text-white/50 font-medium flex-shrink-0">
             {isTrackPlaying ? (
-              <EqualizerIcon />
+              <div className="relative w-5 h-5 flex items-center justify-center">
+                <span
+                  className={`transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    activeVisual ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
+                  }`}
+                >
+                  <EqualizerIcon />
+                </span>
+                <span
+                  className={`absolute inset-0 flex items-center justify-center text-[var(--color-accent)] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    activeVisual ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+                  }`}
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <rect x="6" y="4" width="3.5" height="16" rx="1" />
+                    <rect x="14.5" y="4" width="3.5" height="16" rx="1" />
+                  </svg>
+                </span>
+              </div>
             ) : (
               <div className="relative w-5 h-5 flex items-center justify-center">
                 <span
@@ -395,7 +441,7 @@ const TrackRow = memo(({
           </button>
 
           {/* 2. Duration (Fixed width, never overlapped) */}
-          <div className="text-xs font-medium text-white/50 w-11 text-right tabular-nums flex-shrink-0 select-none">
+          <div className="text-xs font-medium text-white/50 min-w-11 text-right tabular-nums whitespace-nowrap flex-shrink-0 select-none">
             {formatDuration(track.duration)}
           </div>
 
@@ -413,9 +459,9 @@ const TrackRow = memo(({
             }`}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="12" cy="5" r="2" />
+              <circle cx="5" cy="12" r="2" />
               <circle cx="12" cy="12" r="2" />
-              <circle cx="12" cy="19" r="2" />
+              <circle cx="19" cy="12" r="2" />
             </svg>
           </button>
         </div>

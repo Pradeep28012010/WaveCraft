@@ -189,6 +189,7 @@ export default function LikedSongs() {
             <TrackRow
               key={track.id}
               track={track}
+              tracks={filteredAndSortedSongs}
               index={index + 1}
               onPlay={(t) => playTrack(t, filteredAndSortedSongs, index)}
             />

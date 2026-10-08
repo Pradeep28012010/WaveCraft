@@ -757,7 +757,7 @@ function ContextMenuInner() {
           left: `${safeX}px`,
           top: `${safeY}px`
         }}
-        className="w-[240px] rounded-2xl border border-white/20 bg-[#0d0d14]/95 backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.1)] py-1.5 px-1.5 flex flex-col gap-0.5 text-xs text-white/90"
+        className="w-[240px] max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar rounded-2xl border border-white/20 bg-[#0d0d14]/95 backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.1)] py-1.5 px-1.5 flex flex-col gap-0.5 text-xs text-white/90"
       >
         {/* Toast confirmation feedback if action triggered */}
         {toastMessage && (

@@ -859,7 +859,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
-            <div className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pb-6 overflow-y-auto no-scrollbar flex flex-col justify-center">
+            <div className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pb-6 overflow-y-auto no-scrollbar flex flex-col">
               <div
                 className={`w-full max-w-6xl my-auto mx-auto flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12 ${
                   showLyrics ? 'lg:justify-between' : ''
@@ -946,7 +946,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       <div
                         className="absolute -top-2 -right-2 sm:-right-3 w-16 h-36 sm:w-20 sm:h-44 pointer-events-none transition-transform duration-500 origin-[75%_16%]"
                         style={{
-                          transform: isPlaying ? 'rotate(24deg)' : 'rotate(0deg)'
+                          transform: isPlaying ? 'rotate(24deg)' : 'rotate(0deg)',
+                          transformOrigin: '70% 14%'
                         }}
                       >
                         <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-700 border border-white/40 shadow-lg flex items-center justify-center">

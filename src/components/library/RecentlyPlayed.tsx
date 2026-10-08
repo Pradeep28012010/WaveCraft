@@ -48,6 +48,7 @@ export default function RecentlyPlayed() {
                 <div className="flex-grow min-w-0">
                   <TrackRow
                     track={item.track}
+                    tracks={allRecentTracks}
                     index={i + 1}
                     onPlay={(t) => playTrack(t, allRecentTracks, i)}
                   />
