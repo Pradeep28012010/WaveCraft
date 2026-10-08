@@ -52,6 +52,9 @@ export function stopChorusPreview(resumeMain = true) {
   if (previewAudio) {
     try {
       previewAudio.pause();
+      previewAudio.onloadedmetadata = null;
+      previewAudio.oncanplay = null;
+      previewAudio.onerror = null;
       previewAudio.src = '';
     } catch {}
   }

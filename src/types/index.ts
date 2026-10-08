@@ -170,9 +170,49 @@ export interface ElectronAPI {
   updateTrack: (track: { title: string; artist: string }) => void;
 }
 
+import type { YouTubePlayerInstance } from '../services/audioEngine';
+
+export type YTPlayer = YouTubePlayerInstance;
+
+export interface YTPlayerEvent {
+  target: YTPlayer;
+  data?: number;
+}
+
+export interface YTApi {
+  Player: new (
+    element: HTMLElement | string,
+    options: {
+      height?: string | number;
+      width?: string | number;
+      videoId?: string;
+      playerVars?: Record<string, unknown>;
+      events?: {
+        onReady?: (event: YTPlayerEvent) => void;
+        onStateChange?: (event: YTPlayerEvent) => void;
+        onError?: (event: YTPlayerEvent) => void;
+      };
+    }
+  ) => YTPlayer;
+  PlayerState: {
+    UNSTARTED: number;
+    ENDED: number;
+    PLAYING: number;
+    PAUSED: number;
+    BUFFERING: number;
+    CUED: number;
+  };
+}
+
 declare global {
   interface Window {
     electronAPI?: ElectronAPI;
+    YT?: YTApi;
+    onYouTubeIframeAPIReady?: () => void;
+    ytPlayerReady?: boolean;
+  }
+  interface Navigator {
+    standalone?: boolean;
   }
 }
 
@@ -212,5 +252,10 @@ export type VisualizerStyle =
   | 'particles'
   | 'nebula'
   | 'starfield';
+
+export type AudioQuality = SettingsState['audioQuality'];
+export type PerformanceProfile = SettingsState['performanceProfile'];
+export type AmbientGlowIntensity = SettingsState['ambientGlowIntensity'];
+export type AiApiProvider = NonNullable<SettingsState['aiApiProvider']>;
 
 

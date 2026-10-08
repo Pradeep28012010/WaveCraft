@@ -386,7 +386,7 @@ export default function SearchResults() {
     );
   }
 
-  const tabs = [
+  const tabs: Array<{ id: 'all' | 'songs' | 'artists' | 'playlists' | 'albums'; label: string }> = [
     { id: 'all', label: 'All' },
     { id: 'songs', label: `Songs (${tracks.length})` },
     { id: 'artists', label: `Artists (${artists.length})` },
@@ -421,7 +421,7 @@ export default function SearchResults() {
             tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
                   activeTab === tab.id
                     ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/25'

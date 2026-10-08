@@ -1101,7 +1101,7 @@ export const getAudioFrequencyData = (out: Uint8Array): boolean => {
     return false;
   }
   try {
-    analyserNode.getByteFrequencyData(out as any);
+    analyserNode.getByteFrequencyData(out as Uint8Array<ArrayBuffer>);
     let sum = 0;
     for (let i = 0; i < out.length; i++) sum += out[i];
     return sum > 0;

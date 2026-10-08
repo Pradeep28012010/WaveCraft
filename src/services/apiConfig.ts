@@ -20,7 +20,7 @@ export function isAndroidNative(): boolean {
  */
 export function isElectronApp(): boolean {
   if (typeof window === 'undefined') return false;
-  return Boolean((window as any).electronAPI) || window.location.protocol === 'file:';
+  return Boolean(window.electronAPI) || window.location.protocol === 'file:';
 }
 
 /**

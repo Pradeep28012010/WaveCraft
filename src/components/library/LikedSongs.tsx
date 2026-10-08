@@ -167,7 +167,7 @@ export default function LikedSongs() {
           />
           <GlassSelect
             value={sortBy}
-            onChange={(val) => setSortBy(val as any)}
+            onChange={(val) => setSortBy(val as 'date' | 'title' | 'artist')}
             options={[
               { value: 'date', label: 'Recently Added' },
               { value: 'title', label: 'Title (A–Z)' },

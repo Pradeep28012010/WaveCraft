@@ -228,9 +228,14 @@ export default function DJConsolePage() {
 
     return () => {
       audio.pause();
+      audio.src = '';
       audio.removeEventListener('timeupdate', onTime);
       audio.removeEventListener('loadedmetadata', onMeta);
       audio.removeEventListener('ended', onEnd);
+      if (ctxBRef.current) {
+        ctxBRef.current.close().catch(() => {});
+        ctxBRef.current = null;
+      }
     };
   }, []);
 
@@ -522,14 +527,21 @@ export default function DJConsolePage() {
 
       // Update Stereo VU Meters every 3 frames (~40fps) for crisp LED ladder response
       if (vuTick % 3 === 0) {
-        const baseA = s.isPlayingA ? (0.55 + 0.38 * Math.abs(Math.sin(phase * 3.1))) * gainA : 0.04;
-        const baseB = s.isPlayingB ? (0.55 + 0.38 * Math.abs(Math.cos(phase * 2.9))) * gainB : 0.04;
-        setVuLevels({
-          aL: Math.min(1, baseA * (0.92 + Math.sin(phase * 5) * 0.08)),
-          aR: Math.min(1, baseA * (0.92 + Math.cos(phase * 4.3) * 0.08)),
-          bL: Math.min(1, baseB * (0.92 + Math.cos(phase * 5.2) * 0.08)),
-          bR: Math.min(1, baseB * (0.92 + Math.sin(phase * 4.7) * 0.08))
-        });
+        if (!s.isPlayingA && !s.isPlayingB) {
+          setVuLevels((prev) => {
+            if (prev.aL === 0 && prev.aR === 0 && prev.bL === 0 && prev.bR === 0) return prev;
+            return { aL: 0, aR: 0, bL: 0, bR: 0 };
+          });
+        } else {
+          const baseA = s.isPlayingA ? (0.55 + 0.38 * Math.abs(Math.sin(phase * 3.1))) * gainA : 0;
+          const baseB = s.isPlayingB ? (0.55 + 0.38 * Math.abs(Math.cos(phase * 2.9))) * gainB : 0;
+          setVuLevels({
+            aL: Math.min(1, baseA * (0.92 + Math.sin(phase * 5) * 0.08)),
+            aR: Math.min(1, baseA * (0.92 + Math.cos(phase * 4.3) * 0.08)),
+            bL: Math.min(1, baseB * (0.92 + Math.cos(phase * 5.2) * 0.08)),
+            bR: Math.min(1, baseB * (0.92 + Math.sin(phase * 4.7) * 0.08))
+          });
+        }
       }
 
       rafId = requestAnimationFrame(render);
@@ -1649,16 +1661,18 @@ export default function DJConsolePage() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Crate Filter Pills */}
             <div className="flex items-center gap-1.5 bg-black/35 p-1 rounded-full border border-white/10">
-              {[
-                { id: 'all', label: 'All Crate' },
-                { id: 'queue', label: `Queue (${queue.length})` },
-                { id: 'liked', label: `Liked (${likedSongs.length})` },
-                ...(crateResults.length > 0 ? [{ id: 'search', label: `Search (${crateResults.length})` }] : [])
-              ].map((tab) => (
+              {(
+                [
+                  { id: 'all', label: 'All Crate' },
+                  { id: 'queue', label: `Queue (${queue.length})` },
+                  { id: 'liked', label: `Liked (${likedSongs.length})` },
+                  ...(crateResults.length > 0 ? [{ id: 'search', label: `Search (${crateResults.length})` } as const] : [])
+                ] as const
+              ).map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setCrateTab(tab.id as any)}
+                  onClick={() => setCrateTab(tab.id)}
                   className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold transition-all cursor-pointer ${
                     crateTab === tab.id
                       ? 'bg-[var(--color-accent)] text-white shadow'

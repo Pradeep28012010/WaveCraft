@@ -235,19 +235,19 @@ export default function HomePage() {
 
         {/* Android Filter Chips */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-          {[
+          {([
             { id: 'all', label: 'All' },
             { id: 'music', label: 'Music' },
             { id: 'albums', label: 'Albums' },
             { id: 'moods', label: 'Moods & Mixes' }
-          ].map((chip) => {
+          ] as const).map((chip) => {
             const isSelected = activeFilter === chip.id;
             return (
               <button
                 key={chip.id}
                 onClick={() => {
                   triggerAndroidHaptic('light');
-                  setActiveFilter(chip.id as any);
+                  setActiveFilter(chip.id);
                 }}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                   isSelected

@@ -32,15 +32,7 @@ import {
   startAndroidBackgroundAudio,
   stopAndroidBackgroundAudio
 } from '../../services/nativeAndroid';
-import type { Track } from '../../types';
-
-declare global {
-  interface Window {
-    YT: any;
-    onYouTubeIframeAPIReady: (() => void) | undefined;
-    ytPlayerReady: boolean;
-  }
-}
+import type { Track, YTPlayerEvent } from '../../types';
 
 // Re-export audio engine controls so existing consumers continue to work seamlessly
 export { getAudioFrequencyData, getPlayer, unlockAudioEngine, seekToTime };
@@ -61,6 +53,7 @@ export default function YouTubeEmbed() {
   const retryAttemptRef = useRef<number>(0);
   const bufferingStartTimeRef = useRef<number>(0);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rampTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const queue = usePlayerStore((s) => s.queue);
@@ -365,11 +358,11 @@ export default function YouTubeEmbed() {
           origin: ytOrigin
         },
         events: {
-          onReady: (e: any) => {
+          onReady: (e: YTPlayerEvent) => {
             window.ytPlayerReady = true;
             const state = usePlayerStore.getState();
-            e.target.setVolume((state.volume ?? 0.8) * 100);
-            if (state.isMuted) e.target.mute();
+            e.target.setVolume?.((state.volume ?? 0.8) * 100);
+            if (state.isMuted) e.target.mute?.();
 
             // Force minimal video quality for audio streaming data savings (144p)
             try {
@@ -386,14 +379,14 @@ export default function YouTubeEmbed() {
               activeLoadedYtIdRef.current = effectiveId;
               setActiveEngine('youtube');
               if (state.isPlaying) {
-                e.target.loadVideoById(effectiveId);
+                e.target.loadVideoById?.(effectiveId);
               } else {
                 // Cue only on refresh so data isn't consumed and audio doesn't start unexpectedly
-                e.target.cueVideoById(effectiveId);
+                e.target.cueVideoById?.(effectiveId);
               }
             }
           },
-          onStateChange: (e: any) => {
+          onStateChange: (e: YTPlayerEvent) => {
             if (getActiveEngine() !== 'youtube') {
               if (e.data === window.YT?.PlayerState?.PLAYING) {
                 try { e.target.stopVideo?.(); } catch {}
@@ -401,7 +394,7 @@ export default function YouTubeEmbed() {
               return;
             }
             const state = e.data;
-            if (state === window.YT.PlayerState.ENDED) {
+            if (state === window.YT?.PlayerState?.ENDED) {
               const studio = useStudioStore.getState();
               if (studio.sleepActive && studio.sleepEndAtTrack) {
                 studio.stopSleepTimer();
@@ -410,8 +403,8 @@ export default function YouTubeEmbed() {
               }
               const pState = usePlayerStore.getState();
               if (pState.repeatMode === 'one') {
-                e.target.seekTo(0);
-                e.target.playVideo();
+                e.target.seekTo?.(0);
+                e.target.playVideo?.();
                 return;
               }
               if (
@@ -441,7 +434,7 @@ export default function YouTubeEmbed() {
               }
               trackTransitionIntentRef.current = true;
               usePlayerStore.getState().nextTrack();
-            } else if (state === window.YT.PlayerState.PLAYING) {
+            } else if (state === window.YT?.PlayerState?.PLAYING) {
               isSwitchingTrackRef.current = false;
               trackTransitionIntentRef.current = false;
               userInitiatedPauseRef.current = false;
@@ -455,7 +448,7 @@ export default function YouTubeEmbed() {
               try {
                 e.target.setPlaybackQuality?.('small');
               } catch {}
-            } else if (state === window.YT.PlayerState.PAUSED) {
+            } else if (state === window.YT?.PlayerState?.PAUSED) {
               // Ignore transient PAUSED event during track transition or when awaiting a new track
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
                 return;
@@ -468,17 +461,17 @@ export default function YouTubeEmbed() {
                 return;
               }
               usePlayerStore.setState({ isPlaying: false, isLoading: false });
-            } else if (state === window.YT.PlayerState.BUFFERING) {
+            } else if (state === window.YT?.PlayerState?.BUFFERING) {
               bufferingStartTimeRef.current = Date.now();
               usePlayerStore.getState().setIsLoading(true);
-            } else if (state === window.YT.PlayerState.CUED) {
+            } else if (state === window.YT?.PlayerState?.CUED) {
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
                 return;
               }
               usePlayerStore.setState({ isPlaying: false, isLoading: false });
             }
           },
-          onError: (e: any) => {
+          onError: (e: YTPlayerEvent) => {
             if (getActiveEngine() !== 'youtube') return;
             const cur = usePlayerStore.getState().currentTrack;
             const errCode = e?.data;
@@ -552,6 +545,10 @@ export default function YouTubeEmbed() {
         const player = getPlayer();
         player?.destroy?.();
       } catch {}
+      if (rampTimerRef.current) {
+        clearInterval(rampTimerRef.current);
+        rampTimerRef.current = null;
+      }
       setYtPlayerInstance(null);
     };
   }, []);
@@ -607,11 +604,19 @@ export default function YouTubeEmbed() {
           const rampSec = Math.min(crossfadeDuration, 2.5);
           const rampSteps = 8;
           let step = 0;
-          const rampTimer = setInterval(() => {
+          if (rampTimerRef.current) {
+            clearInterval(rampTimerRef.current);
+          }
+          rampTimerRef.current = setInterval(() => {
             step++;
             const curV = Math.round((targetVol * step) / rampSteps);
             try { ytPlayer.setVolume?.(curV); } catch {}
-            if (step >= rampSteps) clearInterval(rampTimer);
+            if (step >= rampSteps) {
+              if (rampTimerRef.current) {
+                clearInterval(rampTimerRef.current);
+                rampTimerRef.current = null;
+              }
+            }
           }, (rampSec * 1000) / rampSteps);
         } catch {}
       }
@@ -1221,6 +1226,10 @@ export default function YouTubeEmbed() {
       if (fadeIntervalRef.current) {
         clearInterval(fadeIntervalRef.current);
         fadeIntervalRef.current = null;
+      }
+      if (rampTimerRef.current) {
+        clearInterval(rampTimerRef.current);
+        rampTimerRef.current = null;
       }
     };
   }, [isPlaying, setProgress, setDuration, currentTrack?.duration, crossfadeDuration]);

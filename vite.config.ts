@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Connect, type ViteDevServer, type PreviewServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
@@ -6,7 +6,7 @@ import path from 'path';
 import musicApiHandler from './api/music.js';
 
 function wavecraftApiPlugin() {
-  const middleware = async (req: any, res: any, next: any) => {
+  const middleware = async (req: Connect.IncomingMessage, res: Connect.ServerResponse, next: Connect.NextFunction) => {
     if (req.url && req.url.startsWith('/api/music')) {
       const wrappedRes = {
         statusCode: 200,
@@ -16,13 +16,13 @@ function wavecraftApiPlugin() {
           res.statusCode = code;
           return this;
         },
-        json(data: any) {
+        json(data: unknown) {
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify(data));
           return this;
         },
-        end(body?: any) {
-          res.end(body);
+        end(body?: unknown) {
+          res.end(body as string | Buffer | undefined);
           return this;
         }
       };
@@ -39,10 +39,10 @@ function wavecraftApiPlugin() {
 
   return {
     name: 'wavecraft-api',
-    configureServer(server: any) {
+    configureServer(server: ViteDevServer) {
       server.middlewares.use(middleware);
     },
-    configurePreviewServer(server: any) {
+    configurePreviewServer(server: PreviewServer) {
       server.middlewares.use(middleware);
     }
   };
@@ -68,6 +68,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            if (id.includes('@capacitor')) return 'vendor-capacitor';
             if (id.includes('framer-motion')) return 'vendor-motion';
             if (id.includes('zustand') || id.includes('idb-keyval')) return 'vendor-storage';
             if (id.includes('colorthief')) return 'vendor-color';

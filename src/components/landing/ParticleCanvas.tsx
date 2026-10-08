@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, memo } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 
 interface Particle {
@@ -16,7 +16,7 @@ interface Particle {
 const COLORS = ['#fa2d48', '#7c3aed', '#818cf8', '#0ea5e9', '#f472b6', '#a78bfa'];
 const CONNECTION_DIST = 140;
 
-export default function ParticleCanvas() {
+function ParticleCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: -9999, y: -9999 });
   const particlesRef = useRef<Particle[]>([]);
@@ -184,3 +184,6 @@ export default function ParticleCanvas() {
     />
   );
 }
+
+const MemoizedParticleCanvas = memo(ParticleCanvas);
+export default MemoizedParticleCanvas;

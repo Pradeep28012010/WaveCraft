@@ -9,6 +9,13 @@ import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
 import { EQ_PRESETS } from '../../utils/constants';
 import { resetAutoMixerFilters } from '../../services/audioEngine';
+import type {
+  AudioQuality,
+  AiApiProvider,
+  AmbientGlowIntensity,
+  VisualizerStyle,
+  PerformanceProfile
+} from '../../types';
 
 function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (val: boolean) => void }) {
   return (
@@ -274,7 +281,7 @@ export default function SettingsPage() {
           >
             <GlassSelect
               value={settings.audioQuality || 'high'}
-              onChange={(val) => settings.setAudioQuality(val as any)}
+              onChange={(val) => settings.setAudioQuality(val as AudioQuality)}
               options={[
                 { value: 'high', label: '320kbps Studio HD' },
                 { value: 'auto', label: 'Auto Adaptive' },
@@ -376,7 +383,7 @@ export default function SettingsPage() {
           >
             <GlassSelect
               value={settings.aiApiProvider || 'none'}
-              onChange={(val) => settings.setAiApiProvider(val as any)}
+              onChange={(val) => settings.setAiApiProvider(val as AiApiProvider)}
               options={[
                 { value: 'none', label: 'Built-in Semantic Engine (Zero Config / Offline)' },
                 { value: 'gemini', label: 'Google Gemini (Gemini 1.5 Flash)' },
@@ -451,7 +458,7 @@ export default function SettingsPage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => settings.setAmbientGlowIntensity(item.id as any)}
+                    onClick={() => settings.setAmbientGlowIntensity(item.id as AmbientGlowIntensity)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                       (settings.ambientGlowIntensity ?? 'vibrant') === item.id
                         ? 'bg-[var(--color-accent)] text-white shadow-md'
@@ -498,7 +505,7 @@ export default function SettingsPage() {
           <SettingRow label="Visualizer Mode" description="Choose your 3D or 2D reactive audio geometry">
             <GlassSelect
               value={settings.visualizerStyle || 'nebula'}
-              onChange={(val) => settings.setVisualizerStyle(val as any)}
+              onChange={(val) => settings.setVisualizerStyle(val as VisualizerStyle)}
               options={[
                 { value: 'nebula', label: '3D Cosmic Nebula' },
                 { value: 'starfield', label: '3D Starfield Warp' },
@@ -524,7 +531,7 @@ export default function SettingsPage() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => settings.setPerformanceProfile(item.id as any)}
+                  onClick={() => settings.setPerformanceProfile(item.id as PerformanceProfile)}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                     (settings.performanceProfile ?? 'ultra') === item.id
                       ? 'bg-[var(--color-accent)] text-white shadow-md'

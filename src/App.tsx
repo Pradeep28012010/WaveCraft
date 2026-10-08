@@ -116,9 +116,9 @@ function AppContent() {
       import('./components/library/LikedSongs').catch(() => {});
     };
 
-    if ('requestIdleCallback' in window) {
-      const id = (window as any).requestIdleCallback(prewarm, { timeout: 2500 });
-      return () => (window as any).cancelIdleCallback?.(id);
+    if (window.requestIdleCallback) {
+      const id = window.requestIdleCallback(prewarm, { timeout: 2500 });
+      return () => window.cancelIdleCallback?.(id);
     } else {
       const timer = setTimeout(prewarm, 1200);
       return () => clearTimeout(timer);
