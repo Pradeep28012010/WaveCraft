@@ -107,11 +107,6 @@ export default function SearchResults() {
     return [...libMatches, ...moodMatches];
   }, [query, libraryPlaylists]);
 
-  useEffect(() => {
-    if (query.trim()) {
-      saveSearchTerm(query.trim());
-    }
-  }, [query, saveSearchTerm]);
 
   // Live Trending Searches state (real chart data + frequent rotation)
   const [trendingTerms, setTrendingTerms] = useState<string[]>(buildInitialTrendingPool);

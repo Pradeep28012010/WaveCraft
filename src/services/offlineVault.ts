@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Track } from '../types';
 import { resolveDirectAudio } from './streamResolver';
+import { apiUrl } from './apiConfig';
 import { createStore, get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from 'idb-keyval';
 
 const VAULT_CACHE_NAME = 'wavecraft-offline-audio-vault-v1';
@@ -126,17 +127,43 @@ export async function saveTrackOffline(track: Track): Promise<boolean> {
       }
     } catch (fetchErr) {
       console.warn('Direct audio download failed, attempting proxy fallback...', fetchErr);
-      // Fallback via serverless stream proxy if CORS restricted
+    }
+
+    // Proxy Fallback 1: Dedicated proxy-stream endpoint
+    if (!audioBlob || audioBlob.size < 1024) {
       try {
-        const proxyUrl = `https://wavecraft-alpha.vercel.app/api/music?action=resolve-stream&title=${encodeURIComponent(
+        const proxyUrl = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(resolvedTrack.audioUrl)}`);
+        const pRes = await fetch(proxyUrl);
+        if (pRes.ok) {
+          audioBlob = await pRes.blob();
+        }
+      } catch {}
+    }
+
+    // Proxy Fallback 2: Direct cloud origin proxy-stream endpoint
+    if (!audioBlob || audioBlob.size < 1024) {
+      try {
+        const cloudProxyUrl = `https://wavecraft-alpha.vercel.app/api/music?action=proxy-stream&url=${encodeURIComponent(resolvedTrack.audioUrl)}`;
+        const pRes = await fetch(cloudProxyUrl);
+        if (pRes.ok) {
+          audioBlob = await pRes.blob();
+        }
+      } catch {}
+    }
+
+    // Proxy Fallback 3: Re-resolve via serverless endpoint
+    if (!audioBlob || audioBlob.size < 1024) {
+      try {
+        const resolveProxyUrl = `https://wavecraft-alpha.vercel.app/api/music?action=resolve-stream&title=${encodeURIComponent(
           resolvedTrack.title
         )}&artist=${encodeURIComponent(resolvedTrack.artist)}&videoId=${encodeURIComponent(
           resolvedTrack.youtubeId || ''
         )}`;
-        const pRes = await fetch(proxyUrl);
+        const pRes = await fetch(resolveProxyUrl);
         if (pRes.ok) {
           const pData = await pRes.json();
           if (pData?.audioUrl) {
+            resolvedTrack.audioUrl = pData.audioUrl;
             const streamRes = await fetch(pData.audioUrl);
             if (streamRes.ok) {
               audioBlob = await streamRes.blob();

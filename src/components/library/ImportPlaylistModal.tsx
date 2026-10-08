@@ -631,7 +631,7 @@ export default function ImportPlaylistModal({
                   <button
                     type="button"
                     onClick={() => setSyncStrategy('append')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 whitespace-normal break-words w-full overflow-hidden ${
                       syncStrategy === 'append'
                         ? 'glass-button-emerald text-white shadow-md'
                         : 'glass-button text-white/70 hover:text-white'
@@ -645,7 +645,7 @@ export default function ImportPlaylistModal({
                         <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
                       )}
                     </div>
-                    <div className="text-[11px] text-white/60 leading-snug">
+                    <div className="text-[11px] text-white/60 leading-snug whitespace-normal break-words">
                       Preserves any tracks you manually add in WaveCraft, while seamlessly fetching newly released tracks from the source.
                     </div>
                   </button>
@@ -653,7 +653,7 @@ export default function ImportPlaylistModal({
                   <button
                     type="button"
                     onClick={() => setSyncStrategy('mirror')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 whitespace-normal break-words w-full overflow-hidden ${
                       syncStrategy === 'mirror'
                         ? 'glass-button-emerald text-white shadow-md'
                         : 'glass-button text-white/70 hover:text-white'
@@ -667,7 +667,7 @@ export default function ImportPlaylistModal({
                         <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
                       )}
                     </div>
-                    <div className="text-[11px] text-white/60 leading-snug">
+                    <div className="text-[11px] text-white/60 leading-snug whitespace-normal break-words">
                       Mirrors the exact source tracklist. When songs are removed or reordered on Spotify/YouTube, WaveCraft mirrors them.
                     </div>
                   </button>

@@ -860,7 +860,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
           ) : (
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
             <div
-              className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-2 sm:pt-3 pb-6 overflow-y-auto no-scrollbar flex flex-col"
+              className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-6 sm:pt-8 pb-6 overflow-y-auto no-scrollbar flex flex-col"
             >
               <div
                 className={`w-full max-w-6xl my-auto mx-auto flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12 ${
@@ -894,23 +894,21 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
                       }`}
                     >
-                      {/* Dynamic Ambient Album Glow behind Turntable */}
+                      {/* Dynamic Ambient Album Glow behind Turntable (Bounded to prevent overflow boundary line) */}
                       <div
-                        className="absolute inset-0 rounded-full pointer-events-none blur-2xl transition-all duration-1000 will-change-transform"
+                        className="absolute inset-0 rounded-full pointer-events-none transition-all duration-1000 will-change-transform"
                         style={{
-                          background: `radial-gradient(circle, ${palette.primary}70 0%, ${palette.secondary}35 50%, transparent 72%)`,
-                          opacity: isPlaying ? 0.95 : 0.5,
-                          transform: isPlaying ? 'scale(1.12)' : 'scale(1.0)'
+                          background: `radial-gradient(circle, ${palette.primary}80 0%, ${palette.secondary}40 45%, transparent 70%)`,
+                          opacity: isPlaying ? 0.95 : 0.5
                         }}
                       />
 
-                      {/* Pure circular radial-gradient aura (zero CSS box-shadow quad / zero tile seam) */}
+                      {/* Pure circular radial-gradient aura */}
                       <div
                         className="absolute inset-0 rounded-full pointer-events-none"
                         style={{
                           background:
-                            'radial-gradient(circle, rgba(0,0,0,0.7) 52%, rgba(0,0,0,0.28) 64%, rgba(0,0,0,0) 72%)',
-                          transform: 'scale(1.04)'
+                            'radial-gradient(circle, rgba(0,0,0,0.7) 50%, rgba(0,0,0,0.25) 62%, transparent 70%)'
                         }}
                       />
 
@@ -979,13 +977,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </div>
                   ) : (
                     <div className="relative flex items-center justify-center flex-shrink-0">
-                      {/* Dynamic Ambient Album Glow behind Album Cover */}
+                      {/* Dynamic Ambient Album Glow behind Album Cover (Bounded to prevent overflow boundary line) */}
                       <div
-                        className="absolute inset-0 rounded-3xl pointer-events-none blur-2xl transition-all duration-1000 will-change-transform"
+                        className="absolute inset-0 rounded-3xl pointer-events-none transition-all duration-1000 will-change-transform"
                         style={{
-                          background: `radial-gradient(circle, ${palette.primary}65 0%, ${palette.secondary}30 55%, transparent 75%)`,
-                          opacity: isPlaying ? 0.9 : 0.45,
-                          transform: isPlaying ? 'scale(1.10)' : 'scale(1.0)'
+                          background: `radial-gradient(circle, ${palette.primary}75 0%, ${palette.secondary}35 50%, transparent 72%)`,
+                          opacity: isPlaying ? 0.9 : 0.45
                         }}
                       />
                       <motion.div

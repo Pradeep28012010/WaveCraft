@@ -20,10 +20,18 @@ export function getSearchHistory(): string[] {
 export function saveSearchTerm(term: string): string[] {
   if (typeof window === 'undefined') return [];
   const clean = term.trim();
-  if (!clean) return getSearchHistory();
+  if (!clean || clean.length < 2) return getSearchHistory();
   try {
     const current = getSearchHistory();
-    const filtered = current.filter((item) => item.toLowerCase() !== clean.toLowerCase());
+    const cleanLower = clean.toLowerCase();
+    // Filter out identical terms and partial prefixes of this longer term
+    const filtered = current.filter((item) => {
+      const itemLower = item.toLowerCase();
+      if (itemLower === cleanLower) return false;
+      // If the newly saved term is a longer expansion of an existing search, prune the partial prefix
+      if (cleanLower.startsWith(itemLower) && cleanLower.length > itemLower.length) return false;
+      return true;
+    });
     const updated = [clean, ...filtered].slice(0, MAX_HISTORY);
     localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('wavecraft_search_history_updated'));

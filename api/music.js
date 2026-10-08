@@ -204,6 +204,30 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Direct stream not found' });
     }
 
+    if (action === 'proxy-stream') {
+      const audioUrl = url.searchParams.get('url') || '';
+      if (!audioUrl) return res.status(400).json({ error: 'URL required' });
+      try {
+        const upstream = await fetchWithTimeout(audioUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        }, 15000);
+        if (!upstream.ok) {
+          return res.status(upstream.status).json({ error: 'Upstream fetch failed' });
+        }
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+        res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mp4');
+        const length = upstream.headers.get('content-length');
+        if (length) res.setHeader('Content-Length', length);
+        const arrayBuf = await upstream.arrayBuffer();
+        return res.status(200).send(Buffer.from(arrayBuf));
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
     if (action === 'jam') {
       res.setHeader('Cache-Control', 'no-store, max-age=0');
       const roomCode = (url.searchParams.get('room') || '').trim().toUpperCase();
@@ -1587,40 +1611,70 @@ function decryptSaavnMediaUrl(enc) {
 
 async function resolveDirectAudioStream(title, artist) {
   if (!title) return null;
-  const cleanTitle = (title || '')
-    .replace(/\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?)[\)\]]\s*/gi, ' ')
+  let cleanTitle = (title || '')
+    .replace(/\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?|second\s*single|first\s*single|third\s*single|promo|teaser|trailer)[\)\]]\s*/gi, ' ')
+    .replace(/\s+(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|full\s+audio|8k\s+video|4k\s+video|hd\s+video|official\s+video|official\s+audio|second\s+single|first\s+single|promo\s+song|video)\b.*$/i, '')
     .replace(/\|\s*.*$/g, '')
+    .replace(/[-–—]\s*(?:video|lyric|audio|full|song).*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
 
-  const cleanArtist = (artist || '')
-    .replace(/ - Topic$/i, '')
+  let cleanArtist = (artist || '')
+    .replace(/\s*-\s*Topic$/i, '')
+    .replace(/\s*(?:VEVO|Records|Entertainment|Music|Official|Channel|Series|Films)\b.*$/i, '')
     .replace(/\s*,\s*.*$/, '')
-    .replace(/\s+feat\..*$/i, '')
+    .replace(/\s+(?:feat\.|ft\.|second\s*single|first\s*single).*$/i, '')
+    .replace(/\s+/g, ' ')
     .trim();
 
-  const query = cleanArtist ? `${cleanTitle} ${cleanArtist}` : cleanTitle;
-  const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(query)}`;
+  const candidateQueries = [
+    cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle,
+    cleanTitle,
+    title.split(/[-–—]/)[0]?.trim()
+  ].filter((q, idx, arr) => Boolean(q) && q.length > 1 && arr.indexOf(q) === idx);
 
-  try {
-    const res = await fetchWithTimeout(saavnUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, 3500);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const results = data?.results || [];
-    if (!Array.isArray(results) || results.length === 0) return null;
-
-    for (const item of results) {
-      const enc = item?.more_info?.encrypted_media_url;
-      if (enc) {
-        const directUrl = decryptSaavnMediaUrl(enc);
-        if (directUrl && directUrl.startsWith('https://')) {
-          return {
-            audioUrl: directUrl,
-            quality: '320kbps Studio AAC',
-            title: item.title,
-            artist: item.subtitle
-          };
+  for (const q of candidateQueries) {
+    try {
+      const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const res = await fetchWithTimeout(saavnUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, 3500);
+      if (res.ok) {
+        const data = await res.json();
+        const results = data?.results || [];
+        if (Array.isArray(results) && results.length > 0) {
+          for (const item of results) {
+            const enc = item?.more_info?.encrypted_media_url;
+            if (enc) {
+              const directUrl = decryptSaavnMediaUrl(enc);
+              if (directUrl && directUrl.startsWith('https://')) {
+                return {
+                  audioUrl: directUrl,
+                  quality: '320kbps Studio AAC',
+                  title: item.title,
+                  artist: item.subtitle
+                };
+              }
+            }
+          }
         }
+      }
+    } catch {}
+  }
+
+  // iTunes preview fallback
+  try {
+    const itunesQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}` : cleanTitle;
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(itunesQuery)}&entity=song&limit=3`;
+    const itRes = await fetchWithTimeout(itunesUrl, {}, 3500);
+    if (itRes.ok) {
+      const itData = await itRes.json();
+      const match = itData?.results?.find((r) => r.previewUrl && r.previewUrl.startsWith('https://'));
+      if (match?.previewUrl) {
+        return {
+          audioUrl: match.previewUrl,
+          quality: '256kbps High-Fidelity AAC',
+          title: match.trackName,
+          artist: match.artistName
+        };
       }
     }
   } catch {}

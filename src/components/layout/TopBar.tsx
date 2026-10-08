@@ -80,6 +80,29 @@ export default function TopBar() {
   const [isListeningVoice, setIsListeningVoice] = useState(false);
   const recognitionRef = useRef<{ stop: () => void; abort: () => void } | null>(null);
 
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showSuggestions) return;
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (
+        (desktopSearchRef.current && desktopSearchRef.current.contains(target)) ||
+        (mobileSearchRef.current && mobileSearchRef.current.contains(target))
+      ) {
+        return;
+      }
+      setShowSuggestions(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [showSuggestions]);
+
   const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
   const { isPhone, toggleMobileDrawer } = useDevicePreset();
   const roomCode = useJamStore((s) => s.roomCode);
@@ -319,7 +342,7 @@ export default function TopBar() {
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
-            <div className="flex-1 relative min-w-0">
+            <div className="flex-1 relative min-w-0" ref={mobileSearchRef}>
               <div className="relative flex items-center">
                 <div className="absolute left-3 pointer-events-none text-white/40">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -339,7 +362,6 @@ export default function TopBar() {
                   }}
                   onBlur={() => {
                     isFocusedRef.current = false;
-                    setTimeout(() => setShowSuggestions(false), 200);
                   }}
                   autoComplete="off"
                   autoCorrect="off"
@@ -375,7 +397,7 @@ export default function TopBar() {
                     }`}
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                       <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                       <line x1="12" y1="19" x2="12" y2="23" />
                       <line x1="8" y1="23" x2="16" y2="23" />
@@ -386,7 +408,7 @@ export default function TopBar() {
 
               {showSuggestions && (
                 searchQuery.trim().length > 0 && suggestions.length > 0 ? (
-                  <div className="absolute left-0 right-0 top-11 glass-heavy rounded-2xl p-1.5 shadow-2xl border border-white/15 z-50">
+                  <div className="absolute left-0 right-0 top-11.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border border-white/20 z-50">
                     <button
                       onMouseDown={() => {
                         triggerAndroidHaptic('light');
@@ -419,7 +441,7 @@ export default function TopBar() {
                     ))}
                   </div>
                 ) : !searchQuery.trim() && history.length > 0 ? (
-                  <div className="absolute left-0 right-0 top-11 glass-heavy rounded-2xl p-1.5 shadow-2xl border border-white/15 z-50">
+                  <div className="absolute left-0 right-0 top-11.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border border-white/20 z-50">
                     <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-white/45 font-bold border-b border-white/10 mb-1">
                       <span>RECENT SEARCHES</span>
                       <button
@@ -585,7 +607,7 @@ export default function TopBar() {
         </div>
 
         {/* Liquid Glass Search Pill + Voice Song Finder + Ctrl+K Spotlight Trigger */}
-        <div className="flex-1 max-w-xl mx-4 sm:mx-6 relative">
+        <div className="flex-1 max-w-xl mx-4 sm:mx-6 relative" ref={desktopSearchRef}>
           <div className="relative flex items-center">
             <div className="absolute left-4 pointer-events-none text-white/45">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -604,7 +626,6 @@ export default function TopBar() {
               }}
               onBlur={() => {
                 isFocusedRef.current = false;
-                setTimeout(() => setShowSuggestions(false), 200);
               }}
               autoComplete="off"
               autoCorrect="off"
@@ -674,7 +695,7 @@ export default function TopBar() {
           {/* Search Suggestions & History Dropdown */}
           {showSuggestions && (
             searchQuery.trim().length > 0 && suggestions.length > 0 ? (
-              <div className="absolute left-0 right-0 top-13 glass-heavy liquid-glass rounded-2xl p-2 shadow-2xl border border-white/20 z-50">
+              <div className="absolute left-0 right-0 top-13.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border border-white/20 z-50">
                 <button
                   onMouseDown={() => {
                     triggerAndroidHaptic('light');
@@ -711,7 +732,7 @@ export default function TopBar() {
                 ))}
               </div>
             ) : !searchQuery.trim() && history.length > 0 ? (
-              <div className="absolute left-0 right-0 top-13 glass-heavy liquid-glass rounded-2xl p-2 shadow-2xl border border-white/20 z-50">
+              <div className="absolute left-0 right-0 top-13.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border border-white/20 z-50">
                 <div className="flex items-center justify-between px-3 py-1.5 text-xs text-white/45 font-bold border-b border-white/10 mb-1">
                   <span>RECENT SEARCHES</span>
                   <button
