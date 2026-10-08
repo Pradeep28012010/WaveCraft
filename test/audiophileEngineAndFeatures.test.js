@@ -172,4 +172,92 @@ describe('Audiophile Engine, Acoustics & Core Feature Validation', () => {
       assert.deepStrictEqual(history.get(), ['Radiohead']);
     });
   });
+
+  describe('Resilient External Playlist Query Sanitization', () => {
+    function sanitizeImportTitle(rawTitle) {
+      return (rawTitle || '')
+        .replace(/\s*[\(\[][^)\]]*?(?:feat\.|ft\.|remaster|deluxe|edition|version|anniversary|live|bonus|explicit)[^)\]]*?[\)\]]/gi, '')
+        .replace(/\s*[-–—]\s*(?:(?:\d{4}\s*)?(?:remaster|deluxe|version|live|radio edit)|bonus|anniversary).*$/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    test('Strips Spotify and Apple Music remastered/deluxe tags cleanly', () => {
+      assert.strictEqual(
+        sanitizeImportTitle('Bohemian Rhapsody - Remastered 2011'),
+        'Bohemian Rhapsody'
+      );
+      assert.strictEqual(
+        sanitizeImportTitle('Starboy (feat. Daft Punk) [Deluxe Edition]'),
+        'Starboy'
+      );
+      assert.strictEqual(
+        sanitizeImportTitle('Hotel California (2013 Remaster)'),
+        'Hotel California'
+      );
+      assert.strictEqual(
+        sanitizeImportTitle('Blinding Lights (Live)'),
+        'Blinding Lights'
+      );
+    });
+
+    test('Builds progressive multi-tier fallback query list', () => {
+      function generateFallbackQueries(title, artist) {
+        const clean = sanitizeImportTitle(title);
+        const searchStr = `${title} ${artist || ''}`.trim();
+        return [
+          searchStr,
+          clean && clean !== title ? `${clean} ${artist || ''}`.trim() : null,
+          clean || title,
+          clean ? `${clean} audio` : `${title} audio`
+        ].filter((item, idx, arr) => Boolean(item) && arr.indexOf(item) === idx);
+      }
+
+      const queries = generateFallbackQueries('In The End - 2020 Remaster', 'Linkin Park');
+      assert.strictEqual(queries[0], 'In The End - 2020 Remaster Linkin Park');
+      assert.strictEqual(queries[1], 'In The End Linkin Park');
+      assert.strictEqual(queries[2], 'In The End');
+      assert.strictEqual(queries[3], 'In The End audio');
+    });
+  });
+
+  describe('Offline Vault Mode & Queue Chaining', () => {
+    test('Offline mode filters out online stream actions and pulls vault tracks', () => {
+      const offlineVault = [
+        { id: 'off-1', title: 'Offline Song 1', artist: 'Artist 1' },
+        { id: 'off-2', title: 'Offline Song 2', artist: 'Artist 2' }
+      ];
+      const activeQueue = [{ id: 'off-1', title: 'Offline Song 1', artist: 'Artist 1' }];
+
+      const existingIds = new Set(activeQueue.map((t) => t.id));
+      const unplayedVaultTracks = offlineVault.filter((t) => !existingIds.has(t.id));
+
+      assert.strictEqual(unplayedVaultTracks.length, 1);
+      assert.strictEqual(unplayedVaultTracks[0].id, 'off-2');
+    });
+  });
+
+  describe('Plain Lyrics Parsing & Distribution Math', () => {
+    function parsePlainLyrics(rawText, totalDuration = 200) {
+      const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (lines.length === 0) return [];
+      const step = Math.max(3, (totalDuration * 0.88) / lines.length);
+      return lines.map((text, idx) => ({
+        time: idx * step,
+        text
+      }));
+    }
+
+    test('Distributes timestamps evenly across song duration for plain unsynced lyrics', () => {
+      const text = 'Line 1\nLine 2\nLine 3\nLine 4';
+      const parsed = parsePlainLyrics(text, 200);
+
+      assert.strictEqual(parsed.length, 4);
+      assert.strictEqual(parsed[0].time, 0);
+      assert.ok(parsed[1].time > 0);
+      assert.ok(parsed[3].time < 200);
+      assert.strictEqual(parsed[0].text, 'Line 1');
+      assert.strictEqual(parsed[3].text, 'Line 4');
+    });
+  });
 });

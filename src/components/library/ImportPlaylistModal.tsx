@@ -165,15 +165,31 @@ export default function ImportPlaylistModal({
             };
           }
 
-          // Slow-path: Search YouTube for Spotify/Apple Music titles
+          // Slow-path: Resilient multi-tier search for Spotify/Apple Music titles
           const searchStr = `${q.title} ${q.artist || ''}`.trim();
           if (!searchStr) return { track: null, fp };
-          try {
-            const results = await searchTracks(searchStr);
-            if (results && results.length > 0) {
-              return { track: results[0], fp };
-            }
-          } catch {}
+
+          const cleanTitle = (q.title || '')
+            .replace(/\s*[\(\[][^)\]]*?(?:feat\.|ft\.|remaster|deluxe|edition|version|anniversary|live|bonus|explicit)[^)\]]*?[\)\]]/gi, '')
+            .replace(/\s*[-–—]\s*(?:(?:\d{4}\s*)?(?:remaster|deluxe|version|live|radio edit)|bonus|anniversary).*$/gi, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          const queriesToTry = [
+            searchStr,
+            cleanTitle && cleanTitle !== q.title ? `${cleanTitle} ${q.artist || ''}`.trim() : null,
+            cleanTitle || q.title,
+            cleanTitle ? `${cleanTitle} audio` : `${q.title} audio`
+          ].filter((item, idx, arr): item is string => Boolean(item) && arr.indexOf(item) === idx);
+
+          for (const query of queriesToTry) {
+            try {
+              const results = await searchTracks(query);
+              if (results && results.length > 0) {
+                return { track: results[0], fp };
+              }
+            } catch {}
+          }
 
           return { track: null, fp };
         })

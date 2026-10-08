@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOfflineVault, getOfflineStorageEstimate } from '../../services/offlineVault';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
 import TrackRow from '../ui/TrackRow';
@@ -66,16 +67,31 @@ export default function DownloadsPage() {
     setShowClearConfirm(false);
   };
 
+  const offlineModeOnly = useSettingsStore((s) => s.offlineModeOnly ?? false);
+  const toggleOfflineModeOnly = useSettingsStore((s) => s.toggleOfflineModeOnly);
+
   return (
     <div className="pb-24 pt-2 text-white min-h-screen">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Offline Music Vault</h1>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[11px] font-black text-emerald-300 uppercase tracking-wider">
               100% Offline
             </span>
+            <button
+              onClick={() => toggleOfflineModeOnly()}
+              className={`px-3 py-1 rounded-full border text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+                offlineModeOnly
+                  ? 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                  : 'bg-white/10 border-white/15 text-white/70 hover:text-white'
+              }`}
+              title={offlineModeOnly ? "Offline Playback Only is active" : "Click to enforce Offline Playback Only"}
+            >
+              <span className={`w-2 h-2 rounded-full ${offlineModeOnly ? 'bg-emerald-400' : 'bg-white/40'}`} />
+              <span>{offlineModeOnly ? '⚡ Offline Vault Mode' : 'Online Stream Mode'}</span>
+            </button>
           </div>
           <p className="text-xs text-white/50 mt-1.5">
             Full 320kbps audio cached directly on your device. Zero internet, 0ms buffer delay.

@@ -41,7 +41,7 @@ export default function PlaylistCard({
   return (
     <Link to={`/playlist/${playlist.id}`} className="block group">
       <GlassCard
-        className={`p-3.5 sm:p-4 h-full transition-all hover:bg-white/10 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20 relative ${
+        className={`contain-card p-3.5 sm:p-4 h-full transition-all hover:bg-white/10 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20 relative ${
           playlist.isLiveSync ? 'border border-emerald-400/30' : ''
         } ${playlist.isPinned ? 'ring-1 ring-amber-400/30' : ''}`}
       >

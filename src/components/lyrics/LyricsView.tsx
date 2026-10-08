@@ -4,6 +4,7 @@ import {
   getLyricsData,
   getSavedLyricsOffset,
   saveLyricsOffset,
+  parseLyrics,
   type LyricsResult,
   type LyricsCandidate
 } from '../../services/lyrics';
@@ -247,6 +248,47 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
   const [userScrolling, setUserScrolling] = useState(false);
   const [userOffset, setUserOffset] = useState<number>(0);
   const [showSyncDrawer, setShowSyncDrawer] = useState(false);
+  const [showSearchDrawer, setShowSearchDrawer] = useState(false);
+  const [manualQuery, setManualQuery] = useState('');
+  const [isSearchingManual, setIsSearchingManual] = useState(false);
+  const [pastedPlainLyrics, setPastedPlainLyrics] = useState('');
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [searchError, setSearchError] = useState('');
+
+  const handleManualSearch = async (queryText?: string) => {
+    const q = (queryText !== undefined ? queryText : manualQuery || `${title || ''} ${artist || ''}`).trim();
+    if (!q) return;
+    setIsSearchingManual(true);
+    setSearchError('');
+    try {
+      const data = await getLyricsData(artist || '', q, activeDuration);
+      if (data && data.lines && data.lines.length > 0) {
+        setResult(data);
+        setShowSearchDrawer(false);
+      } else {
+        setSearchError('No synchronized lyrics found. Try another search term or paste plain lyrics.');
+      }
+    } catch {
+      setSearchError('Lyrics search request failed.');
+    } finally {
+      setIsSearchingManual(false);
+    }
+  };
+
+  const handleApplyPlainLyrics = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const parsedLines = parseLyrics(trimmed, activeDuration);
+    setResult({
+      synced: false,
+      lyrics: trimmed,
+      lines: parsedLines,
+      source: 'Custom Plain Lyrics',
+      candidates: []
+    });
+    setShowPasteModal(false);
+    setShowSearchDrawer(false);
+  };
 
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -523,6 +565,27 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
             )}
           </button>
 
+          {/* 2. Manual Lyrics Search / Plain Lyrics Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowSearchDrawer((prev) => !prev);
+              setShowSyncDrawer(false);
+            }}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              showSearchDrawer
+                ? 'glass-button-primary text-white shadow-[0_0_14px_rgba(255,255,255,0.2)]'
+                : 'glass-button text-white/80 hover:text-white'
+            }`}
+            title="Search lyrics by song title or paste plain lyrics"
+          >
+            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <span>Search</span>
+          </button>
+
           {/* Lyric Story Poster Studio */}
           {onShareLyric && (
             <button
@@ -715,6 +778,89 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
         )}
       </AnimatePresence>
 
+      {/* Expandable Manual Lyrics Search & Plain Lyrics Importer Drawer */}
+      <AnimatePresence>
+        {showSearchDrawer && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="overflow-hidden border-b border-white/10 bg-black/60 backdrop-blur-2xl px-5 py-3 flex flex-col gap-2.5 flex-shrink-0 z-15 text-xs shadow-2xl"
+          >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleManualSearch();
+              }}
+              className="flex items-center gap-2"
+            >
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={manualQuery}
+                  onChange={(e) => setManualQuery(e.target.value)}
+                  placeholder={`Search lyrics (e.g. "${title || 'Song'} ${artist || ''}")`}
+                  className="w-full h-8 pl-8 pr-3 rounded-xl bg-white/[0.08] border border-white/15 text-xs text-white placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)]"
+                />
+                <svg className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-white/45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </div>
+              <button
+                type="submit"
+                disabled={isSearchingManual}
+                className="px-3.5 h-8 rounded-xl glass-button-primary text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isSearchingManual ? 'Searching...' : 'Find'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPasteModal((v) => !v)}
+                className="px-3 h-8 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white cursor-pointer"
+                title="Paste plain lyrics directly"
+              >
+                Paste
+              </button>
+            </form>
+
+            {searchError && (
+              <p className="text-[11px] text-amber-300 font-medium">{searchError}</p>
+            )}
+
+            {showPasteModal && (
+              <div className="flex flex-col gap-2 pt-1 border-t border-white/10">
+                <textarea
+                  rows={4}
+                  value={pastedPlainLyrics}
+                  onChange={(e) => setPastedPlainLyrics(e.target.value)}
+                  placeholder="Paste plain lyrics text here..."
+                  className="w-full p-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white/90 placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)] font-mono"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPasteModal(false)}
+                    className="px-3 py-1 rounded-lg glass-button text-[11px] text-white/60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPlainLyrics(pastedPlainLyrics)}
+                    disabled={!pastedPlainLyrics.trim()}
+                    className="px-3 py-1 rounded-lg glass-button-primary text-[11px] font-bold text-white disabled:opacity-40"
+                  >
+                    Apply Plain Lyrics
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Scrollable Spatial Lyrics Viewport with True Alpha Feather Mask */}
       <div
         ref={containerRef}
@@ -774,12 +920,37 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
             })}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center px-6 text-white/50">
+          <div className="flex flex-col items-center justify-center h-full text-center px-6 text-white/50 max-w-sm mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-xl mb-3 shadow-md">
+              🎵
+            </div>
             <p className="text-base font-bold text-white/85">{title}</p>
             <p className="text-xs text-white/55 mt-1">{artist}</p>
-            <p className="text-xs text-white/40 mt-4 max-w-xs">
-              Instrumental / Studio Track — Enjoy the 320kbps studio audio & 3D visualizer.
+            <p className="text-xs text-white/40 mt-3 mb-5 leading-relaxed">
+              No synchronized lyrics found automatically. Search the global lyrics database or paste plain lyrics:
             </p>
+            <div className="flex flex-wrap items-center justify-center gap-2.5 w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSearchDrawer(true);
+                  handleManualSearch(`${title || ''} ${artist || ''}`);
+                }}
+                className="flex-1 min-w-[140px] py-2 px-3.5 rounded-xl glass-button-primary text-xs font-bold text-white cursor-pointer"
+              >
+                🔍 Search Lyrics
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSearchDrawer(true);
+                  setShowPasteModal(true);
+                }}
+                className="py-2 px-3.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white cursor-pointer"
+              >
+                Paste Plain Lyrics
+              </button>
+            </div>
           </div>
         )}
       </div>

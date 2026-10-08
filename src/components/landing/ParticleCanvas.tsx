@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 interface Particle {
   x: number;
@@ -13,7 +14,6 @@ interface Particle {
 }
 
 const COLORS = ['#fa2d48', '#7c3aed', '#818cf8', '#0ea5e9', '#f472b6', '#a78bfa'];
-const PARTICLE_COUNT = 90;
 const CONNECTION_DIST = 140;
 
 export default function ParticleCanvas() {
@@ -24,8 +24,12 @@ export default function ParticleCanvas() {
   const visibleRef = useRef(true);
   const timeRef = useRef(0);
 
+  const performanceProfile = useSettingsStore((s) => s.performanceProfile ?? 'ultra');
+  const particleCount =
+    performanceProfile === 'ultra' ? 120 : performanceProfile === 'performance' ? 32 : 80;
+
   const initParticles = useCallback((w: number, h: number) => {
-    particlesRef.current = Array.from({ length: PARTICLE_COUNT }, () => ({
+    particlesRef.current = Array.from({ length: particleCount }, () => ({
       x: Math.random() * w,
       y: Math.random() * h,
       z: Math.random() * 0.5 + 0.5,
@@ -36,7 +40,7 @@ export default function ParticleCanvas() {
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       pulsePhase: Math.random() * Math.PI * 2,
     }));
-  }, []);
+  }, [particleCount]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

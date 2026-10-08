@@ -332,9 +332,9 @@ const TrackRow = memo(({
       {/* Draggable Row Layer with Elastic Physics */}
       <motion.div
         drag="x"
-        dragConstraints={{ left: -148, right: 0 }}
+        dragConstraints={{ left: onRemove ? -184 : -144, right: 0 }}
         dragElastic={{ left: 0.1, right: 0.02 }}
-        animate={{ x: isTrayOpen ? -148 : 0 }}
+        animate={{ x: isTrayOpen ? (onRemove ? -184 : -144) : 0 }}
         transition={{ type: 'spring', stiffness: 420, damping: 32 }}
         onDragStart={() => {
           isDraggingRef.current = true;

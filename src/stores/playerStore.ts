@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import type { Track, PlayerState } from '../types';
 import { shuffleArray } from '../utils/shuffle';
 import { seekToTime } from '../components/player/YouTubeEmbed';
+import { useSettingsStore } from './settingsStore';
+import { getSmartRecommendations } from '../services/recommendationEngine';
+import { getOfflineTracks } from '../services/offlineVault';
 
 const PLAYER_SESSION_KEY = 'wavecraft_player_session_v1';
 
@@ -201,40 +204,55 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
           nextIndex = 0;
         } else {
           // Infinite queue autoplay recommendation trigger
-          import('../stores/settingsStore')
-            .then(({ useSettingsStore }) => {
-              if (useSettingsStore.getState().autoplay && state.currentTrack) {
-                import('../services/recommendationEngine')
-                  .then(({ getSmartRecommendations }) => {
-                    const track = state.currentTrack;
-                    if (!track) return;
-                    getSmartRecommendations(track, get().queue, 8)
-                      .then((recommended) => {
-                        const currentQ = get().queue;
-                        const existingIds = new Set(currentQ.map((t) => t.id));
-                        const fresh = recommended.filter((t) => !existingIds.has(t.id));
-                        if (fresh.length > 0) {
-                          const newQueue = [...currentQ, ...fresh];
-                          set({
-                            queue: newQueue,
-                            originalQueue: [...get().originalQueue, ...fresh],
-                            currentTrack: fresh[0],
-                            queueIndex: currentQ.length,
-                            progress: 0,
-                            currentTime: 0,
-                            duration: fresh[0].duration || 0,
-                            isPlaying: true,
-                            isLoading: true
-                          });
-                          savePlayerSessionSync(get());
-                        }
-                      })
-                      .catch(() => {});
-                  })
-                  .catch(() => {});
+          const settings = useSettingsStore.getState();
+          if (settings.autoplay && state.currentTrack) {
+            if (settings.offlineModeOnly) {
+              const offline = getOfflineTracks();
+              const currentQ = get().queue;
+              const existingIds = new Set(currentQ.map((t) => t.id));
+              const unplayed = offline.filter((t) => !existingIds.has(t.id));
+              if (unplayed.length > 0) {
+                const newQueue = [...currentQ, ...unplayed];
+                set({
+                  queue: newQueue,
+                  originalQueue: [...get().originalQueue, ...unplayed],
+                  currentTrack: unplayed[0],
+                  queueIndex: currentQ.length,
+                  progress: 0,
+                  currentTime: 0,
+                  duration: unplayed[0].duration || 0,
+                  isPlaying: true,
+                  isLoading: true
+                });
+                savePlayerSessionSync(get());
+                return {};
               }
-            })
-            .catch(() => {});
+            } else {
+              const track = state.currentTrack;
+              getSmartRecommendations(track, get().queue, 8)
+                .then((recommended) => {
+                  const currentQ = get().queue;
+                  const existingIds = new Set(currentQ.map((t) => t.id));
+                  const fresh = recommended.filter((t) => !existingIds.has(t.id));
+                  if (fresh.length > 0) {
+                    const newQueue = [...currentQ, ...fresh];
+                    set({
+                      queue: newQueue,
+                      originalQueue: [...get().originalQueue, ...fresh],
+                      currentTrack: fresh[0],
+                      queueIndex: currentQ.length,
+                      progress: 0,
+                      currentTime: 0,
+                      duration: fresh[0].duration || 0,
+                      isPlaying: true,
+                      isLoading: true
+                    });
+                    savePlayerSessionSync(get());
+                  }
+                })
+                .catch(() => {});
+            }
+          }
 
           return { isPlaying: false, progress: 0, currentTime: 0 };
         }

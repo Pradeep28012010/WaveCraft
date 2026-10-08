@@ -8,6 +8,7 @@ import { useJamStore } from '../../stores/jamStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useSearchHistory } from '../../utils/searchHistory';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 const formatClock = (sec: number) => {
   const m = Math.floor(sec / 60);
@@ -100,6 +101,8 @@ export default function TopBar() {
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
+  const offlineModeOnly = useSettingsStore((s) => s.offlineModeOnly ?? false);
+  const toggleOfflineModeOnly = useSettingsStore((s) => s.toggleOfflineModeOnly);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -452,14 +455,22 @@ export default function TopBar() {
 
         {/* Right Action Icons (Studio FX, Active Timers & Drawer) */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {!isOnline && (
-            <span
-              className="h-7 px-2 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-200 text-[10px] font-black flex items-center gap-1 animate-pulse"
-              title="Offline Vault Mode"
+          {(offlineModeOnly || !isOnline) && (
+            <button
+              onClick={() => {
+                triggerAndroidHaptic('medium');
+                toggleOfflineModeOnly();
+              }}
+              className={`h-7 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all ${
+                offlineModeOnly
+                  ? 'bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                  : 'bg-amber-500/20 border border-amber-400/40 text-amber-200 animate-pulse'
+              }`}
+              title={offlineModeOnly ? "Offline Vault Mode Active — Click to turn off" : "Device offline — Click to toggle Offline Mode"}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span>Vault</span>
-            </span>
+              <span className={`w-1.5 h-1.5 rounded-full ${offlineModeOnly ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span>{offlineModeOnly ? 'Vault Only' : 'Vault'}</span>
+            </button>
           )}
 
           {sleepActive && <MobileSleepCountdown />}
@@ -692,15 +703,27 @@ export default function TopBar() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
-          {/* Offline Mode Indicator */}
-          {!isOnline && (
-            <span
-              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-extrabold text-amber-200 animate-pulse flex-shrink-0"
-              title="No internet connection — Playing tracks saved in Offline Vault"
+          {/* Offline Mode Indicator & Instant Toggle */}
+          {(offlineModeOnly || !isOnline) && (
+            <button
+              onClick={() => {
+                triggerAndroidHaptic('medium');
+                toggleOfflineModeOnly();
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer flex-shrink-0 ${
+                offlineModeOnly
+                  ? 'bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                  : 'bg-amber-500/20 border border-amber-400/40 text-amber-200 animate-pulse'
+              }`}
+              title={
+                offlineModeOnly
+                  ? 'Offline Mode Active (Playing strictly from local Vault) — Click to go online'
+                  : 'Device is offline — Click to toggle Offline Mode'
+              }
             >
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
-              <span>Offline • Vault Ready</span>
-            </span>
+              <span className={`w-2 h-2 rounded-full ${offlineModeOnly ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span>{offlineModeOnly ? '⚡ Offline Vault Only' : 'Offline • Vault Ready'}</span>
+            </button>
           )}
 
           {/* Active Focus Pomodoro Pill */}

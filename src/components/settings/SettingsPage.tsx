@@ -311,6 +311,26 @@ export default function SettingsPage() {
           >
             <ToggleSwitch checked={settings.autoplay} onChange={settings.setAutoplay} />
           </SettingRow>
+
+          <SettingRow
+            label="Audiophile Loudness Normalization"
+            description="ReplayGain automatic loudness leveling and transparent -2dBFS limiter to eliminate sudden volume jumps between tracks"
+          >
+            <ToggleSwitch
+              checked={settings.loudnessNormalization ?? true}
+              onChange={settings.setLoudnessNormalization}
+            />
+          </SettingRow>
+
+          <SettingRow
+            label="Offline Vault Mode Only"
+            description="Play strictly from local IndexedDB vault — prevents network usage and external stream calls"
+          >
+            <ToggleSwitch
+              checked={settings.offlineModeOnly ?? false}
+              onChange={settings.setOfflineModeOnly}
+            />
+          </SettingRow>
         </GlassCard>
       </section>
 
@@ -400,6 +420,32 @@ export default function SettingsPage() {
                 { value: 'wave', label: 'Harmonic Wave' }
               ]}
             />
+          </SettingRow>
+
+          <SettingRow
+            label="Glass Engine FPS Profile"
+            description="Adaptive battery-saver profile controlling aurora nodes, blur passes, and particles"
+          >
+            <div className="flex gap-2">
+              {[
+                { id: 'ultra', label: 'Ultra 120fps' },
+                { id: 'balanced', label: 'Balanced' },
+                { id: 'performance', label: 'Battery Saver' }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => settings.setPerformanceProfile(item.id as any)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    (settings.performanceProfile ?? 'ultra') === item.id
+                      ? 'bg-[var(--color-accent)] text-white shadow-md'
+                      : 'glass text-white/60 hover:text-white'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </SettingRow>
         </GlassCard>
       </section>

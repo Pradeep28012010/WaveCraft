@@ -414,16 +414,25 @@ export default function YouTubeEmbed() {
                 pState.repeatMode === 'off' &&
                 pState.queueIndex >= pState.queue.length - 1 &&
                 useSettingsStore.getState().autoplay &&
+                !useSettingsStore.getState().offlineModeOnly &&
                 pState.currentTrack
               ) {
                 getSmartRecommendations(pState.currentTrack, pState.queue, 8)
                   .then((recs) => {
                     if (recs.length > 0) {
-                      recs.forEach((t) => usePlayerStore.getState().addToQueue(t));
-                      usePlayerStore.getState().nextTrack();
+                      const existingIds = new Set(usePlayerStore.getState().queue.map((t) => t.id));
+                      const fresh = recs.filter((t) => !existingIds.has(t.id));
+                      if (fresh.length > 0) {
+                        fresh.forEach((t) => usePlayerStore.getState().addToQueue(t));
+                      }
                     }
+                    trackTransitionIntentRef.current = true;
+                    usePlayerStore.getState().nextTrack();
                   })
-                  .catch(() => {});
+                  .catch(() => {
+                    trackTransitionIntentRef.current = true;
+                    usePlayerStore.getState().nextTrack();
+                  });
                 return;
               }
               trackTransitionIntentRef.current = true;

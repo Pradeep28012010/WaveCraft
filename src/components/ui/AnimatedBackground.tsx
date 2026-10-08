@@ -28,6 +28,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const intensity = useSettingsStore((s) => s.ambientGlowIntensity ?? 'vibrant');
   const dynamicEnabled = useSettingsStore((s) => s.dynamicAmbientGlow ?? true);
+  const performanceProfile = useSettingsStore((s) => s.performanceProfile ?? 'ultra');
 
   // Dual-buffer state for liquid cross-fading
   const [activeBuffer, setActiveBuffer] = useState<'A' | 'B'>('A');
@@ -87,7 +88,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
         `
       }}
     >
-      {isVisible && (
+      {isVisible && performanceProfile !== 'performance' && (
       <>
         {/* Radiant Floating Node 1: Primary Dominant Glow (Top Left) */}
         <div
@@ -114,27 +115,31 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
           }}
         />
 
-        {/* Radiant Floating Node 3: Deep Ambient Foundation (Bottom Center) */}
-        <div
-          className="absolute -bottom-20 left-[28%] w-[52rem] h-[52rem] rounded-full animate-float blur-[80px] will-change-transform"
-          style={{
-            background: `radial-gradient(circle, ${buf.c3} 0%, transparent 65%)`,
-            animationDelay: '-5.8s',
-            opacity: tertiaryOpacity,
-            transform: 'translate3d(0,0,0)'
-          }}
-        />
+        {performanceProfile === 'ultra' && (
+          <>
+            {/* Radiant Floating Node 3: Deep Ambient Foundation (Bottom Center) */}
+            <div
+              className="absolute -bottom-20 left-[28%] w-[52rem] h-[52rem] rounded-full animate-float blur-[80px] will-change-transform"
+              style={{
+                background: `radial-gradient(circle, ${buf.c3} 0%, transparent 65%)`,
+                animationDelay: '-5.8s',
+                opacity: tertiaryOpacity,
+                transform: 'translate3d(0,0,0)'
+              }}
+            />
 
-        {/* Radiant Floating Node 4: High-Energy Accent Heart (Subtle Core) */}
-        <div
-          className="absolute top-[42%] left-[45%] w-[30rem] h-[30rem] rounded-full animate-float blur-[60px] will-change-transform"
-          style={{
-            background: `radial-gradient(circle, ${buf.accent} 0%, transparent 72%)`,
-            animationDelay: '-8.4s',
-            opacity: baseOpacity * 0.75,
-            transform: 'translate3d(0,0,0)'
-          }}
-        />
+            {/* Radiant Floating Node 4: High-Energy Accent Heart (Subtle Core) */}
+            <div
+              className="absolute top-[42%] left-[45%] w-[30rem] h-[30rem] rounded-full animate-float blur-[60px] will-change-transform"
+              style={{
+                background: `radial-gradient(circle, ${buf.accent} 0%, transparent 72%)`,
+                animationDelay: '-8.4s',
+                opacity: baseOpacity * 0.75,
+                transform: 'translate3d(0,0,0)'
+              }}
+            />
+          </>
+        )}
       </>
     )}
   </div>

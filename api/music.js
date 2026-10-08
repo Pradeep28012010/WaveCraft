@@ -1416,6 +1416,84 @@ async function importExternalPlaylist(playlistUrl) {
         console.warn('Apple Music / iTunes lookup failed:', err);
       }
     }
+
+    // Apple Music Playlist URL (e.g. https://music.apple.com/us/playlist/todays-hits/pl.f4d1060b52a243d7b321e1e8a70f8e37)
+    const playlistMatch = targetUrl.match(/playlist\/(?:[^\/]+\/)?(pl\.[a-zA-Z0-9_-]+)/i);
+    if (playlistMatch) {
+      try {
+        const pageRes = await fetch(targetUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          }
+        });
+        if (pageRes.ok) {
+          const html = await pageRes.text();
+
+          // Title & cover from meta
+          const titleMatch =
+            html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
+            html.match(/<title>([^<]+)<\/title>/i);
+          const rawTitle = titleMatch ? titleMatch[1].replace(/\s*[-–—]\s*(Apple Music|Playlist).*$/i, '').trim() : 'Apple Music Playlist';
+
+          const imgMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
+          const coverUrl = imgMatch ? imgMatch[1] : '';
+
+          const queries = [];
+
+          // Format A: JSON-LD MusicPlaylist schema
+          const jsonLdMatches = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+          if (jsonLdMatches) {
+            for (const scriptTag of jsonLdMatches) {
+              try {
+                const inner = scriptTag.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '').trim();
+                const data = JSON.parse(inner);
+                const tracks = data?.track || (Array.isArray(data) ? data : []);
+                if (Array.isArray(tracks)) {
+                  for (const tr of tracks) {
+                    const songName = tr?.name;
+                    const artistName =
+                      tr?.byArtist?.name ||
+                      (Array.isArray(tr?.byArtist) ? tr.byArtist.map((a) => a.name).join(', ') : '');
+                    if (songName) {
+                      queries.push({
+                        title: songName,
+                        artist: artistName || ''
+                      });
+                    }
+                  }
+                }
+              } catch {}
+            }
+          }
+
+          // Format B: Extract from tracklist table or data-testid attributes
+          if (queries.length === 0) {
+            const rowMatches = html.matchAll(/data-testid=["']track-title["'][^>]*>([^<]+)<\/a>[\s\S]*?data-testid=["']track-artist["'][^>]*>([^<]+)<\/a>/gi);
+            for (const m of rowMatches) {
+              if (m[1]) {
+                queries.push({
+                  title: m[1].trim(),
+                  artist: (m[2] || '').trim()
+                });
+              }
+            }
+          }
+
+          if (queries.length > 0) {
+            return {
+              platform: 'Apple Music',
+              name: rawTitle,
+              coverUrl,
+              queries
+            };
+          }
+        }
+      } catch (plErr) {
+        console.warn('Apple Music playlist scrape failed:', plErr);
+      }
+    }
   }
 
   return { error: 'Could not parse playlist link. Make sure the playlist or album is public.' };
