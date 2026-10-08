@@ -48,7 +48,7 @@ export default function TrendingSection({
         <div>
           <div className="flex items-center gap-2.5">
             <h2 className="text-2xl font-bold text-white tracking-tight">Trending Hits</h2>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#1DB954]/15 border border-[#1DB954]/30 text-[#1ed760] text-[11px] font-bold">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full liquid-glass border border-[#1DB954]/40 text-[#1ed760] text-[11px] font-bold">
               <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                 <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.498 17.306c-.218.358-.684.472-1.042.254-2.855-1.745-6.45-2.14-10.684-1.173-.41.094-.82-.162-.914-.572-.094-.41.162-.82.572-.914 4.634-1.059 8.608-.609 11.814 1.363.358.218.472.684.254 1.042zm1.468-3.264c-.274.446-.86.588-1.306.314-3.268-2.008-8.249-2.59-12.115-1.416-.5.152-1.03-.134-1.182-.634-.152-.5.134-1.03.634-1.182 4.417-1.34 9.907-.687 13.655 1.612.446.274.588.86.314 1.306zm.126-3.41c-3.918-2.327-10.377-2.541-14.116-1.405-.6.183-1.237-.16-1.42-.76-.183-.6.16-1.237.76-1.42 4.298-1.305 11.433-1.055 15.937 1.62.54.32.715 1.026.395 1.566-.32.54-1.026.715-1.566.395z" />
               </svg>
@@ -97,8 +97,8 @@ export default function TrendingSection({
                 onClick={() => onSelectCategory(cat.key)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
                   isSelected
-                    ? 'bg-[#1ed760] text-black font-bold shadow-md'
-                    : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white'
+                    ? 'glass-button-emerald text-emerald-100 font-bold shadow-md'
+                    : 'glass-button text-white/70 hover:text-white'
                 }`}
               >
                 <span>{cat.icon}</span>
@@ -146,7 +146,7 @@ export default function TrendingSection({
                     }
                   }}
                 >
-                  <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 ${
+                  <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative liquid-glass shadow-md group-hover:shadow-2xl transition-all duration-300 ${
                     isActive ? 'ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-black' : ''
                   }`}>
                     <img
@@ -165,7 +165,7 @@ export default function TrendingSection({
                       }`}
                     >
                       <div
-                        className={`w-11 h-11 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] transition-all duration-300 ${
+                        className={`w-11 h-11 rounded-full glass-button-primary text-white flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.5)] transition-all duration-300 ${
                           isActive
                             ? 'scale-100 translate-y-0'
                             : 'scale-90 translate-y-2 group-hover:scale-100 group-hover:translate-y-0'

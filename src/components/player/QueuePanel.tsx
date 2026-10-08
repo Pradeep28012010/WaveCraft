@@ -142,7 +142,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
             onClick={() => onMoveToTop(actualIndex)}
             aria-label="Play Next (Move to Top)"
             title="Play Next (Move to Top)"
-            className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-[var(--color-accent)] flex items-center justify-center transition-colors cursor-pointer"
+            className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-white/70 hover:text-[var(--color-accent)] flex items-center justify-center transition-all cursor-pointer"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="17 11 12 6 7 11" />
@@ -158,7 +158,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
           disabled={!canMoveUp}
           aria-label="Move track up"
           title="Move Up"
-          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
+          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-white/70 hover:text-white disabled:opacity-25 flex items-center justify-center transition-all cursor-pointer"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="18 15 12 9 6 15" />
@@ -171,7 +171,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
           disabled={!canMoveDown}
           aria-label="Move track down"
           title="Move Down"
-          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
+          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-white/70 hover:text-white disabled:opacity-25 flex items-center justify-center transition-all cursor-pointer"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9" />
@@ -183,7 +183,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
           onClick={() => onRemove(actualIndex)}
           aria-label="Remove from Queue"
           title="Remove from Queue"
-          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-rose-500/20 text-white/55 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-rose-300 hover:text-rose-200 flex items-center justify-center transition-all cursor-pointer"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -364,7 +364,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: '104%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.7 }}
-            className="fixed top-2.5 bottom-2.5 right-2.5 z-[110] w-[calc(100vw-20px)] max-w-[435px] rounded-3xl liquid-glass border border-white/15 shadow-[0_30px_90px_rgba(0,0,0,0.88)] flex flex-col overflow-hidden text-white select-none"
+            className="fixed top-2.5 bottom-2.5 right-2.5 z-[110] w-[calc(100vw-20px)] max-w-[435px] rounded-3xl glass-heavy liquid-glass border border-white/15 shadow-[0_30px_90px_rgba(0,0,0,0.88)] flex flex-col overflow-hidden text-white select-none"
           >
             {/* Subtle Ambient Album Art Tint inside Drawer */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
@@ -526,7 +526,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       const clientY = e.clientY;
                       useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, currentTrack, queue);
                     }}
-                    className="p-3 rounded-2xl bg-gradient-to-r from-white/[0.12] via-white/[0.07] to-white/[0.04] border border-white/20 shadow-[0_12px_30px_rgba(0,0,0,0.45)] flex items-center gap-3.5"
+                    className="p-3.5 rounded-2xl liquid-glass border border-white/20 shadow-[0_12px_30px_rgba(0,0,0,0.45)] flex items-center gap-3.5"
                   >
                     <div
                       onClick={togglePlay}

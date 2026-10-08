@@ -523,25 +523,25 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 {/* Radar Readout & Controls */}
                 <div className="flex-1 w-full space-y-3">
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
                       <div className="text-white/50 text-[10px] uppercase font-bold">Azimuth</div>
                       <div ref={azimuthRef} className="text-sm font-black text-cyan-300">
                         {initialAzimuthDeg}°
                       </div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
                       <div className="text-white/50 text-[10px] uppercase font-bold">Distance</div>
                       <div ref={distanceRef} className="text-sm font-black text-white">
                         {initialDistanceMeters} m
                       </div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
                       <div className="text-white/50 text-[10px] uppercase font-bold">Left Ear</div>
                       <div ref={leftEarRef} className="text-sm font-black text-cyan-400">
                         {initialLeftEarLevel}%
                       </div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
                       <div className="text-white/50 text-[10px] uppercase font-bold">Right Ear</div>
                       <div ref={rightEarRef} className="text-sm font-black text-indigo-400">
                         {initialRightEarLevel}%
@@ -625,7 +625,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   onClick={resetMasteringRack}
-                  className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white/70 hover:text-white transition cursor-pointer"
+                  className="px-2.5 py-1 rounded-xl glass-button text-xs font-bold text-white/70 hover:text-white transition cursor-pointer"
                 >
                   Reset Rack
                 </button>
@@ -1027,7 +1027,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                     <button
                       type="button"
                       onClick={stopPomodoro}
-                      className="px-4 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer"
+                      className="px-4 py-1.5 rounded-xl glass-button text-rose-300 border border-rose-500/30 text-xs font-bold transition cursor-pointer"
                     >
                       Pause Focus Sprint
                     </button>
@@ -1035,7 +1035,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                     <button
                       type="button"
                       onClick={() => startPomodoro(pomodoroMode)}
-                      className="px-4 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/30 transition cursor-pointer"
+                      className="px-4 py-1.5 rounded-xl glass-button-emerald text-emerald-100 text-xs font-bold transition cursor-pointer"
                     >
                       Start Focus ({formatClock(pomodoroSeconds)})
                     </button>

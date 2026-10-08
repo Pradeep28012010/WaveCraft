@@ -513,7 +513,7 @@ export default function WaveCardModal({
           exit={{ scale: 0.96, opacity: 0, y: 10 }}
           transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="relative z-10 w-full max-w-4xl rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-6 sm:p-8 max-h-[90vh] overflow-y-auto"
+          className="relative z-10 w-full max-w-4xl rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-6 sm:p-8 max-h-[90vh] overflow-y-auto glass-heavy liquid-glass"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
@@ -526,14 +526,14 @@ export default function WaveCardModal({
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center p-1 rounded-full bg-white/[0.06] border border-white/15">
+              <div className="flex items-center p-1 rounded-full liquid-glass border border-white/15">
                 <button
                   type="button"
                   onClick={() => setAspectMode('story')}
                   className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
                     aspectMode === 'story'
-                      ? 'bg-[var(--color-accent)] text-white shadow'
-                      : 'text-white/60 hover:text-white'
+                      ? 'glass-button-primary text-white shadow'
+                      : 'glass-button text-white/60 hover:text-white'
                   }`}
                 >
                   9:16 Story (1080×1920)
@@ -543,8 +543,8 @@ export default function WaveCardModal({
                   onClick={() => setAspectMode('feed')}
                   className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
                     aspectMode === 'feed'
-                      ? 'bg-[var(--color-accent)] text-white shadow'
-                      : 'text-white/60 hover:text-white'
+                      ? 'glass-button-primary text-white shadow'
+                      : 'glass-button text-white/60 hover:text-white'
                   }`}
                 >
                   4:5 Feed (1080×1350)
@@ -552,7 +552,7 @@ export default function WaveCardModal({
               </div>
               <button
                 onClick={onClose}
-                className="w-9 h-9 rounded-full liquid-glass flex items-center justify-center text-white/70 hover:text-white cursor-pointer"
+                className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white cursor-pointer"
               >
                 ✕
               </button>
@@ -654,8 +654,8 @@ export default function WaveCardModal({
                       onClick={() => setThemeId(t.id)}
                       className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                         themeId === t.id
-                          ? 'border-white bg-white/15 text-white shadow-lg'
-                          : 'border-white/10 bg-white/5 text-white/65 hover:text-white'
+                          ? 'glass-button-primary text-white shadow-lg border-white/30'
+                          : 'glass-button text-white/70 hover:text-white'
                       }`}
                     >
                       <span
@@ -678,7 +678,7 @@ export default function WaveCardModal({
                   value={selectedQuote}
                   onChange={(e) => setSelectedQuote(e.target.value)}
                   placeholder="Type a lyric or quote..."
-                  className="w-full rounded-2xl bg-white/[0.06] border border-white/15 p-3.5 text-sm text-white placeholder-white/35 focus:outline-none focus:border-white/35 resize-none"
+                  className="w-full glass-input rounded-2xl p-3.5 text-sm text-white placeholder-white/35 focus:outline-none focus:border-white/35 resize-none"
                 />
               </div>
 
@@ -743,7 +743,7 @@ export default function WaveCardModal({
                   <button
                     onClick={handleDownloadCard}
                     disabled={isExporting || isRecordingVideo}
-                    className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white font-bold text-sm shadow-lg hover:brightness-110 transition-all cursor-pointer disabled:opacity-50"
+                    className="flex-1 py-3 px-5 rounded-2xl glass-button-primary text-white font-bold text-sm shadow-lg hover:brightness-110 transition-all cursor-pointer disabled:opacity-50"
                   >
                     {isExporting
                       ? 'Rendering HD Poster...'
@@ -755,7 +755,7 @@ export default function WaveCardModal({
                   <button
                     onClick={handleNativeShare}
                     disabled={isExporting || isRecordingVideo}
-                    className="py-3 px-5 rounded-2xl liquid-glass text-white font-bold text-sm hover:bg-white/15 transition-all cursor-pointer"
+                    className="py-3 px-5 rounded-2xl glass-button text-white font-bold text-sm transition-all cursor-pointer"
                   >
                     Share Card
                   </button>
@@ -764,7 +764,7 @@ export default function WaveCardModal({
                 <button
                   onClick={handleRecordVideoStory}
                   disabled={isRecordingVideo || isExporting}
-                  className="w-full py-3 px-5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3 px-5 rounded-2xl glass-button-emerald text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   <span>🎬</span>
                   <span>
@@ -776,7 +776,7 @@ export default function WaveCardModal({
 
                 <button
                   onClick={handleCopyLink}
-                  className="w-full py-2.5 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer"
                 >
                   {copiedLink
                     ? '✓ Direct Play Link Copied to Clipboard!'

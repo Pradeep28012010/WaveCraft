@@ -682,7 +682,7 @@ function ContextMenuInner() {
                   triggerAndroidHaptic('light');
                   handleTogglePlay();
                 }}
-                className="flex items-center gap-3 px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+                className="flex items-center gap-3 px-3.5 py-3.5 rounded-xl glass-button text-left font-bold text-white cursor-pointer active:scale-[0.98] transition-all"
               >
                 <span>{isPlaying ? '⏸ Pause' : '▶ Play'}</span>
               </button>
@@ -692,7 +692,7 @@ function ContextMenuInner() {
                   triggerAndroidHaptic('light');
                   handleNextTrack();
                 }}
-                className="flex items-center gap-3 px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+                className="flex items-center gap-3 px-3.5 py-3.5 rounded-xl glass-button text-left font-bold text-white cursor-pointer active:scale-[0.98] transition-all"
               >
                 <span>⏭ Next Track</span>
               </button>
@@ -702,7 +702,7 @@ function ContextMenuInner() {
                   triggerAndroidHaptic('light');
                   handlePrevTrack();
                 }}
-                className="flex items-center gap-3 px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+                className="flex items-center gap-3 px-3.5 py-3.5 rounded-xl glass-button text-left font-bold text-white cursor-pointer active:scale-[0.98] transition-all"
               >
                 <span>⏮ Previous Track</span>
               </button>
@@ -712,7 +712,7 @@ function ContextMenuInner() {
                   triggerAndroidHaptic('light');
                   handleToggleShuffle();
                 }}
-                className="flex items-center justify-between px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+                className="flex items-center justify-between px-3.5 py-3.5 rounded-xl glass-button text-left font-bold text-white cursor-pointer active:scale-[0.98] transition-all"
               >
                 <span>🔀 Shuffle</span>
                 <span className="text-xs text-white/50">{isShuffled ? 'ON' : 'OFF'}</span>
@@ -723,7 +723,7 @@ function ContextMenuInner() {
                   triggerAndroidHaptic('light');
                   handleOpenStudio();
                 }}
-                className="flex items-center gap-3 px-3 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-left font-bold"
+                className="flex items-center gap-3 px-3.5 py-3.5 rounded-xl glass-button text-left font-bold text-white cursor-pointer active:scale-[0.98] transition-all"
               >
                 <span>🎛️ Studio FX & EQ</span>
               </button>
@@ -917,7 +917,7 @@ function ContextMenuInner() {
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: -6, scale: 0.95 }}
                     transition={{ duration: 0.12 }}
-                    className="absolute left-[calc(100%+6px)] -top-2 w-[210px] max-h-[260px] overflow-y-auto no-scrollbar rounded-2xl border border-white/20 bg-[#0d0d14]/98 backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.92)] p-1.5 flex flex-col gap-1 z-30"
+                    className="absolute left-[calc(100%+6px)] -top-2 w-[210px] max-h-[260px] overflow-y-auto no-scrollbar rounded-2xl border border-white/20 glass-heavy liquid-glass shadow-[0_16px_40px_rgba(0,0,0,0.92)] p-1.5 flex flex-col gap-1 z-30"
                   >
                     {/* Create New Playlist Form */}
                     {isCreatingPlaylist ? (

@@ -450,8 +450,8 @@ export default function ImportPlaylistModal({
           </div>
         </div>
 
-        {/* ================= 3-WAY SEGMENTED MODE SELECTOR ================= */}
-        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-black/45 border border-white/12">
+        {/* ================= 4-WAY SEGMENTED MODE SELECTOR ================= */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 rounded-2xl liquid-glass border border-white/12">
           <button
             type="button"
             onClick={() => {
@@ -461,7 +461,7 @@ export default function ImportPlaylistModal({
             className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 ${
               mode === 'live'
                 ? 'glass-button-emerald text-white shadow-lg'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
+                : 'glass-button text-white/70 hover:text-white'
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
@@ -476,7 +476,7 @@ export default function ImportPlaylistModal({
             className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 ${
               mode === 'url'
                 ? 'glass-button-primary text-white shadow-lg'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
+                : 'glass-button text-white/70 hover:text-white'
             }`}
           >
             <span>🔗 One-Time Link</span>
@@ -490,7 +490,7 @@ export default function ImportPlaylistModal({
             className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 ${
               mode === 'text'
                 ? 'glass-button-primary text-white shadow-lg'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
+                : 'glass-button text-white/70 hover:text-white'
             }`}
           >
             <span>📋 Paste Song List</span>
@@ -504,7 +504,7 @@ export default function ImportPlaylistModal({
             className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 ${
               mode === 'file'
                 ? 'glass-button-primary text-white shadow-lg'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
+                : 'glass-button text-white/70 hover:text-white'
             }`}
           >
             <span>📁 Upload File</span>
@@ -598,7 +598,7 @@ export default function ImportPlaylistModal({
 
             {/* LIVE AUTO-SYNC CONFIGURATION CARD */}
             {mode === 'live' && (
-              <div className="p-4 rounded-2xl bg-white/[0.035] border border-white/12 space-y-3.5">
+              <div className="p-4 rounded-2xl liquid-glass border border-white/12 space-y-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
                     <span>⚡ Sync Engine Rules</span>
@@ -615,10 +615,10 @@ export default function ImportPlaylistModal({
                         key={opt.mins}
                         type="button"
                         onClick={() => setSyncIntervalMinutes(opt.mins)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer border whitespace-nowrap ${
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                           syncIntervalMinutes === opt.mins
-                            ? 'bg-emerald-500/25 border-emerald-400/50 text-emerald-200 shadow-sm'
-                            : 'bg-white/[0.04] border-white/10 text-white/60 hover:text-white'
+                            ? 'glass-button-emerald text-emerald-100 shadow-sm'
+                            : 'glass-button text-white/70 hover:text-white'
                         }`}
                       >
                         {opt.label}
@@ -633,8 +633,8 @@ export default function ImportPlaylistModal({
                     onClick={() => setSyncStrategy('append')}
                     className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
                       syncStrategy === 'append'
-                        ? 'bg-emerald-500/20 border-emerald-400/55 text-white shadow-md'
-                        : 'bg-white/[0.03] border-white/10 text-white/70 hover:text-white hover:bg-white/[0.06]'
+                        ? 'glass-button-emerald text-white shadow-md'
+                        : 'glass-button text-white/70 hover:text-white'
                     }`}
                   >
                     <div className="text-xs font-black flex items-center justify-between">
@@ -655,8 +655,8 @@ export default function ImportPlaylistModal({
                     onClick={() => setSyncStrategy('mirror')}
                     className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
                       syncStrategy === 'mirror'
-                        ? 'bg-emerald-500/20 border-emerald-400/55 text-white shadow-md'
-                        : 'bg-white/[0.03] border-white/10 text-white/70 hover:text-white hover:bg-white/[0.06]'
+                        ? 'glass-button-emerald text-white shadow-md'
+                        : 'glass-button text-white/70 hover:text-white'
                     }`}
                   >
                     <div className="text-xs font-black flex items-center justify-between">
@@ -885,10 +885,10 @@ export default function ImportPlaylistModal({
               onClick={() => fileInputRef.current?.click()}
               className={`p-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-2 ${
                 isDraggingFile
-                  ? 'border-amber-400 bg-amber-500/10 scale-[1.01]'
+                  ? 'border-amber-400 bg-amber-500/15 scale-[1.01] liquid-glass'
                   : parsedFile
-                  ? 'border-emerald-400/50 bg-emerald-500/[0.06]'
-                  : 'border-white/20 hover:border-white/40 bg-white/[0.02]'
+                  ? 'border-emerald-400/50 bg-emerald-500/[0.08] liquid-glass'
+                  : 'border-white/20 hover:border-white/40 liquid-glass'
               }`}
             >
               <input
@@ -923,7 +923,7 @@ export default function ImportPlaylistModal({
             )}
 
             {parsedFile && parsedFile.tracks.length > 0 && (
-              <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5 max-h-36 overflow-y-auto">
+              <div className="p-3 rounded-xl liquid-glass border border-white/10 space-y-1.5 max-h-36 overflow-y-auto">
                 <span className="text-[10px] font-black uppercase tracking-wider text-white/50 block">
                   Preview ({parsedFile.tracks.length} Tracks)
                 </span>

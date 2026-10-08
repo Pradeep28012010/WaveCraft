@@ -202,7 +202,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
               {tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-500/25 border border-indigo-400/40 text-indigo-200 text-xs font-medium"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full liquid-glass border border-indigo-400/40 text-indigo-200 text-xs font-medium"
                 >
                   #{tag}
                   <button
@@ -225,7 +225,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
                 key={suggestion}
                 type="button"
                 onClick={() => handleAddTag(suggestion)}
-                className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-[11px] text-white/60 hover:text-white border border-white/10 transition-colors cursor-pointer"
+                className="px-2.5 py-1 rounded-lg glass-button text-[11px] text-white/70 hover:text-white transition-all cursor-pointer"
               >
                 +{suggestion}
               </button>
@@ -245,7 +245,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
         </div>
 
         {/* Pin to Top Checkbox */}
-        <label className="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+        <label className="flex items-center gap-2.5 p-3 rounded-xl liquid-glass border border-white/12 cursor-pointer hover:border-white/25 transition-all">
           <input
             type="checkbox"
             checked={isPinned}

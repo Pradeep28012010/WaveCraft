@@ -79,7 +79,7 @@ export default function FolderModal({ isOpen, onClose, editFolder }: FolderModal
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-white">
         {/* Preview Card */}
         <div
-          className="p-4 rounded-2xl border transition-all flex items-center gap-4 relative overflow-hidden"
+          className="p-4 rounded-2xl border transition-all flex items-center gap-4 relative overflow-hidden liquid-glass"
           style={{
             borderColor: `${color}60`,
             background: `linear-gradient(135deg, ${color}20, rgba(255, 255, 255, 0.03))`
@@ -148,8 +148,8 @@ export default function FolderModal({ isOpen, onClose, editFolder }: FolderModal
                 onClick={() => setIcon(emoji)}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-transform cursor-pointer ${
                   icon === emoji
-                    ? 'ring-2 ring-white scale-110 bg-white/20 shadow-md'
-                    : 'bg-white/5 hover:bg-white/10 hover:scale-105'
+                    ? 'ring-2 ring-white scale-110 glass-button-primary shadow-md'
+                    : 'glass-button hover:scale-105'
                 }`}
               >
                 {emoji}

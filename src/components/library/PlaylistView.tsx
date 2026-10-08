@@ -262,7 +262,7 @@ export default function PlaylistView() {
               <button
                 type="button"
                 onClick={() => setShowFolderDropdown(!showFolderDropdown)}
-                className="px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-[10px] font-bold text-white flex items-center gap-1.5 cursor-pointer transition-colors"
+                className="px-2.5 py-0.5 rounded-full glass-button text-[10px] font-bold text-white flex items-center gap-1.5 cursor-pointer transition-all"
               >
                 <span>{currentFolder ? currentFolder.icon || '📁' : '📁'}</span>
                 <span>{currentFolder ? currentFolder.name : 'Add to Folder'}</span>
@@ -378,7 +378,7 @@ export default function PlaylistView() {
               <button
                 type="button"
                 onClick={() => setIsAddingTag(true)}
-                className="px-2 py-0.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-white/60 hover:text-white cursor-pointer transition-colors"
+                className="px-2.5 py-0.5 rounded-full glass-button text-[11px] font-bold text-white/70 hover:text-white cursor-pointer transition-all"
               >
                 + Add Tag
               </button>

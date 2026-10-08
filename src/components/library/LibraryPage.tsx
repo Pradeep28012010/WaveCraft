@@ -282,8 +282,8 @@ export default function LibraryPage() {
                 onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? 'all' : tag)}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                   selectedTagFilter === tag
-                    ? 'bg-indigo-600 border border-indigo-400 text-white shadow-lg shadow-indigo-500/30'
-                    : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white'
+                    ? 'glass-button-primary text-white shadow-lg'
+                    : 'glass-button text-white/80 hover:text-white'
                 }`}
               >
                 <span>#{tag}</span>

@@ -455,7 +455,7 @@ const TrackRow = memo(({
                 ? 'glass-button text-white/70 hover:text-white'
                 : activeVisual
                 ? 'glass-button text-white/70 hover:text-white opacity-100'
-                : 'text-white/35 opacity-60 hover:opacity-100'
+                : 'glass-button text-white/50 hover:text-white opacity-60 hover:opacity-100'
             }`}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">

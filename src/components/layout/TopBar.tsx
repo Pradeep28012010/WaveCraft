@@ -393,7 +393,7 @@ export default function TopBar() {
                         navigate(`/vibe?prompt=${encodeURIComponent(searchQuery.trim())}&auto=1`);
                         setShowSuggestions(false);
                       }}
-                      className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-left text-xs font-bold text-[var(--color-accent)] bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/30 hover:bg-[var(--color-accent)]/25 mb-1 cursor-pointer"
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-left text-xs font-bold text-white glass-button-primary mb-1 cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5 truncate">
                         <span>✨</span>
@@ -627,7 +627,7 @@ export default function TopBar() {
                     navigate(`/vibe?prompt=${encodeURIComponent(searchQuery.trim())}&auto=1`);
                   }}
                   title="Curate an instant AI DJ Mix from this query"
-                  className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--color-accent)]/20 hover:bg-[var(--color-accent)]/35 text-[var(--color-accent)] hover:text-white border border-[var(--color-accent)]/40 text-[10px] font-black tracking-wide transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                  className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full glass-button-primary text-white text-[10px] font-black tracking-wide transition-all cursor-pointer whitespace-nowrap active:scale-95"
                 >
                   <span>✨ AI DJ Mix</span>
                 </button>
@@ -681,7 +681,7 @@ export default function TopBar() {
                     navigate(`/vibe?prompt=${encodeURIComponent(searchQuery.trim())}&auto=1`);
                     setShowSuggestions(false);
                   }}
-                  className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left text-xs font-bold text-[var(--color-accent)] bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/30 hover:bg-[var(--color-accent)]/25 mb-1.5 cursor-pointer transition-colors"
+                  className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left text-xs font-bold text-white glass-button-primary mb-1.5 cursor-pointer transition-colors"
                 >
                   <span className="flex items-center gap-2 truncate">
                     <span>✨</span>
