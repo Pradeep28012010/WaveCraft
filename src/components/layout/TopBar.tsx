@@ -71,6 +71,8 @@ export default function TopBar() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestIdRef = useRef(0);
+  const lastPushedQueryRef = useRef<string>(urlQuery);
+  const isFocusedRef = useRef<boolean>(false);
 
   const [isListeningVoice, setIsListeningVoice] = useState(false);
   const recognitionRef = useRef<{ stop: () => void; abort: () => void } | null>(null);
@@ -109,7 +111,16 @@ export default function TopBar() {
   }, []);
 
   useEffect(() => {
+    // If the URL query matches what this component pushed, ignore to avoid feedback loop
+    if (urlQuery === lastPushedQueryRef.current) {
+      return;
+    }
+    // If the user has the search bar focused and is actively typing, do not clobber their live text
+    if (isFocusedRef.current) {
+      return;
+    }
     setSearchQuery(urlQuery);
+    lastPushedQueryRef.current = urlQuery;
   }, [urlQuery]);
 
   useEffect(() => {
@@ -156,6 +167,7 @@ export default function TopBar() {
         }
         const cleaned = transcript.trim();
         if (cleaned) {
+          lastPushedQueryRef.current = cleaned;
           setSearchQuery(cleaned);
           navigate(`/search?q=${encodeURIComponent(cleaned)}`);
         }
@@ -179,16 +191,18 @@ export default function TopBar() {
     if (!trimmed) {
       setSuggestions([]);
       setShowSuggestions(false);
+      lastPushedQueryRef.current = '';
       navigate('/search', { replace: true });
       return;
     }
 
     debounceTimer.current = setTimeout(async () => {
       if (reqId !== searchRequestIdRef.current) return;
+      lastPushedQueryRef.current = trimmed;
       navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
       try {
         const sugs = await searchSuggestions(trimmed);
-        if (reqId === searchRequestIdRef.current) {
+        if (reqId === searchRequestIdRef.current && isFocusedRef.current) {
           setSuggestions(sugs.slice(0, 5));
           setShowSuggestions(true);
         }
@@ -197,15 +211,17 @@ export default function TopBar() {
           setSuggestions([]);
         }
       }
-    }, 180);
+    }, 280);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       setShowSuggestions(false);
-      if (searchQuery.trim()) {
-        navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`, { replace: true });
+      const trimmed = searchQuery.trim();
+      lastPushedQueryRef.current = trimmed;
+      if (trimmed) {
+        navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
       } else {
         navigate('/search', { replace: true });
       }
@@ -217,6 +233,7 @@ export default function TopBar() {
   const handleClear = () => {
     searchRequestIdRef.current++;
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    lastPushedQueryRef.current = '';
     setSearchQuery('');
     setSuggestions([]);
     setShowSuggestions(false);
@@ -295,9 +312,16 @@ export default function TopBar() {
                   onChange={handleSearchChange}
                   onKeyDown={handleKeyDown}
                   onFocus={() => {
+                    isFocusedRef.current = true;
                     if (searchQuery.trim().length > 0) setShowSuggestions(true);
                   }}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
+                  onBlur={() => {
+                    isFocusedRef.current = false;
+                    setTimeout(() => setShowSuggestions(false), 180);
+                  }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder={
                     isListeningVoice ? '🎙️ Listening...' : 'Search songs, albums, artists...'
                   }
@@ -345,6 +369,7 @@ export default function TopBar() {
                       key={i}
                       onMouseDown={() => {
                         const clean = sug.split(' - ')[0];
+                        lastPushedQueryRef.current = clean;
                         setSearchQuery(clean);
                         navigate(`/search?q=${encodeURIComponent(clean)}`);
                         setShowSuggestions(false);
@@ -487,9 +512,16 @@ export default function TopBar() {
               onChange={handleSearchChange}
               onKeyDown={handleKeyDown}
               onFocus={() => {
+                isFocusedRef.current = true;
                 if (searchQuery.trim().length > 0) setShowSuggestions(true);
               }}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
+              onBlur={() => {
+                isFocusedRef.current = false;
+                setTimeout(() => setShowSuggestions(false), 180);
+              }}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder={
                 isListeningVoice
                   ? '🎙️ Listening... say a song title, artist, or lyric line...'
@@ -545,6 +577,7 @@ export default function TopBar() {
                   key={i}
                   onMouseDown={() => {
                     const clean = sug.split(' - ')[0];
+                    lastPushedQueryRef.current = clean;
                     setSearchQuery(clean);
                     navigate(`/search?q=${encodeURIComponent(clean)}`);
                     setShowSuggestions(false);
