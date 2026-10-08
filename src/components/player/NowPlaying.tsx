@@ -454,6 +454,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               paddingTop: isPhone ? 'max(env(safe-area-inset-top), 6px)' : undefined
             }}
           >
+            {/* Subtle top gradient fade diffusing the header into the stage */}
+            <div className="absolute inset-x-0 -top-10 -bottom-12 bg-gradient-to-b from-[#06060b]/90 via-[#06060b]/40 to-transparent pointer-events-none -z-10" />
             {isPhone ? (
               <>
                 <button
@@ -859,7 +861,15 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
-            <div className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pb-6 overflow-y-auto no-scrollbar flex flex-col">
+            <div
+              className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pb-6 overflow-y-auto no-scrollbar flex flex-col"
+              style={{
+                maskImage:
+                  'linear-gradient(to bottom, transparent 0px, black 48px, black calc(100% - 32px), transparent 100%)',
+                WebkitMaskImage:
+                  'linear-gradient(to bottom, transparent 0px, black 48px, black calc(100% - 32px), transparent 100%)'
+              }}
+            >
               <div
                 className={`w-full max-w-6xl my-auto mx-auto flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12 ${
                   showLyrics ? 'lg:justify-between' : ''
@@ -894,20 +904,21 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     >
                       {/* Dynamic Ambient Album Glow behind Turntable */}
                       <div
-                        className="absolute -inset-12 rounded-full pointer-events-none blur-3xl transition-all duration-1000 will-change-transform"
+                        className="absolute inset-0 rounded-full pointer-events-none blur-2xl transition-all duration-1000 will-change-transform"
                         style={{
                           background: `radial-gradient(circle, ${palette.primary}70 0%, ${palette.secondary}35 50%, transparent 72%)`,
                           opacity: isPlaying ? 0.95 : 0.5,
-                          transform: isPlaying ? 'scale(1.06)' : 'scale(0.96)'
+                          transform: isPlaying ? 'scale(1.12)' : 'scale(1.0)'
                         }}
                       />
 
                       {/* Pure circular radial-gradient aura (zero CSS box-shadow quad / zero tile seam) */}
                       <div
-                        className="absolute -inset-6 rounded-full pointer-events-none"
+                        className="absolute inset-0 rounded-full pointer-events-none"
                         style={{
                           background:
-                            'radial-gradient(circle, rgba(0,0,0,0.7) 52%, rgba(0,0,0,0.28) 64%, rgba(0,0,0,0) 72%)'
+                            'radial-gradient(circle, rgba(0,0,0,0.7) 52%, rgba(0,0,0,0.28) 64%, rgba(0,0,0,0) 72%)',
+                          transform: 'scale(1.04)'
                         }}
                       />
 
@@ -978,11 +989,11 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     <div className="relative flex items-center justify-center flex-shrink-0">
                       {/* Dynamic Ambient Album Glow behind Album Cover */}
                       <div
-                        className="absolute -inset-8 rounded-3xl pointer-events-none blur-3xl transition-all duration-1000 will-change-transform"
+                        className="absolute inset-0 rounded-3xl pointer-events-none blur-2xl transition-all duration-1000 will-change-transform"
                         style={{
                           background: `radial-gradient(circle, ${palette.primary}65 0%, ${palette.secondary}30 55%, transparent 75%)`,
                           opacity: isPlaying ? 0.9 : 0.45,
-                          transform: isPlaying ? 'scale(1.04)' : 'scale(0.96)'
+                          transform: isPlaying ? 'scale(1.10)' : 'scale(1.0)'
                         }}
                       />
                       <motion.div
