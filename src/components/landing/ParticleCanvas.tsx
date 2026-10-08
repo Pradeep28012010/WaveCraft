@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useSettingsStore } from '../../stores/settingsStore';
 
 interface Particle {
   x: number;
@@ -14,11 +13,10 @@ interface Particle {
 }
 
 const COLORS = ['#fa2d48', '#7c3aed', '#818cf8', '#0ea5e9', '#f472b6', '#a78bfa'];
+const PARTICLE_COUNT = 90;
 const CONNECTION_DIST = 140;
 
 export default function ParticleCanvas() {
-  const performanceProfile = useSettingsStore((s) => s.performanceProfile ?? 'balanced');
-  const particleCount = performanceProfile === 'ultra' ? 120 : performanceProfile === 'performance' ? 32 : 80;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: -9999, y: -9999 });
   const particlesRef = useRef<Particle[]>([]);
@@ -27,7 +25,7 @@ export default function ParticleCanvas() {
   const timeRef = useRef(0);
 
   const initParticles = useCallback((w: number, h: number) => {
-    particlesRef.current = Array.from({ length: particleCount }, () => ({
+    particlesRef.current = Array.from({ length: PARTICLE_COUNT }, () => ({
       x: Math.random() * w,
       y: Math.random() * h,
       z: Math.random() * 0.5 + 0.5,
@@ -38,16 +36,7 @@ export default function ParticleCanvas() {
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       pulsePhase: Math.random() * Math.PI * 2,
     }));
-  }, [particleCount]);
-
-  useEffect(() => {
-    if (canvasRef.current) {
-      const parent = canvasRef.current.parentElement;
-      const w = parent?.clientWidth || window.innerWidth;
-      const h = parent?.clientHeight || window.innerHeight;
-      initParticles(w, h);
-    }
-  }, [initParticles]);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;

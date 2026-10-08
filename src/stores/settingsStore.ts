@@ -36,7 +36,6 @@ interface SettingsStore extends SettingsState {
   setLanguage: (lang: string) => void;
   setDynamicAmbientGlow: (enabled: boolean) => void;
   setAmbientGlowIntensity: (intensity: 'subtle' | 'vibrant' | 'aurora') => void;
-  setPerformanceProfile: (profile: 'ultra' | 'balanced' | 'performance') => void;
   resetSettings: () => void;
 }
 
@@ -45,7 +44,6 @@ const defaultSettings: SettingsState = {
   accentColor: '#fa2d48',
   dynamicAmbientGlow: true,
   ambientGlowIntensity: 'vibrant',
-  performanceProfile: 'balanced',
   crossfadeDuration: 0,
   audioQuality: 'high',
   showVisualizer: true,
@@ -77,8 +75,7 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
     showLyrics: state.showLyrics,
     language: state.language,
     dynamicAmbientGlow: state.dynamicAmbientGlow ?? true,
-    ambientGlowIntensity: state.ambientGlowIntensity ?? 'vibrant',
-    performanceProfile: state.performanceProfile ?? 'balanced'
+    ambientGlowIntensity: state.ambientGlowIntensity ?? 'vibrant'
   };
 }
 
@@ -95,11 +92,8 @@ function readInitialSettingsSync(): SettingsState {
           ? parsed.equalizerBands
           : [...defaultSettings.equalizerBands]
     };
-    if (typeof document !== 'undefined') {
-      if (merged.accentColor) {
-        document.documentElement.style.setProperty('--color-accent', merged.accentColor);
-      }
-      document.documentElement.dataset.perfProfile = merged.performanceProfile || 'balanced';
+    if (merged.accentColor && typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--color-accent', merged.accentColor);
     }
     return merged;
   } catch {
@@ -157,9 +151,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       };
       if (merged.accentColor) {
         document.documentElement.style.setProperty('--color-accent', merged.accentColor);
-      }
-      if (typeof document !== 'undefined') {
-        document.documentElement.dataset.perfProfile = merged.performanceProfile || 'balanced';
       }
       set({
         ...merged,
@@ -266,19 +257,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     persistSettings(get());
   },
 
-  setPerformanceProfile: (profile: 'ultra' | 'balanced' | 'performance') => {
-    if (typeof document !== 'undefined') {
-      document.documentElement.dataset.perfProfile = profile;
-    }
-    set({ performanceProfile: profile });
-    persistSettings(get());
-  },
-
   resetSettings: () => {
-    if (typeof document !== 'undefined') {
-      document.documentElement.style.setProperty('--color-accent', defaultSettings.accentColor);
-      document.documentElement.dataset.perfProfile = defaultSettings.performanceProfile;
-    }
+    document.documentElement.style.setProperty('--color-accent', defaultSettings.accentColor);
     set({
       ...defaultSettings,
       crossfade: 0,

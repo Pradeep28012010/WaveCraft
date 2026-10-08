@@ -141,8 +141,7 @@ const TrackRow = memo(({
   const liked = useLibraryStore((s) =>
     propIsLiked !== undefined ? propIsLiked : Boolean(s.likedIds[track.id])
   );
-  const playlists = useLibraryStore((s) => s.playlists);
-  const hasPlaylists = playlists.length > 0;
+  const hasPlaylists = useLibraryStore((s) => s.playlists.length > 0);
   const { trackIsOffline, isSavingOffline, toggleOfflineTrack } = useTrackOfflineStatus(track.id);
 
   useEffect(() => {
@@ -218,31 +217,13 @@ const TrackRow = memo(({
     else usePlayerStore.getState().addToQueue(track);
   };
 
-  const [isTrayOpen, setIsTrayOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isTrayOpen) return;
-    const handleOutside = (e: PointerEvent) => {
-      const target = e.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target)) {
-        setIsTrayOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', handleOutside);
-    return () => document.removeEventListener('pointerdown', handleOutside);
-  }, [isTrayOpen]);
-
   const handleToggleMenu = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!showPlaylistMenu) {
-      const target = (e.currentTarget as HTMLElement) || menuBtnRef.current;
-      if (target) {
-        const rect = target.getBoundingClientRect();
-        const top = Math.min(rect.bottom + 6, window.innerHeight - 220);
-        const left = Math.max(12, Math.min(rect.right - 192, window.innerWidth - 210));
-        setMenuCoords({ top, left });
-      }
+    if (!showPlaylistMenu && menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      const top = Math.min(rect.bottom + 6, window.innerHeight - 220);
+      const left = Math.max(12, rect.right - 192);
+      setMenuCoords({ top, left });
     }
     setShowPlaylistMenu((prev) => !prev);
   };
@@ -251,122 +232,31 @@ const TrackRow = memo(({
 
   return (
     <div
-      ref={containerRef}
-      className="relative rounded-2xl overflow-hidden select-none group my-0.5"
+      onClick={handleTriggerPlay}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onContextMenu={(e) => {
+        if (e.shiftKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        triggerAndroidHaptic('medium');
+        if (onContextMenu) {
+          onContextMenu(e, track);
+        } else {
+          const clientX = e.clientX;
+          const clientY = e.clientY;
+          useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
+        }
+      }}
+      className={`relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 ${
+        isCurrentTrack
+          ? 'bg-white/[0.10] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
+          : 'bg-white/[0.015] border-transparent'
+      }`}
     >
-      {/* Pinned 3-Button Slideout Action Tray (❤️ Like, ➕ Queue, 📁 Playlist) */}
-      <div className="absolute right-0 top-0 bottom-0 w-44 flex items-center justify-end gap-1.5 pr-2.5 z-0 pointer-events-auto">
-        {/* ❤️ Like / Unlike toggle */}
-        <button
-          type="button"
-          onClick={(e) => {
-            triggerAndroidHaptic('light');
-            handleLike(e);
-          }}
-          title={liked ? 'Unlike' : 'Like'}
-          className={`w-9 h-9 p-0 flex items-center justify-center rounded-full transition-all active:scale-75 cursor-pointer ${
-            liked
-              ? 'glass-button-primary text-[var(--color-accent)]'
-              : 'glass text-white/65 hover:text-white'
-          }`}
-        >
-          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.2">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-        </button>
-
-        {/* ➕ Add to Queue */}
-        <button
-          type="button"
-          onClick={(e) => {
-            triggerAndroidHaptic('light');
-            handleQueue(e);
-            setIsTrayOpen(false);
-          }}
-          title="Add to Queue"
-          className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass text-white/75 hover:text-white active:scale-75 transition-all cursor-pointer"
-        >
-          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-
-        {/* 📁 Add to Playlist */}
-        <button
-          ref={menuBtnRef}
-          type="button"
-          onClick={(e) => {
-            triggerAndroidHaptic('light');
-            handleToggleMenu(e);
-          }}
-          title="Add to Playlist"
-          className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass text-white/75 hover:text-white active:scale-75 transition-all cursor-pointer"
-        >
-          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            <line x1="12" y1="11" x2="12" y2="17" />
-            <line x1="9" y1="14" x2="15" y2="14" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Foreground Draggable Track Row */}
-      <motion.div
-        drag="x"
-        dragDirectionLock
-        dragConstraints={{ left: -160, right: 0 }}
-        dragElastic={{ left: 0.12, right: 0.04 }}
-        animate={{ x: isTrayOpen ? -160 : 0 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.55 }}
-        onDragStart={() => {
-          if (touchTimerRef.current) {
-            clearTimeout(touchTimerRef.current);
-            touchTimerRef.current = null;
-          }
-        }}
-        onDragEnd={(_, info) => {
-          if (info.offset.x < -45 || info.velocity.x < -280) {
-            setIsTrayOpen(true);
-            triggerAndroidHaptic('light');
-          } else if (info.offset.x > 30 || info.velocity.x > 200) {
-            setIsTrayOpen(false);
-          } else {
-            setIsTrayOpen(false);
-          }
-        }}
-        onClick={(e) => {
-          if (isTrayOpen) {
-            e.stopPropagation();
-            setIsTrayOpen(false);
-            return;
-          }
-          handleTriggerPlay();
-        }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        onContextMenu={(e) => {
-          if (e.shiftKey) return;
-          e.preventDefault();
-          e.stopPropagation();
-          triggerAndroidHaptic('medium');
-          if (onContextMenu) {
-            onContextMenu(e, track);
-          } else {
-            const clientX = e.clientX;
-            const clientY = e.clientY;
-            useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
-          }
-        }}
-        className={`relative z-10 flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 touch-pan-y ${
-          isCurrentTrack
-            ? 'bg-zinc-900/95 border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
-            : 'bg-[#08080f] hover:bg-[#12121b] border-transparent'
-        }`}
-      >
       {/* Shared 120fps Spring-Gliding Hover Backdrop Pill */}
       {activeVisual && (
         <motion.div
@@ -626,6 +516,38 @@ const TrackRow = memo(({
                   <circle cx="5" cy="12" r="1" />
                 </svg>
               </button>
+              {showPlaylistMenu &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                  <div
+                    ref={menuPopupRef}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'fixed',
+                      top: menuCoords.top,
+                      left: menuCoords.left,
+                      zIndex: 9999
+                    }}
+                    className="w-48 glass-heavy rounded-2xl p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.9)] border border-white/25"
+                  >
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-white/45 px-2.5 py-1">
+                      Add to Playlist
+                    </div>
+                    {useLibraryStore.getState().playlists.map((pl) => (
+                      <button
+                        key={pl.id}
+                        onClick={() => {
+                          useLibraryStore.getState().addToPlaylist(pl.id, track);
+                          setShowPlaylistMenu(false);
+                        }}
+                        className="w-full text-left px-2.5 py-2 text-xs font-medium text-white/85 hover:text-white hover:bg-white/12 rounded-xl truncate cursor-pointer"
+                      >
+                        {pl.name}
+                      </button>
+                    ))}
+                  </div>,
+                  document.body
+                )}
             </div>
           )}
 
@@ -654,57 +576,6 @@ const TrackRow = memo(({
       <div className="relative z-10 text-xs font-medium text-white/45 w-11 text-right tabular-nums flex-shrink-0">
         {formatDuration(track.duration)}
       </div>
-      </motion.div>
-
-      {/* Global Playlist Picker Popup (rendered via Portal for both mobile slideout tray & desktop row) */}
-      {showPlaylistMenu &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            ref={menuPopupRef}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              top: menuCoords.top,
-              left: menuCoords.left,
-              zIndex: 9999
-            }}
-            className="w-48 glass-heavy rounded-2xl p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.9)] border border-white/25"
-          >
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-white/45 px-2.5 py-1">
-              Add to Playlist
-            </div>
-            {playlists.map((pl) => (
-              <button
-                key={pl.id}
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  useLibraryStore.getState().addToPlaylist(pl.id, track);
-                  setShowPlaylistMenu(false);
-                  setIsTrayOpen(false);
-                }}
-                className="w-full text-left px-2.5 py-2 text-xs font-medium text-white/85 hover:text-white hover:bg-white/12 rounded-xl truncate cursor-pointer"
-              >
-                {pl.name}
-              </button>
-            ))}
-            {playlists.length === 0 && (
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('medium');
-                  const pl = useLibraryStore.getState().createPlaylist('My Playlist');
-                  useLibraryStore.getState().addToPlaylist(pl.id, track);
-                  setShowPlaylistMenu(false);
-                  setIsTrayOpen(false);
-                }}
-                className="w-full text-left px-2.5 py-2 text-xs font-semibold text-[var(--color-accent)] hover:bg-white/12 rounded-xl truncate cursor-pointer"
-              >
-                + Create Playlist & Add
-              </button>
-            )}
-          </div>,
-          document.body
-        )}
     </div>
   );
 });
