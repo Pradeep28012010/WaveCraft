@@ -762,6 +762,18 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
               >
                 Paste
               </button>
+              <button
+                type="button"
+                onClick={() => setShowSyncDrawer((v) => !v)}
+                className={`px-3 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  showSyncDrawer
+                    ? 'glass-button-primary text-white'
+                    : 'glass-button text-white/80 hover:text-white'
+                }`}
+                title="Calibrate lyrics sync timing offset"
+              >
+                Sync Timing
+              </button>
             </form>
 
             {searchError && (

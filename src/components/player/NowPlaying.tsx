@@ -252,13 +252,17 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (!showToolsMenu) return;
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node)) {
         setShowToolsMenu(false);
       }
     };
     window.addEventListener('mousedown', handleClickOutside);
-    return () => window.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [showToolsMenu]);
 
   const setDeckMode = (mode: 'cover' | 'vinyl') => {
@@ -443,7 +447,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
           {/* Top Bar */}
           <div
-            className={`relative z-20 app-region-no-drag ${
+            className={`relative z-30 app-region-no-drag ${
               isPhone ? 'h-14 px-4' : 'h-16 px-6 sm:px-10'
             } flex items-center justify-between flex-shrink-0`}
             style={{
@@ -628,11 +632,16 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           onClick={() => {
                             if (!showVisualizer) {
                               setShowVisualizer(true);
+                              setVisualizerStyle('nebula');
                               return;
                             }
                             const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
-                            const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
-                            if (next) setVisualizerStyle(next.id);
+                            if (idx === VISUALIZER_MODES.length - 1) {
+                              setShowVisualizer(false);
+                            } else {
+                              const next = VISUALIZER_MODES[idx + 1];
+                              if (next) setVisualizerStyle(next.id);
+                            }
                           }}
                           className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
                         >
@@ -642,8 +651,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             </svg>
                             <span className="font-medium">Visualizer Mode</span>
                           </div>
-                          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-white/80">
-                            {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula'}
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            showVisualizer ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30' : 'bg-white/10 text-white/50'
+                          }`}>
+                            {showVisualizer
+                              ? (VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula')
+                              : 'Off'}
                           </span>
                         </button>
 

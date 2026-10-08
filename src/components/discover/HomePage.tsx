@@ -573,7 +573,7 @@ export default function HomePage() {
           </section>
         ) : (
           <HorizontalScroll title="New Releases" subtitle="Top albums making waves worldwide">
-            {isReleasesLoading
+            {isReleasesLoading && newReleases.length === 0
               ? Array(6)
                   .fill(0)
                   .map((_, i) => (
