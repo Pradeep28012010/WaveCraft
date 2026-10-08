@@ -859,18 +859,14 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
-            <div className="relative z-10 flex-1 min-h-0 px-6 sm:px-12 pb-6 flex items-center justify-center">
-              <motion.div
-                layout
-                transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.7 }}
-                className={`w-full max-w-6xl h-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 ${
+            <div className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pb-6 overflow-y-auto no-scrollbar flex flex-col justify-center">
+              <div
+                className={`w-full max-w-6xl my-auto mx-auto flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12 ${
                   showLyrics ? 'lg:justify-between' : ''
                 }`}
               >
                 {/* Left / Center Player Column */}
-                <motion.div
-                  layout
-                  transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.7 }}
+                <div
                   onContextMenu={(e) => {
                     if (e.shiftKey) return;
                     e.preventDefault();
@@ -881,7 +877,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       usePlayerStore.getState().queue
                     );
                   }}
-                  className={`flex flex-col items-center justify-center w-full ${
+                  className={`flex flex-col items-center justify-center w-full my-auto ${
                     showLyrics ? 'lg:w-5/12 max-w-md' : 'max-w-lg'
                   }`}
                 >
@@ -892,8 +888,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       title="Click to switch between Vinyl Turntable & Album Cover"
                       className={`relative flex items-center justify-center cursor-pointer flex-shrink-0 ${
                         showLyrics
-                          ? 'w-[min(26vh,230px)] h-[min(26vh,230px)] sm:w-[min(32vh,265px)] sm:h-[min(32vh,265px)]'
-                          : 'w-[min(36vh,295px)] h-[min(36vh,295px)] sm:w-[min(40vh,325px)] sm:h-[min(40vh,325px)]'
+                          ? 'w-[min(24vh,190px)] h-[min(24vh,190px)] sm:w-[min(28vh,230px)] sm:h-[min(28vh,230px)]'
+                          : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
                       }`}
                     >
                       {/* Dynamic Ambient Album Glow behind Turntable */}
@@ -948,7 +944,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                       {/* Animated Studio Tonearm */}
                       <div
-                        className="absolute -top-2 -right-3 w-20 h-44 pointer-events-none transition-transform duration-500 origin-[75%_16%]"
+                        className="absolute -top-2 -right-2 sm:-right-3 w-16 h-36 sm:w-20 sm:h-44 pointer-events-none transition-transform duration-500 origin-[75%_16%]"
                         style={{
                           transform: isPlaying ? 'rotate(24deg)' : 'rotate(0deg)'
                         }}
@@ -997,8 +993,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         transition={{ type: 'spring', stiffness: 300, damping: 26, mass: 0.7 }}
                         className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border border-white/15 flex-shrink-0 cursor-pointer will-change-transform ${
                           showLyrics
-                            ? 'w-[min(26vh,220px)] h-[min(26vh,220px)] sm:w-[min(32vh,260px)] sm:h-[min(32vh,260px)]'
-                            : 'w-[min(36vh,290px)] h-[min(36vh,290px)] sm:w-[min(40vh,320px)] sm:h-[min(40vh,320px)]'
+                            ? 'w-[min(24vh,190px)] h-[min(24vh,190px)] sm:w-[min(28vh,230px)] sm:h-[min(28vh,230px)]'
+                            : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
                         }`}
                       >
                         <img
@@ -1018,7 +1014,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     initial={{ opacity: 0, y: 14 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ type: 'spring', stiffness: 340, damping: 28, delay: 0.05 }}
-                    className="mt-5 w-full flex items-center justify-between gap-3"
+                    className="mt-4 sm:mt-5 w-full flex items-center justify-between gap-3"
                   >
                     <div className="min-w-0 flex-1 text-left">
                       <div className="flex items-center gap-2">
@@ -1423,7 +1419,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       </div>
                     </div>
                   )}
-                </motion.div>
+                </div>
 
                 {/* Right Column: Synced Lyrics Panel (Pure GPU transform/opacity entrance) */}
                 <AnimatePresence mode="popLayout">
@@ -1448,7 +1444,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
             </div>
           )}
 

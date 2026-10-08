@@ -44,6 +44,7 @@ function ContextMenuInner() {
   const track = useContextMenuStore((s) => s.track);
   const contextTracks = useContextMenuStore((s) => s.tracks);
   const closeMenu = useContextMenuStore((s) => s.closeMenu);
+  const onRemove = useContextMenuStore((s) => s.onRemove);
   const { isPhone } = useDevicePreset();
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -645,6 +646,28 @@ function ContextMenuInner() {
                     <p className="text-[11px] text-white/50">Karaoke-style line-by-line lyrics</p>
                   </div>
                 </button>
+
+                {onRemove && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerAndroidHaptic('medium');
+                      onRemove();
+                      closeMenu();
+                    }}
+                    className="flex items-center gap-3.5 px-3 py-3.5 rounded-xl hover:bg-rose-500/15 active:bg-rose-500/25 transition-colors text-left text-rose-400"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center text-rose-400">
+                      <svg className="w-4 h-4 fill-none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-sm text-rose-400">Remove from Playlist</p>
+                      <p className="text-[11px] text-rose-400/60">Remove this track from current list</p>
+                    </div>
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -1051,6 +1074,27 @@ function ContextMenuInner() {
               </span>
               <span className="font-semibold flex-1">Share / Copy Link</span>
             </button>
+
+            {onRemove && (
+              <>
+                <div className="h-px bg-white/10 my-1" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRemove();
+                    closeMenu();
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-rose-500/15 active:bg-rose-500/25 transition-colors cursor-pointer group text-rose-400"
+                >
+                  <span className="flex-shrink-0 text-rose-400">
+                    <svg className="w-4 h-4 fill-none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </span>
+                  <span className="font-semibold flex-1">Remove from Playlist</span>
+                </button>
+              </>
+            )}
           </>
         )}
 

@@ -10,10 +10,12 @@ export interface ContextMenuState {
   type: ContextMenuType;
   track: Track | null;
   tracks?: Track[];
+  onRemove?: (() => void) | null;
   openTrackMenu: (
     e: { clientX: number; clientY: number },
     track: Track,
-    tracks?: Track[]
+    tracks?: Track[],
+    onRemove?: (() => void) | null
   ) => void;
   openPageMenu: (e: { clientX: number; clientY: number }) => void;
   closeMenu: () => void;
@@ -26,8 +28,9 @@ export const useContextMenuStore = create<ContextMenuState>((set) => ({
   type: 'page',
   track: null,
   tracks: undefined,
+  onRemove: null,
 
-  openTrackMenu: (e, track, tracks) => {
+  openTrackMenu: (e, track, tracks, onRemove) => {
     const x = typeof e?.clientX === 'number' && isFinite(e.clientX) ? e.clientX : 100;
     const y = typeof e?.clientY === 'number' && isFinite(e.clientY) ? e.clientY : 100;
     set({
@@ -36,7 +39,8 @@ export const useContextMenuStore = create<ContextMenuState>((set) => ({
       y,
       type: 'track',
       track,
-      tracks
+      tracks,
+      onRemove: onRemove || null
     });
   },
 
@@ -49,11 +53,12 @@ export const useContextMenuStore = create<ContextMenuState>((set) => ({
       y,
       type: 'page',
       track: null,
-      tracks: undefined
+      tracks: undefined,
+      onRemove: null
     });
   },
 
   closeMenu: () => {
-    set({ isOpen: false, track: null, tracks: undefined });
+    set({ isOpen: false, track: null, tracks: undefined, onRemove: null });
   }
 }));
