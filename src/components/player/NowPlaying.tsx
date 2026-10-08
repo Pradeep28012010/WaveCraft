@@ -1009,7 +1009,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               onClick={() => {
                                 setShowAiInsightsDetail(false);
                                 onClose();
-                                navigate(`/vibe?prompt=${encodeURIComponent(trackAcoustics.vibeTag)}`);
+                                navigate(`/vibe?prompt=${encodeURIComponent(trackAcoustics.vibeTag)}&auto=1`);
                               }}
                               className="w-full py-1.5 px-3 rounded-xl glass-button-primary text-[11px] font-extrabold text-white flex items-center justify-center gap-1.5 cursor-pointer mt-1"
                             >

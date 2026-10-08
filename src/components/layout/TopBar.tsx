@@ -371,6 +371,20 @@ export default function TopBar() {
               {showSuggestions && (
                 searchQuery.trim().length > 0 && suggestions.length > 0 ? (
                   <div className="absolute left-0 right-0 top-11 glass-heavy rounded-2xl p-1.5 shadow-2xl border border-white/15 z-50">
+                    <button
+                      onMouseDown={() => {
+                        triggerAndroidHaptic('light');
+                        navigate(`/vibe?prompt=${encodeURIComponent(searchQuery.trim())}&auto=1`);
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-left text-xs font-bold text-[var(--color-accent)] bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/30 hover:bg-[var(--color-accent)]/25 mb-1 cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span>✨</span>
+                        <span className="truncate">AI DJ Mix for “{searchQuery.trim()}”</span>
+                      </span>
+                      <span className="text-[10px] uppercase font-black flex-shrink-0">Mix →</span>
+                    </button>
                     {suggestions.map((sug, i) => (
                       <button
                         key={i}
@@ -645,6 +659,20 @@ export default function TopBar() {
           {showSuggestions && (
             searchQuery.trim().length > 0 && suggestions.length > 0 ? (
               <div className="absolute left-0 right-0 top-13 glass-heavy rounded-2xl p-2 shadow-2xl border border-white/15 z-50">
+                <button
+                  onMouseDown={() => {
+                    triggerAndroidHaptic('light');
+                    navigate(`/vibe?prompt=${encodeURIComponent(searchQuery.trim())}&auto=1`);
+                    setShowSuggestions(false);
+                  }}
+                  className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left text-xs font-bold text-[var(--color-accent)] bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/30 hover:bg-[var(--color-accent)]/25 mb-1.5 cursor-pointer transition-colors"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <span>✨</span>
+                    <span className="truncate">Curate AI DJ Mix for “{searchQuery.trim()}”</span>
+                  </span>
+                  <span className="text-[10px] uppercase font-black flex-shrink-0">Launch Mix →</span>
+                </button>
                 {suggestions.map((sug, i) => (
                   <button
                     key={i}

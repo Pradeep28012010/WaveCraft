@@ -464,3 +464,46 @@ export async function searchArtists(query: string): Promise<ArtistResult[]> {
 
   return [];
 }
+
+/**
+ * Searches the Apple iTunes Search API directly for songs with 600x600 artwork.
+ * Ideal for dynamic seed expansion and high-fidelity fallback matching.
+ */
+export async function searchItunesSongs(query: string, limit = 20): Promise<Track[]> {
+  const clean = (query || '').trim();
+  if (!clean) return [];
+
+  try {
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(clean)}&entity=song&limit=${limit}`;
+    const res = await fetch(itunesUrl, {
+      signal: AbortSignal.timeout(4500)
+    }).catch(() => null);
+
+    if (!res?.ok) return [];
+    const data = await res.json();
+    const results = data?.results || [];
+    if (!Array.isArray(results) || results.length === 0) return [];
+
+    return results.map((item: any) => {
+      const art = item.artworkUrl100
+        ? item.artworkUrl100.replace('100x100bb', '600x600bb')
+        : DEFAULT_THUMBNAIL;
+      return {
+        id: `itunes_${item.trackId}`,
+        title: item.trackName || 'Unknown Title',
+        artist: item.artistName || 'Unknown Artist',
+        album: item.collectionName || 'WaveCraft Cloud',
+        duration: Math.round((item.trackTimeMillis || 210000) / 1000),
+        thumbnail: art,
+        thumbnailLarge: art,
+        thumbnailUrl: art,
+        audioUrl: item.previewUrl || undefined,
+        audioPreviewUrl: item.previewUrl || undefined,
+        youtubeId: '',
+        quality: 'Apple Master'
+      };
+    });
+  } catch {
+    return [];
+  }
+}

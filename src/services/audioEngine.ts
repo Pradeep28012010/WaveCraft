@@ -227,6 +227,8 @@ export function crossfadeAudioTransition(
   });
 }
 
+let autoMixerTransitionTimer: ReturnType<typeof setTimeout> | null = null;
+
 /**
  * Triggers a frequency-carved transition filter sweep:
  * - Gentle low-pass sweep on outgoing track (20kHz down to 450Hz) to carve out highs and presence.
@@ -237,23 +239,31 @@ export function triggerFrequencyCarvedTransition(durationSec = 2.0): void {
   const isEnabled = useSettingsStore.getState().autoMixerFilterSweeps ?? true;
   if (!isEnabled || !audioCtx || !autoMixerLowPass || !autoMixerHighTilt) return;
 
+  if (autoMixerTransitionTimer) {
+    clearTimeout(autoMixerTransitionTimer);
+    autoMixerTransitionTimer = null;
+  }
+
   const now = audioCtx.currentTime;
   const dur = Math.max(0.4, durationSec);
   const outgoingDur = dur * 0.45;
   const incomingDur = dur * 0.55;
 
   // 1. Outgoing Low-Pass Sweep (roll-off harsh highs/mids)
+  const currentLp = Math.max(20, autoMixerLowPass.frequency.value || 20000);
   autoMixerLowPass.frequency.cancelScheduledValues(now);
-  autoMixerLowPass.frequency.setValueAtTime(Math.max(20, autoMixerLowPass.frequency.value), now);
+  autoMixerLowPass.frequency.setValueAtTime(currentLp, now);
   autoMixerLowPass.frequency.exponentialRampToValueAtTime(450, now + outgoingDur);
 
   // 2. Outgoing High-Tilt duck
+  const currentHt = autoMixerHighTilt.gain.value || 0;
   autoMixerHighTilt.gain.cancelScheduledValues(now);
-  autoMixerHighTilt.gain.setValueAtTime(autoMixerHighTilt.gain.value, now);
+  autoMixerHighTilt.gain.setValueAtTime(currentHt, now);
   autoMixerHighTilt.gain.linearRampToValueAtTime(-2.5, now + outgoingDur);
 
   // 3. Incoming High-Tilt boost & Low-Pass smooth opening
-  setTimeout(() => {
+  autoMixerTransitionTimer = setTimeout(() => {
+    autoMixerTransitionTimer = null;
     if (!audioCtx || !autoMixerLowPass || !autoMixerHighTilt) return;
     const midNow = audioCtx.currentTime;
     autoMixerHighTilt.gain.cancelScheduledValues(midNow);
@@ -267,11 +277,18 @@ export function triggerFrequencyCarvedTransition(durationSec = 2.0): void {
 }
 
 export function resetAutoMixerFilters(): void {
+  if (autoMixerTransitionTimer) {
+    clearTimeout(autoMixerTransitionTimer);
+    autoMixerTransitionTimer = null;
+  }
   if (!audioCtx || !autoMixerLowPass || !autoMixerHighTilt) return;
   const now = audioCtx.currentTime;
   autoMixerLowPass.frequency.cancelScheduledValues(now);
+  autoMixerLowPass.frequency.setValueAtTime(autoMixerLowPass.frequency.value, now);
   autoMixerLowPass.frequency.setTargetAtTime(20000, now, 0.05);
+
   autoMixerHighTilt.gain.cancelScheduledValues(now);
+  autoMixerHighTilt.gain.setValueAtTime(autoMixerHighTilt.gain.value, now);
   autoMixerHighTilt.gain.setTargetAtTime(0, now, 0.05);
 }
 

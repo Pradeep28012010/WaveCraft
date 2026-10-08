@@ -23,7 +23,8 @@ import {
   getAudioFrequencyData,
   unlockAudioEngine,
   seekToTime,
-  triggerFrequencyCarvedTransition
+  triggerFrequencyCarvedTransition,
+  resetAutoMixerFilters
 } from '../../services/audioEngine';
 import { jamSyncEngine } from '../../services/jamSyncEngine';
 import { isAndroidNative, PROD_API_ORIGIN } from '../../services/apiConfig';
@@ -720,6 +721,7 @@ export default function YouTubeEmbed() {
       activeLoadedYtIdRef.current = null;
       setIsLoading(true);
       setProgress(0, 0);
+      resetAutoMixerFilters();
     }
 
     // 1. Check Offline Audio Vault first for zero-latency local playback

@@ -2,6 +2,7 @@ import type { Track, VibeEnergyCurve, AcousticInsights, AiDjMix } from '../types
 import type { VisualizerStyle } from '../components/visualizer/Visualizer';
 import type { StudioFXMode } from '../stores/studioStore';
 import { searchTracks } from './youtube';
+import { searchItunesSongs } from './itunes';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useStudioStore } from '../stores/studioStore';
 import { usePlayerStore } from '../stores/playerStore';
@@ -1000,6 +1001,335 @@ export const VIBE_TAXONOMY: MicroVibeDefinition[] = [
     energyLabel: 'Golden Sunset • 122 BPM',
     seedQueries: ['Avicii The Nights Wake Me Up', 'Kygo Firestone Stargazing', 'Gryffin Feel Good', 'Illenium Takeaway', 'Galantis Runaway'],
     vibeTag: 'Sunset Euphoria'
+  },
+  // --- AMBIENT & TRANSCENDENCE (4) ---
+  {
+    id: 'nordic-glacier-ambient',
+    name: 'Nordic Glacier Ambient & Drone',
+    category: 'ambient',
+    keywords: ['nordic', 'glacier', 'ambient drone', 'aurora', 'subzero', 'brian eno', 'ice', 'polar'],
+    bpmRange: [60, 72],
+    targetBpm: 65,
+    energyLevel: 2,
+    genre: 'Subzero Ambient Drone',
+    mood: 'Vast & Still',
+    suggestedEq: 'Acoustic',
+    suggestedFx: '8d-orbit',
+    suggestedVisualizer: 'particles',
+    accentColor: '#38bdf8',
+    energyLabel: 'Subzero Vastness • 65 BPM',
+    seedQueries: ['Brian Eno Music for Airports', 'Biosphere Substrata', 'Stars of the Lid drone', 'Hammock ambient sleep'],
+    vibeTag: 'Nordic Ambient'
+  },
+  {
+    id: 'rainforest-canopy-dusk',
+    name: 'Rainforest Canopy & Field Flute',
+    category: 'ambient',
+    keywords: ['rainforest', 'canopy', 'nature', 'bamboo flute', 'jungle rain', 'organic ambient', 'birdsong'],
+    bpmRange: [65, 78],
+    targetBpm: 72,
+    energyLevel: 3,
+    genre: 'Organic Nature Ambient',
+    mood: 'Peaceful & Grounded',
+    suggestedEq: 'Acoustic',
+    suggestedFx: 'normal',
+    suggestedVisualizer: 'wave',
+    accentColor: '#10b981',
+    energyLabel: 'Canopy Rain • 72 BPM',
+    seedQueries: ['Shakuhachi bamboo flute ambient', 'Rainforest acoustic field meditation', 'Native American flute rain', 'Deuter Earth Peace'],
+    vibeTag: 'Rainforest Nature'
+  },
+  {
+    id: 'deep-space-interstellar',
+    name: 'Interstellar Cosmic Synth Void',
+    category: 'ambient',
+    keywords: ['space', 'interstellar', 'cosmic', 'void', 'hans zimmer', 'nebula space', 'astronomy', 'stars'],
+    bpmRange: [60, 75],
+    targetBpm: 68,
+    energyLevel: 2,
+    genre: 'Cosmic Cinematic Ambient',
+    mood: 'Awe & Infinite Solitude',
+    suggestedEq: 'Electronic',
+    suggestedFx: '8d-orbit',
+    suggestedVisualizer: 'nebula',
+    accentColor: '#818cf8',
+    energyLabel: 'Infinite Orbit • 68 BPM',
+    seedQueries: ['Hans Zimmer Interstellar Stay', 'Max Richter On the Nature of Daylight', 'Solar Fields space ambient', 'Carbon Based Lifeforms interstellar'],
+    vibeTag: 'Cosmic Void'
+  },
+  {
+    id: 'meditation-singing-bowls',
+    name: '432Hz Tibetan Singing Bowls & Healing',
+    category: 'ambient',
+    keywords: ['singing bowls', 'tibetan', '432hz', 'chakra', 'sound bath', 'sound healing', 'gong bath', 'zen meditation'],
+    bpmRange: [60, 70],
+    targetBpm: 60,
+    energyLevel: 1,
+    genre: 'Sacred Sound Bath',
+    mood: 'Harmonic Equilibrium',
+    suggestedEq: 'Flat',
+    suggestedFx: 'normal',
+    suggestedVisualizer: 'circular',
+    accentColor: '#fbbf24',
+    energyLabel: '432Hz Sound Bath • Harmonic',
+    seedQueries: ['Tibetan singing bowls 432Hz', 'Crystal sound bath deep healing', 'Hang drum zen meditation', 'Sacred solfeggio meditation'],
+    vibeTag: 'Sacred Sound Bath'
+  },
+  // --- EXPANDED ELECTRONIC (4) ---
+  {
+    id: 'berlin-minimal-techno',
+    name: 'Berlin Vault Minimal Techno',
+    category: 'electronic',
+    keywords: ['techno', 'berlin techno', 'berghain', 'minimal techno', 'dark rumble', 'hypnotic techno', 'tresor'],
+    bpmRange: [126, 136],
+    targetBpm: 132,
+    energyLevel: 9,
+    genre: 'Dark Peak Minimal Techno',
+    mood: 'Hypnotic & Relentless',
+    suggestedEq: 'Electronic',
+    suggestedFx: 'normal',
+    suggestedVisualizer: 'bars',
+    accentColor: '#475569',
+    energyLabel: 'Berghain Pulse • 132 BPM',
+    seedQueries: ['Boris Brejcha minimal techno', 'Richie Hawtin Plastikman', 'Tale of Us Afterlife techno', 'Charlotte de Witte peak techno'],
+    vibeTag: 'Berlin Techno'
+  },
+  {
+    id: 'downtempo-trip-hop',
+    name: 'Bristol Dusk Trip-Hop & Vinyl',
+    category: 'electronic',
+    keywords: ['trip hop', 'trip-hop', 'massive attack', 'portishead', 'bristol', 'downtempo electronic', 'tricky'],
+    bpmRange: [78, 92],
+    targetBpm: 84,
+    energyLevel: 5,
+    genre: 'Classic Bristol Trip-Hop',
+    mood: 'Smoky & Atmospheric',
+    suggestedEq: 'Electronic',
+    suggestedFx: 'normal',
+    suggestedVisualizer: 'wave',
+    accentColor: '#a855f7',
+    energyLabel: 'Smoky Groove • 84 BPM',
+    seedQueries: ['Massive Attack Teardrop', 'Portishead Glory Box', 'Morcheeba The Sea', 'Sneaker Pimps 6 Underground', 'Zero 7 Destiny'],
+    vibeTag: 'Bristol Trip-Hop'
+  },
+  {
+    id: 'uk-drill-garage',
+    name: 'London Midnight UK Garage & 2-Step',
+    category: 'electronic',
+    keywords: ['uk garage', 'ukg', '2-step', 'overmono', 'fred again', 'bicep', 'syncopated bass', 'london club'],
+    bpmRange: [130, 138],
+    targetBpm: 134,
+    energyLevel: 8,
+    genre: 'Modern UK Garage / 2-Step',
+    mood: 'Euphoric Kineticism',
+    suggestedEq: 'Electronic',
+    suggestedFx: 'normal',
+    suggestedVisualizer: 'wave',
+    accentColor: '#06b6d4',
+    energyLabel: 'London Shuffle • 134 BPM',
+    seedQueries: ['Overmono Good Lies', 'Fred again.. Delilah', 'Bicep Glue', 'Disclosure garage bangers', 'Sammy Virji UK garage'],
+    vibeTag: 'UK Garage'
+  },
+  {
+    id: 'synthwave-outrun-chase',
+    name: 'Outrun 80s Highway Pursuit',
+    category: 'electronic',
+    keywords: ['outrun chase', 'police chase', 'laser synth', 'perturbator', 'carpenter brut', '80s arpeggio', 'high speed synth'],
+    bpmRange: [124, 140],
+    targetBpm: 130,
+    energyLevel: 9,
+    genre: 'High-Octane Darksynth / Outrun',
+    mood: 'High-Speed Adrenaline',
+    suggestedEq: 'Electronic',
+    suggestedFx: '8d-orbit',
+    suggestedVisualizer: 'starfield',
+    accentColor: '#ef4444',
+    energyLabel: 'Pursuit Mode • 130 BPM',
+    seedQueries: ['Carpenter Brut Turbo Killer', 'Perturbator Future Club', 'Dance With the Dead Riot', 'Magic Sword In The Face Of Evil'],
+    vibeTag: 'Outrun Pursuit'
+  },
+  // --- EXPANDED HIGH ENERGY (3) ---
+  {
+    id: 'cyber-dnb-neurofunk',
+    name: 'Neurofunk Cyber D&B Velocity',
+    category: 'high_energy',
+    keywords: ['neurofunk', 'drum and bass', 'dnb banger', 'noisia', 'mefjus', 'camo & krooked', 'fast bass', '174 bpm'],
+    bpmRange: [170, 178],
+    targetBpm: 174,
+    energyLevel: 10,
+    genre: 'Neurofunk Drum & Bass',
+    mood: 'Maximum Velocity & Tech Precision',
+    suggestedEq: 'Bass Boost',
+    suggestedFx: 'arena-live',
+    suggestedVisualizer: 'bars',
+    accentColor: '#f43f5e',
+    energyLabel: 'Kinetic 174 BPM • Neurofunk',
+    seedQueries: ['Noisia The Upbeats Dead Limit', 'Mefjus Blitz', 'Chase and Status Baddadan', 'Sub Focus solar system dnb'],
+    vibeTag: 'Neurofunk DnB'
+  },
+  {
+    id: 'brazilian-funk-favela',
+    name: 'Rio Baile Funk Favela Boom',
+    category: 'high_energy',
+    keywords: ['baile funk', 'brazilian funk', 'favela', 'tamborzao', 'kondzilla', 'mc poze', 'funk rj', 'funk sp'],
+    bpmRange: [126, 136],
+    targetBpm: 130,
+    energyLevel: 9,
+    genre: 'Baile Funk & Tamborzão',
+    mood: 'Raw Swagger & Festive Shock',
+    suggestedEq: 'Bass Boost',
+    suggestedFx: 'arena-live',
+    suggestedVisualizer: 'bars',
+    accentColor: '#10b981',
+    energyLabel: 'Rio Tamborzão • 130 BPM',
+    seedQueries: ['Baile funk brasil top hits', 'MC Poze do Rodo hits', 'Funk favela bass bangers', 'Pedro Sampaio funk mix'],
+    vibeTag: 'Baile Funk'
+  },
+  {
+    id: 'rock-stadium-overdrive',
+    name: 'Stadium Hard Rock & Distortion',
+    category: 'high_energy',
+    keywords: ['stadium rock', 'hard rock', 'guitar solo', 'distortion', 'ac/dc', 'guns n roses', 'foo fighters', 'metallica'],
+    bpmRange: [120, 140],
+    targetBpm: 130,
+    energyLevel: 9,
+    genre: 'Anthemic Stadium Hard Rock',
+    mood: 'Raw Power & Electrifying Grit',
+    suggestedEq: 'Rock',
+    suggestedFx: 'arena-live',
+    suggestedVisualizer: 'bars',
+    accentColor: '#f97316',
+    energyLabel: 'Overdrive Grit • 130 BPM',
+    seedQueries: ['Foo Fighters Everlong rock', 'AC/DC Thunderstruck', 'Guns N Roses Welcome to the Jungle', 'Muse Hysteria rock'],
+    vibeTag: 'Stadium Rock'
+  },
+  // --- EXPANDED REGIONAL (4) ---
+  {
+    id: 'carnatic-progressive-rock',
+    name: 'Carnatic Fusion & Electric Veena',
+    category: 'regional',
+    keywords: ['carnatic', 'carnatic rock', 'thaikkudam bridge', 'agam', 'ragam', 'indian rock', 'indian progressive'],
+    bpmRange: [100, 120],
+    targetBpm: 110,
+    energyLevel: 8,
+    genre: 'Indian Classical Progressive Rock',
+    mood: 'Intricate Virtuosity & Fire',
+    suggestedEq: 'Rock',
+    suggestedFx: 'arena-live',
+    suggestedVisualizer: 'nebula',
+    accentColor: '#e11d48',
+    energyLabel: 'Ragam Surge • 110 BPM',
+    seedQueries: ['Thaikkudam Bridge Fish Rock', 'Agam progressive rock Malhar', 'Avial Malayalam rock', 'Pineapple Express carnatic fusion'],
+    vibeTag: 'Carnatic Rock'
+  },
+  {
+    id: 'japanese-city-pop-breeze',
+    name: 'Tokyo 1986 Japanese City Pop',
+    category: 'regional',
+    keywords: ['city pop', 'japanese city pop', 'mariya takeuchi', 'tatsuro yamashita', 'miki matsubara', '80s tokyo', 'plastic love'],
+    bpmRange: [108, 122],
+    targetBpm: 115,
+    energyLevel: 7,
+    genre: 'Vintage Japanese City Pop',
+    mood: 'Breezy & Sophisticated Nostalgia',
+    suggestedEq: 'Pop',
+    suggestedFx: 'normal',
+    suggestedVisualizer: 'wave',
+    accentColor: '#ec4899',
+    energyLabel: 'Tokyo Boulevard • 115 BPM',
+    seedQueries: ['Mariya Takeuchi Plastic Love', 'Miki Matsubara Stay With Me', 'Tatsuro Yamashita Sparkle', 'Anri Remember Summer Days'],
+    vibeTag: 'Tokyo City Pop'
+  },
+  {
+    id: 'amapiano-johannesburg-logdrum',
+    name: 'South African Amapiano Log Drum Groove',
+    category: 'regional',
+    keywords: ['amapiano', 'log drum', 'south african', 'kabza de small', 'dj maphorisa', 'tyla', 'johannesburg groove'],
+    bpmRange: [110, 118],
+    targetBpm: 113,
+    energyLevel: 7,
+    genre: 'Amapiano Deep Log Drum',
+    mood: 'Hypnotic Bounce & Soulful Warmth',
+    suggestedEq: 'Bass Boost',
+    suggestedFx: 'normal',
+    suggestedVisualizer: 'wave',
+    accentColor: '#f59e0b',
+    energyLabel: 'Log Drum Bounce • 113 BPM',
+    seedQueries: ['Kabza De Small amapiano hits', 'Tyler ICU amapiano', 'Tyla Water dance groove', 'Uncle Waffles amapiano mix'],
+    vibeTag: 'Amapiano Groove'
+  },
+  {
+    id: 'arabic-desert-oud-groove',
+    name: 'Levantine Desert Oud & Groove',
+    category: 'regional',
+    keywords: ['oud', 'arabic', 'middle eastern', 'habibi funk', 'desert groove', 'oriental electronic', 'microtonal'],
+    bpmRange: [92, 110],
+    targetBpm: 102,
+    energyLevel: 7,
+    genre: 'Oriental Desert Groove & Oud Fusion',
+    mood: 'Mystical & Hypnotic Swagger',
+    suggestedEq: 'Acoustic',
+    suggestedFx: 'normal',
+    suggestedVisualizer: 'circular',
+    accentColor: '#d97706',
+    energyLabel: 'Desert Caravan • 102 BPM',
+    seedQueries: ['Habibi Funk greatest hits', 'Acid Arab oriental electronic', 'Omar Souleyman wedding dabke', 'Dhafer Youssef oud fusion'],
+    vibeTag: 'Desert Oud Fusion'
+  },
+  // --- EXPANDED MOOD (3) ---
+  {
+    id: 'rainy-tokyo-neon-melancholy',
+    name: 'Midnight Shinjuku Rainy Neon',
+    category: 'mood',
+    keywords: ['shinjuku', 'tokyo rain', 'lost in translation', 'midnight city rain', 'neon reflections', 'downtempo rain'],
+    bpmRange: [72, 85],
+    targetBpm: 78,
+    energyLevel: 4,
+    genre: 'Cinematic Rainy Neon Downtempo',
+    mood: 'Nocturnal Solitude & Yearning',
+    suggestedEq: 'Electronic',
+    suggestedFx: '8d-orbit',
+    suggestedVisualizer: 'particles',
+    accentColor: '#0ea5e9',
+    energyLabel: 'Midnight Rain • 78 BPM',
+    seedQueries: ['Burial Archangel night', 'Kavinsky Nightcall slowed', 'Tycho rainy day ambient', 'Lorn Acid Rain'],
+    vibeTag: 'Shinjuku Rain'
+  },
+  {
+    id: 'golden-hour-coastal-cruise',
+    name: 'Pacific Highway Golden Sunset Cruise',
+    category: 'mood',
+    keywords: ['coastal cruise', 'pacific highway', 'windows down', 'warm groove', 'california sunset', 'yacht rock'],
+    bpmRange: [98, 112],
+    targetBpm: 104,
+    energyLevel: 6,
+    genre: 'Warm Coastal Funk & Indie Groove',
+    mood: 'Sun-Drenched Carefree Freedom',
+    suggestedEq: 'Pop',
+    suggestedFx: 'normal',
+    suggestedVisualizer: 'wave',
+    accentColor: '#f59e0b',
+    energyLabel: 'PCH Sunset • 104 BPM',
+    seedQueries: ['Men I Trust Show Me How', 'Parcels Overnight', 'Still Woozy Goodie Bag', 'Tame Impala Breathe Deeper'],
+    vibeTag: 'Coastal Cruise'
+  },
+  {
+    id: 'late-night-coding-synthwave-rain',
+    name: 'Late Night Coding Synthwave & Rain',
+    category: 'electronic',
+    keywords: ['late night coding', 'coding synthwave', 'synthwave with rain', 'developer flow', 'terminal synth', 'hacker lo-fi'],
+    bpmRange: [105, 122],
+    targetBpm: 114,
+    energyLevel: 6,
+    genre: 'Nocturnal Coding Synthwave',
+    mood: 'Laser Focus & Rainy Solitude',
+    suggestedEq: 'Electronic',
+    suggestedFx: '8d-orbit',
+    suggestedVisualizer: 'starfield',
+    accentColor: '#6366f1',
+    energyLabel: 'Cyber Terminal • 114 BPM',
+    seedQueries: ['The Midnight Days of Thunder', 'Kavinsky synthwave', 'HOME Resonance synth', 'Com Truise coding flow'],
+    vibeTag: 'Rainy Synthwave Code'
   }
 ];
 
@@ -1081,16 +1411,17 @@ export function parseVibePrompt(prompt: string): ParsedVibePrompt {
       score += 5;
     }
     // Check activity alignment
-    if (detectedActivity === 'workout' && vibe.category === 'high_energy') score += 3;
-    if (detectedActivity === 'coding' && (vibe.id.includes('focus') || vibe.id.includes('rain') || vibe.id.includes('cyberpunk'))) score += 3;
-    if (detectedActivity === 'study' && vibe.category === 'lofi_chill') score += 3;
-    if (detectedActivity === 'drive' && (vibe.id.includes('drive') || vibe.id.includes('retrowave') || vibe.id.includes('highway'))) score += 3;
-    if (detectedActivity === 'sleep' && (vibe.category === 'ambient' || vibe.id.includes('lofi') || vibe.energyLevel <= 3)) score += 3;
+    if (detectedActivity === 'workout' && (vibe.category === 'high_energy' || vibe.id.includes('phonk'))) score += 4;
+    if (detectedActivity === 'coding' && (vibe.id.includes('focus') || vibe.id.includes('rain') || vibe.id.includes('cyberpunk') || vibe.id.includes('coding'))) score += 4;
+    if (detectedActivity === 'study' && (vibe.category === 'lofi_chill' || vibe.id.includes('study'))) score += 4;
+    if (detectedActivity === 'drive' && (vibe.id.includes('drive') || vibe.id.includes('retrowave') || vibe.id.includes('highway') || vibe.id.includes('cruise') || vibe.id.includes('pursuit'))) score += 4;
+    if (detectedActivity === 'sleep' && (vibe.category === 'ambient' || vibe.id.includes('lofi') || vibe.energyLevel <= 3)) score += 4;
+    if (detectedActivity === 'party' && (vibe.energyLevel >= 8 || vibe.category === 'high_energy')) score += 4;
 
     // Check time-of-day alignment
-    if (detectedTimeOfDay === 'late_night' && (vibe.name.includes('Night') || vibe.id.includes('3am') || vibe.id.includes('midnight'))) score += 3;
+    if (detectedTimeOfDay === 'late_night' && (vibe.name.includes('Night') || vibe.id.includes('3am') || vibe.id.includes('midnight') || vibe.id.includes('late-night'))) score += 3;
     if (detectedTimeOfDay === 'morning' && (vibe.name.includes('Morning') || vibe.name.includes('Sunlight') || vibe.name.includes('Pastoral'))) score += 3;
-    if (detectedTimeOfDay === 'golden_hour' && (vibe.name.includes('Golden') || vibe.name.includes('Sunset'))) score += 3;
+    if (detectedTimeOfDay === 'golden_hour' && (vibe.name.includes('Golden') || vibe.name.includes('Sunset') || vibe.id.includes('autumn') || vibe.id.includes('afternoon'))) score += 3;
 
     // Check explicit BPM closeness if provided
     if (userBpm !== null) {
@@ -1545,24 +1876,35 @@ export async function generateAiDjMix({
   }
 
   // 4. Query YouTube & iTunes search concurrently with progressive fallback
-  const searchResults = await Promise.all(
-    queries.map((q) => searchTracks(q).catch(() => [] as Track[]))
-  );
+  const [ytResults, itunesResults] = await Promise.all([
+    Promise.all(queries.map((q) => searchTracks(q).catch(() => [] as Track[]))),
+    Promise.all(queries.map((q) => searchItunesSongs(q, 15).catch(() => [] as Track[])))
+  ]);
 
   const seenIds = new Set<string>();
   const seenFingerprints = new Set<string>();
   const candidateTracks: Track[] = [];
 
-  const maxLen = Math.max(...searchResults.map((r) => r.length), 0);
+  const maxLen = Math.max(
+    ...ytResults.map((r) => r.length),
+    ...itunesResults.map((r) => r.length),
+    0
+  );
+
   for (let i = 0; i < maxLen; i++) {
-    for (const list of searchResults) {
-      const track = list[i];
-      if (!track) continue;
-      const fp = `${track.title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16)}__${track.artist.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12)}`;
-      if (!seenIds.has(track.id) && !seenFingerprints.has(fp)) {
-        seenIds.add(track.id);
-        seenFingerprints.add(fp);
-        candidateTracks.push(track);
+    for (let qIdx = 0; qIdx < queries.length; qIdx++) {
+      const ytTrack = ytResults[qIdx]?.[i];
+      const itunesTrack = itunesResults[qIdx]?.[i];
+
+      const queue = [ytTrack, itunesTrack].filter(Boolean) as Track[];
+      for (const track of queue) {
+        const fp = `${track.title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16)}__${track.artist.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12)}`;
+        if (!seenIds.has(track.id) && !seenFingerprints.has(fp)) {
+          seenIds.add(track.id);
+          seenFingerprints.add(fp);
+          candidateTracks.push(track);
+        }
+        if (candidateTracks.length >= 26) break;
       }
       if (candidateTracks.length >= 26) break;
     }
@@ -1576,11 +1918,14 @@ export async function generateAiDjMix({
       `${semanticParsed.matchedVibe.vibeTag} essential mix`,
       `${cleanInput} top trending songs`
     ];
-    const fallbackResults = await Promise.all(
-      fallbackQueries.map((q) => searchTracks(q).catch(() => [] as Track[]))
-    );
-    for (const list of fallbackResults) {
-      for (const track of list) {
+    const [fbYt, fbItunes] = await Promise.all([
+      Promise.all(fallbackQueries.map((q) => searchTracks(q).catch(() => [] as Track[]))),
+      Promise.all(fallbackQueries.map((q) => searchItunesSongs(q, 15).catch(() => [] as Track[])))
+    ]);
+
+    for (let idx = 0; idx < fallbackQueries.length; idx++) {
+      const combined = [...(fbYt[idx] || []), ...(fbItunes[idx] || [])];
+      for (const track of combined) {
         const fp = `${track.title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16)}__${track.artist.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12)}`;
         if (!seenIds.has(track.id) && !seenFingerprints.has(fp)) {
           seenIds.add(track.id);
@@ -1590,6 +1935,30 @@ export async function generateAiDjMix({
         if (candidateTracks.length >= 22) break;
       }
       if (candidateTracks.length >= 22) break;
+    }
+  }
+
+  // 5b. Offline / isolated seed tracks fallback to guarantee 15-25 tracks set
+  if (candidateTracks.length < 15) {
+    for (const sq of semanticParsed.matchedVibe.seedQueries) {
+      const fallbackId = `ai_seed_${sq.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 24)}`;
+      if (!seenIds.has(fallbackId)) {
+        seenIds.add(fallbackId);
+        const parts = sq.split(' ');
+        const artist = parts.slice(0, 2).join(' ');
+        const title = parts.slice(2).join(' ') || sq;
+        candidateTracks.push({
+          id: fallbackId,
+          title: title || sq,
+          artist: artist || 'WaveCraft Vibe',
+          album: `${semanticParsed.matchedVibe.name} AI Edition`,
+          duration: 210,
+          thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
+          thumbnailLarge: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
+          quality: '320kbps Studio AAC'
+        });
+      }
+      if (candidateTracks.length >= 20) break;
     }
   }
 
@@ -1647,14 +2016,25 @@ export async function regenerateTrackInMix(
 
   for (const query of swapQueries) {
     try {
-      const candidates = await searchTracks(query);
+      const [ytCandidates, itunesCandidates] = await Promise.all([
+        searchTracks(query).catch(() => [] as Track[]),
+        searchItunesSongs(query, 10).catch(() => [] as Track[])
+      ]);
+      const candidates = [...ytCandidates, ...itunesCandidates];
       for (const cand of candidates) {
         if (!existingIds.has(cand.id)) {
-          // Enrich candidate with matching acoustic slot
-          cand.bpm = targetAcoustics.bpm;
-          cand.energy = targetAcoustics.energy;
-          cand.mood = targetAcoustics.mood;
-          cand.vibeTag = targetAcoustics.vibeTag;
+          // Enrich candidate with realistic acoustic estimation matching context
+          const acoustics = estimateTrackAcoustics(cand, {
+            bpm: targetAcoustics.bpm,
+            energy: targetAcoustics.energy,
+            mood: targetAcoustics.mood,
+            vibeTag: targetAcoustics.vibeTag,
+            genre: targetAcoustics.genre
+          });
+          cand.bpm = acoustics.bpm;
+          cand.energy = acoustics.energy;
+          cand.mood = acoustics.mood;
+          cand.vibeTag = acoustics.vibeTag;
           return cand;
         }
       }
@@ -1663,3 +2043,4 @@ export async function regenerateTrackInMix(
 
   return null;
 }
+

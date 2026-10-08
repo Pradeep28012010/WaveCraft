@@ -5,6 +5,7 @@ import {
   generateAiDjMix,
   regenerateTrackInMix,
   generateLiquidVibeCoverArt,
+  applyEnergyCurve,
   INSPIRATIONAL_PRESETS,
   type InspirationalPreset
 } from '../../services/aiDjEngine';
@@ -28,7 +29,7 @@ export default function VibeDJPage() {
   const [activeMix, setActiveMix] = useState<AiDjMix | null>(null);
   const [savedToast, setSavedToast] = useState(false);
   const [swappingTrackIndex, setSwappingTrackIndex] = useState<number | null>(null);
-  const hasAutoLaunchedRef = useRef(false);
+  const lastLaunchedPromptRef = useRef<string>('');
 
   const playTrack = usePlayerStore((s) => s.playTrack);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -60,14 +61,14 @@ export default function VibeDJPage() {
 
   // Auto-launch if prompt was passed in URL (from Command Palette, TopBar, or Search)
   useEffect(() => {
-    if (urlPrompt && !hasAutoLaunchedRef.current) {
-      hasAutoLaunchedRef.current = true;
+    if (urlPrompt && urlPrompt !== lastLaunchedPromptRef.current) {
+      lastLaunchedPromptRef.current = urlPrompt;
       setPrompt(urlPrompt);
       if (urlAuto) {
         launchAiMix(urlPrompt, energyCurve);
       }
     }
-  }, [urlPrompt, urlAuto]);
+  }, [urlPrompt, urlAuto, energyCurve]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,11 +76,16 @@ export default function VibeDJPage() {
     launchAiMix(prompt.trim());
   };
 
-  const handleCurveChange = async (newCurve: VibeEnergyCurve) => {
+  const handleCurveChange = (newCurve: VibeEnergyCurve) => {
     setEnergyCurve(newCurve);
     triggerAndroidHaptic('light');
-    if (activeMix && activeMix.prompt) {
-      launchAiMix(activeMix.prompt, newCurve);
+    if (activeMix && activeMix.tracks && activeMix.tracks.length > 0) {
+      const reordered = applyEnergyCurve(activeMix.tracks, newCurve);
+      setActiveMix({
+        ...activeMix,
+        energyCurve: newCurve,
+        tracks: reordered
+      });
     }
   };
 

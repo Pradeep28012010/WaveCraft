@@ -8,6 +8,7 @@ import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
 import { EQ_PRESETS } from '../../utils/constants';
+import { resetAutoMixerFilters } from '../../services/audioEngine';
 
 function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (val: boolean) => void }) {
   return (
@@ -339,7 +340,14 @@ export default function SettingsPage() {
           >
             <ToggleSwitch
               checked={settings.autoMixerFilterSweeps ?? true}
-              onChange={settings.setAutoMixerFilterSweeps}
+              onChange={(val) => {
+                settings.setAutoMixerFilterSweeps(val);
+                if (!val) {
+                  try {
+                    resetAutoMixerFilters();
+                  } catch {}
+                }
+              }}
             />
           </SettingRow>
         </GlassCard>
