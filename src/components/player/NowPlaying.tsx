@@ -16,6 +16,7 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useTrackOfflineStatus } from '../../services/offlineVault';
 import { useColorExtract } from '../../hooks/useColorExtract';
+import { useSleepTimer } from '../../hooks/useSleepTimer';
 import WindowsTitleBar from '../layout/WindowsTitleBar';
 
 interface NowPlayingProps {
@@ -285,8 +286,20 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const setShowVisualizer = useSettingsStore((s) => s.setShowVisualizer);
   const showLyrics = useSettingsStore((s) => s.showLyrics);
   const setShowLyrics = useSettingsStore((s) => s.setShowLyrics);
+  const audioQuality = useSettingsStore((s) => s.audioQuality);
+  const setAudioQuality = useSettingsStore((s) => s.setAudioQuality);
   const fxMode = useStudioStore((s) => s.fxMode);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
+  const preservePitch = useStudioStore((s) => s.preservePitch);
+  const setPreservePitch = useStudioStore((s) => s.setPreservePitch);
+  const {
+    isActive: sleepActive,
+    timeRemaining: sleepRemaining,
+    endAtTrack: sleepEndAtTrack,
+    startTimer: startSleepTimer,
+    stopTimer: stopSleepTimer,
+    setEndAtTrack
+  } = useSleepTimer();
 
   const handleTogglePlay = () => {
     triggerAndroidHaptic('medium');
@@ -600,6 +613,57 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     {zenMode ? 'Exit Zen' : '3D Zen'}
                   </button>
 
+                  {/* Audio Quality Stream Preset */}
+                  <button
+                    onClick={() => {
+                      const qualities: Array<'auto' | 'high' | 'medium' | 'low'> = ['auto', 'high', 'medium', 'low'];
+                      const nextQ = qualities[(qualities.indexOf(audioQuality) + 1) % qualities.length] || 'auto';
+                      setAudioQuality(nextQ);
+                    }}
+                    className="px-3 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer transition-all uppercase tracking-wider tabular-nums app-region-no-drag"
+                    title="Audio Quality Stream Selector"
+                  >
+                    {audioQuality === 'auto' ? 'HD' : audioQuality === 'high' ? '320k' : audioQuality === 'medium' ? '192k' : '128k'}
+                  </button>
+
+                  {/* Pitch Shift / Lock Toggle */}
+                  <button
+                    onClick={() => setPreservePitch(!preservePitch)}
+                    className={`px-3 h-9 rounded-full text-xs font-bold transition-all cursor-pointer app-region-no-drag ${
+                      preservePitch
+                        ? 'glass-button text-white/85 hover:text-white'
+                        : 'glass-button-primary text-amber-300 border-amber-400/40'
+                    }`}
+                    title={preservePitch ? "Pitch Locked (Time-stretch)" : "Tape Pitch Shift Active"}
+                  >
+                    {preservePitch ? "🔒 Pitch" : "🎵 Shift"}
+                  </button>
+
+                  {/* Sleep Timer Quick Cycle */}
+                  <button
+                    onClick={() => {
+                      if (!sleepActive) {
+                        startSleepTimer(30);
+                      } else if (sleepRemaining > 15 * 60) {
+                        startSleepTimer(15);
+                      } else if (!sleepEndAtTrack) {
+                        setEndAtTrack(true);
+                      } else {
+                        stopSleepTimer();
+                      }
+                    }}
+                    className={`px-3 h-9 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 app-region-no-drag ${
+                      sleepActive
+                        ? 'bg-purple-600/30 border border-purple-400/40 text-purple-200'
+                        : 'glass-button text-white/85 hover:text-white'
+                    }`}
+                    title={sleepActive ? `Sleep timer active (${sleepEndAtTrack ? 'End of song' : Math.ceil(sleepRemaining / 60) + 'm'}) - click to cycle` : "Start Sleep Timer"}
+                  >
+                    <span>🌙</span>
+                    <span>{sleepActive ? (sleepEndAtTrack ? 'End' : `${Math.ceil(sleepRemaining / 60)}m`) : 'Timer'}</span>
+                  </button>
+
+                  {/* Playback Speed Presets */}
                   <button
                     onClick={() => {
                       const speeds = [0.75, 1, 1.25, 1.5];
@@ -607,7 +671,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       setPlaybackSpeed(next);
                     }}
                     className="px-3 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer transition-all tabular-nums app-region-no-drag"
-                    title="Playback Speed"
+                    title="Playback Speed Preset"
                   >
                     {playbackSpeed}x
                   </button>
@@ -831,6 +895,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         }}
                       />
                       <motion.div
+                        layoutId="album-art-hero"
                         onClick={() => setDeckMode('vinyl')}
                         title="Click to switch to Spinning Vinyl Turntable"
                         initial={{ scale: 0.88, opacity: 0.7 }}

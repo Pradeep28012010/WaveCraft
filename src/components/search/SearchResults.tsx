@@ -1,18 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { searchTracks, getCachedSearch, getTrending, getCachedTrending } from '../../services/youtube';
 import { searchAlbums, searchArtists, getAlbumTracks } from '../../services/itunes';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useLibraryStore } from '../../stores/libraryStore';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
 import TrackRow from '../ui/TrackRow';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from './GenreBrowser';
-import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { DEFAULT_THUMBNAIL, MOOD_PLAYLISTS } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
+import { useSearchHistory } from '../../utils/searchHistory';
 import type { Track, AlbumResult, ArtistResult } from '../../types';
 
 const FALLBACK_LIVE_POOL = [
@@ -59,14 +61,56 @@ function buildInitialTrendingPool(): string[] {
 }
 
 export default function SearchResults() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
 
-  const [activeTab, setActiveTab] = useState<'all' | 'songs' | 'albums' | 'artists'>('all');
+  const { history, removeSearchTerm, clearSearchHistory, saveSearchTerm } = useSearchHistory();
+  const libraryPlaylists = useLibraryStore((state) => state.playlists);
+
+  const [activeTab, setActiveTab] = useState<'all' | 'songs' | 'artists' | 'playlists' | 'albums'>('all');
   const [tracks, setTracks] = useState<Track[]>(() => (query ? getCachedSearch(query) || [] : []));
   const [albums, setAlbums] = useState<AlbumResult[]>([]);
   const [artists, setArtists] = useState<ArtistResult[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(query && !getCachedSearch(query)));
+
+  const matchingPlaylists = useMemo(() => {
+    if (!query.trim()) return [];
+    const q = query.toLowerCase();
+    const libMatches = libraryPlaylists
+      .filter((p) => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)))
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        type: 'library' as const,
+        trackCount: p.tracks?.length || 0,
+        coverUrl: p.coverUrl || p.tracks?.[0]?.thumbnail || DEFAULT_THUMBNAIL,
+        colorClass: '',
+        emoji: '',
+        subtitle: `${p.tracks?.length || 0} tracks`,
+        query: ''
+      }));
+    const moodMatches = MOOD_PLAYLISTS
+      .filter((m) => m.name.toLowerCase().includes(q) || (m.sub && m.sub.toLowerCase().includes(q)) || (m.query && m.query.toLowerCase().includes(q)))
+      .map((m) => ({
+        id: m.id,
+        name: m.name,
+        type: 'curated' as const,
+        trackCount: 0,
+        coverUrl: '',
+        colorClass: m.colorClass,
+        emoji: m.emoji,
+        subtitle: m.sub,
+        query: m.query || m.searchQuery
+      }));
+    return [...libMatches, ...moodMatches];
+  }, [query, libraryPlaylists]);
+
+  useEffect(() => {
+    if (query.trim()) {
+      saveSearchTerm(query.trim());
+    }
+  }, [query, saveSearchTerm]);
 
   // Live Trending Searches state (real chart data + frequent rotation)
   const [trendingTerms, setTrendingTerms] = useState<string[]>(buildInitialTrendingPool);
@@ -244,7 +288,18 @@ export default function SearchResults() {
     }
   };
 
+  const handlePlayMood = async (_moodId: string, moodQuery: string) => {
+    try {
+      const results = await searchTracks(moodQuery);
+      if (results.length > 0) {
+        unlockAudioEngine();
+        playTrack(results[0], results, 0);
+      }
+    } catch {}
+  };
+
   const handleQuickSearch = (term: string) => {
+    saveSearchTerm(term);
     setSelectedAlbum(null);
     setActiveTab('all');
     setSearchParams({ q: term });
@@ -253,6 +308,48 @@ export default function SearchResults() {
   if (!query.trim()) {
     return (
       <div className="pb-24 pt-2 text-white space-y-10">
+        {/* Recent Search History with One-Tap Clear */}
+        {history.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">Recent Searches</h2>
+              <button
+                type="button"
+                onClick={() => clearSearchHistory()}
+                className="text-xs text-[var(--color-accent)] hover:underline font-bold cursor-pointer"
+              >
+                Clear All
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {history.map((term) => (
+                <div
+                  key={term}
+                  className="flex items-center gap-2 pl-3.5 pr-2 py-1.5 rounded-full glass hover:bg-white/10 text-xs font-semibold text-white/90 hover:text-white group cursor-pointer transition-colors"
+                  onClick={() => handleQuickSearch(term)}
+                >
+                  <svg className="w-3.5 h-3.5 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span>{term}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeSearchTerm(term);
+                    }}
+                    className="w-4 h-4 ml-0.5 rounded-full hover:bg-white/20 flex items-center justify-center text-white/40 hover:text-white"
+                    title="Remove"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
             <h1 className="text-3xl font-extrabold tracking-tight">Search & Discover</h1>
@@ -289,10 +386,11 @@ export default function SearchResults() {
   }
 
   const tabs = [
-    { id: 'all', label: 'Top Results' },
+    { id: 'all', label: 'All' },
     { id: 'songs', label: `Songs (${tracks.length})` },
-    { id: 'albums', label: `Albums (${albums.length})` },
-    { id: 'artists', label: `Artists (${artists.length})` }
+    { id: 'artists', label: `Artists (${artists.length})` },
+    { id: 'playlists', label: `Playlists (${matchingPlaylists.length})` },
+    { id: 'albums', label: `Albums (${albums.length})` }
   ];
 
   const topTrack = tracks[0];
@@ -449,10 +547,10 @@ export default function SearchResults() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-10"
         >
-          {tracks.length === 0 && albums.length === 0 && artists.length === 0 ? (
+          {tracks.length === 0 && albums.length === 0 && artists.length === 0 && matchingPlaylists.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-white/50">
               <p className="text-lg font-semibold text-white">No results found for "{query}"</p>
-              <p className="text-sm mt-1">Try searching for another song, artist, or movie name.</p>
+              <p className="text-sm mt-1">Try searching for another song, artist, playlist, or album.</p>
             </div>
           ) : (
             <>
@@ -645,6 +743,54 @@ export default function SearchResults() {
                         </div>
                         <h3 className="font-bold text-sm text-white truncate w-full">{artist.name}</h3>
                         <p className="text-xs text-white/45 mt-0.5">{artist.genre || 'Artist'}</p>
+                      </GlassCard>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Playlists Section */}
+              {(activeTab === 'all' || activeTab === 'playlists') && matchingPlaylists.length > 0 && (
+                <section>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold">Playlists</h2>
+                    <span className="text-xs text-white/45">Matching library & curated vibe playlists</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                    {(activeTab === 'all' ? matchingPlaylists.slice(0, 5) : matchingPlaylists).map((pl) => (
+                      <GlassCard
+                        key={pl.id}
+                        padding="sm"
+                        hover
+                        onClick={() => {
+                          if (pl.type === 'library') {
+                            navigate(`/playlist/${pl.id}`);
+                          } else if (pl.query) {
+                            handlePlayMood(pl.id, pl.query);
+                          }
+                        }}
+                        className={`group cursor-pointer ${pl.colorClass || ''}`}
+                      >
+                        <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5 flex items-center justify-center">
+                          {pl.type === 'curated' ? (
+                            <span className="text-5xl drop-shadow group-hover:scale-110 transition-transform">
+                              {pl.emoji || '🎵'}
+                            </span>
+                          ) : (
+                            <img
+                              src={pl.coverUrl}
+                              alt={pl.name}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                              }}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          )}
+                        </div>
+                        <h3 className="font-bold text-sm text-white truncate">{pl.name}</h3>
+                        <p className="text-xs text-white/55 truncate mt-0.5">
+                          {pl.type === 'library' ? `${pl.trackCount} tracks` : pl.subtitle || 'Curated Mix'}
+                        </p>
                       </GlassCard>
                     ))}
                   </div>

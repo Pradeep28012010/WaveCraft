@@ -74,6 +74,22 @@ function useSharedTrackHover(rowId: string): {
   return { isHovered, onMouseEnter, onMouseLeave };
 }
 
+export function evaluateRowDrag(offsetX: number, velocityX: number): 'open' | 'close' {
+  if (offsetX < -45 || velocityX < -280) {
+    return 'open';
+  } else if (offsetX > 30 || velocityX > 200) {
+    return 'close';
+  }
+  return 'close';
+}
+
+export function getPlaylistOptions(playlists?: Array<{ id: string; name: string }>) {
+  if (!playlists || playlists.length === 0) {
+    return [{ id: 'new', label: '+ Create Playlist & Add' }];
+  }
+  return playlists.map((p) => ({ id: p.id, label: p.name }));
+}
+
 interface TrackRowProps {
   track: Track;
   tracks?: Track[];
@@ -141,8 +157,10 @@ const TrackRow = memo(({
   const liked = useLibraryStore((s) =>
     propIsLiked !== undefined ? propIsLiked : Boolean(s.likedIds[track.id])
   );
-  const hasPlaylists = useLibraryStore((s) => s.playlists.length > 0);
   const { trackIsOffline, isSavingOffline, toggleOfflineTrack } = useTrackOfflineStatus(track.id);
+
+  const [isTrayOpen, setIsTrayOpen] = useState(false);
+  const isDraggingRef = useRef(false);
 
   useEffect(() => {
     if (!showPlaylistMenu) return;
@@ -231,32 +249,140 @@ const TrackRow = memo(({
   const activeVisual = isHovered && !isPhone;
 
   return (
-    <div
-      onClick={handleTriggerPlay}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      onContextMenu={(e) => {
-        if (e.shiftKey) return;
-        e.preventDefault();
-        e.stopPropagation();
-        triggerAndroidHaptic('medium');
-        if (onContextMenu) {
-          onContextMenu(e, track);
-        } else {
-          const clientX = e.clientX;
-          const clientY = e.clientY;
-          useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
-        }
-      }}
-      className={`contain-track-row relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 ${
-        isCurrentTrack
-          ? 'bg-white/[0.10] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
-          : 'bg-white/[0.015] border-transparent'
-      }`}
-    >
+    <div className="relative overflow-hidden rounded-2xl group/row select-none">
+      {/* Underlying Quick Action Tray revealed on swipe left */}
+      <div className="absolute inset-y-0 right-0 flex items-center pr-2.5 sm:pr-3 gap-1.5 sm:gap-2 z-0 bg-gradient-to-l from-white/[0.12] via-white/[0.06] to-transparent rounded-2xl">
+        {/* Quick Like */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerAndroidHaptic('light');
+            handleLike(e);
+            setIsTrayOpen(false);
+          }}
+          className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+            liked
+              ? 'bg-[var(--color-accent)] text-white shadow-md'
+              : 'bg-white/10 text-white/80 hover:text-white hover:bg-white/20'
+          }`}
+          title={liked ? 'Unlike' : 'Like'}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        </button>
+
+        {/* Add to Queue */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerAndroidHaptic('light');
+            handleQueue(e);
+            setIsTrayOpen(false);
+          }}
+          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+          title="Add to Queue"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+
+        {/* Add to Playlist */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerAndroidHaptic('light');
+            handleToggleMenu(e);
+            setIsTrayOpen(false);
+          }}
+          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+          title="Add to Playlist"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="19" cy="12" r="1" />
+            <circle cx="5" cy="12" r="1" />
+          </svg>
+        </button>
+
+        {onRemove && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              triggerAndroidHaptic('medium');
+              onRemove(track);
+              setIsTrayOpen(false);
+            }}
+            className="w-9 h-9 rounded-full bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 flex items-center justify-center cursor-pointer transition-colors"
+            title="Remove"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Draggable Row Layer with Elastic Physics */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -148, right: 0 }}
+        dragElastic={{ left: 0.1, right: 0.02 }}
+        animate={{ x: isTrayOpen ? -148 : 0 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+        onDragStart={() => {
+          isDraggingRef.current = true;
+        }}
+        onDragEnd={(_, info) => {
+          setTimeout(() => {
+            isDraggingRef.current = false;
+          }, 60);
+          const action = evaluateRowDrag(info.offset.x, info.velocity.x);
+          if (action === 'open') {
+            setIsTrayOpen(true);
+            triggerAndroidHaptic('light');
+          } else {
+            setIsTrayOpen(false);
+          }
+        }}
+        onClick={() => {
+          if (isDraggingRef.current) return;
+          if (isTrayOpen) {
+            setIsTrayOpen(false);
+            return;
+          }
+          handleTriggerPlay();
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        onContextMenu={(e) => {
+          if (e.shiftKey) return;
+          e.preventDefault();
+          e.stopPropagation();
+          triggerAndroidHaptic('medium');
+          if (onContextMenu) {
+            onContextMenu(e, track);
+          } else {
+            const clientX = e.clientX;
+            const clientY = e.clientY;
+            useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
+          }
+        }}
+        className={`contain-track-row relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none border transition-colors duration-200 z-10 ${
+          isCurrentTrack
+            ? 'bg-white/[0.10] border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
+            : 'bg-[#0a0a10]/95 sm:bg-white/[0.015] border-transparent'
+        }`}
+      >
       {/* Shared 120fps Spring-Gliding Hover Backdrop Pill */}
       {activeVisual && (
         <motion.div
@@ -498,58 +624,61 @@ const TrackRow = memo(({
             </svg>
           </button>
 
-          {hasPlaylists && (
-            <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-              <button
-                ref={menuBtnRef}
-                onClick={handleToggleMenu}
-                title="Add to Playlist"
-                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
-                  activeVisual || showPlaylistMenu
-                    ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
-                    : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="1" />
-                  <circle cx="19" cy="12" r="1" />
-                  <circle cx="5" cy="12" r="1" />
-                </svg>
-              </button>
-              {showPlaylistMenu &&
-                typeof document !== 'undefined' &&
-                createPortal(
-                  <div
-                    ref={menuPopupRef}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      position: 'fixed',
-                      top: menuCoords.top,
-                      left: menuCoords.left,
-                      zIndex: 9999
-                    }}
-                    className="w-48 glass-heavy rounded-2xl p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.9)] border border-white/25"
-                  >
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-white/45 px-2.5 py-1">
-                      Add to Playlist
-                    </div>
-                    {useLibraryStore.getState().playlists.map((pl) => (
-                      <button
-                        key={pl.id}
-                        onClick={() => {
+          <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            <button
+              ref={menuBtnRef}
+              onClick={handleToggleMenu}
+              title="Add to Playlist"
+              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-[opacity,transform,color,background,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+                activeVisual || showPlaylistMenu
+                  ? 'glass-button text-white/75 opacity-100 translate-x-0 hover:text-white'
+                  : 'glass-button text-white/40 opacity-0 translate-x-1 pointer-events-none'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="19" cy="12" r="1" />
+                <circle cx="5" cy="12" r="1" />
+              </svg>
+            </button>
+            {showPlaylistMenu &&
+              typeof document !== 'undefined' &&
+              createPortal(
+                <div
+                  ref={menuPopupRef}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'fixed',
+                    top: menuCoords.top,
+                    left: menuCoords.left,
+                    zIndex: 9999
+                  }}
+                  className="w-48 glass-heavy rounded-2xl p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.9)] border border-white/25"
+                >
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/45 px-2.5 py-1">
+                    Add to Playlist
+                  </div>
+                  {getPlaylistOptions(useLibraryStore.getState().playlists).map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        if (opt.id === 'new') {
+                          const pl = useLibraryStore.getState().createPlaylist('My Playlist');
                           useLibraryStore.getState().addToPlaylist(pl.id, track);
-                          setShowPlaylistMenu(false);
-                        }}
-                        className="w-full text-left px-2.5 py-2 text-xs font-medium text-white/85 hover:text-white hover:bg-white/12 rounded-xl truncate cursor-pointer"
-                      >
-                        {pl.name}
-                      </button>
-                    ))}
-                  </div>,
-                  document.body
-                )}
-            </div>
-          )}
+                        } else {
+                          useLibraryStore.getState().addToPlaylist(opt.id, track);
+                        }
+                        setShowPlaylistMenu(false);
+                      }}
+                      className="w-full text-left px-2.5 py-2 text-xs font-medium text-white/85 hover:text-white hover:bg-white/12 rounded-xl truncate cursor-pointer"
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>,
+                document.body
+              )}
+          </div>
 
         {onRemove && (
           <button
@@ -576,6 +705,7 @@ const TrackRow = memo(({
       <div className="relative z-10 text-xs font-medium text-white/45 w-11 text-right tabular-nums flex-shrink-0">
         {formatDuration(track.duration)}
       </div>
+      </motion.div>
     </div>
   );
 });

@@ -166,6 +166,62 @@ export function setSmoothOutputGain(
   }
 }
 
+export function syncLoudnessNormalization(): void {
+  if (!audioCtx || !masterLimiter) return;
+  const isNorm = useSettingsStore.getState().loudnessNormalization ?? true;
+  const now = audioCtx.currentTime;
+  if (isNorm) {
+    masterLimiter.threshold.setTargetAtTime(-2.0, now, 0.05);
+    masterLimiter.knee.setTargetAtTime(8.0, now, 0.05);
+    masterLimiter.ratio.setTargetAtTime(4.0, now, 0.05);
+    masterLimiter.attack.setTargetAtTime(0.005, now, 0.05);
+    masterLimiter.release.setTargetAtTime(0.12, now, 0.05);
+  } else {
+    masterLimiter.threshold.setTargetAtTime(-0.3, now, 0.05);
+    masterLimiter.knee.setTargetAtTime(10.0, now, 0.05);
+    masterLimiter.ratio.setTargetAtTime(1.5, now, 0.05);
+    masterLimiter.attack.setTargetAtTime(0.012, now, 0.05);
+    masterLimiter.release.setTargetAtTime(0.16, now, 0.05);
+  }
+}
+
+export function crossfadeAudioTransition(
+  audio: HTMLAudioElement | null,
+  durationSec = 2.0
+): Promise<void> {
+  return new Promise((resolve) => {
+    if (!audioCtx || !gainNode) {
+      if (audio) {
+        audio.volume = 0;
+        setTimeout(() => {
+          audio.volume = getTargetOutputGain();
+          resolve();
+        }, Math.min(300, durationSec * 1000));
+      } else {
+        resolve();
+      }
+      return;
+    }
+    const now = audioCtx.currentTime;
+    const dur = Math.max(0.1, durationSec);
+    const targetGain = getTargetOutputGain();
+
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+    gainNode.gain.linearRampToValueAtTime(0.001, now + dur * 0.45);
+
+    setTimeout(() => {
+      if (audioCtx && gainNode) {
+        const nextNow = audioCtx.currentTime;
+        gainNode.gain.cancelScheduledValues(nextNow);
+        gainNode.gain.setValueAtTime(0.001, nextNow);
+        gainNode.gain.linearRampToValueAtTime(targetGain, nextNow + dur * 0.55);
+      }
+      resolve();
+    }, dur * 450);
+  });
+}
+
 /**
  * Generates an audiophile acoustic concert hall impulse response
  * with 22ms pre-delay (transient clarity), discrete geometric early reflections,
@@ -292,11 +348,11 @@ export function initAudioGraph(
       analyserNode.smoothingTimeConstant = 0.78;
 
       masterLimiter = audioCtx.createDynamicsCompressor();
-      masterLimiter.threshold.value = -0.3;
-      masterLimiter.knee.value = 10.0;
-      masterLimiter.ratio.value = 3.5;
-      masterLimiter.attack.value = 0.012;
-      masterLimiter.release.value = 0.16;
+      masterLimiter.threshold.value = -2.0;
+      masterLimiter.knee.value = 8.0;
+      masterLimiter.ratio.value = 4.0;
+      masterLimiter.attack.value = 0.005;
+      masterLimiter.release.value = 0.12;
 
       const orbitFreq = useStudioStore.getState().spatialOrbitSpeed || 0.12;
       sinLfoNode = audioCtx.createOscillator();
@@ -1042,10 +1098,13 @@ export function attachAudioEngineSubscriptions(): void {
       }
     });
 
-    // Reactive subscription to Settings store Equalizer changes
+    // Reactive subscription to Settings store Equalizer and Loudness Normalization changes
     useSettingsStore.subscribe((state, prevState) => {
       if (state.equalizerBands !== prevState.equalizerBands) {
         syncHeadroomAndEQ(state.equalizerBands, useStudioStore.getState().fxMode);
+      }
+      if (state.loudnessNormalization !== prevState.loudnessNormalization) {
+        syncLoudnessNormalization();
       }
     });
 

@@ -7,6 +7,7 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useJamStore } from '../../stores/jamStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { useSearchHistory } from '../../utils/searchHistory';
 
 const formatClock = (sec: number) => {
   const m = Math.floor(sec / 60);
@@ -69,6 +70,7 @@ export default function TopBar() {
   const [searchQuery, setSearchQuery] = useState(urlQuery);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const { history, saveSearchTerm, clearSearchHistory, removeSearchTerm } = useSearchHistory();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestIdRef = useRef(0);
   const lastPushedQueryRef = useRef<string>(urlQuery);
@@ -221,6 +223,7 @@ export default function TopBar() {
       const trimmed = searchQuery.trim();
       lastPushedQueryRef.current = trimmed;
       if (trimmed) {
+        saveSearchTerm(trimmed);
         navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
       } else {
         navigate('/search', { replace: true });
@@ -313,11 +316,11 @@ export default function TopBar() {
                   onKeyDown={handleKeyDown}
                   onFocus={() => {
                     isFocusedRef.current = true;
-                    if (searchQuery.trim().length > 0) setShowSuggestions(true);
+                    setShowSuggestions(true);
                   }}
                   onBlur={() => {
                     isFocusedRef.current = false;
-                    setTimeout(() => setShowSuggestions(false), 180);
+                    setTimeout(() => setShowSuggestions(false), 200);
                   }}
                   autoComplete="off"
                   autoCorrect="off"
@@ -353,7 +356,7 @@ export default function TopBar() {
                     }`}
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 6 0V4a3 3 0 0 0-3-3z" />
                       <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                       <line x1="12" y1="19" x2="12" y2="23" />
                       <line x1="8" y1="23" x2="16" y2="23" />
@@ -362,24 +365,67 @@ export default function TopBar() {
                 </div>
               </div>
 
-              {showSuggestions && searchQuery.trim().length > 0 && suggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-11 glass-heavy rounded-2xl p-1.5 shadow-2xl border border-white/15 z-50">
-                  {suggestions.map((sug, i) => (
-                    <button
-                      key={i}
-                      onMouseDown={() => {
-                        const clean = sug.split(' - ')[0];
-                        lastPushedQueryRef.current = clean;
-                        setSearchQuery(clean);
-                        navigate(`/search?q=${encodeURIComponent(clean)}`);
-                        setShowSuggestions(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs text-white/85 hover:bg-white/10"
-                    >
-                      <span className="truncate">{sug}</span>
-                    </button>
-                  ))}
-                </div>
+              {showSuggestions && (
+                searchQuery.trim().length > 0 && suggestions.length > 0 ? (
+                  <div className="absolute left-0 right-0 top-11 glass-heavy rounded-2xl p-1.5 shadow-2xl border border-white/15 z-50">
+                    {suggestions.map((sug, i) => (
+                      <button
+                        key={i}
+                        onMouseDown={() => {
+                          const clean = sug.split(' - ')[0];
+                          saveSearchTerm(clean);
+                          lastPushedQueryRef.current = clean;
+                          setSearchQuery(clean);
+                          navigate(`/search?q=${encodeURIComponent(clean)}`);
+                          setShowSuggestions(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs text-white/85 hover:bg-white/10"
+                      >
+                        <span className="truncate">{sug}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : !searchQuery.trim() && history.length > 0 ? (
+                  <div className="absolute left-0 right-0 top-11 glass-heavy rounded-2xl p-1.5 shadow-2xl border border-white/15 z-50">
+                    <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-white/45 font-bold border-b border-white/10 mb-1">
+                      <span>RECENT SEARCHES</span>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          clearSearchHistory();
+                        }}
+                        className="text-[var(--color-accent)] hover:underline"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                    {history.slice(0, 5).map((term) => (
+                      <div
+                        key={term}
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-xs text-white/80 hover:bg-white/10 cursor-pointer"
+                        onMouseDown={() => {
+                          lastPushedQueryRef.current = term;
+                          setSearchQuery(term);
+                          navigate(`/search?q=${encodeURIComponent(term)}`);
+                          setShowSuggestions(false);
+                        }}
+                      >
+                        <span className="truncate">{term}</span>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            removeSearchTerm(term);
+                          }}
+                          className="text-white/40 hover:text-white px-1 text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null
               )}
             </div>
           </div>
@@ -513,11 +559,11 @@ export default function TopBar() {
               onKeyDown={handleKeyDown}
               onFocus={() => {
                 isFocusedRef.current = true;
-                if (searchQuery.trim().length > 0) setShowSuggestions(true);
+                setShowSuggestions(true);
               }}
               onBlur={() => {
                 isFocusedRef.current = false;
-                setTimeout(() => setShowSuggestions(false), 180);
+                setTimeout(() => setShowSuggestions(false), 200);
               }}
               autoComplete="off"
               autoCorrect="off"
@@ -569,29 +615,78 @@ export default function TopBar() {
             </div>
           </div>
 
-          {/* Search Suggestions Dropdown */}
-          {showSuggestions && searchQuery.trim().length > 0 && suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-13 glass-heavy rounded-2xl p-2 shadow-2xl border border-white/15 z-50">
-              {suggestions.map((sug, i) => (
-                <button
-                  key={i}
-                  onMouseDown={() => {
-                    const clean = sug.split(' - ')[0];
-                    lastPushedQueryRef.current = clean;
-                    setSearchQuery(clean);
-                    navigate(`/search?q=${encodeURIComponent(clean)}`);
-                    setShowSuggestions(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                >
-                  <svg className="w-3.5 h-3.5 text-white/40 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <span className="truncate">{sug}</span>
-                </button>
-              ))}
-            </div>
+          {/* Search Suggestions & History Dropdown */}
+          {showSuggestions && (
+            searchQuery.trim().length > 0 && suggestions.length > 0 ? (
+              <div className="absolute left-0 right-0 top-13 glass-heavy rounded-2xl p-2 shadow-2xl border border-white/15 z-50">
+                {suggestions.map((sug, i) => (
+                  <button
+                    key={i}
+                    onMouseDown={() => {
+                      const clean = sug.split(' - ')[0];
+                      saveSearchTerm(clean);
+                      lastPushedQueryRef.current = clean;
+                      setSearchQuery(clean);
+                      navigate(`/search?q=${encodeURIComponent(clean)}`);
+                      setShowSuggestions(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-white/40 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <span className="truncate">{sug}</span>
+                  </button>
+                ))}
+              </div>
+            ) : !searchQuery.trim() && history.length > 0 ? (
+              <div className="absolute left-0 right-0 top-13 glass-heavy rounded-2xl p-2 shadow-2xl border border-white/15 z-50">
+                <div className="flex items-center justify-between px-3 py-1.5 text-xs text-white/45 font-bold border-b border-white/10 mb-1">
+                  <span>RECENT SEARCHES</span>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      clearSearchHistory();
+                    }}
+                    className="text-[var(--color-accent)] hover:underline cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                {history.slice(0, 6).map((term) => (
+                  <div
+                    key={term}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    onMouseDown={() => {
+                      lastPushedQueryRef.current = term;
+                      setSearchQuery(term);
+                      navigate(`/search?q=${encodeURIComponent(term)}`);
+                      setShowSuggestions(false);
+                    }}
+                  >
+                    <div className="flex items-center gap-3 truncate">
+                      <svg className="w-3.5 h-3.5 text-white/40 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      <span className="truncate">{term}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        removeSearchTerm(term);
+                      }}
+                      className="text-white/40 hover:text-white px-1 text-sm cursor-pointer"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null
           )}
         </div>
 

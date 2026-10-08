@@ -320,6 +320,7 @@ export default function MiniPlayer() {
             >
               <AnimatePresence mode="wait">
                 <motion.img
+                  layoutId="album-art-hero"
                   key={currentTrack.id}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -454,6 +455,7 @@ export default function MiniPlayer() {
           >
             <AnimatePresence mode="wait">
               <motion.div
+                layoutId="album-art-hero"
                 key={currentTrack.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}

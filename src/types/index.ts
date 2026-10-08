@@ -93,6 +93,9 @@ export interface SettingsState {
   autoplay: boolean;
   showLyrics: boolean;
   language: string;
+  loudnessNormalization: boolean;
+  offlineModeOnly: boolean;
+  performanceProfile: 'ultra' | 'balanced' | 'performance';
 }
 
 export interface SearchResult {

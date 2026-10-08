@@ -200,6 +200,42 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         if (repeatMode === 'all') {
           nextIndex = 0;
         } else {
+          // Infinite queue autoplay recommendation trigger
+          import('../stores/settingsStore')
+            .then(({ useSettingsStore }) => {
+              if (useSettingsStore.getState().autoplay && state.currentTrack) {
+                import('../services/recommendationEngine')
+                  .then(({ getSmartRecommendations }) => {
+                    const track = state.currentTrack;
+                    if (!track) return;
+                    getSmartRecommendations(track, get().queue, 8)
+                      .then((recommended) => {
+                        const currentQ = get().queue;
+                        const existingIds = new Set(currentQ.map((t) => t.id));
+                        const fresh = recommended.filter((t) => !existingIds.has(t.id));
+                        if (fresh.length > 0) {
+                          const newQueue = [...currentQ, ...fresh];
+                          set({
+                            queue: newQueue,
+                            originalQueue: [...get().originalQueue, ...fresh],
+                            currentTrack: fresh[0],
+                            queueIndex: currentQ.length,
+                            progress: 0,
+                            currentTime: 0,
+                            duration: fresh[0].duration || 0,
+                            isPlaying: true,
+                            isLoading: true
+                          });
+                          savePlayerSessionSync(get());
+                        }
+                      })
+                      .catch(() => {});
+                  })
+                  .catch(() => {});
+              }
+            })
+            .catch(() => {});
+
           return { isPlaying: false, progress: 0, currentTime: 0 };
         }
       }

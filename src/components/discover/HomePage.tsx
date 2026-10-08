@@ -8,7 +8,7 @@ import GlassCard from '../ui/GlassCard';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from '../search/GenreBrowser';
 import TrendingSection from './TrendingSection';
-import { MOOD_PLAYLISTS, DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { MOOD_PLAYLISTS, DEFAULT_THUMBNAIL, FEATURED_ARTISTS } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import type { Track, AlbumResult } from '../../types';
 
@@ -166,6 +166,7 @@ export default function HomePage() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
+    if (hour >= 22 || hour < 5) return 'Late Night Vibes';
     if (hour < 12) return 'Good Morning';
     if (hour < 18) return 'Good Afternoon';
     return 'Good Evening';
@@ -396,6 +397,48 @@ export default function HomePage() {
             playTrack(track, allTracks, idx);
           }}
         />
+      )}
+
+      {/* Featured Artists Row */}
+      {(activeFilter === 'all' || activeFilter === 'music') && (
+        <HorizontalScroll title="Featured Artists" subtitle="Top icons and creators defining music today">
+          {FEATURED_ARTISTS.map((artist) => (
+            <div
+              key={artist.id}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                navigate(`/search?q=${encodeURIComponent(artist.name)}`);
+              }}
+              className="min-w-[130px] max-w-[130px] sm:min-w-[155px] sm:max-w-[155px] flex-shrink-0 snap-start flex flex-col items-center text-center group cursor-pointer"
+            >
+              <div className="w-28 h-28 sm:w-34 sm:h-34 rounded-full overflow-hidden mb-2.5 relative bg-white/10 shadow-lg border border-white/15 group-hover:border-[var(--color-accent)] transition-all duration-300">
+                <img
+                  src={artist.avatar}
+                  alt={artist.name}
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                  }}
+                  className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
+                />
+                <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-lg scale-90 group-hover:scale-100 transition-transform">
+                    <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <h4 className="font-bold text-xs sm:text-sm text-white truncate w-full group-hover:text-[var(--color-accent)] transition-colors">
+                {artist.name}
+              </h4>
+              <p className="text-[11px] text-white/50 truncate w-full mt-0.5">
+                {artist.genre || 'Artist'}
+              </p>
+            </div>
+          ))}
+        </HorizontalScroll>
       )}
 
       {/* Mood Playlists (Carousel on 'all', or Immersive 2-column Grid on 'moods') */}

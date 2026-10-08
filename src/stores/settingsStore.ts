@@ -18,6 +18,9 @@ interface SettingsStore extends SettingsState {
   crossfade: number;
   eqPreset: string;
   eqBands: number[];
+  loudnessNormalization: boolean;
+  offlineModeOnly: boolean;
+  performanceProfile: 'ultra' | 'balanced' | 'performance';
   loadFromStorage: () => Promise<void>;
   setTheme: (theme: 'dark' | 'light' | 'auto') => void;
   setAccentColor: (color: string) => void;
@@ -36,6 +39,11 @@ interface SettingsStore extends SettingsState {
   setLanguage: (lang: string) => void;
   setDynamicAmbientGlow: (enabled: boolean) => void;
   setAmbientGlowIntensity: (intensity: 'subtle' | 'vibrant' | 'aurora') => void;
+  setLoudnessNormalization: (enabled: boolean) => void;
+  toggleLoudnessNormalization: () => void;
+  setOfflineModeOnly: (enabled: boolean) => void;
+  toggleOfflineModeOnly: () => void;
+  setPerformanceProfile: (profile: 'ultra' | 'balanced' | 'performance') => void;
   resetSettings: () => void;
 }
 
@@ -52,7 +60,10 @@ const defaultSettings: SettingsState = {
   equalizerBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   autoplay: true,
   showLyrics: false,
-  language: 'en'
+  language: 'en',
+  loudnessNormalization: true,
+  offlineModeOnly: false,
+  performanceProfile: 'ultra'
 };
 
 /**
@@ -75,7 +86,10 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
     showLyrics: state.showLyrics,
     language: state.language,
     dynamicAmbientGlow: state.dynamicAmbientGlow ?? true,
-    ambientGlowIntensity: state.ambientGlowIntensity ?? 'vibrant'
+    ambientGlowIntensity: state.ambientGlowIntensity ?? 'vibrant',
+    loudnessNormalization: state.loudnessNormalization ?? true,
+    offlineModeOnly: state.offlineModeOnly ?? false,
+    performanceProfile: state.performanceProfile ?? 'ultra'
   };
 }
 
@@ -257,13 +271,41 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     persistSettings(get());
   },
 
+  setLoudnessNormalization: (enabled: boolean) => {
+    set({ loudnessNormalization: enabled });
+    persistSettings(get());
+  },
+
+  toggleLoudnessNormalization: () => {
+    set((state) => ({ loudnessNormalization: !state.loudnessNormalization }));
+    persistSettings(get());
+  },
+
+  setOfflineModeOnly: (enabled: boolean) => {
+    set({ offlineModeOnly: enabled });
+    persistSettings(get());
+  },
+
+  toggleOfflineModeOnly: () => {
+    set((state) => ({ offlineModeOnly: !state.offlineModeOnly }));
+    persistSettings(get());
+  },
+
+  setPerformanceProfile: (profile: 'ultra' | 'balanced' | 'performance') => {
+    set({ performanceProfile: profile });
+    persistSettings(get());
+  },
+
   resetSettings: () => {
     document.documentElement.style.setProperty('--color-accent', defaultSettings.accentColor);
     set({
       ...defaultSettings,
       crossfade: 0,
       eqPreset: 'Flat',
-      eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      loudnessNormalization: true,
+      offlineModeOnly: false,
+      performanceProfile: 'ultra'
     });
     persistSettings(defaultSettings);
   }

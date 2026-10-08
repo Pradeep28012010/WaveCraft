@@ -45,10 +45,27 @@ export const KEYBOARD_SHORTCUTS: Record<string, string> = {
 
 export const EQ_PRESETS: Record<string, number[]> = {
   'Flat': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  'Bass Boost': [7, 6, 5, 3, 1, 0, 0, 0, 1, 2],
-  'Treble Boost': [0, 0, 0, 0, 1, 2, 4, 6, 7, 8],
-  'Vocal': [-2, -3, -2, 1, 4, 5, 4, 2, 0, -1],
-  'Rock': [5, 4, 3, 1, -1, -1, 2, 4, 5, 6],
+  'Acoustic': [2, 3, 2, 0, 1, 2, 3, 4, 3, 2],
+  'Bass Booster': [8, 7, 5, 3, 1, 0, 0, 0, 1, 2],
+  'Bass Boost': [8, 7, 5, 3, 1, 0, 0, 0, 1, 2],
   'Electronic': [6, 5, 2, 0, -2, 2, 1, 3, 5, 6],
+  'Hip-Hop': [7, 6, 3, 0, -1, 1, 2, 2, 4, 5],
+  'Classical': [4, 3, 2, 2, -1, -1, 0, 2, 3, 4],
+  'Vocal Booster': [-2, -3, -1, 2, 5, 6, 4, 2, 0, -1],
+  'Vocal': [-2, -3, -1, 2, 5, 6, 4, 2, 0, -1],
+  'Rock': [5, 4, 3, 1, -1, -1, 2, 4, 5, 6],
+  'Treble Boost': [0, 0, 0, 0, 1, 2, 4, 6, 7, 8],
   'Late Night': [4, 3, 1, 0, -2, -1, 1, 2, 3, 4],
 };
+
+export const FEATURED_ARTISTS = [
+  { id: 'the-weeknd', name: 'The Weeknd', genre: 'R&B / Synth-Pop', avatar: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=80', query: 'The Weeknd top hits' },
+  { id: 'taylor-swift', name: 'Taylor Swift', genre: 'Pop / Acoustic', avatar: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80', query: 'Taylor Swift top tracks' },
+  { id: 'drake', name: 'Drake', genre: 'Hip-Hop / Rap', avatar: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=300&auto=format&fit=crop&q=80', query: 'Drake top hits' },
+  { id: 'billie-eilish', name: 'Billie Eilish', genre: 'Alt-Pop / Electronic', avatar: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&auto=format&fit=crop&q=80', query: 'Billie Eilish hits' },
+  { id: 'dua-lipa', name: 'Dua Lipa', genre: 'Dance-Pop / Disco', avatar: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&auto=format&fit=crop&q=80', query: 'Dua Lipa hits' },
+  { id: 'post-malone', name: 'Post Malone', genre: 'Hip-Hop / Indie', avatar: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300&auto=format&fit=crop&q=80', query: 'Post Malone top songs' },
+  { id: 'ed-sheeran', name: 'Ed Sheeran', genre: 'Acoustic / Pop', avatar: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=300&auto=format&fit=crop&q=80', query: 'Ed Sheeran greatest hits' },
+  { id: 'ariana-grande', name: 'Ariana Grande', genre: 'Pop / R&B', avatar: 'https://images.unsplash.com/photo-1520523839898-507121c172a7?w=300&auto=format&fit=crop&q=80', query: 'Ariana Grande hits' }
+];
+
