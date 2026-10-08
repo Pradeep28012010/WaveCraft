@@ -1,3 +1,5 @@
+import type { Track } from '../types';
+
 export const INVIDIOUS_INSTANCES = [
   'https://inv.nadeko.net',
   'https://invidious.nerdvpn.de',
@@ -67,5 +69,96 @@ export const FEATURED_ARTISTS = [
   { id: 'post-malone', name: 'Post Malone', genre: 'Hip-Hop / Indie', avatar: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300&auto=format&fit=crop&q=80', query: 'Post Malone top songs' },
   { id: 'ed-sheeran', name: 'Ed Sheeran', genre: 'Acoustic / Pop', avatar: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=300&auto=format&fit=crop&q=80', query: 'Ed Sheeran greatest hits' },
   { id: 'ariana-grande', name: 'Ariana Grande', genre: 'Pop / R&B', avatar: 'https://images.unsplash.com/photo-1520523839898-507121c172a7?w=300&auto=format&fit=crop&q=80', query: 'Ariana Grande hits' }
+];
+
+export const FALLBACK_TRENDING_TRACKS: Track[] = [
+  {
+    id: 'yt_fHI8X4GhW61',
+    youtubeId: 'fHI8X4GhW61',
+    title: 'Blinding Lights',
+    artist: 'The Weeknd',
+    album: 'After Hours',
+    duration: 200,
+    thumbnail: 'https://i.ytimg.com/vi/fHI8X4GhW61/hqdefault.jpg',
+    thumbnailLarge: 'https://i.ytimg.com/vi/fHI8X4GhW61/maxresdefault.jpg',
+    quality: 'Studio Stream'
+  },
+  {
+    id: 'yt_JGwWNGJdvx8',
+    youtubeId: 'JGwWNGJdvx8',
+    title: 'Shape of You',
+    artist: 'Ed Sheeran',
+    album: '÷ (Divide)',
+    duration: 233,
+    thumbnail: 'https://i.ytimg.com/vi/JGwWNGJdvx8/hqdefault.jpg',
+    thumbnailLarge: 'https://i.ytimg.com/vi/JGwWNGJdvx8/maxresdefault.jpg',
+    quality: 'Studio Stream'
+  },
+  {
+    id: 'yt_4NRXx6U8ABQ',
+    youtubeId: '4NRXx6U8ABQ',
+    title: 'Starboy',
+    artist: 'The Weeknd ft. Daft Punk',
+    album: 'Starboy',
+    duration: 230,
+    thumbnail: 'https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg',
+    thumbnailLarge: 'https://i.ytimg.com/vi/4NRXx6U8ABQ/maxresdefault.jpg',
+    quality: 'Studio Stream'
+  },
+  {
+    id: 'yt_TUVcZfQe-Kw',
+    youtubeId: 'TUVcZfQe-Kw',
+    title: 'Levitating',
+    artist: 'Dua Lipa',
+    album: 'Future Nostalgia',
+    duration: 203,
+    thumbnail: 'https://i.ytimg.com/vi/TUVcZfQe-Kw/hqdefault.jpg',
+    thumbnailLarge: 'https://i.ytimg.com/vi/TUVcZfQe-Kw/maxresdefault.jpg',
+    quality: 'Studio Stream'
+  },
+  {
+    id: 'yt_kJQP7kiw5Fk',
+    youtubeId: 'kJQP7kiw5Fk',
+    title: 'Despacito',
+    artist: 'Luis Fonsi ft. Daddy Yankee',
+    album: 'VIDA',
+    duration: 228,
+    thumbnail: 'https://i.ytimg.com/vi/kJQP7kiw5Fk/hqdefault.jpg',
+    thumbnailLarge: 'https://i.ytimg.com/vi/kJQP7kiw5Fk/maxresdefault.jpg',
+    quality: 'Studio Stream'
+  },
+  {
+    id: 'yt_LHCob76kigA',
+    youtubeId: 'LHCob76kigA',
+    title: 'Espresso',
+    artist: 'Sabrina Carpenter',
+    album: "Short n' Sweet",
+    duration: 175,
+    thumbnail: 'https://i.ytimg.com/vi/LHCob76kigA/hqdefault.jpg',
+    thumbnailLarge: 'https://i.ytimg.com/vi/LHCob76kigA/maxresdefault.jpg',
+    quality: 'Studio Stream'
+  },
+  {
+    id: 'yt_b1kbLwvqugk',
+    youtubeId: 'b1kbLwvqugk',
+    title: 'BIRDS OF A FEATHER',
+    artist: 'Billie Eilish',
+    album: 'HIT ME HARD AND SOFT',
+    duration: 194,
+    thumbnail: 'https://i.ytimg.com/vi/b1kbLwvqugk/hqdefault.jpg',
+    thumbnailLarge: 'https://i.ytimg.com/vi/b1kbLwvqugk/maxresdefault.jpg',
+    quality: 'Studio Stream'
+  },
+  {
+    id: 'yt_OPf0YbXqDm0',
+    youtubeId: 'OPf0YbXqDm0',
+    title: 'Uptown Funk',
+    artist: 'Mark Ronson ft. Bruno Mars',
+    album: 'Uptown Special',
+    duration: 270,
+    thumbnail: 'https://i.ytimg.com/vi/OPf0YbXqDm0/hqdefault.jpg',
+    thumbnailLarge: 'https://i.ytimg.com/vi/OPf0YbXqDm0/maxresdefault.jpg',
+    quality: 'Studio Stream'
+  }
 ];
 

@@ -298,7 +298,6 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
 
   const currentTrackDuration = usePlayerStore((s) => s.currentTrack?.duration);
   const duration = usePlayerStore((s) => s.duration);
-  const isPlaying = usePlayerStore((s) => s.isPlaying);
   const seekTo = usePlayerStore((s) => s.seekTo);
 
   const activeDuration = duration || currentTrackDuration || 210;
@@ -519,94 +518,34 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
 
   return (
     <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
-      {/* Sleek Single-Row Spatial Studio Toolbar */}
+      {/* Clean Lyrics Header */}
       <div className="h-14 px-5 flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.025] backdrop-blur-xl flex-shrink-0 z-20">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
-            <span
-              className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-75 ${
-                !isPlaying ? 'hidden' : ''
-              }`}
-            />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
-          </span>
-          <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-white/90 truncate">
-            WaveSync
-          </span>
-          <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-white/[0.07] border border-white/10 text-[10px] font-bold uppercase tracking-wider text-white/55">
-            {result?.synced ? '120Hz Live' : 'Auto-Flow'}
-          </span>
+          <h3 className="text-sm font-extrabold text-white tracking-wide">
+            Lyrics
+          </h3>
         </div>
 
-        {/* Unified Segmented Glass Control Dock */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* 1. Lyrics Sync Timing Calibration Button */}
-          <button
-            type="button"
-            onClick={() => setShowSyncDrawer((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              showSyncDrawer || userOffset !== 0
-                ? 'glass-button-primary text-white shadow-[0_0_14px_rgba(255,255,255,0.2)]'
-                : 'glass-button text-white/80 hover:text-white'
-            }`}
-            title="Fine-tune lyrics synchronization timing & switch lyric cuts"
-          >
-            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            <span>
-              {userOffset !== 0
-                ? `${userOffset > 0 ? '+' : ''}${userOffset.toFixed(1)}s`
-                : 'Sync'}
-            </span>
-            {userOffset !== 0 && (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-            )}
-          </button>
-
-          {/* 2. Manual Lyrics Search / Plain Lyrics Button */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
             type="button"
             onClick={() => {
               setShowSearchDrawer((prev) => !prev);
               setShowSyncDrawer(false);
             }}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
               showSearchDrawer
-                ? 'glass-button-primary text-white shadow-[0_0_14px_rgba(255,255,255,0.2)]'
-                : 'glass-button text-white/80 hover:text-white'
+                ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(255,255,255,0.2)]'
+                : 'glass-button text-white/70 hover:text-white'
             }`}
-            title="Search lyrics by song title or paste plain lyrics"
+            title="Search lyrics or paste plain lyrics"
+            aria-label="Search lyrics"
           >
-            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            <span>Search</span>
           </button>
-
-          {/* Lyric Story Poster Studio */}
-          {onShareLyric && (
-            <button
-              type="button"
-              onClick={() => {
-                const curIdx = activeIndex >= 0 ? activeIndex : 0;
-                const l1 = lines[curIdx]?.text || '';
-                const l2 = lines[curIdx + 1]?.text || '';
-                onShareLyric(l2 ? `${l1}\n${l2}` : l1);
-              }}
-              className="px-3 py-1.5 rounded-full glass-button text-[11px] font-bold tracking-wide text-white/80 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
-              title="Export 1080×1920 Social Story Poster of current lyrics"
-            >
-              <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="3" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-              <span className="hidden sm:inline">Story Card</span>
-            </button>
-          )}
         </div>
       </div>
 

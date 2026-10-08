@@ -1,5 +1,5 @@
 import { BrowserRouter, HashRouter, Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
-import { Component, Suspense, useEffect, useRef, lazy, type ReactNode, type ErrorInfo } from 'react';
+import { Component, Suspense, useEffect, useRef, lazy, type ReactNode, type ErrorInfo, type ComponentType } from 'react';
 import { MotionConfig } from 'framer-motion';
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './components/discover/HomePage';
@@ -54,19 +54,44 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
   }
 }
 
-const SearchResults = lazy(() => import('./components/search/SearchResults'));
-const LibraryPage = lazy(() => import('./components/library/LibraryPage'));
-const LikedSongs = lazy(() => import('./components/library/LikedSongs'));
-const RecentlyPlayed = lazy(() => import('./components/library/RecentlyPlayed'));
-const PlaylistView = lazy(() => import('./components/library/PlaylistView'));
-const StatsPage = lazy(() => import('./components/stats/StatsPage'));
-const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
-const VibeDJPage = lazy(() => import('./components/vibe/VibeDJPage'));
-const JamRoomPage = lazy(() => import('./components/jam/JamRoomPage'));
-const DJConsolePage = lazy(() => import('./components/dj/DJConsolePage'));
-const SonicGalaxyPage = lazy(() => import('./components/galaxy/SonicGalaxyPage'));
-const LandingPage = lazy(() => import('./components/landing/LandingPage'));
-const DownloadsPage = lazy(() => import('./components/library/DownloadsPage'));
+function lazyWithRetry<T extends ComponentType<any>>(
+  componentImport: () => Promise<{ default: T }>
+) {
+  return lazy(async () => {
+    const pageHasAlreadyBeenForceRefreshed = JSON.parse(
+      window.sessionStorage.getItem('wavecraft_chunk_retry_refreshed') || 'false'
+    );
+
+    try {
+      const component = await componentImport();
+      window.sessionStorage.setItem('wavecraft_chunk_retry_refreshed', 'false');
+      return component;
+    } catch (error) {
+      console.warn('Chunk loading failed, attempting resilient retry/recovery:', error);
+      if (!pageHasAlreadyBeenForceRefreshed) {
+        // Dynamic import failed (chunk hash mismatch after deployment or network drop)
+        window.sessionStorage.setItem('wavecraft_chunk_retry_refreshed', 'true');
+        window.location.reload();
+        return { default: (() => null) as unknown as T };
+      }
+      throw error;
+    }
+  });
+}
+
+const SearchResults = lazyWithRetry(() => import('./components/search/SearchResults'));
+const LibraryPage = lazyWithRetry(() => import('./components/library/LibraryPage'));
+const LikedSongs = lazyWithRetry(() => import('./components/library/LikedSongs'));
+const RecentlyPlayed = lazyWithRetry(() => import('./components/library/RecentlyPlayed'));
+const PlaylistView = lazyWithRetry(() => import('./components/library/PlaylistView'));
+const StatsPage = lazyWithRetry(() => import('./components/stats/StatsPage'));
+const SettingsPage = lazyWithRetry(() => import('./components/settings/SettingsPage'));
+const VibeDJPage = lazyWithRetry(() => import('./components/vibe/VibeDJPage'));
+const JamRoomPage = lazyWithRetry(() => import('./components/jam/JamRoomPage'));
+const DJConsolePage = lazyWithRetry(() => import('./components/dj/DJConsolePage'));
+const SonicGalaxyPage = lazyWithRetry(() => import('./components/galaxy/SonicGalaxyPage'));
+const LandingPage = lazyWithRetry(() => import('./components/landing/LandingPage'));
+const DownloadsPage = lazyWithRetry(() => import('./components/library/DownloadsPage'));
 
 const isElectronOrFile =
   typeof window !== 'undefined' &&

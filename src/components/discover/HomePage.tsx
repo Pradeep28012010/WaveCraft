@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { getTrending, getCachedTrending, searchTracks } from '../../services/youtube';
-import { getNewReleases, getCachedNewReleases, getAlbumTracks } from '../../services/itunes';
+import { getNewReleases, getCachedNewReleases, getAlbumTracks, FALLBACK_NEW_RELEASES } from '../../services/itunes';
 import GlassCard from '../ui/GlassCard';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from '../search/GenreBrowser';
 import TrendingSection from './TrendingSection';
-import { MOOD_PLAYLISTS, DEFAULT_THUMBNAIL, FEATURED_ARTISTS } from '../../utils/constants';
+import { MOOD_PLAYLISTS, DEFAULT_THUMBNAIL, FEATURED_ARTISTS, FALLBACK_TRENDING_TRACKS } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import type { Track, AlbumResult } from '../../types';
 
@@ -83,8 +83,14 @@ export default function HomePage() {
   const likedSongs = useLibraryStore((state) => state.likedSongs);
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'music' | 'albums' | 'moods'>('all');
-  const [trendingTracks, setTrendingTracks] = useState<Track[]>(() => getCachedTrending() || []);
-  const [newReleases, setNewReleases] = useState<AlbumResult[]>(() => getCachedNewReleases() || []);
+  const [trendingTracks, setTrendingTracks] = useState<Track[]>(() => {
+    const cached = getCachedTrending();
+    return cached && cached.length > 0 ? cached : FALLBACK_TRENDING_TRACKS;
+  });
+  const [newReleases, setNewReleases] = useState<AlbumResult[]>(() => {
+    const cached = getCachedNewReleases();
+    return cached && cached.length > 0 ? cached : FALLBACK_NEW_RELEASES;
+  });
   const [isTrendingLoading, setIsTrendingLoading] = useState<boolean>(() => !getCachedTrending());
   const [isReleasesLoading, setIsReleasesLoading] = useState<boolean>(() => !getCachedNewReleases());
   const [activeTrendingCategory, setActiveTrendingCategory] = useState<string>('global');
@@ -132,13 +138,18 @@ export default function HomePage() {
         if (isMounted) {
           if (trending && trending.length > 0) {
             setTrendingTracks(trending);
+          } else {
+            setTrendingTracks((prev) => (prev.length > 0 ? prev : FALLBACK_TRENDING_TRACKS));
           }
           setIsTrendingLoading(false);
         }
       })
       .catch((err) => {
         console.warn('Trending fetch error:', err);
-        if (isMounted) setIsTrendingLoading(false);
+        if (isMounted) {
+          setTrendingTracks((prev) => (prev.length > 0 ? prev : FALLBACK_TRENDING_TRACKS));
+          setIsTrendingLoading(false);
+        }
       });
 
     if (!getCachedNewReleases()) {
@@ -150,13 +161,18 @@ export default function HomePage() {
         if (isMounted) {
           if (releases && releases.length > 0) {
             setNewReleases(releases);
+          } else {
+            setNewReleases((prev) => (prev.length > 0 ? prev : FALLBACK_NEW_RELEASES));
           }
           setIsReleasesLoading(false);
         }
       })
       .catch((err) => {
         console.warn('New releases fetch error:', err);
-        if (isMounted) setIsReleasesLoading(false);
+        if (isMounted) {
+          setNewReleases((prev) => (prev.length > 0 ? prev : FALLBACK_NEW_RELEASES));
+          setIsReleasesLoading(false);
+        }
       });
 
     return () => {

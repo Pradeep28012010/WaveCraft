@@ -114,7 +114,7 @@ export default function TrendingSection({
         ref={scrollRef}
         className="flex gap-5 overflow-x-auto no-scrollbar pt-2 pb-6 px-1"
       >
-        {isLoading
+        {isLoading && tracks.length === 0
           ? Array(8)
               .fill(0)
               .map((_, i) => (

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useRef, memo } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -247,6 +247,19 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const [zenMode, setZenMode] = useState(false);
   const [showWaveCard, setShowWaveCard] = useState(false);
   const [waveCardQuote, setWaveCardQuote] = useState<string>('');
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showToolsMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node)) {
+        setShowToolsMenu(false);
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => window.removeEventListener('mousedown', handleClickOutside);
+  }, [showToolsMenu]);
 
   const setDeckMode = (mode: 'cover' | 'vinyl') => {
     setDeckModeState(mode);
@@ -520,28 +533,25 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
 
-                <div className="flex flex-col items-center app-region-no-drag">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[11px] font-bold tracking-[0.18em] text-white/60 uppercase">
-                      {currentTrack.quality || '320kbps Studio AAC'}
-                    </span>
-                  </div>
+                <div className="flex flex-col items-center text-center app-region-no-drag pointer-events-none">
+                  <span className="text-[11px] font-bold tracking-[0.2em] text-white/50 uppercase">
+                    Now Playing
+                  </span>
                   {nextUpTrack && (
-                    <span className="text-[11px] text-white/45 truncate max-w-xs mt-0.5">
-                      Up Next: <strong className="text-white/75">{nextUpTrack.title}</strong>
+                    <span className="text-[11px] text-white/40 truncate max-w-xs mt-0.5">
+                      Up Next: <span className="text-white/75 font-medium">{nextUpTrack.title}</span>
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 app-region-no-drag">
-                  {/* Studio Audio FX & Ambient Mixer Button */}
+                <div className="flex items-center gap-2 app-region-no-drag relative" ref={toolsMenuRef}>
+                  {/* Studio Audio FX Button (prominent) */}
                   <button
                     onClick={() => setStudioModalOpen(true)}
-                    className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all app-region-no-drag ${
+                    className={`px-4 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all app-region-no-drag ${
                       fxMode !== 'normal'
-                        ? 'glass-button-primary text-white'
-                        : 'glass-button text-white/85 hover:text-white'
+                        ? 'glass-button-primary text-white shadow-[0_0_16px_rgba(250,45,72,0.35)]'
+                        : 'glass-button text-white/90 hover:text-white'
                     }`}
                     title="Open Studio Audio FX & Ambient Mixer"
                   >
@@ -563,124 +573,189 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </span>
                   </button>
 
-                  {/* Share WaveCard Button */}
+                  {/* Single Sleek ••• Tools Menu Button */}
                   <button
-                    onClick={() => {
-                      setWaveCardQuote('');
-                      setShowWaveCard(true);
-                    }}
-                    className="px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white flex items-center gap-1.5 cursor-pointer transition-all app-region-no-drag"
-                    title="Generate Shareable Poster"
-                  >
-                    <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <rect x="3" y="3" width="18" height="18" rx="3" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                    <span>Poster</span>
-                  </button>
-
-                  {/* Background Visualizer Style Switcher */}
-                  <button
-                    onClick={() => {
-                      if (!showVisualizer) {
-                        setShowVisualizer(true);
-                        return;
-                      }
-                      const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
-                      const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
-                      if (next) setVisualizerStyle(next.id);
-                    }}
-                    className="hidden md:flex px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white items-center gap-1.5 cursor-pointer transition-all app-region-no-drag"
-                    title="Cycle Player Background Visualizer"
-                  >
-                    <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                      <path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 9v6M22 12h-2" />
-                    </svg>
-                    <span>
-                      {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula'}
-                    </span>
-                  </button>
-
-                  {/* 3D Zen Mode Toggle */}
-                  <button
-                    onClick={() => {
-                      const nextZen = !zenMode;
-                      setZenMode(nextZen);
-                      if (nextZen) setShowVisualizer(true);
-                    }}
-                    className={`px-3.5 h-9 rounded-full text-xs font-bold transition-all cursor-pointer app-region-no-drag ${
-                      zenMode
+                    onClick={() => setShowToolsMenu((prev) => !prev)}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer app-region-no-drag ${
+                      showToolsMenu
                         ? 'glass-button-primary text-white'
-                        : 'glass-button text-white/85 hover:text-white'
+                        : 'glass-button text-white/80 hover:text-white'
                     }`}
-                    title="Toggle Fullscreen 3D Visualizer Zen Mode"
+                    title="Tools & Playback Options"
+                    aria-label="Tools menu"
                   >
-                    {zenMode ? 'Exit Zen' : '3D Zen'}
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
                   </button>
 
-                  {/* Audio Quality Stream Preset */}
-                  <button
-                    onClick={() => {
-                      const qualities: Array<'auto' | 'high' | 'medium' | 'low'> = ['auto', 'high', 'medium', 'low'];
-                      const nextQ = qualities[(qualities.indexOf(audioQuality) + 1) % qualities.length] || 'auto';
-                      setAudioQuality(nextQ);
-                    }}
-                    className="px-3 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer transition-all uppercase tracking-wider tabular-nums app-region-no-drag"
-                    title="Audio Quality Stream Selector"
-                  >
-                    {audioQuality === 'auto' ? 'HD' : audioQuality === 'high' ? '320k' : audioQuality === 'medium' ? '192k' : '128k'}
-                  </button>
+                  {/* Frosted-glass ••• Tools Menu Popover */}
+                  <AnimatePresence>
+                    {showToolsMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="absolute right-0 top-12 w-64 rounded-2xl bg-black/80 backdrop-blur-2xl border border-white/15 p-2 shadow-2xl z-50 space-y-1 text-xs"
+                      >
+                        {/* 1. Generate Poster */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setWaveCardQuote('');
+                            setShowWaveCard(true);
+                            setShowToolsMenu(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <svg className="w-4 h-4 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="3" width="18" height="18" rx="3" />
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            <span className="font-medium">Generate Poster</span>
+                          </div>
+                          <span className="text-[10px] text-white/45">Story</span>
+                        </button>
 
-                  {/* Pitch Shift / Lock Toggle */}
-                  <button
-                    onClick={() => setPreservePitch(!preservePitch)}
-                    className={`px-3 h-9 rounded-full text-xs font-bold transition-all cursor-pointer app-region-no-drag ${
-                      preservePitch
-                        ? 'glass-button text-white/85 hover:text-white'
-                        : 'glass-button-primary text-amber-300 border-amber-400/40'
-                    }`}
-                    title={preservePitch ? "Pitch Locked (Time-stretch)" : "Tape Pitch Shift Active"}
-                  >
-                    {preservePitch ? "🔒 Pitch" : "🎵 Shift"}
-                  </button>
+                        {/* 2. Visualizer Mode */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!showVisualizer) {
+                              setShowVisualizer(true);
+                              return;
+                            }
+                            const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
+                            const next = VISUALIZER_MODES[(idx + 1) % VISUALIZER_MODES.length];
+                            if (next) setVisualizerStyle(next.id);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 9v6M22 12h-2" />
+                            </svg>
+                            <span className="font-medium">Visualizer Mode</span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-white/80">
+                            {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula'}
+                          </span>
+                        </button>
 
-                  {/* Sleep Timer Quick Cycle */}
-                  <button
-                    onClick={() => {
-                      if (!sleepActive) {
-                        startSleepTimer(30);
-                      } else if (sleepRemaining > 15 * 60) {
-                        startSleepTimer(15);
-                      } else if (!sleepEndAtTrack) {
-                        setEndAtTrack(true);
-                      } else {
-                        stopSleepTimer();
-                      }
-                    }}
-                    className={`px-3 h-9 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 app-region-no-drag ${
-                      sleepActive
-                        ? 'bg-purple-600/30 border border-purple-400/40 text-purple-200'
-                        : 'glass-button text-white/85 hover:text-white'
-                    }`}
-                    title={sleepActive ? `Sleep timer active (${sleepEndAtTrack ? 'End of song' : Math.ceil(sleepRemaining / 60) + 'm'}) - click to cycle` : "Start Sleep Timer"}
-                  >
-                    <span>🌙</span>
-                    <span>{sleepActive ? (sleepEndAtTrack ? 'End' : `${Math.ceil(sleepRemaining / 60)}m`) : 'Timer'}</span>
-                  </button>
+                        {/* 3. 3D Zen Mode */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextZen = !zenMode;
+                            setZenMode(nextZen);
+                            if (nextZen) setShowVisualizer(true);
+                            setShowToolsMenu(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm">🧘</span>
+                            <span className="font-medium">3D Zen Mode</span>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            zenMode ? 'bg-[var(--color-accent)] text-white' : 'bg-white/10 text-white/60'
+                          }`}>
+                            {zenMode ? 'Active' : 'Off'}
+                          </span>
+                        </button>
 
-                  {/* Playback Speed Presets */}
-                  <button
-                    onClick={() => {
-                      const speeds = [0.75, 1, 1.25, 1.5];
-                      const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
-                      setPlaybackSpeed(next);
-                    }}
-                    className="px-3 h-9 rounded-full glass-button text-xs font-bold text-white/85 hover:text-white cursor-pointer transition-all tabular-nums app-region-no-drag"
-                    title="Playback Speed Preset"
-                  >
-                    {playbackSpeed}x
-                  </button>
+                        {/* 4. Sleep Timer */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!sleepActive) {
+                              startSleepTimer(30);
+                            } else if (sleepRemaining > 15 * 60) {
+                              startSleepTimer(15);
+                            } else if (!sleepEndAtTrack) {
+                              setEndAtTrack(true);
+                            } else {
+                              stopSleepTimer();
+                            }
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm">🌙</span>
+                            <span className="font-medium">Sleep Timer</span>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            sleepActive ? 'bg-purple-600/30 text-purple-200 border border-purple-400/30' : 'bg-white/10 text-white/60'
+                          }`}>
+                            {sleepActive ? (sleepEndAtTrack ? 'End of Song' : `${Math.ceil(sleepRemaining / 60)}m`) : 'Off'}
+                          </span>
+                        </button>
+
+                        {/* 5. Audio Quality */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const qualities: Array<'auto' | 'high' | 'medium' | 'low'> = ['auto', 'high', 'medium', 'low'];
+                            const nextQ = qualities[(qualities.indexOf(audioQuality) + 1) % qualities.length] || 'auto';
+                            setAudioQuality(nextQ);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            </svg>
+                            <span className="font-medium">Audio Quality</span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-white/80 uppercase">
+                            {audioQuality === 'auto' ? 'HD (Auto)' : audioQuality === 'high' ? '320k AAC' : audioQuality === 'medium' ? '192k' : '128k'}
+                          </span>
+                        </button>
+
+                        {/* 6. Pitch Lock / Shift */}
+                        <button
+                          type="button"
+                          onClick={() => setPreservePitch(!preservePitch)}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm">{preservePitch ? '🔒' : '🎵'}</span>
+                            <span className="font-medium">Pitch Control</span>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            preservePitch ? 'bg-white/10 text-white/70' : 'bg-amber-500/25 text-amber-300 border border-amber-400/30'
+                          }`}>
+                            {preservePitch ? 'Pitch Locked' : 'Tape Shift'}
+                          </span>
+                        </button>
+
+                        {/* 7. Playback Speed */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const speeds = [0.75, 1, 1.25, 1.5];
+                            const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1;
+                            setPlaybackSpeed(next);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm">⚡</span>
+                            <span className="font-medium">Playback Speed</span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-white/80">
+                            {playbackSpeed}x
+                          </span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </>
             )}
@@ -938,8 +1013,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           {currentTrack.title}
                         </h2>
                         {trackIsOffline && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 whitespace-nowrap flex-shrink-0">
-                            ⚡ OFFLINE
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-400/20 whitespace-nowrap flex-shrink-0">
+                            Offline
                           </span>
                         )}
                       </div>
@@ -947,25 +1022,19 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         {currentTrack.artist}
                       </p>
 
-                      {/* Interactive AI DJ Insights Badge */}
-                      <div className="mt-2 flex items-center flex-wrap gap-2">
+                      {/* Interactive AI DJ Insights Mood Tag */}
+                      <div className="mt-2 flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => {
                             triggerAndroidHaptic('light');
                             setShowAiInsightsDetail((prev) => !prev);
                           }}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-[11px] font-semibold text-white/90 backdrop-blur-md transition-all cursor-pointer group shadow-sm active:scale-95"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 text-[11px] font-medium text-white/80 backdrop-blur-md transition-all cursor-pointer shadow-sm active:scale-95"
                           title="AI DJ Insights • Click to inspect acoustic metadata"
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
-                          <span className="font-extrabold text-[var(--color-accent)]">✨ AI DJ</span>
-                          <span className="text-white/40">•</span>
-                          <span className="font-bold text-white/95">{trackAcoustics.vibeTag}</span>
-                          <span className="text-white/40">•</span>
-                          <span className="tabular-nums font-mono text-white/80">{trackAcoustics.bpm} BPM</span>
-                          <span className="text-white/40">•</span>
-                          <span className="text-amber-300 font-bold">⚡ {trackAcoustics.energy}/10</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]" />
+                          <span className="text-white/90 font-medium">{trackAcoustics.vibeTag}</span>
                         </button>
                       </div>
 
