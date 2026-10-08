@@ -187,7 +187,11 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
 
     try {
       onProgress?.('Checking original source playlist for live updates...', 10);
-      let data: any = null;
+      let data: {
+        error?: string;
+        queries?: Array<{ title: string; artist?: string; videoId?: string }>;
+        coverUrl?: string;
+      } | null = null;
 
       try {
         const res = await fetch(

@@ -83,6 +83,14 @@ export function useMediaSession() {
         // Ignore unsupported actions on older browsers
       }
     }
+
+    return () => {
+      for (const [action] of actions) {
+        try {
+          navigator.mediaSession.setActionHandler(action, null);
+        } catch {}
+      }
+    };
   }, []);
 
   // Update lock-screen / OS media overlay metadata when track changes

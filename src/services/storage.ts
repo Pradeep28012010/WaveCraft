@@ -1,13 +1,7 @@
-import type { Track, Playlist, PlaylistFolder } from '../types';
+import type { Track, Playlist, PlaylistFolder, SettingsState } from '../types';
 import { get, set, del, keys } from 'idb-keyval';
 
-export type { Playlist, PlaylistFolder };
-
-export interface SettingsState {
-  theme?: string;
-  quality?: string;
-  [key: string]: any;
-}
+export type { Playlist, PlaylistFolder, SettingsState };
 
 const KEYS = {
   LIKED_SONGS: 'wavecraft_liked_songs',
@@ -22,9 +16,9 @@ const KEYS = {
 // Coalesce rapid IndexedDB writes per key so batch operations (like playlist imports or queue drags)
 // never block the main UI thread with redundant structured-clone transactions.
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const pendingValues = new Map<string, any>();
+const pendingValues = new Map<string, unknown>();
 
-function scheduleIdbWrite(key: string, value: any, delayMs = 60): Promise<void> {
+function scheduleIdbWrite<T>(key: string, value: T, delayMs = 60): Promise<void> {
   pendingValues.set(key, value);
   const existing = pendingTimers.get(key);
   if (existing) clearTimeout(existing);

@@ -2,12 +2,18 @@
 import ColorThief from 'colorthief';
 import type { AmbientPalette } from '../types';
 
-let thiefInstance: any = null;
-function getThief() {
+interface ColorThiefInstance {
+  getColor: (img: HTMLImageElement, quality?: number) => [number, number, number];
+  getPalette: (img: HTMLImageElement, colorCount?: number, quality?: number) => [number, number, number][];
+}
+
+let thiefInstance: ColorThiefInstance | null = null;
+function getThief(): ColorThiefInstance | null {
   if (typeof window === 'undefined') return null;
   if (!thiefInstance) {
     try {
-      thiefInstance = new (ColorThief as any)();
+      const Ctor = ColorThief as unknown as new () => ColorThiefInstance;
+      thiefInstance = new Ctor();
     } catch {
       thiefInstance = null;
     }

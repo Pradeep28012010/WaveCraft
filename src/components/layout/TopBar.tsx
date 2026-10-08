@@ -150,8 +150,24 @@ export default function TopBar() {
       return;
     }
 
-    const SpeechRec =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    type SpeechRecConstructor = new () => {
+      lang: string;
+      interimResults: boolean;
+      maxAlternatives: number;
+      onstart: (() => void) | null;
+      onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+      onerror: (() => void) | null;
+      onend: (() => void) | null;
+      start: () => void;
+      stop: () => void;
+      abort: () => void;
+    };
+
+    const windowWithSpeech = window as unknown as {
+      SpeechRecognition?: SpeechRecConstructor;
+      webkitSpeechRecognition?: SpeechRecConstructor;
+    };
+    const SpeechRec = windowWithSpeech.SpeechRecognition || windowWithSpeech.webkitSpeechRecognition;
     if (!SpeechRec) {
       navigate('/search');
       return;
@@ -165,7 +181,7 @@ export default function TopBar() {
       rec.maxAlternatives = 1;
 
       rec.onstart = () => setIsListeningVoice(true);
-      rec.onresult = (event: any) => {
+      rec.onresult = (event) => {
         let transcript = '';
         for (let i = 0; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;

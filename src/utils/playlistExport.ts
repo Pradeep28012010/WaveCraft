@@ -192,19 +192,30 @@ export function parseM3U8String(content: string, defaultName = 'Imported M3U Pla
  * Parse an uploaded JSON string
  */
 export function parseJSONPlaylistString(content: string, defaultName = 'Imported JSON Playlist'): ParsedPlaylistFile {
+  interface RawJsonTrack {
+    title?: string;
+    artist?: string;
+    duration?: number;
+    youtubeId?: string;
+    id?: string;
+    audioUrl?: string;
+  }
+
+  const mapTrack = (t: RawJsonTrack) => ({
+    title: t.title || 'Untitled',
+    artist: t.artist || 'Unknown Artist',
+    duration: t.duration || 0,
+    videoId: t.youtubeId || t.id,
+    audioUrl: t.audioUrl
+  });
+
   const parsed = JSON.parse(content);
   if (parsed.playlist && typeof parsed.playlist === 'object') {
     return {
       name: parsed.playlist.name || defaultName,
       description: parsed.playlist.description || '',
       tracks: Array.isArray(parsed.playlist.tracks)
-        ? parsed.playlist.tracks.map((t: any) => ({
-            title: t.title || 'Untitled',
-            artist: t.artist || 'Unknown Artist',
-            duration: t.duration || 0,
-            videoId: t.youtubeId || t.id,
-            audioUrl: t.audioUrl
-          }))
+        ? (parsed.playlist.tracks as RawJsonTrack[]).map(mapTrack)
         : []
     };
   }
@@ -212,13 +223,7 @@ export function parseJSONPlaylistString(content: string, defaultName = 'Imported
   if (Array.isArray(parsed)) {
     return {
       name: defaultName,
-      tracks: parsed.map((t: any) => ({
-        title: t.title || 'Untitled',
-        artist: t.artist || 'Unknown Artist',
-        duration: t.duration || 0,
-        videoId: t.youtubeId || t.id,
-        audioUrl: t.audioUrl
-      }))
+      tracks: (parsed as RawJsonTrack[]).map(mapTrack)
     };
   }
 
@@ -226,13 +231,7 @@ export function parseJSONPlaylistString(content: string, defaultName = 'Imported
     return {
       name: parsed.name || defaultName,
       description: parsed.description || '',
-      tracks: parsed.tracks.map((t: any) => ({
-        title: t.title || 'Untitled',
-        artist: t.artist || 'Unknown Artist',
-        duration: t.duration || 0,
-        videoId: t.youtubeId || t.id,
-        audioUrl: t.audioUrl
-      }))
+      tracks: (parsed.tracks as RawJsonTrack[]).map(mapTrack)
     };
   }
 

@@ -246,7 +246,16 @@ export default function ImportPlaylistModal({
     setProgressPct(5);
 
     try {
-      let data: any = null;
+      let data: {
+        title?: string;
+        name?: string;
+        artist?: string;
+        platform?: string;
+        coverUrl?: string;
+        coverImage?: string;
+        queries?: Array<{ title: string; artist?: string; videoId?: string }>;
+        error?: string;
+      } | null = null;
 
       try {
         const res = await fetch(
@@ -360,8 +369,9 @@ export default function ImportPlaylistModal({
           return;
         }
         setParsedFile(parsed);
-      } catch (err: any) {
-        setFileError(err?.message || 'Failed to parse file format. Ensure valid M3U8 or JSON.');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to parse file format. Ensure valid M3U8 or JSON.';
+        setFileError(msg);
       }
     };
     reader.onerror = () => setFileError('Failed to read file from disk.');

@@ -72,12 +72,12 @@ export default function StatsPage() {
   const totalSeconds =
     playHistory.length > 0
       ? playHistory.reduce((acc, p) => acc + normalizeSec(p.duration), 0)
-      : recentlyPlayed.reduce((acc, r: any) => acc + normalizeSec(r?.track?.duration || r?.duration), 0);
+      : recentlyPlayed.reduce((acc, r) => acc + normalizeSec(r?.track?.duration || 0), 0);
   const totalMinutes = totalListens > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : 0;
 
   const artistList = [
     ...playHistory.map((p) => p.artist).filter(Boolean),
-    ...recentlyPlayed.map((t: any) => t?.track?.artist || t?.artist).filter(Boolean),
+    ...recentlyPlayed.map((t) => t?.track?.artist).filter(Boolean),
     ...likedSongs.map((t) => t?.artist).filter(Boolean)
   ];
   const uniqueArtists = new Set(
@@ -104,8 +104,8 @@ export default function StatsPage() {
       trackCounts[key].count += 1;
     }
   } else {
-    for (const item of recentlyPlayed as any[]) {
-      const t = item?.track || item;
+    for (const item of recentlyPlayed) {
+      const t = item?.track;
       if (!t?.title) continue;
       const key = `${t.title}|${t.artist}`;
       if (!trackCounts[key]) {

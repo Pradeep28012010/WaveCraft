@@ -3,6 +3,40 @@ import { DEFAULT_THUMBNAIL } from '../utils/constants';
 import { searchTracks, getTrending, getCachedTrending } from './youtube';
 import { apiUrl, PROD_API_ORIGIN } from './apiConfig';
 
+interface RawItunesTrack {
+  wrapperType?: string;
+  trackId?: number;
+  trackName?: string;
+  artistName?: string;
+  collectionName?: string;
+  trackTimeMillis?: number;
+  artworkUrl100?: string;
+  previewUrl?: string;
+}
+
+interface RawItunesAlbum {
+  collectionId?: number;
+  collectionName?: string;
+  artistName?: string;
+  artworkUrl100?: string;
+  releaseDate?: string;
+  trackCount?: number;
+}
+
+interface RawItunesArtist {
+  artistId?: number;
+  artistName?: string;
+  primaryGenreName?: string;
+}
+
+interface RawItunesRssEntry {
+  'im:image'?: Array<{ label: string }>;
+  'im:name'?: { label: string };
+  'im:artist'?: { label: string };
+  id?: { attributes?: { 'im:id'?: string } };
+  'im:itemCount'?: { label: string };
+}
+
 const artCache = new Map<string, string | null>();
 const albumsCache = new Map<string, AlbumResult[]>();
 const artistsCache = new Map<string, ArtistResult[]>();
@@ -145,11 +179,11 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
       }).catch(() => null);
       if (res?.ok) {
         const data = await res.json();
-        const results = data?.results || [];
-        const songEntries = results.filter((r: any) => r.wrapperType === 'track');
+        const results: RawItunesTrack[] = data?.results || [];
+        const songEntries = results.filter((r) => r.wrapperType === 'track');
         if (songEntries.length > 0) {
           const albumArt = album.coverUrl || album.coverArt || DEFAULT_THUMBNAIL;
-          const mappedTracks: Track[] = songEntries.map((s: any) => ({
+          const mappedTracks: Track[] = songEntries.map((s) => ({
             id: `itunes_${s.trackId}`,
             title: s.trackName || 'Track',
             artist: s.artistName || album.artist,
@@ -196,7 +230,7 @@ export async function searchAlbums(query: string): Promise<AlbumResult[]> {
     }).catch(() => null);
     if (res?.ok) {
       const data = await res.json();
-      const results: any[] = data?.results || [];
+      const results: RawItunesAlbum[] = data?.results || [];
       if (results.length > 0) {
         const albums: AlbumResult[] = results.map((item) => {
           const rawArt = item.artworkUrl100 || DEFAULT_THUMBNAIL;
@@ -313,8 +347,8 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
     });
     if (r.ok) {
       const data = await r.json();
-      const entries = data.feed?.entry || [];
-      const releases: AlbumResult[] = entries.map((e: any, idx: number) => {
+      const entries: RawItunesRssEntry[] = data.feed?.entry || [];
+      const releases: AlbumResult[] = entries.map((e, idx: number) => {
         const rawCover = e['im:image']?.slice(-1)[0]?.label || DEFAULT_THUMBNAIL;
         const highResCover = rawCover.replace('170x170bb', '600x600bb');
         const title = e['im:name']?.label || 'Untitled Album';
@@ -402,7 +436,7 @@ export async function searchArtists(query: string): Promise<ArtistResult[]> {
     }).catch(() => null);
     if (res?.ok) {
       const data = await res.json();
-      const results: any[] = data?.results || [];
+      const results: RawItunesArtist[] = data?.results || [];
       if (results.length > 0) {
         const tracks = await searchTracks(query).catch(() => []);
         const artistArtMap = new Map<string, string>();
@@ -481,10 +515,10 @@ export async function searchItunesSongs(query: string, limit = 20): Promise<Trac
 
     if (!res?.ok) return [];
     const data = await res.json();
-    const results = data?.results || [];
+    const results: RawItunesTrack[] = data?.results || [];
     if (!Array.isArray(results) || results.length === 0) return [];
 
-    return results.map((item: any) => {
+    return results.map((item) => {
       const art = item.artworkUrl100
         ? item.artworkUrl100.replace('100x100bb', '600x600bb')
         : DEFAULT_THUMBNAIL;

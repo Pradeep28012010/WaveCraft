@@ -1,14 +1,8 @@
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { getAudioFrequencyData } from '../player/YouTubeEmbed';
 
-export type VisualizerStyle =
-  | 'bars'
-  | 'wave'
-  | 'blob'
-  | 'circular'
-  | 'particles'
-  | 'nebula'
-  | 'starfield';
+import type { VisualizerStyle } from '../../types';
+export type { VisualizerStyle };
 
 interface VisualizerProps {
   isActive: boolean;

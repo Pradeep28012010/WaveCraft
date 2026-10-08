@@ -10,11 +10,11 @@ export interface WebRtcSignalPayload {
   type: 'offer' | 'answer' | 'candidate';
   from: string;
   target?: string;
-  sdp?: any;
-  candidate?: any;
+  sdp?: RTCSessionDescriptionInit | RTCSessionDescription | null | string;
+  candidate?: RTCIceCandidateInit;
 }
 
-type MessageHandler = (data: any) => void;
+type MessageHandler = (data: unknown) => void;
 type StatusHandler = (status: 'disconnected' | 'connecting' | 'connected') => void;
 
 const ICE_SERVERS: RTCIceServer[] = [
@@ -143,7 +143,9 @@ class JamWebRtcManager {
 
     try {
       if (signal.type === 'offer' && !this.isHost) {
-        await this.pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        if (signal.sdp) {
+          await this.pc.setRemoteDescription(new RTCSessionDescription(signal.sdp as RTCSessionDescriptionInit));
+        }
         // Flush any candidates received before remote description was set
         while (this.pendingCandidates.length > 0) {
           const cand = this.pendingCandidates.shift();
@@ -160,8 +162,8 @@ class JamWebRtcManager {
           });
         }
       } else if (signal.type === 'answer' && this.isHost) {
-        if (this.pc.signalingState !== 'stable') {
-          await this.pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        if (this.pc.signalingState !== 'stable' && signal.sdp) {
+          await this.pc.setRemoteDescription(new RTCSessionDescription(signal.sdp as RTCSessionDescriptionInit));
           while (this.pendingCandidates.length > 0) {
             const cand = this.pendingCandidates.shift();
             if (cand) await this.pc.addIceCandidate(cand);
@@ -180,7 +182,7 @@ class JamWebRtcManager {
     }
   }
 
-  public send(payload: any): boolean {
+  public send(payload: unknown): boolean {
     if (this.dc && this.dc.readyState === 'open') {
       try {
         this.dc.send(typeof payload === 'string' ? payload : JSON.stringify(payload));

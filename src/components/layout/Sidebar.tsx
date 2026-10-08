@@ -5,6 +5,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import CreatePlaylist from '../library/CreatePlaylist';
 import ImportPlaylistModal from '../library/ImportPlaylistModal';
+import type { Playlist } from '../../types';
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -237,7 +238,7 @@ export default function Sidebar() {
                     >
                       <span>↓ Import Playlist</span>
                     </button>
-                    {playlists.map((playlist: any) => (
+                    {playlists.map((playlist: Playlist) => (
                       <NavLink
                         key={playlist.id}
                         to={`/playlist/${playlist.id}`}
@@ -375,7 +376,7 @@ export default function Sidebar() {
             )}
 
             <div className="space-y-1">
-              {playlists.map((playlist: any) => (
+              {playlists.map((playlist: Playlist) => (
                 <NavLink
                   key={playlist.id}
                   to={`/playlist/${playlist.id}`}

@@ -52,7 +52,17 @@ export function cleanYouTubeTitle(raw: string): string {
     .trim();
 }
 
-export function mapYouTubeItemToTrack(v: any): Track {
+export interface RawYouTubeTrackItem {
+  videoId: string;
+  title: string;
+  author?: string;
+  lengthSeconds?: number | string;
+  duration?: number | string;
+  thumbnail?: string;
+  thumbnailLarge?: string;
+}
+
+export function mapYouTubeItemToTrack(v: RawYouTubeTrackItem): Track {
   const rawTitle = decodeHtmlEntities(v.title || 'Unknown Title');
   const pipeParts = rawTitle.split('|').map((s) => s.trim()).filter(Boolean);
   const cleaned = cleanYouTubeTitle(rawTitle);
@@ -395,10 +405,18 @@ async function fetchItunesFallbackTracks(query: string): Promise<Track[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const results = data?.results || [];
+    const results: Array<{
+      artworkUrl100?: string;
+      trackId: number;
+      trackName?: string;
+      artistName?: string;
+      collectionName?: string;
+      trackTimeMillis?: number;
+      previewUrl?: string;
+    }> = data?.results || [];
     if (!Array.isArray(results) || results.length === 0) return [];
 
-    return results.map((item: any) => {
+    return results.map((item) => {
       const art = item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : DEFAULT_THUMBNAIL;
       return {
         id: `itunes_${item.trackId}`,

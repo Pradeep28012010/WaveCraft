@@ -4,7 +4,7 @@ import { usePlayerStore } from './playerStore';
 import { unlockAudioEngine } from '../components/player/YouTubeEmbed';
 import { getPreciseAudioTime, seekToTime } from '../services/audioEngine';
 import { jamSyncEngine, type JamAudioAnchor } from '../services/jamSyncEngine';
-import { jamWebRtc } from '../services/jamWebRtc';
+import { jamWebRtc, type WebRtcSignalPayload } from '../services/jamWebRtc';
 import { searchTracks } from '../services/youtube';
 import { apiUrl } from '../services/apiConfig';
 
@@ -70,7 +70,7 @@ export interface JamRoomSnapshot {
   guestId?: string;
   rendezvousAt?: number;
   serverTime?: number;
-  signal?: any;
+  signal?: WebRtcSignalPayload;
 }
 
 interface JamStore {
@@ -526,7 +526,7 @@ export const useJamStore = create<JamStore>((set, get) => {
       get().isHost,
       (data) => {
         jamSyncEngine.setTransport('webrtc-p2p');
-        applyRoomPayload(data);
+        applyRoomPayload(data as JamRoomSnapshot);
       },
       (status) => {
         if (status === 'connected') {
@@ -538,7 +538,7 @@ export const useJamStore = create<JamStore>((set, get) => {
           roomCode,
           eventType: 'webrtc-signal',
           signal
-        } as any);
+        });
       }
     );
 

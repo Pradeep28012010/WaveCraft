@@ -1,5 +1,4 @@
-import type { Track, VibeEnergyCurve, AcousticInsights, AiDjMix } from '../types';
-import type { VisualizerStyle } from '../components/visualizer/Visualizer';
+import type { Track, VibeEnergyCurve, AcousticInsights, AiDjMix, VisualizerStyle } from '../types';
 import type { StudioFXMode } from '../stores/studioStore';
 import { searchTracks } from './youtube';
 import { searchItunesSongs } from './itunes';

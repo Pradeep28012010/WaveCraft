@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -14,6 +14,188 @@ interface QueuePanelProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+interface QueueTrackRowProps {
+  track: Track;
+  actualIndex: number;
+  idx: number;
+  isBeingDragged: boolean;
+  isDragTarget: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  queue: Track[];
+  onDragStart: (actualIndex: number) => void;
+  onDragOver: (e: React.DragEvent, actualIndex: number) => void;
+  onDrop: (targetActualIndex: number) => void;
+  onDragEnd: () => void;
+  onJumpToTrack: (track: Track, actualIndex: number) => void;
+  onMoveToTop: (fromActualIndex: number) => void;
+  onReorder: (from: number, to: number) => void;
+  onRemove: (index: number) => void;
+}
+
+const QueueTrackRow = memo(function QueueTrackRow({
+  track,
+  actualIndex,
+  idx,
+  isBeingDragged,
+  isDragTarget,
+  canMoveUp,
+  canMoveDown,
+  queue,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  onJumpToTrack,
+  onMoveToTop,
+  onReorder,
+  onRemove
+}: QueueTrackRowProps) {
+  return (
+    <div
+      draggable
+      onDragStart={() => onDragStart(actualIndex)}
+      onDragOver={(e) => onDragOver(e, actualIndex)}
+      onDrop={() => onDrop(actualIndex)}
+      onDragEnd={onDragEnd}
+      onContextMenu={(e) => {
+        if (e.shiftKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        useContextMenuStore.getState().openTrackMenu({ clientX: e.clientX, clientY: e.clientY }, track, queue);
+      }}
+      className={`group flex items-center gap-2.5 p-2 rounded-2xl border transition-all duration-150 ${
+        isDragTarget
+          ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)] scale-[1.01]'
+          : isBeingDragged
+          ? 'opacity-40 bg-white/5 border-white/20'
+          : 'bg-white/[0.035] hover:bg-white/[0.09] border-white/[0.06] hover:border-white/15'
+      }`}
+    >
+      {/* Drag Grip Handle + Queue Order Number */}
+      <div
+        className="w-6 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing text-white/35 group-hover:text-white/75 flex-shrink-0"
+        title="Drag to reorder"
+      >
+        <span className="text-[10px] font-bold group-hover:hidden tabular-nums">
+          {idx + 1}
+        </span>
+        <svg
+          className="w-3.5 h-3.5 hidden group-hover:block"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        >
+          <line x1="4" y1="9" x2="20" y2="9" />
+          <line x1="4" y1="15" x2="20" y2="15" />
+        </svg>
+      </div>
+
+      {/* Track Artwork with Play Overlay */}
+      <div
+        onClick={() => onJumpToTrack(track, actualIndex)}
+        className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer border border-white/10"
+      >
+        <img
+          src={track.thumbnail || DEFAULT_THUMBNAIL}
+          alt={track.title}
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+          }}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+          <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Title & Artist (Click to Play Immediately) */}
+      <div
+        onClick={() => onJumpToTrack(track, actualIndex)}
+        className="min-w-0 flex-1 cursor-pointer"
+      >
+        <p className="text-xs font-bold text-white/90 group-hover:text-white truncate transition-colors">
+          {track.title}
+        </p>
+        <p className="text-[11px] text-white/65 truncate mt-0.5">
+          {track.artist}
+        </p>
+      </div>
+
+      {/* Duration Readout */}
+      <span className="text-[11px] font-medium text-white/60 tabular-nums group-hover:hidden pr-1">
+        {formatTime(track.duration || 210)}
+      </span>
+
+      {/* Hover Action Dock */}
+      <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+        {idx > 0 && (
+          <button
+            type="button"
+            onClick={() => onMoveToTop(actualIndex)}
+            aria-label="Play Next (Move to Top)"
+            title="Play Next (Move to Top)"
+            className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-[var(--color-accent)] flex items-center justify-center transition-colors cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="17 11 12 6 7 11" />
+              <line x1="12" y1="6" x2="12" y2="18" />
+              <line x1="6" y1="3" x2="18" y2="3" />
+            </svg>
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => canMoveUp && onReorder(actualIndex, actualIndex - 1)}
+          disabled={!canMoveUp}
+          aria-label="Move track up"
+          title="Move Up"
+          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => canMoveDown && onReorder(actualIndex, actualIndex + 1)}
+          disabled={!canMoveDown}
+          aria-label="Move track down"
+          title="Move Down"
+          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onRemove(actualIndex)}
+          aria-label="Remove from Queue"
+          title="Remove from Queue"
+          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-rose-500/20 text-white/55 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+});
+
+QueueTrackRow.displayName = 'QueueTrackRow';
 
 function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const queue = usePlayerStore((s) => s.queue);
@@ -72,16 +254,16 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   );
   const totalUpcomingMins = Math.max(1, Math.round(totalUpcomingSeconds / 60));
 
-  const handleJumpToTrack = (track: Track, actualIndex: number) => {
+  const handleJumpToTrack = useCallback((track: Track, actualIndex: number) => {
     playTrack(track, queue, actualIndex);
-  };
+  }, [playTrack, queue]);
 
-  const handleMoveToTop = (fromActualIndex: number) => {
+  const handleMoveToTop = useCallback((fromActualIndex: number) => {
     const targetTopIndex = effectiveIndex >= 0 ? effectiveIndex + 1 : 0;
     if (fromActualIndex > targetTopIndex) {
       reorderQueue(fromActualIndex, targetTopIndex);
     }
-  };
+  }, [effectiveIndex, reorderQueue]);
 
   const handleShuffleUpcoming = () => {
     if (upcomingItems.length <= 1) return;
@@ -134,19 +316,19 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
     setTimeout(() => setSavedToast(false), 2400);
   };
 
-  const handleDragStart = (actualIndex: number) => {
+  const handleDragStart = useCallback((actualIndex: number) => {
     dragNodeRef.current = actualIndex;
     setDraggedActualIndex(actualIndex);
-  };
+  }, []);
 
-  const handleDragOver = (e: React.DragEvent, actualIndex: number) => {
+  const handleDragOver = useCallback((e: React.DragEvent, actualIndex: number) => {
     e.preventDefault();
     if (dragOverActualIndex !== actualIndex) {
       setDragOverActualIndex(actualIndex);
     }
-  };
+  }, [dragOverActualIndex]);
 
-  const handleDrop = (targetActualIndex: number) => {
+  const handleDrop = useCallback((targetActualIndex: number) => {
     const fromIndex = dragNodeRef.current;
     if (fromIndex !== null && fromIndex !== targetActualIndex) {
       reorderQueue(fromIndex, targetActualIndex);
@@ -154,13 +336,13 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
     dragNodeRef.current = null;
     setDraggedActualIndex(null);
     setDragOverActualIndex(null);
-  };
+  }, [reorderQueue]);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     dragNodeRef.current = null;
     setDraggedActualIndex(null);
     setDragOverActualIndex(null);
-  };
+  }, []);
 
   const artSrc = currentTrack?.thumbnailLarge || currentTrack?.thumbnail || DEFAULT_THUMBNAIL;
 
@@ -459,159 +641,30 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      {upcomingItems.map(({ track, actualIndex }, idx) => {
-                        const isBeingDragged = draggedActualIndex === actualIndex;
-                        const isDragTarget =
-                          dragOverActualIndex === actualIndex &&
-                          draggedActualIndex !== actualIndex;
-                        const canMoveUp = idx > 0;
-                        const canMoveDown = idx < upcomingItems.length - 1;
-
-                        return (
-                          <div
-                            key={`${track.id}-${actualIndex}`}
-                            draggable
-                            onDragStart={() => handleDragStart(actualIndex)}
-                            onDragOver={(e) => handleDragOver(e, actualIndex)}
-                            onDrop={() => handleDrop(actualIndex)}
-                            onDragEnd={handleDragEnd}
-                            onContextMenu={(e) => {
-                              if (e.shiftKey) return;
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const clientX = e.clientX;
-                              const clientY = e.clientY;
-                              useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, queue);
-                            }}
-                            className={`group flex items-center gap-2.5 p-2 rounded-2xl border transition-all duration-150 ${
-                              isDragTarget
-                                ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)] scale-[1.01]'
-                                : isBeingDragged
-                                ? 'opacity-40 bg-white/5 border-white/20'
-                                : 'bg-white/[0.035] hover:bg-white/[0.09] border-white/[0.06] hover:border-white/15'
-                            }`}
-                          >
-                            {/* Drag Grip Handle + Queue Order Number */}
-                            <div
-                              className="w-6 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing text-white/35 group-hover:text-white/75 flex-shrink-0"
-                              title="Drag to reorder"
-                            >
-                              <span className="text-[10px] font-bold group-hover:hidden tabular-nums">
-                                {idx + 1}
-                              </span>
-                              <svg
-                                className="w-3.5 h-3.5 hidden group-hover:block"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.2"
-                                strokeLinecap="round"
-                              >
-                                <line x1="4" y1="9" x2="20" y2="9" />
-                                <line x1="4" y1="15" x2="20" y2="15" />
-                              </svg>
-                            </div>
-
-                            {/* Track Artwork with Play Overlay */}
-                            <div
-                              onClick={() => handleJumpToTrack(track, actualIndex)}
-                              className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer border border-white/10"
-                            >
-                              <img
-                                src={track.thumbnail || DEFAULT_THUMBNAIL}
-                                alt={track.title}
-                                loading="lazy"
-                                decoding="async"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                                }}
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M8 5v14l11-7z" />
-                                </svg>
-                              </div>
-                            </div>
-
-                            {/* Title & Artist (Click to Play Immediately) */}
-                            <div
-                              onClick={() => handleJumpToTrack(track, actualIndex)}
-                              className="min-w-0 flex-1 cursor-pointer"
-                            >
-                              <p className="text-xs font-bold text-white/90 group-hover:text-white truncate transition-colors">
-                                {track.title}
-                              </p>
-                              <p className="text-[11px] text-white/65 truncate mt-0.5">
-                                {track.artist}
-                              </p>
-                            </div>
-
-                            {/* Duration Readout (hidden on hover to reveal reorder controls) */}
-                            <span className="text-[11px] font-medium text-white/60 tabular-nums group-hover:hidden pr-1">
-                              {formatTime(track.duration || 210)}
-                            </span>
-
-                            {/* Hover Action Dock: Play Next (Top), Up, Down, Remove */}
-                            <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
-                              {idx > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveToTop(actualIndex)}
-                                  aria-label="Play Next (Move to Top)"
-                                  title="Play Next (Move to Top)"
-                                  className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-[var(--color-accent)] flex items-center justify-center transition-colors cursor-pointer"
-                                >
-                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="17 11 12 6 7 11" />
-                                    <line x1="12" y1="6" x2="12" y2="18" />
-                                    <line x1="6" y1="3" x2="18" y2="3" />
-                                  </svg>
-                                </button>
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={() => canMoveUp && reorderQueue(actualIndex, actualIndex - 1)}
-                                disabled={!canMoveUp}
-                                aria-label="Move track up"
-                                title="Move Up"
-                                className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
-                              >
-                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="18 15 12 9 6 15" />
-                                </svg>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => canMoveDown && reorderQueue(actualIndex, actualIndex + 1)}
-                                disabled={!canMoveDown}
-                                aria-label="Move track down"
-                                title="Move Down"
-                                className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-25 flex items-center justify-center transition-colors cursor-pointer"
-                              >
-                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="6 9 12 15 18 9" />
-                                </svg>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => removeFromQueue(actualIndex)}
-                                aria-label="Remove from Queue"
-                                title="Remove from Queue"
-                                className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg hover:bg-rose-500/20 text-white/55 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
-                              >
-                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
-                                  <line x1="18" y1="6" x2="6" y2="18" />
-                                  <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {upcomingItems.map(({ track, actualIndex }, idx) => (
+                        <QueueTrackRow
+                          key={`${track.id}-${actualIndex}`}
+                          track={track}
+                          actualIndex={actualIndex}
+                          idx={idx}
+                          isBeingDragged={draggedActualIndex === actualIndex}
+                          isDragTarget={
+                            dragOverActualIndex === actualIndex &&
+                            draggedActualIndex !== actualIndex
+                          }
+                          canMoveUp={idx > 0}
+                          canMoveDown={idx < upcomingItems.length - 1}
+                          queue={queue}
+                          onDragStart={handleDragStart}
+                          onDragOver={handleDragOver}
+                          onDrop={handleDrop}
+                          onDragEnd={handleDragEnd}
+                          onJumpToTrack={handleJumpToTrack}
+                          onMoveToTop={handleMoveToTop}
+                          onReorder={reorderQueue}
+                          onRemove={removeFromQueue}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>

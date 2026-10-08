@@ -60,6 +60,7 @@ export default function YouTubeEmbed() {
   const isCrossfadingRef = useRef<boolean>(false);
   const retryAttemptRef = useRef<number>(0);
   const bufferingStartTimeRef = useRef<number>(0);
+  const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const queue = usePlayerStore((s) => s.queue);
@@ -545,6 +546,14 @@ export default function YouTubeEmbed() {
         document.head.appendChild(tag);
       }
     }
+
+    return () => {
+      try {
+        const player = getPlayer();
+        player?.destroy?.();
+      } catch {}
+      setYtPlayerInstance(null);
+    };
   }, []);
 
   // Helper to fallback or play on YouTube IFrame
@@ -1173,12 +1182,18 @@ export default function YouTubeEmbed() {
             const stepMs = 120;
             const totalSteps = Math.max(1, Math.floor((fadeSec * 1000) / stepMs));
             let step = 0;
-            const fadeInterval = setInterval(() => {
+            if (fadeIntervalRef.current) {
+              clearInterval(fadeIntervalRef.current);
+            }
+            fadeIntervalRef.current = setInterval(() => {
               step++;
               const curVol = Math.max(0, startVol * (1 - step / totalSteps));
               try { ytPlayer.setVolume?.(Math.round(curVol)); } catch {}
               if (step >= totalSteps) {
-                clearInterval(fadeInterval);
+                if (fadeIntervalRef.current) {
+                  clearInterval(fadeIntervalRef.current);
+                  fadeIntervalRef.current = null;
+                }
                 trackTransitionIntentRef.current = true;
                 usePlayerStore.getState().nextTrack();
               }
@@ -1201,7 +1216,13 @@ export default function YouTubeEmbed() {
       }
     }, 250);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+        fadeIntervalRef.current = null;
+      }
+    };
   }, [isPlaying, setProgress, setDuration, currentTrack?.duration, crossfadeDuration]);
 
   return (

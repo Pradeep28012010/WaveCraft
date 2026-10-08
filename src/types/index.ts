@@ -204,3 +204,13 @@ export interface AiDjMix {
   generatedAt: number;
 }
 
+export type VisualizerStyle =
+  | 'bars'
+  | 'wave'
+  | 'blob'
+  | 'circular'
+  | 'particles'
+  | 'nebula'
+  | 'starfield';
+
+

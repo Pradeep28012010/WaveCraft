@@ -199,8 +199,8 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
         ctx.fillStyle = grad;
         ctx.beginPath();
-        if (typeof (ctx as any).roundRect === 'function') {
-          (ctx as any).roundRect(x, y, barW, barH, 2);
+        if ('roundRect' in ctx && typeof ctx.roundRect === 'function') {
+          ctx.roundRect(x, y, barW, barH, 2);
         } else {
           ctx.rect(x, y, barW, barH);
         }
@@ -1085,7 +1085,7 @@ class StudioFXErrorBoundary extends Component<
   static getDerivedStateFromError() {
     return { hasError: true };
   }
-  componentDidCatch(error: any) {
+  componentDidCatch(error: unknown) {
     console.error('[WaveCraft StudioFXModal Error]', error);
   }
   render() {

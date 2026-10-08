@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   extractPaletteFromImage,
   synthesizeHarmonicPalette,
@@ -51,12 +51,15 @@ export function useColorExtract(imageUrl: string | undefined): UseColorExtractRe
     };
   }, [imageUrl, dynamicEnabled, intensity, userAccent]);
 
-  return {
-    palette,
-    colors: [palette.primary, palette.secondary, palette.tertiary],
-    dominantColor: palette.primary,
-    gradient: palette.gradientCss,
-    glowCss: palette.glowCss,
-    isDynamic: palette.isDynamic
-  };
+  return useMemo(
+    () => ({
+      palette,
+      colors: [palette.primary, palette.secondary, palette.tertiary],
+      dominantColor: palette.primary,
+      gradient: palette.gradientCss,
+      glowCss: palette.glowCss,
+      isDynamic: palette.isDynamic
+    }),
+    [palette]
+  );
 }

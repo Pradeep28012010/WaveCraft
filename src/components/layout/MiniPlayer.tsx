@@ -1,4 +1,4 @@
-import { useState, useRef, memo } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -11,7 +11,6 @@ import QueuePanel from '../player/QueuePanel';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
 
-/**
 /**
  * iOS / Apple Music style Elastic Snap Slider for MiniPlayer
  * Zero playback jitter, elastic boundary stretch with resistance, tactile spring release & haptic feedback.
@@ -29,6 +28,15 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const [hoverX, setHoverX] = useState<number>(0);
   const trackRef = useRef<HTMLDivElement>(null);
   const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (snapTimerRef.current) {
+        clearTimeout(snapTimerRef.current);
+        snapTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const activeDuration = duration || fallbackDuration || 210;
   const playbackRatio = Math.min(1, Math.max(0, currentTime / activeDuration));

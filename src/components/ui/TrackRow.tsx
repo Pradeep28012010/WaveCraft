@@ -104,7 +104,7 @@ interface TrackRowProps {
   onToggleLike?: (track: Track) => void;
   onRemove?: (track: Track) => void;
   isLiked?: boolean;
-  onContextMenu?: (e: React.MouseEvent, track: Track) => void;
+  onContextMenu?: (e: React.SyntheticEvent, track: Track) => void;
 }
 
 const formatDuration = (seconds: number) => {
@@ -181,6 +181,15 @@ const TrackRow = memo(({
 
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    return () => {
+      if (touchTimerRef.current) {
+        clearTimeout(touchTimerRef.current);
+        touchTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!isPhone) return;
     const touch = e.touches[0];
@@ -189,7 +198,7 @@ const TrackRow = memo(({
     touchTimerRef.current = setTimeout(() => {
       triggerAndroidHaptic('medium');
       if (onContextMenu) {
-        onContextMenu(e as any, track);
+        onContextMenu(e, track);
       } else {
         useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, tracks);
       }

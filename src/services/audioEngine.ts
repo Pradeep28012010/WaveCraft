@@ -401,7 +401,9 @@ export function initAudioGraph(
   initialBands?: number[]
 ): AudioContext | null {
   if (typeof window === 'undefined') return null;
-  const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+  const Ctx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctx) return null;
 
   if (!audioCtx) {
@@ -939,9 +941,14 @@ export function applyStudioFXToAudio(
 
   if (audio) {
     try {
-      (audio as any).preservesPitch = preservePitch;
-      (audio as any).mozPreservesPitch = preservePitch;
-      (audio as any).webkitPreservesPitch = preservePitch;
+      const pitchAudio = audio as HTMLAudioElement & {
+        preservesPitch?: boolean;
+        mozPreservesPitch?: boolean;
+        webkitPreservesPitch?: boolean;
+      };
+      pitchAudio.preservesPitch = preservePitch;
+      pitchAudio.mozPreservesPitch = preservePitch;
+      pitchAudio.webkitPreservesPitch = preservePitch;
       if (Math.abs(audio.playbackRate - effectiveSpeed) > 0.005) {
         audio.playbackRate = effectiveSpeed;
       }

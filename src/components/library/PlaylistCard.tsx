@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import type { Playlist } from '../../types';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -26,7 +27,7 @@ export function getHighResPlaylistCover(playlist: Playlist): string {
     .replace('100x100bb', '600x600bb');
 }
 
-export default function PlaylistCard({
+const PlaylistCard = memo(function PlaylistCard({
   playlist,
   onPlay,
   showFolderBadge = true
@@ -164,4 +165,8 @@ export default function PlaylistCard({
       </GlassCard>
     </Link>
   );
-}
+});
+
+PlaylistCard.displayName = 'PlaylistCard';
+
+export default PlaylistCard;

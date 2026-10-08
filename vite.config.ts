@@ -70,6 +70,7 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             if (id.includes('framer-motion')) return 'vendor-motion';
             if (id.includes('zustand') || id.includes('idb-keyval')) return 'vendor-storage';
+            if (id.includes('colorthief')) return 'vendor-color';
             if (id.includes('react') || id.includes('scheduler')) return 'vendor-react';
           }
           if (
