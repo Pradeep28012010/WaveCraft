@@ -580,7 +580,7 @@ export default function TopBar() {
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)'
         }}
-        className="h-18 flex items-center justify-between px-6 lg:px-8 relative z-40 bg-[#06060b]/85 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_4px_24px_rgba(0,0,0,0.35)] transition-all flex-shrink-0 w-full"
+        className="h-20 flex items-center justify-between px-6 lg:px-8 relative z-40 bg-[#06060b]/85 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_4px_24px_rgba(0,0,0,0.35)] transition-all flex-shrink-0 w-full"
       >
         {/* Navigation Controls */}
         <div className="flex items-center gap-2.5">

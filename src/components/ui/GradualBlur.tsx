@@ -43,7 +43,7 @@ const DEFAULT_CONFIG: GradualBlurProps = {
   height: '6rem',
   divCount: 5,
   exponential: false,
-  zIndex: 1000,
+  zIndex: 20,
   animated: false,
   duration: '0.3s',
   easing: 'ease-out',
@@ -226,7 +226,7 @@ function GradualBlur(props: GradualBlurProps) {
       pointerEvents: config.hoverIntensity ? 'auto' : 'none',
       opacity: isVisible ? 1 : 0,
       transition: config.animated ? `opacity ${config.duration} ${config.easing}` : undefined,
-      zIndex: isPageTarget ? (config.zIndex || 1000) + 100 : config.zIndex || 1000,
+      zIndex: isPageTarget ? (config.zIndex || 20) + 100 : config.zIndex || 20,
       ...config.style
     };
 

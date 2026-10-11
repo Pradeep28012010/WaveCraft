@@ -15,7 +15,6 @@ import type { Track, AlbumResult } from '../../types';
 
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
-import MaskedHeading from '../ui/MaskedHeading';
 
 const HorizontalScroll = ({
   children,
@@ -94,7 +93,6 @@ export default function HomePage() {
   const likedSongs = useLibraryStore((state) => state.likedSongs);
   const toggleLike = useLibraryStore((state) => state.toggleLike);
   const likedIds = useLibraryStore((state) => state.likedIds);
-  const { isPhone } = useDevicePreset();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'music' | 'albums' | 'moods'>('all');
   const [trendingTracks, setTrendingTracks] = useState<Track[]>(() => {
@@ -300,24 +298,9 @@ export default function HomePage() {
               {greetingInfo.vibeBadge}
             </span>
           </div>
-          <div className="my-1 w-full max-w-xl">
-            <MaskedHeading
-              text={greetingInfo.greeting}
-              tag="h1"
-              src={spotlightTrack?.thumbnailLarge || spotlightTrack?.thumbnail || DEFAULT_THUMBNAIL}
-              weight={900}
-              tracking={-0.03}
-              textScale={isPhone ? 0.09 : 0.055}
-              align="left"
-              reveal="rise"
-              trigger="view"
-              fillScale={1.3}
-              parallax={24}
-              drift={12}
-              brightness={1.15}
-              className="text-white drop-shadow-sm font-black"
-            />
-          </div>
+          <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
+            {greetingInfo.greeting}
+          </h1>
           <p className="text-xs sm:text-sm text-white/55 mt-1 font-medium">
             {greetingInfo.tagline} • <span className="text-white/80 font-bold">320kbps Studio Audio</span>
           </p>
