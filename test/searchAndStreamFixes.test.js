@@ -133,6 +133,26 @@ test('Search Ranking & Stream Fixes Validation', async (t) => {
         return false;
       }
 
+      // Validate artist if specified: prevent wrong song by different artist with identical title
+      if (targetArtist && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
+        const cleanTargetArtist = targetArtist
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        const cleanCandArtist = `${(candSubtitle || '').toLowerCase()} ${normCand}`
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        const artistTokens = cleanTargetArtist.split(/\s+/).filter((t) => t.length > 2);
+        if (artistTokens.length > 0) {
+          const hasArtistMatch = artistTokens.some((tok) => cleanCandArtist.includes(tok));
+          if (!hasArtistMatch) {
+            return false;
+          }
+        }
+      }
+
       const cleanTarget = normTarget
         .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
         .replace(/[^a-z0-9\s]/g, ' ')
@@ -168,6 +188,9 @@ test('Search Ranking & Stream Fixes Validation', async (t) => {
     assert.equal(isStrictSaavnMatch('Raa Raa Naa Veera', '', 'Veera Soora', 'Yuvan Shankar Raja'), false);
     assert.equal(isStrictSaavnMatch('Raa Raa Naa Veera', '', 'Reti Ra Ran Ma Chale', 'Sanatan Bhakti Ganga'), false);
     assert.equal(isStrictSaavnMatch('Vaaste', 'Dhvani', 'Vaaste (Instrumental)', 'T-Series'), false);
+    // Wrong artist with identical song title must be rejected
+    assert.equal(isStrictSaavnMatch('Hello', 'Adele', 'Hello', 'Lionel Richie'), false);
+    assert.equal(isStrictSaavnMatch('Starboy', 'The Weeknd', 'Starboy', 'Unknown Karaoke Band'), false);
 
     // Acceptance tests: Genuine matches
     assert.equal(isStrictSaavnMatch('Kesariya', 'Arijit Singh', 'Kesariya', 'Pritam, Arijit Singh'), true);

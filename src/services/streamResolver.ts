@@ -33,7 +33,7 @@ const BGM_REGEX =
 
 export function isStrictSaavnMatch(
   targetTitle: string,
-  _targetArtist: string,
+  targetArtist?: string,
   candTitle?: string,
   candSubtitle?: string
 ): boolean {
@@ -48,6 +48,26 @@ export function isStrictSaavnMatch(
   const isCandInst = BGM_REGEX.test(candFull);
   if (!isTargetInst && isCandInst) {
     return false;
+  }
+
+  // Validate artist if specified: prevent wrong song by different artist with identical title
+  if (targetArtist && targetArtist.trim().length > 1) {
+    const cleanTargetArtist = targetArtist
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const cleanCandArtist = `${(candSubtitle || '').toLowerCase()} ${normCand}`
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const artistTokens = cleanTargetArtist.split(/\s+/).filter((t) => t.length > 2);
+    if (artistTokens.length > 0) {
+      const hasArtistMatch = artistTokens.some((tok) => cleanCandArtist.includes(tok));
+      if (!hasArtistMatch) {
+        return false;
+      }
+    }
   }
 
   const cleanTarget = normTarget
@@ -85,7 +105,7 @@ export function isStrictSaavnMatch(
  * Employs a multi-tier resolution waterfall:
  * 1. Serverless backend stream resolver
  * 2. High-speed JioSaavn 320kbps CDN with progressive query fallback
- * 3. Apple Music / iTunes high-fidelity AAC audio stream
+ * 3. Invidious direct adaptive audio stream fallback (when videoId exists)
  */
 export async function resolveDirectAudio(
   title: string,
@@ -181,38 +201,9 @@ export async function resolveDirectAudio(
     } catch {}
   }
 
-  // 3. Apple Music / iTunes high-fidelity audio stream fallback (global coverage for Western, Soundtracks & International)
-  const itunesCandidates = [
-    cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle,
-    cleanTitle,
-    title.split(/[-–—]/)[0]?.trim()
-  ].filter((q, idx, arr): q is string => Boolean(q) && q.length > 1 && arr.indexOf(q) === idx);
-
-  for (const q of itunesCandidates) {
-    try {
-      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=5`;
-      const res = await fetch(itunesUrl, {
-        signal: AbortSignal.timeout(3500)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const results = data?.results || [];
-        if (Array.isArray(results) && results.length > 0) {
-          for (const item of results) {
-            const preview = item?.previewUrl;
-            if (preview && typeof preview === 'string' && preview.startsWith('https://')) {
-              if (streamCache.size >= MAX_CACHE_ENTRIES) {
-                const first = streamCache.keys().next().value;
-                if (first) streamCache.delete(first);
-              }
-              streamCache.set(cacheKey, preview);
-              return preview;
-            }
-          }
-        }
-      }
-    } catch {}
-  }
+  // NOTE: Do NOT fall back to iTunes previewUrl here.
+  // Apple iTunes previewUrl is hard-capped at 30 seconds and causes cutoff.
+  // Full tracks without a direct 320kbps CDN stream will fall back to YouTube search.
 
   // 4. Invidious direct audio stream extraction fallback (when videoId exists)
   if (videoId) {

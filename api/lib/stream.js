@@ -109,6 +109,26 @@ export function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSub
     return false;
   }
 
+  // Validate artist if specified: prevent wrong song by different artist with identical title
+  if (targetArtist && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
+    const cleanTargetArtist = targetArtist
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const cleanCandArtist = `${(candSubtitle || '').toLowerCase()} ${normCand}`
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const artistTokens = cleanTargetArtist.split(/\s+/).filter((t) => t.length > 2);
+    if (artistTokens.length > 0) {
+      const hasArtistMatch = artistTokens.some((tok) => cleanCandArtist.includes(tok));
+      if (!hasArtistMatch) {
+        return false;
+      }
+    }
+  }
+
   const cleanTarget = normTarget
     .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
     .replace(/[^a-z0-9\s]/g, ' ')
@@ -193,31 +213,9 @@ export async function resolveDirectAudioStream(title, artist) {
     } catch {}
   }
 
-  // Apple Music / iTunes fallback for global soundtracks and international tracks
-  for (const q of candidateQueries) {
-    try {
-      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=5`;
-      const res = await fetchWithTimeout(itunesUrl, {}, 3500);
-      if (res.ok) {
-        const data = await res.json();
-        const results = data?.results || [];
-        if (Array.isArray(results) && results.length > 0) {
-          for (const item of results) {
-            const preview = item?.previewUrl;
-            if (preview && typeof preview === 'string' && preview.startsWith('https://')) {
-              return {
-                audioUrl: preview,
-                quality: '256kbps Apple AAC',
-                title: item.trackName,
-                artist: item.artistName
-              };
-            }
-          }
-        }
-      }
-    } catch {}
-  }
-
+  // NOTE: Do NOT fall back to iTunes previewUrl here.
+  // iTunes previewUrl is capped at 30 seconds and causes cutoff or incorrect track playback.
+  // When no direct 320kbps CDN stream is found, return null so YouTube full video search takes over.
   return null;
 }
 

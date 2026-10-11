@@ -214,7 +214,7 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
             thumbnail: albumArt,
             thumbnailLarge: albumArt,
             thumbnailUrl: albumArt,
-            audioUrl: s.previewUrl || undefined,
+            audioUrl: undefined,
             audioPreviewUrl: s.previewUrl || undefined,
             quality: 'Apple Master'
           }));
@@ -553,7 +553,7 @@ export async function searchItunesSongs(query: string, limit = 20): Promise<Trac
         thumbnail: art,
         thumbnailLarge: art,
         thumbnailUrl: art,
-        audioUrl: item.previewUrl || undefined,
+        audioUrl: undefined,
         audioPreviewUrl: item.previewUrl || undefined,
         youtubeId: '',
         quality: 'Apple Master'

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, memo } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -11,6 +11,7 @@ import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import GradualBlur from '../ui/GradualBlur';
+import ReactBitsReorderList from '../ui/ReactBitsReorderList';
 import type { Track } from '../../types';
 
 interface QueuePanelProps {
@@ -18,83 +19,41 @@ interface QueuePanelProps {
   onClose: () => void;
 }
 
+interface UpcomingQueueItem {
+  id: string;
+  track: Track;
+  actualIndex: number;
+}
+
 interface QueueTrackRowProps {
   track: Track;
   actualIndex: number;
   idx: number;
-  isBeingDragged: boolean;
-  isDragTarget: boolean;
+  isBeingDragged?: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
   queue: Track[];
-  onDragStart: (actualIndex: number) => void;
-  onDragOver: (e: React.DragEvent, actualIndex: number) => void;
-  onDrop: (targetActualIndex: number) => void;
-  onDragEnd: () => void;
   onJumpToTrack: (track: Track, actualIndex: number) => void;
   onMoveToTop: (fromActualIndex: number) => void;
   onReorder: (from: number, to: number) => void;
   onRemove: (index: number) => void;
 }
 
-const queueItemVariants = {
-  initial: { opacity: 0, y: 14, scale: 0.97 },
-  animate: (customIdx: number) => ({
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      type: 'spring',
-      stiffness: 380,
-      damping: 28,
-      mass: 0.75,
-      delay: Math.min(customIdx * 0.02, 0.22)
-    }
-  }),
-  exit: {
-    opacity: 0,
-    x: -30,
-    scale: 0.94,
-    transition: {
-      duration: 0.18,
-      ease: [0.16, 1, 0.3, 1] as const
-    }
-  }
-};
-
 const QueueTrackRow = memo(function QueueTrackRow({
   track,
   actualIndex,
   idx,
   isBeingDragged,
-  isDragTarget,
   canMoveUp,
   canMoveDown,
   queue,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
   onJumpToTrack,
   onMoveToTop,
   onReorder,
   onRemove
 }: QueueTrackRowProps) {
   return (
-    <motion.div
-      layout="position"
-      custom={idx}
-      variants={queueItemVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      whileHover={{ scale: 1.012, x: 2 }}
-      whileTap={{ scale: 0.99 }}
-      draggable
-      onDragStart={() => onDragStart(actualIndex)}
-      onDragOver={(e) => onDragOver(e, actualIndex)}
-      onDrop={() => onDrop(actualIndex)}
-      onDragEnd={onDragEnd}
+    <div
       onContextMenu={(e) => {
         if (e.shiftKey) return;
         e.preventDefault();
@@ -102,10 +61,8 @@ const QueueTrackRow = memo(function QueueTrackRow({
         useContextMenuStore.getState().openTrackMenu({ clientX: e.clientX, clientY: e.clientY }, track, queue);
       }}
       className={`group flex items-center gap-2.5 p-2 rounded-2xl border transition-colors duration-150 ${
-        isDragTarget
-          ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)] scale-[1.01]'
-          : isBeingDragged
-          ? 'opacity-40 bg-white/5 border-white/20'
+        isBeingDragged
+          ? 'opacity-35 bg-white/5 border-white/20'
           : 'bg-white/[0.035] hover:bg-white/[0.09] border-white/[0.06] hover:border-white/15'
       }`}
     >
@@ -132,6 +89,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
 
       {/* Track Artwork with Play Overlay */}
       <div
+        data-no-drag="true"
         onClick={() => onJumpToTrack(track, actualIndex)}
         className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer border border-white/10"
       >
@@ -142,7 +100,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
           onError={(e) => {
             (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
           }}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover pointer-events-none"
         />
         <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
           <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
@@ -153,6 +111,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
 
       {/* Title & Artist (Click to Play Immediately) */}
       <div
+        data-no-drag="true"
         onClick={() => onJumpToTrack(track, actualIndex)}
         className="min-w-0 flex-1 cursor-pointer"
       >
@@ -165,15 +124,16 @@ const QueueTrackRow = memo(function QueueTrackRow({
       </div>
 
       {/* Duration Readout */}
-      <span className="text-[11px] font-medium text-white/60 tabular-nums group-hover:hidden pr-1">
+      <span data-no-drag="true" className="text-[11px] font-medium text-white/60 tabular-nums group-hover:hidden pr-1">
         {formatTime(track.duration || 210)}
       </span>
 
       {/* Hover Action Dock */}
-      <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+      <div data-no-drag="true" className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
         {idx > 0 && (
           <button
             type="button"
+            data-no-drag="true"
             onClick={() => onMoveToTop(actualIndex)}
             aria-label="Play Next (Move to Top)"
             title="Play Next (Move to Top)"
@@ -189,6 +149,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
 
         <button
           type="button"
+          data-no-drag="true"
           onClick={() => canMoveUp && onReorder(actualIndex, actualIndex - 1)}
           disabled={!canMoveUp}
           aria-label="Move track up"
@@ -202,6 +163,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
 
         <button
           type="button"
+          data-no-drag="true"
           onClick={() => canMoveDown && onReorder(actualIndex, actualIndex + 1)}
           disabled={!canMoveDown}
           aria-label="Move track down"
@@ -215,6 +177,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
 
         <button
           type="button"
+          data-no-drag="true"
           onClick={() => onRemove(actualIndex)}
           aria-label="Remove from Queue"
           title="Remove from Queue"
@@ -226,7 +189,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
           </svg>
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 });
 
@@ -256,9 +219,6 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'upnext' | 'history'>('upnext');
   const [isAiFilling, setIsAiFilling] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
-  const [draggedActualIndex, setDraggedActualIndex] = useState<number | null>(null);
-  const [dragOverActualIndex, setDragOverActualIndex] = useState<number | null>(null);
-  const dragNodeRef = useRef<number | null>(null);
 
   // Split queue into Previous (History in current queue) and Upcoming (after queueIndex)
   const effectiveIndex =
@@ -268,13 +228,31 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
       ? Math.max(0, queue.findIndex((t) => t.id === currentTrack.id))
       : -1;
 
-  const upcomingItems =
-    effectiveIndex >= 0
+  const upcomingItems = useMemo<UpcomingQueueItem[]>(() => {
+    return effectiveIndex >= 0
       ? queue.slice(effectiveIndex + 1).map((track, idx) => ({
+          id: `${track.id}-${effectiveIndex + 1 + idx}`,
           track,
           actualIndex: effectiveIndex + 1 + idx
         }))
-      : queue.map((track, idx) => ({ track, actualIndex: idx }));
+      : queue.map((track, idx) => ({
+          id: `${track.id}-${idx}`,
+          track,
+          actualIndex: idx
+        }));
+  }, [queue, effectiveIndex]);
+
+  const handleReorderUpcoming = useCallback(
+    (fromIdx: number, toIdx: number) => {
+      const fromItem = upcomingItems[fromIdx];
+      const toItem = upcomingItems[toIdx];
+      if (fromItem && toItem && fromItem.actualIndex !== toItem.actualIndex) {
+        triggerAndroidHaptic('light');
+        reorderQueue(fromItem.actualIndex, toItem.actualIndex);
+      }
+    },
+    [upcomingItems, reorderQueue]
+  );
 
   const historyItems =
     effectiveIndex > 0
@@ -285,7 +263,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
       : [];
 
   const totalUpcomingSeconds = upcomingItems.reduce(
-    (acc, item) => acc + (item.track.duration || 210),
+    (acc: number, item: UpcomingQueueItem) => acc + (item.track.duration || 210),
     0
   );
   const totalUpcomingMins = Math.max(1, Math.round(totalUpcomingSeconds / 60));
@@ -304,8 +282,8 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const handleShuffleUpcoming = () => {
     if (upcomingItems.length <= 1) return;
     const beforeAndCurrent = effectiveIndex >= 0 ? queue.slice(0, effectiveIndex + 1) : [];
-    const upcomingTracks = upcomingItems.map((i) => i.track);
-    const shuffledUpcoming = shuffleArray(upcomingTracks);
+    const upcomingTracks: Track[] = upcomingItems.map((i: UpcomingQueueItem) => i.track);
+    const shuffledUpcoming = shuffleArray(upcomingTracks) as Track[];
     const nextQueue = [...beforeAndCurrent, ...shuffledUpcoming];
     usePlayerStore.setState({
       queue: nextQueue,
@@ -351,34 +329,6 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 2400);
   };
-
-  const handleDragStart = useCallback((actualIndex: number) => {
-    dragNodeRef.current = actualIndex;
-    setDraggedActualIndex(actualIndex);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent, actualIndex: number) => {
-    e.preventDefault();
-    if (dragOverActualIndex !== actualIndex) {
-      setDragOverActualIndex(actualIndex);
-    }
-  }, [dragOverActualIndex]);
-
-  const handleDrop = useCallback((targetActualIndex: number) => {
-    const fromIndex = dragNodeRef.current;
-    if (fromIndex !== null && fromIndex !== targetActualIndex) {
-      reorderQueue(fromIndex, targetActualIndex);
-    }
-    dragNodeRef.current = null;
-    setDraggedActualIndex(null);
-    setDragOverActualIndex(null);
-  }, [reorderQueue]);
-
-  const handleDragEnd = useCallback(() => {
-    dragNodeRef.current = null;
-    setDraggedActualIndex(null);
-    setDragOverActualIndex(null);
-  }, []);
 
   const artSrc = currentTrack?.thumbnailLarge || currentTrack?.thumbnail || DEFAULT_THUMBNAIL;
 
@@ -696,33 +646,29 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-1.5 overflow-hidden">
-                      <AnimatePresence mode="popLayout" initial={false}>
-                        {upcomingItems.map(({ track, actualIndex }, idx) => (
+                    <div className="overflow-hidden">
+                      <ReactBitsReorderList<UpcomingQueueItem>
+                        items={upcomingItems}
+                        gap={6}
+                        dragTilt={6}
+                        lift={1.025}
+                        onReorder={handleReorderUpcoming}
+                        renderItem={(item, idx, isDragging) => (
                           <QueueTrackRow
-                            key={`${track.id}-${actualIndex}`}
-                            track={track}
-                            actualIndex={actualIndex}
+                            track={item.track}
+                            actualIndex={item.actualIndex}
                             idx={idx}
-                            isBeingDragged={draggedActualIndex === actualIndex}
-                            isDragTarget={
-                              dragOverActualIndex === actualIndex &&
-                              draggedActualIndex !== actualIndex
-                            }
+                            isBeingDragged={isDragging}
                             canMoveUp={idx > 0}
                             canMoveDown={idx < upcomingItems.length - 1}
                             queue={queue}
-                            onDragStart={handleDragStart}
-                            onDragOver={handleDragOver}
-                            onDrop={handleDrop}
-                            onDragEnd={handleDragEnd}
                             onJumpToTrack={handleJumpToTrack}
                             onMoveToTop={handleMoveToTop}
                             onReorder={reorderQueue}
                             onRemove={removeFromQueue}
                           />
-                        ))}
-                      </AnimatePresence>
+                        )}
+                      />
                     </div>
                   )}
                 </div>

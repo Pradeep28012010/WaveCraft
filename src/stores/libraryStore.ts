@@ -86,9 +86,20 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         storage.getRecentlyPlayed(),
         storage.getPlayHistory()
       ]);
-      const validLiked = (likedSongs || []).filter(
-        (t: unknown): t is Track => Boolean(t && typeof t === 'object' && 'id' in t && 'title' in t)
-      );
+      const isPreviewAudio = (url?: string) =>
+        Boolean(
+          url &&
+          (url.includes('itunes.apple.com') ||
+           url.includes('audio-ssl') ||
+           url.includes('mzstatic') ||
+           url.includes('p.scdn.co') ||
+           url.includes('preview'))
+        );
+      const validLiked = (likedSongs || [])
+        .filter(
+          (t: unknown): t is Track => Boolean(t && typeof t === 'object' && 'id' in t && 'title' in t)
+        )
+        .map((t) => (t.audioUrl && isPreviewAudio(t.audioUrl) ? { ...t, audioUrl: undefined } : t));
       const loadedPlaylists = (playlists || []) as Playlist[];
       const loadedFolders = (folders || []) as PlaylistFolder[];
       set({

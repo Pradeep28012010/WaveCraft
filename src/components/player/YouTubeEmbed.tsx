@@ -6,7 +6,7 @@ import { useStudioStore } from '../../stores/studioStore';
 import { searchTracks, findStrictTrackMatch } from '../../services/youtube';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
 import { getOfflineAudioObjectUrl, isTrackOffline } from '../../services/offlineVault';
-import { resolveDirectAudio } from '../../services/streamResolver';
+import { resolveDirectAudio, cleanTrackQuery } from '../../services/streamResolver';
 import {
   setHtmlAudioElement,
   setYtPlayerInstance,
@@ -814,12 +814,23 @@ export default function YouTubeEmbed() {
         return;
       }
 
-      // 2. Direct 320kbps Audio Stream already available (skip 30s audio previews)
+      // Helper to identify and reject 30-second audio previews (Apple Music / Spotify preview clips)
+      const isAudioPreviewUrl = (url?: string): boolean => {
+        if (!url) return false;
+        return (
+          url.includes('p.scdn.co') ||
+          url.includes('itunes.apple.com') ||
+          url.includes('mzstatic.com') ||
+          url.includes('audio-ssl') ||
+          url.includes('apple.com') ||
+          url.includes('preview')
+        );
+      };
+
+      // 2. Direct 320kbps Audio Stream already available (MUST be full-length CDN stream, never 30s preview)
       const isDirectCdnStream =
         Boolean(track.audioUrl) &&
-        !track.audioUrl!.includes('p.scdn.co') &&
-        !track.audioUrl!.includes('itunes.apple.com') &&
-        !track.audioUrl!.includes('mzstatic.com') &&
+        !isAudioPreviewUrl(track.audioUrl) &&
         (track.audioUrl!.startsWith('https://aac.saavncdn.com') ||
          track.audioUrl!.startsWith('blob:') ||
          track.audioUrl!.endsWith('.mp4') ||
@@ -843,7 +854,7 @@ export default function YouTubeEmbed() {
       }
 
       // 4. For tracks WITHOUT a YouTube ID (e.g. imported from Spotify or iTunes metadata),
-      // resolve a direct audio stream or search YouTube.
+      // resolve a verified direct 320kbps audio stream or search YouTube for the full song.
       if (audio && (track.title || track.artist)) {
         setIsLoading(true);
         resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
@@ -851,7 +862,7 @@ export default function YouTubeEmbed() {
             if (resolveToken !== resolvingTokenRef.current) return;
             if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
-            if (resolvedUrl) {
+            if (resolvedUrl && !isAudioPreviewUrl(resolvedUrl)) {
               track.audioUrl = resolvedUrl;
               track.quality = '320kbps Studio AAC';
               usePlayerStore.setState((s) => ({
@@ -896,12 +907,24 @@ export default function YouTubeEmbed() {
     setProgress(0, 0);
 
     const token = ++resolvingTokenRef.current;
-    searchTracks(`${track.title} ${track.artist}`)
-      .then((results) => {
+    const { cleanTitle, cleanArtist } = cleanTrackQuery(track.title, track.artist);
+    const primaryQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle || `${track.title} ${track.artist}`.trim();
+
+    searchTracks(primaryQuery)
+      .then(async (results) => {
         if (token !== resolvingTokenRef.current) return;
         if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
-        const best = findStrictTrackMatch(track.title, track.artist, results, track.duration);
+        let best = findStrictTrackMatch(track.title, track.artist, results, track.duration);
+
+        // Fallback: If title had extra noise, query with cleaned title
+        if (!best && cleanTitle && cleanTitle !== primaryQuery) {
+          try {
+            const fallbackResults = await searchTracks(cleanTitle);
+            best = findStrictTrackMatch(track.title, track.artist, fallbackResults, track.duration);
+          } catch {}
+        }
+
         const resolved = best || (results.length > 0 ? results[0] : null);
 
         const ytid =
@@ -923,7 +946,7 @@ export default function YouTubeEmbed() {
             )
           }));
           fallbackToYouTube(track, ytid, shouldPlay);
-        } else if (resolved?.audioUrl) {
+        } else if (resolved?.audioUrl && !resolved.audioUrl.includes('preview') && !resolved.audioUrl.includes('mzstatic') && !resolved.audioUrl.includes('itunes')) {
           track.audioUrl = resolved.audioUrl;
           usePlayerStore.setState((s) => ({
             currentTrack:
