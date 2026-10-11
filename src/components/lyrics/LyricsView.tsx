@@ -527,23 +527,55 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          {userOffset !== 0 && (
+            <span
+              onClick={() => {
+                setShowSearchDrawer(true);
+                setShowSyncDrawer(true);
+              }}
+              className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-pointer hover:bg-amber-500/30 transition-colors"
+              title="Lyrics sync timing offset (Click to calibrate)"
+            >
+              {userOffset > 0 ? `+${userOffset.toFixed(1)}s` : `${userOffset.toFixed(1)}s`}
+            </span>
+          )}
           <button
             type="button"
             onClick={() => {
-              setShowSearchDrawer((prev) => !prev);
-              setShowSyncDrawer(false);
+              if (showSearchDrawer || showSyncDrawer) {
+                setShowSearchDrawer(false);
+                setShowSyncDrawer(false);
+              } else {
+                setShowSearchDrawer(true);
+                setShowSyncDrawer(true);
+              }
             }}
             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-              showSearchDrawer
+              showSearchDrawer || showSyncDrawer
                 ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(255,255,255,0.2)]'
                 : 'glass-button text-white/70 hover:text-white'
             }`}
-            title="Search lyrics or paste plain lyrics"
-            aria-label="Search lyrics"
+            title="Lyrics Options & Tools (Timing Offset, Search, Plain Lyrics)"
+            aria-label="Lyrics options and tools"
           >
-            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <svg
+              className="w-4 h-4 flex-shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="4" y1="21" x2="4" y2="14" />
+              <line x1="4" y1="10" x2="4" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" y2="3" />
+              <line x1="20" y1="21" x2="20" y2="16" />
+              <line x1="20" y1="12" x2="20" y2="3" />
+              <line x1="1" y1="14" x2="7" y2="14" />
+              <line x1="9" y1="8" x2="15" y2="8" />
+              <line x1="17" y1="16" x2="23" y2="16" />
             </svg>
           </button>
         </div>
@@ -770,9 +802,9 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
                     ? 'glass-button-primary text-white'
                     : 'glass-button text-white/80 hover:text-white'
                 }`}
-                title="Calibrate lyrics sync timing offset"
+                title="Calibrate lyrics sync timing offset and versions"
               >
-                Sync Timing
+                ⏱️ Timing {userOffset !== 0 ? `(${userOffset > 0 ? '+' : ''}${userOffset.toFixed(1)}s)` : ''}
               </button>
             </form>
 

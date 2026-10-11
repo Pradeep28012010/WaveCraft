@@ -461,10 +461,10 @@ export default function Sidebar() {
         </nav>
 
         {/* Collapse Toggle */}
-        <div className="p-3 border-t border-white/[0.06]">
+        <div className="p-3 pt-2">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center gap-2 w-full h-10 rounded-xl text-white/50 hover:text-white hover:bg-white/[0.07] transition-all text-xs font-medium cursor-pointer"
+            className="flex items-center justify-center gap-2 w-full h-10 rounded-xl text-white/60 hover:text-white glass-button text-xs font-medium cursor-pointer"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="3" y1="12" x2="21" y2="12" />

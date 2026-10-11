@@ -762,6 +762,8 @@ export default function HomePage() {
                       src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                       alt={album.title || album.name}
                       decoding="async"
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
                       onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                       className="w-full h-full object-cover"
                     />
@@ -811,6 +813,8 @@ export default function HomePage() {
                         src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                         alt={album.title || album.name}
                         decoding="async"
+                        referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
                         onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                         className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
                       />

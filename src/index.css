@@ -87,13 +87,31 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -12px;
-  height: 12px;
+  bottom: -16px;
+  height: 16px;
   pointer-events: none;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+}
+
+.progressive-blur-dock {
+  position: relative;
+}
+.progressive-blur-dock::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -24px;
+  height: 24px;
+  pointer-events: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  mask-image: linear-gradient(to top, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, black 0%, transparent 100%);
+  z-index: 10;
 }
 
 .progressive-mask-top {

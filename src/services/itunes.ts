@@ -43,98 +43,120 @@ const artistsCache = new Map<string, ArtistResult[]>();
 const albumTracksCache = new Map<string, Track[]>();
 export const FALLBACK_NEW_RELEASES: AlbumResult[] = [
   {
-    id: 'rel_sabrina_short_sweet',
+    id: 'itunes_alb_1752214909',
     name: "Short n' Sweet",
     title: "Short n' Sweet",
     artist: 'Sabrina Carpenter',
-    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/bf/a4/09/bfa4094a-38d5-3fc5-9118-a6e5da55959c/24UMGIM62217.rgb.jpg/600x600bb.jpg',
-    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/bf/a4/09/bfa4094a-38d5-3fc5-9118-a6e5da55959c/24UMGIM62217.rgb.jpg/600x600bb.jpg',
-    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/bf/a4/09/bfa4094a-38d5-3fc5-9118-a6e5da55959c/24UMGIM62217.rgb.jpg/600x600bb.jpg',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/a1/1c/ca/a11ccab6-7d4c-e041-d028-998bcebeb709/24UMGIM61704.rgb.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/a1/1c/ca/a11ccab6-7d4c-e041-d028-998bcebeb709/24UMGIM61704.rgb.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/a1/1c/ca/a11ccab6-7d4c-e041-d028-998bcebeb709/24UMGIM61704.rgb.jpg/600x600bb.jpg',
     year: 2024,
     trackCount: 12
   },
   {
-    id: 'rel_billie_hit_me_hard',
+    id: 'itunes_alb_1739659134',
     name: 'HIT ME HARD AND SOFT',
     title: 'HIT ME HARD AND SOFT',
     artist: 'Billie Eilish',
-    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/91/97/96/91979603-f38b-d5a2-3f19-3f8d6728eb71/24UMGIM36768.rgb.jpg/600x600bb.jpg',
-    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/91/97/96/91979603-f38b-d5a2-3f19-3f8d6728eb71/24UMGIM36768.rgb.jpg/600x600bb.jpg',
-    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/91/97/96/91979603-f38b-d5a2-3f19-3f8d6728eb71/24UMGIM36768.rgb.jpg/600x600bb.jpg',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/92/9f/69/929f69f1-9977-3a44-d674-11f70c852d1b/24UMGIM36186.rgb.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/92/9f/69/929f69f1-9977-3a44-d674-11f70c852d1b/24UMGIM36186.rgb.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/92/9f/69/929f69f1-9977-3a44-d674-11f70c852d1b/24UMGIM36186.rgb.jpg/600x600bb.jpg',
     year: 2024,
-    trackCount: 10
+    trackCount: 11
   },
   {
-    id: 'rel_taylor_ttpd',
+    id: 'itunes_alb_1736268215',
     name: 'THE TORTURED POETS DEPARTMENT',
     title: 'THE TORTURED POETS DEPARTMENT',
     artist: 'Taylor Swift',
-    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3d/8a/87/3d8a87ea-9781-6a2c-f6fa-e6f7778b0e5d/24UMGIM28577.rgb.jpg/600x600bb.jpg',
-    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3d/8a/87/3d8a87ea-9781-6a2c-f6fa-e6f7778b0e5d/24UMGIM28577.rgb.jpg/600x600bb.jpg',
-    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3d/8a/87/3d8a87ea-9781-6a2c-f6fa-e6f7778b0e5d/24UMGIM28577.rgb.jpg/600x600bb.jpg',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6b/7d/61/6b7d61e4-e6f1-83bc-d645-463aa06b33c4/24UMGIM29563.rgb.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6b/7d/61/6b7d61e4-e6f1-83bc-d645-463aa06b33c4/24UMGIM29563.rgb.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6b/7d/61/6b7d61e4-e6f1-83bc-d645-463aa06b33c4/24UMGIM29563.rgb.jpg/600x600bb.jpg',
     year: 2024,
-    trackCount: 16
+    trackCount: 17
   },
   {
-    id: 'rel_kendrick_gnx',
+    id: 'itunes_alb_1781316864',
     name: 'GNX',
     title: 'GNX',
     artist: 'Kendrick Lamar',
-    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e5/bd/27/e5bd27bb-efb9-9e0c-99f8-744030dff75b/24UM1IM51458.rgb.jpg/600x600bb.jpg',
-    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e5/bd/27/e5bd27bb-efb9-9e0c-99f8-744030dff75b/24UM1IM51458.rgb.jpg/600x600bb.jpg',
-    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e5/bd/27/e5bd27bb-efb9-9e0c-99f8-744030dff75b/24UM1IM51458.rgb.jpg/600x600bb.jpg',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/54/28/14/54281424-eece-0935-299d-fdd2ab403f92/24UM1IM28978.rgb.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/54/28/14/54281424-eece-0935-299d-fdd2ab403f92/24UM1IM28978.rgb.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/54/28/14/54281424-eece-0935-299d-fdd2ab403f92/24UM1IM28978.rgb.jpg/600x600bb.jpg',
     year: 2024,
     trackCount: 12
   },
   {
-    id: 'rel_chappell_midwest',
+    id: 'itunes_alb_1707412988',
     name: 'The Rise and Fall of a Midwest Princess',
     title: 'The Rise and Fall of a Midwest Princess',
     artist: 'Chappell Roan',
-    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/9c/04/b5/9c04b509-3171-ec59-a5ae-7a323a789d6e/23UMGIM78944.rgb.jpg/600x600bb.jpg',
-    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/9c/04/b5/9c04b509-3171-ec59-a5ae-7a323a789d6e/23UMGIM78944.rgb.jpg/600x600bb.jpg',
-    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/9c/04/b5/9c04b509-3171-ec59-a5ae-7a323a789d6e/23UMGIM78944.rgb.jpg/600x600bb.jpg',
-    year: 2024,
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/42/a0/c5/42a0c5e6-6b98-f1f9-7d6b-6d6c61aba562/23UMGIM84225.rgb.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/42/a0/c5/42a0c5e6-6b98-f1f9-7d6b-6d6c61aba562/23UMGIM84225.rgb.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/42/a0/c5/42a0c5e6-6b98-f1f9-7d6b-6d6c61aba562/23UMGIM84225.rgb.jpg/600x600bb.jpg',
+    year: 2023,
     trackCount: 14
   },
   {
-    id: 'rel_post_f1_trillion',
+    id: 'itunes_alb_1752536575',
     name: 'F-1 Trillion',
     title: 'F-1 Trillion',
     artist: 'Post Malone',
-    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9d/ae/ee/9daeeeb4-c9ec-63ff-8452-cf0560a631c1/24UMGIM69894.rgb.jpg/600x600bb.jpg',
-    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9d/ae/ee/9daeeeb4-c9ec-63ff-8452-cf0560a631c1/24UMGIM69894.rgb.jpg/600x600bb.jpg',
-    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9d/ae/ee/9daeeeb4-c9ec-63ff-8452-cf0560a631c1/24UMGIM69894.rgb.jpg/600x600bb.jpg',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/0e/7c/29/0e7c29f4-74ec-e234-cc49-9212a5c0f847/24UMGIM60824.rgb.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/0e/7c/29/0e7c29f4-74ec-e234-cc49-9212a5c0f847/24UMGIM60824.rgb.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/0e/7c/29/0e7c29f4-74ec-e234-cc49-9212a5c0f847/24UMGIM60824.rgb.jpg/600x600bb.jpg',
     year: 2024,
     trackCount: 18
   },
   {
-    id: 'rel_charli_brat',
+    id: 'itunes_alb_1739079974',
     name: 'BRAT',
     title: 'BRAT',
     artist: 'Charli xcx',
-    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/90/a6/5c/90a65c28-98aa-dfd9-4ef3-43183570220d/5054197992984.jpg/600x600bb.jpg',
-    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/90/a6/5c/90a65c28-98aa-dfd9-4ef3-43183570220d/5054197992984.jpg/600x600bb.jpg',
-    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/90/a6/5c/90a65c28-98aa-dfd9-4ef3-43183570220d/5054197992984.jpg/600x600bb.jpg',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/88/4e/63/884e6321-ad41-aab1-f6f0-20efcafcfd55/075679666130.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/88/4e/63/884e6321-ad41-aab1-f6f0-20efcafcfd55/075679666130.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/88/4e/63/884e6321-ad41-aab1-f6f0-20efcafcfd55/075679666130.jpg/600x600bb.jpg',
     year: 2024,
     trackCount: 15
   },
   {
-    id: 'rel_coldplay_moon_music',
+    id: 'itunes_alb_1770789137',
     name: 'Moon Music',
     title: 'Moon Music',
     artist: 'Coldplay',
-    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f5/83/80/f58380bb-2647-a871-3c48-2895fc65aa44/5054197985160.jpg/600x600bb.jpg',
-    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f5/83/80/f58380bb-2647-a871-3c48-2895fc65aa44/5054197985160.jpg/600x600bb.jpg',
-    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f5/83/80/f58380bb-2647-a871-3c48-2895fc65aa44/5054197985160.jpg/600x600bb.jpg',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c6/6d/06/c66d06d3-0ceb-35b9-594d-4b85b697ec2c/5021732499189.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c6/6d/06/c66d06d3-0ceb-35b9-594d-4b85b697ec2c/5021732499189.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c6/6d/06/c66d06d3-0ceb-35b9-594d-4b85b697ec2c/5021732499189.jpg/600x600bb.jpg',
     year: 2024,
     trackCount: 10
+  },
+  {
+    id: 'itunes_alb_1725913366',
+    name: 'eternal sunshine',
+    title: 'eternal sunshine',
+    artist: 'Ariana Grande',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/2e/88/88/2e8888ad-a0cf-eece-70a7-1ff81377a3ab/24UMGIM00198.rgb.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/2e/88/88/2e8888ad-a0cf-eece-70a7-1ff81377a3ab/24UMGIM00198.rgb.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/2e/88/88/2e8888ad-a0cf-eece-70a7-1ff81377a3ab/24UMGIM00198.rgb.jpg/600x600bb.jpg',
+    year: 2024,
+    trackCount: 13
+  },
+  {
+    id: 'itunes_alb_1738370746',
+    name: 'COWBOY CARTER',
+    title: 'COWBOY CARTER',
+    artist: 'Beyoncé',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c6/9c/17/c69c17df-1835-77e7-58c1-ca04d44a0611/196871853736.jpg/600x600bb.jpg',
+    coverArt: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c6/9c/17/c69c17df-1835-77e7-58c1-ca04d44a0611/196871853736.jpg/600x600bb.jpg',
+    thumbnail: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c6/9c/17/c69c17df-1835-77e7-58c1-ca04d44a0611/196871853736.jpg/600x600bb.jpg',
+    year: 2024,
+    trackCount: 27
   }
 ];
 
-const NEW_RELEASES_STORAGE_KEY = 'wavecraft_cached_releases_v1';
+const NEW_RELEASES_STORAGE_KEY = 'wavecraft_cached_releases_v2';
 
-function getStoredNewReleases(): AlbumResult[] {
+function getStoredNewReleases(): AlbumResult[] | null {
   try {
     if (typeof localStorage !== 'undefined') {
       const raw = localStorage.getItem(NEW_RELEASES_STORAGE_KEY);
@@ -144,7 +166,7 @@ function getStoredNewReleases(): AlbumResult[] {
       }
     }
   } catch {}
-  return FALLBACK_NEW_RELEASES;
+  return null;
 }
 
 let cachedNewReleases: AlbumResult[] | null = getStoredNewReleases();
