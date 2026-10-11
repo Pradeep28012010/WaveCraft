@@ -37,9 +37,13 @@ import type { Track, YTPlayerEvent } from '../../types';
 // Re-export audio engine controls so existing consumers continue to work seamlessly
 export { getAudioFrequencyData, getPlayer, unlockAudioEngine, seekToTime };
 
+const SILENT_AUDIO_URI =
+  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+
 export default function YouTubeEmbed() {
   const containerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioAnchorRef = useRef<HTMLAudioElement | null>(null);
   const lastRecordedTrackId = useRef<string | null>(null);
   const isFetchingAutoplay = useRef<boolean>(false);
   const trackTransitionIntentRef = useRef<boolean>(false);
@@ -89,10 +93,22 @@ export default function YouTubeEmbed() {
   const sleepActive = useStudioStore((s) => s.sleepActive);
   const sleepEndAtTrack = useStudioStore((s) => s.sleepEndAtTrack);
 
-  // Proactively unlock AudioContext and HTMLAudioElement on first user touch / pointer interaction
+  // Proactively unlock AudioContext, HTMLAudioElement and Background Audio Anchor on first interaction
   useEffect(() => {
     const unlockOnInteraction = () => {
       unlockAudioEngine();
+      if (audioAnchorRef.current) {
+        audioAnchorRef.current.volume = 0.001;
+        audioAnchorRef.current.src = SILENT_AUDIO_URI;
+        audioAnchorRef.current
+          .play()
+          .then(() => {
+            if (!usePlayerStore.getState().isPlaying) {
+              audioAnchorRef.current?.pause();
+            }
+          })
+          .catch(() => {});
+      }
       window.removeEventListener('pointerdown', unlockOnInteraction);
       window.removeEventListener('touchstart', unlockOnInteraction);
     };
@@ -1156,12 +1172,16 @@ export default function YouTubeEmbed() {
 
   // Sync Play / Pause when isPlaying toggles on the current track
   useEffect(() => {
-    if (!currentTrack) return;
-    if (isPlaying) {
-      startAndroidBackgroundAudio(currentTrack.title, currentTrack.artist);
-    } else {
+    if (!currentTrack) {
       stopAndroidBackgroundAudio();
+      return;
     }
+    startAndroidBackgroundAudio(
+      currentTrack.title,
+      currentTrack.artist,
+      currentTrack.thumbnailLarge || currentTrack.thumbnail,
+      isPlaying
+    );
     if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
       return;
     }
@@ -1224,6 +1244,30 @@ export default function YouTubeEmbed() {
       }
     }
   }, [isPlaying]);
+
+  // Browser Background Audio & System MediaSession Keepalive Anchor:
+  // When streaming via YouTube iframe on mobile Chrome/Safari, mobile OSes freeze iframes
+  // when minimized UNLESS the top-level origin has an active playing HTML5 audio element.
+  // This continuous silent anchor keeps the browser tab alive and attaches navigator.mediaSession
+  // to the phone's native lock-screen & notification media player!
+  useEffect(() => {
+    const anchor = audioAnchorRef.current;
+    if (!anchor) return;
+
+    if (isPlaying && currentTrack && getActiveEngine() === 'youtube') {
+      anchor.volume = 0.001;
+      if (!anchor.src || !anchor.src.startsWith('data:audio/wav')) {
+        anchor.src = SILENT_AUDIO_URI;
+      }
+      if (anchor.paused) {
+        anchor.play().catch(() => {});
+      }
+    } else {
+      if (!anchor.paused) {
+        anchor.pause();
+      }
+    }
+  }, [isPlaying, currentTrack]);
 
   // Sync Volume & Mute with Audiophile Loudness Normalization
   useEffect(() => {
@@ -1384,6 +1428,12 @@ export default function YouTubeEmbed() {
         playsInline
         preload="auto"
         crossOrigin="anonymous"
+      />
+      <audio
+        ref={audioAnchorRef}
+        loop
+        playsInline
+        preload="auto"
       />
     </div>
   );

@@ -84,7 +84,12 @@ export const initNativeAndroid = (navigate?: (to: number) => void) => {
     if (!isActive) {
       const state = usePlayerStore.getState();
       if (state.isPlaying && state.currentTrack) {
-        startAndroidBackgroundAudio(state.currentTrack.title, state.currentTrack.artist);
+        startAndroidBackgroundAudio(
+          state.currentTrack.title,
+          state.currentTrack.artist,
+          state.currentTrack.thumbnailLarge || state.currentTrack.thumbnail,
+          true
+        );
       }
     }
   });
@@ -98,20 +103,45 @@ export const initNativeAndroid = (navigate?: (to: number) => void) => {
 declare global {
   interface Window {
     AndroidAudioBridge?: {
-      startPlayback: (title: string, artist: string) => void;
+      startPlayback: (
+        title: string,
+        artist: string,
+        thumbnail?: string,
+        isPlaying?: boolean
+      ) => void;
       stopPlayback: () => void;
     };
+    __wavecraft_media_action?: (action: string) => void;
   }
+}
+
+// Global media action bridge for native Android notification playback controls
+if (typeof window !== 'undefined') {
+  window.__wavecraft_media_action = (action: string) => {
+    const store = usePlayerStore.getState();
+    if (action === 'play_pause') {
+      store.togglePlay();
+    } else if (action === 'next') {
+      store.nextTrack();
+    } else if (action === 'prev') {
+      store.prevTrack();
+    }
+  };
 }
 
 /**
  * Starts Android native Foreground Service with notification and WakeLock,
  * ensuring continuous audio streaming when app is minimized or screen is locked.
  */
-export const startAndroidBackgroundAudio = (title: string, artist: string) => {
+export const startAndroidBackgroundAudio = (
+  title: string,
+  artist: string,
+  thumbnail?: string,
+  isPlaying: boolean = true
+) => {
   if (typeof window !== 'undefined' && window.AndroidAudioBridge?.startPlayback) {
     try {
-      window.AndroidAudioBridge.startPlayback(title, artist);
+      window.AndroidAudioBridge.startPlayback(title, artist, thumbnail, isPlaying);
     } catch (e) {
       console.warn('Could not start Android foreground playback service:', e);
     }

@@ -10,14 +10,18 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
+    public static MainActivity instance;
+
     public class AndroidAudioBridge {
         @JavascriptInterface
-        public void startPlayback(String title, String artist) {
+        public void startPlayback(String title, String artist, String thumbnail, boolean isPlaying) {
             try {
                 Intent serviceIntent = new Intent(MainActivity.this, WaveCraftMediaService.class);
                 serviceIntent.setAction(WaveCraftMediaService.ACTION_START);
                 serviceIntent.putExtra(WaveCraftMediaService.EXTRA_TITLE, title);
                 serviceIntent.putExtra(WaveCraftMediaService.EXTRA_ARTIST, artist);
+                serviceIntent.putExtra(WaveCraftMediaService.EXTRA_THUMBNAIL, thumbnail);
+                serviceIntent.putExtra(WaveCraftMediaService.EXTRA_IS_PLAYING, isPlaying);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startForegroundService(serviceIntent);
                 } else {
@@ -26,6 +30,11 @@ public class MainActivity extends BridgeActivity {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+
+        @JavascriptInterface
+        public void startPlayback(String title, String artist) {
+            startPlayback(title, artist, null, true);
         }
 
         @JavascriptInterface
@@ -40,27 +49,38 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    public static void sendMediaAction(String action) {
+        if (instance != null && instance.bridge != null && instance.bridge.getWebView() != null) {
+            instance.runOnUiThread(() -> {
+                instance.bridge.getWebView().evaluateJavascript(
+                    "window.__wavecraft_media_action && window.__wavecraft_media_action('" + action + "')",
+                    null
+                );
+            });
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        instance = this;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 101);
             }
         }
+        setupWebView();
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
+    private void setupWebView() {
         if (bridge != null && bridge.getWebView() != null) {
             WebView webView = bridge.getWebView();
             WebSettings settings = webView.getSettings();
-            // Android optimization: Zero user gesture restriction for gapless audio transitions
+            // Zero user gesture restriction for gapless audio transitions
             settings.setMediaPlaybackRequiresUserGesture(false);
             // Support mixed content for high-definition streaming CDN audio chunks
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-            // Enable offline vault storage engines
+            // Enable storage engines
             settings.setDomStorageEnabled(true);
             settings.setDatabaseEnabled(true);
             settings.setJavaScriptEnabled(true);
@@ -72,11 +92,18 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        setupWebView();
+    }
+
+    @Override
     public void onPause() {
         super.onPause();
-        // Crucial: keep WebView timers running so audio engine and streams continue when app is minimized
+        // Crucial: keep WebView timers & audio decoders running so audio continues when minimized
         if (bridge != null && bridge.getWebView() != null) {
             bridge.getWebView().resumeTimers();
+            bridge.getWebView().onResume();
         }
     }
 
@@ -85,6 +112,22 @@ public class MainActivity extends BridgeActivity {
         super.onStop();
         if (bridge != null && bridge.getWebView() != null) {
             bridge.getWebView().resumeTimers();
+            bridge.getWebView().onResume();
         }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (!hasFocus && bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().resumeTimers();
+            bridge.getWebView().onResume();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        instance = null;
+        super.onDestroy();
     }
 }
