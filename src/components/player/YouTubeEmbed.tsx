@@ -338,8 +338,8 @@ export default function YouTubeEmbed() {
 
       const ytOrigin =
         isAndroidNative() ||
-        window.location.origin.includes('localhost') ||
-        window.location.origin.includes('capacitor://')
+        window.location.protocol === 'capacitor:' ||
+        window.location.protocol === 'file:'
           ? PROD_API_ORIGIN
           : window.location.origin;
 
@@ -371,6 +371,7 @@ export default function YouTubeEmbed() {
 
             const cur = state.currentTrack;
             const effectiveId =
+              activeLoadedYtIdRef.current ||
               cur?.youtubeId ||
               (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
               (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
@@ -567,7 +568,10 @@ export default function YouTubeEmbed() {
     }
     setActiveEngine('youtube');
     const ytPlayer = getPlayer();
-    if (!ytPlayer || !window.ytPlayerReady) return;
+    if (!ytPlayer || !window.ytPlayerReady) {
+      activeLoadedYtIdRef.current = effectiveYtId;
+      return;
+    }
 
     if (activeLoadedYtIdRef.current === effectiveYtId) {
       isSwitchingTrackRef.current = false;
@@ -800,7 +804,15 @@ export default function YouTubeEmbed() {
         (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
         (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
-      // 3. Proactively resolve Direct 320kbps Audio Stream for full Web Audio 8D & Live Concert
+      // 3. YouTube Direct Playback: If this track originated from YouTube search, trending, or a playlist,
+      // play the EXACT YouTube video the user selected! Do NOT hijack it with a generic title-matched Saavn stream.
+      if (effectiveYtId) {
+        fallbackToYouTube(track, effectiveYtId, shouldPlay);
+        return;
+      }
+
+      // 4. For tracks WITHOUT a YouTube ID (e.g. imported from Spotify or iTunes metadata),
+      // resolve a direct audio stream or search YouTube.
       if (audio && (track.title || track.artist)) {
         setIsLoading(true);
         resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
@@ -823,26 +835,14 @@ export default function YouTubeEmbed() {
                 )
               }));
               playNativeAudio(resolvedUrl, shouldPlay);
-            } else if (effectiveYtId) {
-              fallbackToYouTube(track, effectiveYtId, shouldPlay);
             } else {
               searchAndPlayYouTube(track, shouldPlay);
             }
           })
           .catch(() => {
             if (resolveToken !== resolvingTokenRef.current) return;
-            if (effectiveYtId) {
-              fallbackToYouTube(track, effectiveYtId, shouldPlay);
-            } else {
-              searchAndPlayYouTube(track, shouldPlay);
-            }
+            searchAndPlayYouTube(track, shouldPlay);
           });
-        return;
-      }
-
-      // 4. Pure YouTube Playback Fallback
-      if (effectiveYtId) {
-        fallbackToYouTube(track, effectiveYtId, shouldPlay);
         return;
       }
 
@@ -1018,8 +1018,8 @@ export default function YouTubeEmbed() {
         .catch(() => {});
     }
 
-    // Pre-resolve 320kbps audioUrl so next track starts immediately with 8D and Live Concert DSP
-    if (!nextTrackCandidate.audioUrl) {
+    // Pre-resolve 320kbps audioUrl only for non-YouTube tracks (e.g. Spotify/iTunes import)
+    if (!hasYtId && !nextTrackCandidate.audioUrl) {
       resolveDirectAudio(nextTrackCandidate.title, nextTrackCandidate.artist, nextTrackCandidate.duration)
         .then((resolvedUrl) => {
           if (resolvedUrl) {
@@ -1245,9 +1245,9 @@ export default function YouTubeEmbed() {
         right: 0,
         width: '320px',
         height: '180px',
-        opacity: 0.001,
+        opacity: 0.05,
         pointerEvents: 'none',
-        zIndex: -9999,
+        zIndex: -1,
         overflow: 'hidden'
       }}
     >

@@ -249,10 +249,18 @@ export default function SearchResults() {
     };
   }, [query]);
 
-  const handlePlayTrack = useCallback((track: Track) => {
-    unlockAudioEngine();
-    playTrackWithSmartQueue(track);
-  }, []);
+  const handlePlayTrack = useCallback(
+    (track: Track) => {
+      unlockAudioEngine();
+      const idx = tracks.findIndex((t) => t.id === track.id);
+      if (tracks.length > 0 && idx >= 0) {
+        playTrack(track, tracks, idx);
+      } else {
+        playTrackWithSmartQueue(track);
+      }
+    },
+    [tracks, playTrack]
+  );
 
   const handleOpenAlbum = async (album: AlbumResult, autoPlayFirst = false) => {
     if (autoPlayFirst) {

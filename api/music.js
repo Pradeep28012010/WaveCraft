@@ -702,13 +702,21 @@ async function fetchYouTubeSearch(query, limit = 25) {
 
   // Demote instrumental/BGM below vocal tracks if user didn't ask for instrumental
   if (!wantsInstrumental) {
+    const qTokens = clean.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
     tracks.sort((a, b) => {
       const aInst = Boolean(a.isInstrumental || BGM_OR_INSTRUMENTAL_REGEX.test(a.title));
       const bInst = Boolean(b.isInstrumental || BGM_OR_INSTRUMENTAL_REGEX.test(b.title));
       if (aInst && !bInst) return 1;
       if (!aInst && bInst) return -1;
 
-      // Prefer official video / full song / lyrical releases
+      // Prioritize tracks matching query tokens
+      const aTitle = (a.title || a.rawTitle || '').toLowerCase();
+      const bTitle = (b.title || b.rawTitle || '').toLowerCase();
+      const aMatches = qTokens.filter((tok) => aTitle.includes(tok)).length;
+      const bMatches = qTokens.filter((tok) => bTitle.includes(tok)).length;
+      if (aMatches !== bMatches) return bMatches - aMatches;
+
+      // Prefer official video / full song / lyrical releases when query match is equal
       const aOfficial = /\b(official\s*(?:video|audio)|full\s*(?:video\s*)?song|lyrical|video\s*song)\b/i.test(a.rawTitle || a.title);
       const bOfficial = /\b(official\s*(?:video|audio)|full\s*(?:video\s*)?song|lyrical|video\s*song)\b/i.test(b.rawTitle || b.title);
       if (aOfficial && !bOfficial) return -1;
