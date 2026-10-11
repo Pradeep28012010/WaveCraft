@@ -104,7 +104,6 @@ const QueueTrackRow = memo(function QueueTrackRow({
         <img
           src={track.thumbnail || DEFAULT_THUMBNAIL}
           alt={track.title}
-          loading="lazy"
           decoding="async"
           onError={(e) => {
             (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
@@ -725,7 +724,6 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                           <img
                             src={track.thumbnail || DEFAULT_THUMBNAIL}
                             alt={track.title}
-                            loading="lazy"
                             decoding="async"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;

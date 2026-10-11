@@ -67,15 +67,15 @@
   will-change: transform, opacity;
 }
 
-/* High-FPS Virtualization & Rendering Optimization for smooth fast scroll */
+/* High-FPS Rendering Optimization — pre-rendered upfront for smooth scroll */
 .contain-track-row {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 58px;
+  contain: layout style;
+  transform: translateZ(0);
 }
 
 .contain-card {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 240px;
+  contain: layout style;
+  transform: translateZ(0);
 }
 
 @layer components {

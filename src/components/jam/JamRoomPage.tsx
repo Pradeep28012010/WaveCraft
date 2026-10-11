@@ -700,7 +700,6 @@ export default function JamRoomPage() {
                       <img
                         src={currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL}
                         alt={currentTrack.title}
-                        loading="lazy"
                         decoding="async"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
@@ -869,7 +868,6 @@ export default function JamRoomPage() {
                           <img
                             src={track.thumbnail || DEFAULT_THUMBNAIL}
                             alt={track.title}
-                            loading="lazy"
                             decoding="async"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;

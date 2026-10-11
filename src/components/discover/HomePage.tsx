@@ -10,6 +10,7 @@ import GenreBrowser from '../search/GenreBrowser';
 import TrendingSection from './TrendingSection';
 import { MOOD_PLAYLISTS, DEFAULT_THUMBNAIL, FEATURED_ARTISTS, FALLBACK_TRENDING_TRACKS } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
+import { preloadTrackArtworks, preloadAlbumCovers, preloadImages } from '../../utils/imagePreloader';
 import type { Track, AlbumResult } from '../../types';
 
 import { useDevicePreset } from '../../hooks/useDevicePreset';
@@ -145,6 +146,11 @@ export default function HomePage() {
   useEffect(() => {
     let isMounted = true;
 
+    // Eagerly pre-cache current images in memory ahead of user scrolling
+    preloadTrackArtworks(trendingTracks);
+    preloadAlbumCovers(newReleases);
+    preloadImages(FEATURED_ARTISTS.map((a) => a.avatar));
+
     if (!getCachedTrending()) {
       setIsTrendingLoading(true);
     }
@@ -154,6 +160,7 @@ export default function HomePage() {
         if (isMounted) {
           if (trending && trending.length > 0) {
             setTrendingTracks(trending);
+            preloadTrackArtworks(trending);
           } else {
             setTrendingTracks((prev) => (prev.length > 0 ? prev : FALLBACK_TRENDING_TRACKS));
           }
@@ -177,6 +184,7 @@ export default function HomePage() {
         if (isMounted) {
           if (releases && releases.length > 0) {
             setNewReleases(releases);
+            preloadAlbumCovers(releases);
           } else {
             setNewReleases((prev) => (prev.length > 0 ? prev : FALLBACK_NEW_RELEASES));
           }
@@ -503,7 +511,6 @@ export default function HomePage() {
                   <img
                     src={track.thumbnail || DEFAULT_THUMBNAIL}
                     alt={track.title}
-                    loading="lazy"
                     decoding="async"
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -567,7 +574,6 @@ export default function HomePage() {
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                     alt={track.title}
-                    loading="lazy"
                     decoding="async"
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                     className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
@@ -641,7 +647,6 @@ export default function HomePage() {
                 <img
                   src={artist.avatar}
                   alt={artist.name}
-                  loading="lazy"
                   decoding="async"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
@@ -756,7 +761,6 @@ export default function HomePage() {
                     <img
                       src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                       alt={album.title || album.name}
-                      loading="lazy"
                       decoding="async"
                       onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                       className="w-full h-full object-cover"
@@ -806,7 +810,6 @@ export default function HomePage() {
                       <img
                         src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                         alt={album.title || album.name}
-                        loading="lazy"
                         decoding="async"
                         onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                         className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"

@@ -10,6 +10,9 @@ import { usePlayerStore } from './stores/playerStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useMediaSession } from './hooks/useMediaSession';
 import { searchTracks, getTrending } from './services/youtube';
+import { getNewReleases } from './services/itunes';
+import { preloadTrackArtworks, preloadAlbumCovers, preloadImages } from './utils/imagePreloader';
+import { FEATURED_ARTISTS, FALLBACK_TRENDING_TRACKS } from './utils/constants';
 import { initNativeAndroid } from './services/nativeAndroid';
 
 class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
@@ -144,24 +147,36 @@ function AppContent() {
     }
   }, []);
 
-  // Initialize stores from IndexedDB on mount + idle pre-warm route chunks & trending feed
+  // Initialize stores from IndexedDB on mount + eagerly pre-warm data & artworks before scroll
   useEffect(() => {
     loadLibrary();
     loadSettings();
 
-    const prewarm = () => {
-      getTrending().catch(() => {});
-      // Pre-warm only lightweight core navigation pages to avoid mobile GC spikes
+    // Immediately pre-cache fallback artwork and featured artist images into browser memory
+    preloadTrackArtworks(FALLBACK_TRENDING_TRACKS);
+    preloadImages(FEATURED_ARTISTS.map((a) => a.avatar));
+
+    // Immediately fetch and pre-cache live trending tracks & new releases before user scrolls
+    getTrending('global')
+      .then((tracks) => preloadTrackArtworks(tracks))
+      .catch(() => {});
+
+    getNewReleases()
+      .then((releases) => preloadAlbumCovers(releases))
+      .catch(() => {});
+
+    // Pre-warm core navigation route chunks
+    const prewarmRoutes = () => {
       import('./components/library/LibraryPage').catch(() => {});
       import('./components/search/SearchResults').catch(() => {});
       import('./components/library/LikedSongs').catch(() => {});
     };
 
     if (window.requestIdleCallback) {
-      const id = window.requestIdleCallback(prewarm, { timeout: 2500 });
+      const id = window.requestIdleCallback(prewarmRoutes, { timeout: 1500 });
       return () => window.cancelIdleCallback?.(id);
     } else {
-      const timer = setTimeout(prewarm, 1200);
+      const timer = setTimeout(prewarmRoutes, 600);
       return () => clearTimeout(timer);
     }
   }, [loadLibrary, loadSettings]);

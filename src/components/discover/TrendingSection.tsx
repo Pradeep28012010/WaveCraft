@@ -1,10 +1,11 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import type { Track } from '../../types';
 import Skeleton from '../ui/Skeleton';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { SPOTIFY_TRENDING_CATEGORIES } from '../../services/youtube';
+import { preloadTrackArtworks } from '../../utils/imagePreloader';
 
 interface TrendingSectionProps {
   tracks: Track[];
@@ -40,6 +41,12 @@ export default function TrendingSection({
   const activeCategoryInfo =
     SPOTIFY_TRENDING_CATEGORIES.find((c) => c.key === activeCategory) ||
     SPOTIFY_TRENDING_CATEGORIES[0];
+
+  useEffect(() => {
+    if (tracks && tracks.length > 0) {
+      preloadTrackArtworks(tracks);
+    }
+  }, [tracks]);
 
   return (
     <section className="mb-12">
@@ -152,7 +159,6 @@ export default function TrendingSection({
                     <img
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                       alt={track.title}
-                      loading="lazy"
                       decoding="async"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
