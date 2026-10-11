@@ -404,11 +404,11 @@ export default function SearchResults() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
           {selectedAlbum ? (
             <button
               onClick={() => setSelectedAlbum(null)}
-              className="px-4 py-2 rounded-full liquid-glass border border-white/20 text-xs font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-2 rounded-full liquid-glass border border-white/20 text-xs font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-1.5 flex-shrink-0"
             >
               <span>← Back to “{query}”</span>
             </button>
@@ -417,7 +417,7 @@ export default function SearchResults() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex-shrink-0 ${
                   activeTab === tab.id
                     ? 'glass-button-primary text-white shadow-lg'
                     : 'glass-button text-white/70 hover:text-white'

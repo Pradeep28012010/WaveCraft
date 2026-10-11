@@ -147,7 +147,7 @@ export default function VibeDJPage() {
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-8 pb-32 select-none">
       {/* Hero Studio Soundstage Banner */}
-      <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-6 sm:p-10 shadow-2xl">
+      <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-4 sm:p-8 md:p-10 shadow-2xl">
         <div
           className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-[100px] pointer-events-none transition-all duration-700"
           style={{ backgroundColor: activeMix?.accentColor ? `${activeMix.accentColor}33` : 'rgba(250,45,72,0.25)' }}
@@ -155,17 +155,17 @@ export default function VibeDJPage() {
         <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-indigo-600/20 blur-[100px] pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-bold uppercase tracking-widest text-[var(--color-accent)] mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-[11px] sm:text-xs font-bold uppercase tracking-widest text-[var(--color-accent)] mb-3 sm:mb-4">
             <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
             AI Smart DJ & Vibe Studio
           </div>
-          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">
             Describe your moment. <br />
             <span className="bg-gradient-to-r from-white via-rose-200 to-indigo-300 bg-clip-text text-transparent">
               We’ll engineer the soundstage.
             </span>
           </h1>
-          <p className="text-sm sm:text-base text-white/65 mt-3 max-w-2xl leading-relaxed">
+          <p className="text-xs sm:text-base text-white/65 mt-2.5 sm:mt-3 max-w-2xl leading-relaxed">
             Type any mood, activity, language, tempo, or artist crossover. WaveCraft automatically extracts acoustic attributes, balances energy flow curves, and sequences an uncompressed 320kbps DJ set.
           </p>
 
@@ -404,7 +404,19 @@ export default function VibeDJPage() {
                       />
                       <div className="min-w-0 flex-1">
                         <h4 className="text-sm font-bold text-white truncate">{track.title}</h4>
-                        <p className="text-xs text-white/55 truncate">{track.artist}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-xs text-white/55 truncate">{track.artist}</p>
+                          {track.bpm && (
+                            <span className="sm:hidden text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-white/70 font-mono">
+                              {track.bpm} BPM
+                            </span>
+                          )}
+                          {track.energy && (
+                            <span className="sm:hidden text-[9px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 font-bold">
+                              ⚡ {track.energy}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 

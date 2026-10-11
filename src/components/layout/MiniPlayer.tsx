@@ -288,28 +288,37 @@ export default function MiniPlayer() {
   if (isPhone) {
     return (
       <>
-        <motion.div
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0.35, bottom: 0.04 }}
-          onDragEnd={(_, info) => {
-            if (info.offset.y < -35 || info.velocity.y < -250) {
-              triggerAndroidHaptic('light');
-              setIsNowPlayingOpen(true);
-            }
+        <div
+          style={{
+            bottom: 'calc(max(env(safe-area-inset-bottom, 0px), 8px) + 68px)'
           }}
-          className="px-2.5 pb-1.5 pt-0.5 relative z-30 gpu-layer select-none"
+          className="fixed inset-x-0 z-40 px-3 pointer-events-none select-none flex justify-center"
         >
-          <div
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              setIsNowPlayingOpen(true);
+          <motion.div
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.35, bottom: 0.04 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y < -35 || info.velocity.y < -250) {
+                triggerAndroidHaptic('light');
+                setIsNowPlayingOpen(true);
+              }
             }}
-            onTouchStart={handleMiniPlayerTouchStart}
-            onTouchEnd={handleMiniPlayerTouchEnd}
-            className="h-15 liquid-glass rounded-2xl flex items-center justify-between px-3 relative overflow-visible shadow-[0_14px_40px_rgba(0,0,0,0.85)] border border-white/15 cursor-pointer active:scale-[0.99] transition-transform"
+            className="w-full max-w-md pointer-events-auto gpu-layer select-none"
           >
-            <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
+            <div
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setIsNowPlayingOpen(true);
+              }}
+              onTouchStart={handleMiniPlayerTouchStart}
+              onTouchEnd={handleMiniPlayerTouchEnd}
+              className="h-15 liquid-glass bg-[#080812]/90 backdrop-blur-3xl rounded-[24px] flex items-center justify-between px-3 relative overflow-hidden shadow-[0_18px_48px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.28)] border border-white/20 cursor-pointer active:scale-[0.99] transition-transform"
+            >
+              <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 
             {/* Left: Artwork & Track Info */}
             <div
@@ -419,8 +428,9 @@ export default function MiniPlayer() {
             </div>
           </div>
         </motion.div>
+      </div>
 
-        <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
+      <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
         <NowPlaying isOpen={isNowPlayingOpen} onClose={() => setIsNowPlayingOpen(false)} />
       </>
     );

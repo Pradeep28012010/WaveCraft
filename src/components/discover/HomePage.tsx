@@ -478,7 +478,7 @@ export default function HomePage() {
             <span className="text-[11px] text-white/40 font-medium">Recent & Liked Favorites</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
             {quickMixTracks.map((track, i) => (
               <div
                 key={`quick-${track.id}-${i}`}
@@ -497,9 +497,9 @@ export default function HomePage() {
                     quickMixTracks
                   );
                 }}
-                className="group relative flex items-center gap-3.5 p-2 rounded-2xl liquid-glass border border-white/14 hover:border-white/35 hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer shadow-md overflow-hidden"
+                className="group relative flex items-center gap-2.5 sm:gap-3.5 p-1.5 sm:p-2 rounded-2xl liquid-glass border border-white/14 hover:border-white/35 hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer shadow-md overflow-hidden"
               >
-                <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
                   <img
                     src={track.thumbnail || DEFAULT_THUMBNAIL}
                     alt={track.title}
@@ -518,11 +518,11 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="min-w-0 flex-1 pr-2">
+                <div className="min-w-0 flex-1 pr-1.5 sm:pr-2">
                   <h4 className="text-xs sm:text-sm font-bold text-white truncate leading-snug group-hover:text-[var(--color-accent)] transition-colors">
                     {track.title}
                   </h4>
-                  <p className="text-[11px] text-white/55 truncate leading-snug mt-0.5 font-medium">
+                  <p className="text-[10px] sm:text-[11px] text-white/55 truncate leading-snug mt-0.5 font-medium">
                     {track.artist}
                   </p>
                 </div>

@@ -478,24 +478,43 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   </span>
                 </div>
 
-                <button
-                  onClick={(e) => {
-                    triggerAndroidHaptic('light');
-                    useContextMenuStore.getState().openTrackMenu(
-                      { clientX: e.clientX, clientY: e.clientY },
-                      currentTrack,
-                      usePlayerStore.getState().queue
-                    );
-                  }}
-                  className="w-10 h-10 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
-                  title="Track Options"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="5" r="2" />
-                    <circle cx="12" cy="12" r="2" />
-                    <circle cx="12" cy="19" r="2" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setStudioModalOpen(true);
+                    }}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-90 ${
+                      fxMode !== 'normal'
+                        ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(250,45,72,0.4)]'
+                        : 'glass-button text-white/80 hover:text-white'
+                    }`}
+                    title="Studio Audio FX"
+                  >
+                    <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                      <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+                    </svg>
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      triggerAndroidHaptic('light');
+                      useContextMenuStore.getState().openTrackMenu(
+                        { clientX: e.clientX, clientY: e.clientY },
+                        currentTrack,
+                        usePlayerStore.getState().queue
+                      );
+                    }}
+                    className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
+                    title="Track Options & Playlist"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                </div>
               </>
             ) : (
               <>
@@ -864,7 +883,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             >
               <div
                 className={`w-full max-w-6xl my-auto mx-auto ${
-                  showLyrics
+                  !isPhone && showLyrics
                     ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-center'
                     : 'flex flex-col items-center justify-center max-w-lg'
                 }`}
@@ -882,11 +901,46 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     );
                   }}
                   className={`flex flex-col items-center justify-center w-full my-auto ${
-                    showLyrics ? 'lg:col-span-5 max-w-md mx-auto' : 'max-w-lg'
+                    !isPhone && showLyrics ? 'lg:col-span-5 max-w-md mx-auto' : 'max-w-lg'
                   }`}
                 >
-                  {/* Album Cover OR Realistic Vinyl Turntable Deck */}
-                  {deckMode === 'vinyl' ? (
+                  {/* On Phone: When Lyrics Active, Lyrics takes the Center Stage; Otherwise Album Art / Turntable */}
+                  {isPhone && showLyrics ? (
+                    <motion.div
+                      key="mobile-lyrics-stage"
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+                      className="w-full h-[36vh] min-h-[230px] max-h-[360px] rounded-2xl liquid-glass overflow-hidden my-auto flex flex-col shadow-2xl border border-white/20"
+                    >
+                      <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/10 bg-white/[0.04] flex-shrink-0">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--color-accent)] flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+                          <span>SYNCHRONIZED LYRICS</span>
+                        </span>
+                        <button
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            setShowLyrics(false);
+                          }}
+                          className="px-2.5 py-0.5 rounded-full text-[10px] font-bold glass-button text-white/80 hover:text-white cursor-pointer active:scale-95"
+                        >
+                          Show Art ✕
+                        </button>
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <LyricsView
+                          artist={currentTrack.artist}
+                          title={currentTrack.title}
+                          onShareLyric={(quote) => {
+                            setWaveCardQuote(quote);
+                            setShowWaveCard(true);
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                  ) : deckMode === 'vinyl' ? (
                     <div
                       onClick={() => setDeckMode('cover')}
                       title="Click to switch between Vinyl Turntable & Album Cover"
@@ -1437,9 +1491,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
 
-                {/* Right Column: Synced Lyrics Panel (Pure GPU transform/opacity entrance) */}
+                {/* Right Column: Synced Lyrics Panel (Pure GPU transform/opacity entrance on desktop) */}
                 <AnimatePresence>
-                  {showLyrics && (
+                  {!isPhone && showLyrics && (
                     <motion.div
                       key="lyrics-panel"
                       initial={{ opacity: 0, x: 28, scale: 0.97 }}

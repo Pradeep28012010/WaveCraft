@@ -131,13 +131,13 @@ export default function LibraryPage() {
             All your liked songs, folders, smart tags, offline vault, and live auto-syncing mixes
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
           {livePlaylistsCount > 0 && (
             <button
               type="button"
               onClick={() => syncAllLivePlaylists()}
               disabled={isAnySyncing}
-              className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button-cyan text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-60"
+              className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button-cyan text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-60 flex-shrink-0"
             >
               <span className={isAnySyncing ? 'animate-spin inline-block' : ''}>↻</span>
               <span>{isAnySyncing ? 'Syncing Live...' : `Sync Live (${livePlaylistsCount})`}</span>
@@ -146,52 +146,52 @@ export default function LibraryPage() {
           <button
             type="button"
             onClick={() => openImportModal('live')}
-            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button-emerald text-white flex items-center gap-2 cursor-pointer whitespace-nowrap"
+            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button-emerald text-white flex items-center gap-2 cursor-pointer whitespace-nowrap flex-shrink-0"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
-            <span>Live Sync Playlist</span>
+            <span>Live Sync</span>
           </button>
           <button
             type="button"
             onClick={() => exportFullLibraryJSON(playlists, likedSongs)}
-            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-white/80 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-white/80 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0"
             title="Export full library backup (playlists & liked songs) to JSON"
           >
-            <span>📦 Backup JSON</span>
+            <span>📦 Backup</span>
           </button>
-          <GlassButton size="sm" onClick={() => openImportModal('url')}>
+          <GlassButton size="sm" onClick={() => openImportModal('url')} className="flex-shrink-0">
             ↓ Import
           </GlassButton>
           <button
             type="button"
             onClick={handleOpenCreateFolder}
-            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-indigo-300 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap border border-indigo-400/30"
+            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-indigo-300 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap border border-indigo-400/30 flex-shrink-0"
           >
-            <span>📁 + New Folder</span>
+            <span>📁 + Folder</span>
           </button>
-          <GlassButton variant="primary" size="sm" onClick={() => setIsCreateModalOpen(true)}>
+          <GlassButton variant="primary" size="sm" onClick={() => setIsCreateModalOpen(true)} className="flex-shrink-0">
             + New Playlist
           </GlassButton>
         </div>
       </div>
 
-      {/* Quick Access Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+      {/* Quick Access Row - Mobile 3-Column Glass Deck */}
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-4 md:gap-5 mb-6 sm:mb-8">
         <Link to="/liked" className="group">
           <GlassCard
             variant="liquid"
-            padding="md"
+            padding="sm"
             hover
-            className="flex items-center gap-4 h-full overflow-hidden"
+            className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 h-full overflow-hidden p-3 sm:p-4"
           >
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-600 to-purple-700 flex items-center justify-center flex-shrink-0 shadow-xl group-hover:scale-105 transition-transform">
-              <svg className="w-8 h-8 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-rose-500 via-pink-600 to-purple-700 flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
+              <svg className="w-5 h-5 sm:w-8 sm:h-8 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
               </svg>
             </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-extrabold mb-0.5 truncate">Liked Songs</h2>
-              <p className="text-xs text-white/60 truncate">{likedSongs.length} saved tracks</p>
+            <div className="min-w-0 flex-1 w-full">
+              <h2 className="text-xs sm:text-lg font-extrabold mb-0.5 truncate text-white">Liked</h2>
+              <p className="text-[10px] sm:text-xs text-white/60 truncate">{likedSongs.length} tracks</p>
             </div>
           </GlassCard>
         </Link>
@@ -199,18 +199,18 @@ export default function LibraryPage() {
         <Link to="/recent" className="group">
           <GlassCard
             variant="liquid"
-            padding="md"
+            padding="sm"
             hover
-            className="flex items-center gap-4 h-full overflow-hidden"
+            className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 h-full overflow-hidden p-3 sm:p-4"
           >
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-600 flex items-center justify-center flex-shrink-0 shadow-xl group-hover:scale-105 transition-transform">
-              <svg className="w-8 h-8 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-600 flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
+              <svg className="w-5 h-5 sm:w-8 sm:h-8 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-extrabold mb-0.5 truncate">Recently Played</h2>
-              <p className="text-xs text-white/60 truncate">{recentlyPlayed.length} tracks in history</p>
+            <div className="min-w-0 flex-1 w-full">
+              <h2 className="text-xs sm:text-lg font-extrabold mb-0.5 truncate text-white">Recent</h2>
+              <p className="text-[10px] sm:text-xs text-white/60 truncate">{recentlyPlayed.length} tracks</p>
             </div>
           </GlassCard>
         </Link>
@@ -218,17 +218,17 @@ export default function LibraryPage() {
         <Link to="/downloads" className="group">
           <GlassCard
             variant="liquid"
-            padding="md"
+            padding="sm"
             hover
-            className="flex items-center gap-4 h-full overflow-hidden border border-emerald-400/20 hover:border-emerald-400/50 transition-colors"
+            className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 h-full overflow-hidden p-3 sm:p-4 border border-emerald-400/20 hover:border-emerald-400/50 transition-colors"
           >
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center flex-shrink-0 shadow-xl group-hover:scale-105 transition-transform">
-              <span className="text-2xl">⚡</span>
+            <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
+              <span className="text-lg sm:text-2xl">⚡</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-extrabold mb-0.5 truncate">Offline Vault</h2>
-              <p className="text-xs text-white/60 truncate">
-                {offlineTracks.length} zero-internet 320k tracks
+            <div className="min-w-0 flex-1 w-full">
+              <h2 className="text-xs sm:text-lg font-extrabold mb-0.5 truncate text-white">Offline Vault</h2>
+              <p className="text-[10px] sm:text-xs text-white/60 truncate">
+                {offlineTracks.length} 320k
               </p>
             </div>
           </GlassCard>

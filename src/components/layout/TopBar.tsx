@@ -288,19 +288,21 @@ export default function TopBar() {
   const getMobileTitle = (path: string) => {
     if (path === '/library') return 'Your Library';
     if (path === '/liked') return 'Liked Songs';
+    if (path === '/downloads') return 'Offline Vault';
+    if (path === '/settings') return 'Settings & Audio EQ';
     if (path === '/recent') return 'Recently Played';
-    if (path === '/vibe') return 'AI Vibe DJ';
-    if (path === '/dj') return 'DJ Mix Console';
-    if (path === '/galaxy') return 'Sonic Galaxy';
+    if (path === '/vibe') return 'AI Vibe DJ Studio';
+    if (path === '/dj') return 'DJ Booth Mixer';
+    if (path === '/galaxy') return 'Sonic Galaxy Map';
     if (path === '/stats') return 'Listening Stats';
-    if (path === '/jam') return 'WaveCraft Jam';
+    if (path === '/jam') return 'Live Jam Room';
     if (path.startsWith('/playlist')) return 'Playlist';
     if (path.startsWith('/album')) return 'Album';
     if (path.startsWith('/artist')) return 'Artist';
     return 'WaveCraft';
   };
 
-  // Phone UI Preset: Native Android App Bar (Home branding, focused search, or subpage navigation)
+  // Phone UI Preset: Native App Bar with Pure Liquid Glass Styling
   if (isPhone) {
     const isRoot = location.pathname === '/';
     const isSearch = location.pathname.startsWith('/search');
@@ -310,7 +312,7 @@ export default function TopBar() {
         style={{
           paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)'
         }}
-        className="flex items-center justify-between gap-2.5 px-3.5 pb-2.5 sticky top-0 z-40 bg-[#06060b]/90 backdrop-blur-2xl transition-all"
+        className="flex items-center justify-between gap-2 px-3.5 pb-2.5 sticky top-0 z-40 liquid-glass bg-[#06060b]/85 backdrop-blur-3xl border-b border-white/12 shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all"
       >
         {isRoot ? (
           /* Native App Home Bar: WaveCraft Brand + Pro Badge */
@@ -551,24 +553,22 @@ export default function TopBar() {
             </svg>
           </button>
 
-          {/* Drawer Menu Button */}
-          {isRoot && (
-            <button
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                toggleMobileDrawer();
-              }}
-              aria-label="Open Navigation Menu"
-              className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white/80 hover:text-white active:scale-90 transition-transform cursor-pointer"
-              title="Menu"
-            >
-              <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <line x1="4" y1="7" x2="20" y2="7" />
-                <line x1="4" y1="12" x2="16" y2="12" />
-                <line x1="4" y1="17" x2="20" y2="17" />
-              </svg>
-            </button>
-          )}
+          {/* Mobile Drawer Menu Button (Available on all mobile screens) */}
+          <button
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              toggleMobileDrawer();
+            }}
+            aria-label="Open Navigation Menu"
+            className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white/80 hover:text-white active:scale-90 transition-transform cursor-pointer"
+            title="Menu & Features"
+          >
+            <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="16" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
         </div>
       </header>
     );

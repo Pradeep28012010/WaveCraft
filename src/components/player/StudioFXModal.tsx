@@ -308,9 +308,12 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   }, [safeAmbientVolumes]);
 
   return (
-    <div onPointerDown={unlockAudioEngine} className="flex flex-col h-full max-h-[86vh] overflow-hidden">
+    <div onPointerDown={unlockAudioEngine} className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden">
+      {/* Mobile Bottom Sheet Drag Handle */}
+      <div className="w-12 h-1.5 rounded-full bg-white/25 mx-auto mt-2.5 sm:hidden flex-shrink-0" />
+
       {/* ── Top Pinned Header ── */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/12 flex-shrink-0 bg-white/[0.02]">
+      <div className="flex items-center justify-between px-5 py-3 sm:py-4 border-b border-white/12 flex-shrink-0 bg-white/[0.02]">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] via-purple-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/20 text-white flex-shrink-0">
             <span className="text-xl">🎛️</span>
@@ -1138,7 +1141,7 @@ export default function StudioFXModal() {
   return createPortal(
     <AnimatePresence>
       {isStudioModalOpen && (
-        <div className="fixed inset-0 z-[9995] flex items-center justify-center p-3 sm:p-5 overflow-hidden select-none">
+        <div className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none">
           {/* Central UI Liquid-Glass Modal Backdrop */}
           <motion.div
             key="studio-fx-backdrop"
@@ -1157,12 +1160,12 @@ export default function StudioFXModal() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="studio-fx-modal-title"
-            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            initial={{ opacity: 0, scale: 0.98, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            exit={{ opacity: 0, scale: 0.98, y: 24 }}
             transition={PANEL_TRANSITION}
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 w-full max-w-2xl max-h-[88vh] flex flex-col rounded-3xl modal-glass-panel text-white shadow-[0_32px_90px_rgba(0,0,0,0.88),0_0_60px_rgba(6,182,212,0.15)] overflow-hidden border border-white/20"
+            className="relative z-10 w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-3xl modal-glass-panel text-white shadow-[0_32px_90px_rgba(0,0,0,0.88),0_0_60px_rgba(6,182,212,0.15)] overflow-hidden border border-white/20 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
           >
             <StudioFXErrorBoundary onClose={handleClose}>
               <StudioFXModalContent onClose={handleClose} />

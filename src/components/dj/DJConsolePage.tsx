@@ -12,6 +12,7 @@ import { getAudioContext } from '../../services/audioEngine';
 import GlassCard from '../ui/GlassCard';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import type { Track } from '../../types';
 
 // Deterministic musical BPM & Camelot Key generator per track ID
@@ -130,6 +131,7 @@ export default function DJConsolePage() {
   const [isAutomixing, setIsAutomixing] = useState(false);
   const [activePad, setActivePad] = useState<string | null>(null);
   const [bpmLocked, setBpmLocked] = useState(false);
+  const [mobileActiveView, setMobileActiveView] = useState<'all' | 'deckA' | 'mixer' | 'deckB' | 'crate'>('all');
 
   // Crate & Search
   const [crateTab, setCrateTab] = useState<'all' | 'queue' | 'liked' | 'search'>('all');
@@ -950,13 +952,45 @@ export default function DJConsolePage() {
         </div>
       </div>
 
+      {/* Mobile Deck Navigation Segmenter */}
+      <div className="xl:hidden sticky top-16 z-30 p-1.5 rounded-2xl liquid-glass border border-white/20 flex items-center gap-1 shadow-xl overflow-x-auto no-scrollbar">
+        {[
+          { id: 'all', label: 'All Decks' },
+          { id: 'deckA', label: '🔴 Deck A' },
+          { id: 'mixer', label: '🎛️ Mixer' },
+          { id: 'deckB', label: '🔵 Deck B' },
+          { id: 'crate', label: '📦 Crate' }
+        ].map((tab) => {
+          const isActive = mobileActiveView === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setMobileActiveView(tab.id as typeof mobileActiveView);
+                triggerAndroidHaptic('light');
+              }}
+              className={`flex-1 min-w-[70px] py-2 px-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                isActive
+                  ? 'glass-button-primary text-white shadow-md'
+                  : 'text-white/65 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Main DJ Booth Grid: Deck A | Center Mixer | Deck B */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
         {/* ================= DECK A (MASTER) ================= */}
         <GlassCard
           variant="liquid"
           padding="lg"
-          className="xl:col-span-4 flex flex-col justify-between border border-rose-500/35 relative overflow-hidden"
+          className={`xl:col-span-4 flex flex-col justify-between border border-rose-500/35 relative overflow-hidden ${
+            mobileActiveView !== 'all' && mobileActiveView !== 'deckA' ? 'hidden xl:flex' : ''
+          }`}
         >
           <div className="absolute -top-20 -left-20 w-56 h-56 rounded-full bg-rose-500/15 blur-3xl pointer-events-none" />
 
@@ -1173,7 +1207,9 @@ export default function DJConsolePage() {
         <GlassCard
           variant="liquid"
           padding="lg"
-          className="xl:col-span-4 flex flex-col justify-between border border-white/20"
+          className={`xl:col-span-4 flex flex-col justify-between border border-white/20 ${
+            mobileActiveView !== 'all' && mobileActiveView !== 'mixer' ? 'hidden xl:flex' : ''
+          }`}
         >
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -1408,7 +1444,9 @@ export default function DJConsolePage() {
         <GlassCard
           variant="liquid"
           padding="lg"
-          className="xl:col-span-4 flex flex-col justify-between border border-cyan-500/35 relative overflow-hidden"
+          className={`xl:col-span-4 flex flex-col justify-between border border-cyan-500/35 relative overflow-hidden ${
+            mobileActiveView !== 'all' && mobileActiveView !== 'deckB' ? 'hidden xl:flex' : ''
+          }`}
         >
           <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />
 
@@ -1644,7 +1682,13 @@ export default function DJConsolePage() {
       </div>
 
       {/* ================= DJ CRATE & INSTANT TRACK LOADER ================= */}
-      <GlassCard variant="liquid" padding="lg" className="border border-white/15">
+      <GlassCard
+        variant="liquid"
+        padding="lg"
+        className={`border border-white/15 ${
+          mobileActiveView !== 'all' && mobileActiveView !== 'crate' ? 'hidden xl:block' : ''
+        }`}
+      >
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
           <div>
             <div className="flex items-center gap-2.5">

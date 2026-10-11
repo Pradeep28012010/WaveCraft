@@ -8,6 +8,8 @@ import { getSmartRecommendations } from '../../services/recommendationEngine';
 import { shuffleArray } from '../../utils/shuffle';
 import { formatTime } from '../../utils/formatTime';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { useDevicePreset } from '../../hooks/useDevicePreset';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import type { Track } from '../../types';
 
 interface QueuePanelProps {
@@ -216,6 +218,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const isCurrentLiked = useLibraryStore((s) =>
     currentTrack ? s.likedSongs.some((t) => t.id === currentTrack.id) : false
   );
+  const { isPhone } = useDevicePreset();
 
   const [activeTab, setActiveTab] = useState<'upnext' | 'history'>('upnext');
   const [isAiFilling, setIsAiFilling] = useState(false);
@@ -358,14 +361,34 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
             className="fixed inset-0 z-[105] bg-black/50 backdrop-blur-sm"
           />
 
-          {/* Floating Liquid Glass Queue Studio Drawer */}
+          {/* Floating Liquid Glass Queue Studio Drawer / Mobile Sheet */}
           <motion.aside
-            initial={{ x: '104%', opacity: 0.5 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '104%', opacity: 0.5 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.7 }}
-            className="fixed top-2.5 bottom-2.5 right-2.5 z-[110] w-[calc(100vw-20px)] max-w-[435px] rounded-3xl glass-heavy liquid-glass border border-white/15 shadow-[0_30px_90px_rgba(0,0,0,0.88)] flex flex-col overflow-hidden text-white select-none"
+            initial={isPhone ? { y: '100%', opacity: 0.5 } : { x: '104%', opacity: 0.5 }}
+            animate={isPhone ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+            exit={isPhone ? { y: '100%', opacity: 0.5 } : { x: '104%', opacity: 0.5 }}
+            transition={{ type: 'spring', damping: 32, stiffness: 340, mass: 0.65 }}
+            className={`fixed z-[110] flex flex-col overflow-hidden text-white select-none ${
+              isPhone
+                ? 'inset-x-0 bottom-0 max-h-[88vh] rounded-t-[32px] glass-heavy liquid-glass border-t border-x border-white/20 shadow-[0_-20px_60px_rgba(0,0,0,0.95)]'
+                : 'top-2.5 bottom-2.5 right-2.5 w-[calc(100vw-20px)] max-w-[435px] rounded-3xl glass-heavy liquid-glass border border-white/15 shadow-[0_30px_90px_rgba(0,0,0,0.88)]'
+            }`}
+            style={{
+              paddingBottom: isPhone ? 'max(env(safe-area-inset-bottom, 0px), 12px)' : undefined
+            }}
           >
+            {/* Mobile Drag Handle */}
+            {isPhone && (
+              <div
+                className="w-full pt-3 pb-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  onClose();
+                }}
+                title="Tap or drag to close"
+              >
+                <div className="w-12 h-1.5 rounded-full bg-white/30 active:scale-95 transition-all shadow-sm" />
+              </div>
+            )}
             {/* Subtle Ambient Album Art Tint inside Drawer */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
               <img

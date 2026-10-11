@@ -164,67 +164,126 @@ export default function Sidebar() {
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', stiffness: 360, damping: 32 }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-72 max-w-[82vw] h-full bg-[#0a0a12]/95 backdrop-blur-3xl border-r border-white/15 flex flex-col select-none shadow-2xl"
+                className="w-80 max-w-[86vw] h-full liquid-glass bg-[#080814]/92 backdrop-blur-3xl border-r border-white/20 flex flex-col select-none shadow-[0_24px_80px_rgba(0,0,0,0.95)]"
+                style={{
+                  paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)',
+                  paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)'
+                }}
               >
-                <div className="flex items-center justify-between px-5 h-16 border-b border-white/10">
+                <div className="flex items-center justify-between px-5 h-16 border-b border-white/10 flex-shrink-0">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25">
                       <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                         <path d="M12 3v18M17 6v12M21 10v4M7 6v12M3 10v4" />
                       </svg>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-lg font-extrabold tracking-tight text-white leading-none">
+                      <span className="text-base font-black tracking-tight text-white leading-none">
                         WaveCraft
                       </span>
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-accent)] mt-1">
-                        Mobile Studio Preset
+                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--color-accent)] mt-1">
+                        PRO STUDIO
                       </span>
                     </div>
                   </div>
                   <button
                     onClick={() => setMobileDrawerOpen(false)}
-                    className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/75"
+                    className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer"
                   >
                     ✕
                   </button>
                 </div>
 
-                <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1 no-scrollbar">
-                  {navItems.map((item) => (
+                <nav className="flex-1 overflow-y-auto px-3.5 py-3 space-y-1 no-scrollbar">
+                  <div className="px-2 pt-1 pb-1.5 text-[10px] font-black uppercase tracking-wider text-white/40">
+                    DISCOVER & INTERACT
+                  </div>
+                  {navItems.slice(0, 5).map((item) => (
                     <NavLink
                       key={item.name}
                       to={item.path}
                       end={item.path === '/'}
                       onClick={() => setMobileDrawerOpen(false)}
                       className={({ isActive }) =>
-                        `flex items-center justify-between gap-2 px-3.5 h-11 rounded-xl transition-colors ${
+                        `flex items-center justify-between gap-2 px-3 h-10.5 rounded-xl transition-all ${
                           isActive
-                            ? 'bg-white/15 text-white font-bold border border-white/15'
-                            : 'text-white/65 hover:text-white hover:bg-white/5'
+                            ? 'glass-button-primary text-white font-bold shadow-md'
+                            : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
                         }`
                       }
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-5 h-5 flex-shrink-0 text-[var(--color-accent)]">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-5 h-5 flex-shrink-0">
                           {item.icon}
                         </div>
-                        <span className="text-sm truncate">{item.name}</span>
+                        <span className="text-xs font-semibold truncate">{item.name}</span>
                       </div>
                     </NavLink>
                   ))}
 
-                  <div className="pt-5 pb-2">
-                    <div className="flex items-center justify-between px-3 mb-2">
-                      <span className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">
-                        Playlists
+                  <div className="px-2 pt-4 pb-1.5 text-[10px] font-black uppercase tracking-wider text-white/40">
+                    COLLECTION
+                  </div>
+                  {navItems.slice(5, 10).map((item) => (
+                    <NavLink
+                      key={item.name}
+                      to={item.path}
+                      end={item.path === '/'}
+                      onClick={() => setMobileDrawerOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between gap-2 px-3 h-10.5 rounded-xl transition-all ${
+                          isActive
+                            ? 'glass-button-primary text-white font-bold shadow-md'
+                            : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
+                        }`
+                      }
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-5 h-5 flex-shrink-0">
+                          {item.icon}
+                        </div>
+                        <span className="text-xs font-semibold truncate">{item.name}</span>
+                      </div>
+                    </NavLink>
+                  ))}
+
+                  <div className="px-2 pt-4 pb-1.5 text-[10px] font-black uppercase tracking-wider text-white/40">
+                    WORKSTATION & EQ
+                  </div>
+                  {navItems.slice(10).map((item) => (
+                    <NavLink
+                      key={item.name}
+                      to={item.path}
+                      end={item.path === '/'}
+                      onClick={() => setMobileDrawerOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between gap-2 px-3 h-10.5 rounded-xl transition-all ${
+                          isActive
+                            ? 'glass-button-primary text-white font-bold shadow-md'
+                            : 'text-white/70 hover:text-white hover:bg-white/[0.06]'
+                        }`
+                      }
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-5 h-5 flex-shrink-0">
+                          {item.icon}
+                        </div>
+                        <span className="text-xs font-semibold truncate">{item.name}</span>
+                      </div>
+                    </NavLink>
+                  ))}
+
+                  <div className="pt-4 pb-2">
+                    <div className="flex items-center justify-between px-2 mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-white/40">
+                        PLAYLISTS ({playlists.length})
                       </span>
                       <button
                         onClick={() => {
                           setMobileDrawerOpen(false);
                           setIsCreateOpen(true);
                         }}
-                        className="text-xs font-bold text-[var(--color-accent)]"
+                        className="text-[11px] font-bold text-[var(--color-accent)] hover:underline cursor-pointer"
                       >
                         + New
                       </button>
@@ -234,21 +293,21 @@ export default function Sidebar() {
                         setMobileDrawerOpen(false);
                         setIsImportOpen(true);
                       }}
-                      className="w-full flex items-center gap-2.5 px-3.5 h-10 mb-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-xs font-semibold"
+                      className="w-full flex items-center justify-center gap-2 px-3 h-9 mb-2 rounded-xl glass-button text-emerald-300 text-[11px] font-bold cursor-pointer"
                     >
-                      <span>↓ Import Playlist</span>
+                      <span>↓ Import External Playlist</span>
                     </button>
-                    {playlists.map((playlist: Playlist) => (
+                    {playlists.slice(0, 10).map((playlist: Playlist) => (
                       <NavLink
                         key={playlist.id}
                         to={`/playlist/${playlist.id}`}
                         onClick={() => setMobileDrawerOpen(false)}
-                        className="flex items-center gap-3 px-3.5 h-10 rounded-xl text-white/65 hover:text-white"
+                        className="flex items-center gap-2.5 px-3 h-9 rounded-xl text-white/70 hover:text-white hover:bg-white/5 transition-all text-xs"
                       >
-                        <div className="w-6 h-6 rounded-md bg-gradient-to-br from-purple-500/60 to-pink-500/60 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                        <div className="w-5 h-5 rounded-md bg-gradient-to-br from-purple-500/60 to-pink-500/60 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
                           {playlist.name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="flex-1 truncate text-sm">{playlist.name}</span>
+                        <span className="flex-1 truncate">{playlist.name}</span>
                       </NavLink>
                     ))}
                   </div>

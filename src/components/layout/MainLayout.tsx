@@ -119,7 +119,7 @@ export default function MainLayout() {
               isPhone ? 'p-3.5' : 'p-6'
             }`}
           >
-            <div className="max-w-7xl mx-auto pb-24">
+            <div className={`max-w-7xl mx-auto ${isPhone ? (hasCurrentTrack ? 'pb-44' : 'pb-28') : 'pb-24'}`}>
               <RouteErrorBoundary resetKey={location.pathname}>
                 <motion.div
                   key={location.pathname}

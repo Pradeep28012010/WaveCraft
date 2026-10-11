@@ -87,7 +87,7 @@ const PlaylistCard = memo(function PlaylistCard({
             className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full backdrop-blur-md border flex items-center justify-center text-xs transition-all z-10 cursor-pointer ${
               playlist.isPinned
                 ? 'bg-amber-500/80 border-amber-300 text-white shadow-lg'
-                : 'bg-black/40 border-white/20 text-white/60 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-black/60'
+                : 'bg-black/40 border-white/20 text-white/70 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:text-white hover:bg-black/60'
             }`}
           >
             📌
