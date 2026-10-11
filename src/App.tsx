@@ -1,103 +1,15 @@
-import { BrowserRouter, HashRouter, Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
-import { Component, Suspense, useEffect, useRef, lazy, type ReactNode, type ErrorInfo, type ComponentType } from 'react';
+import { Suspense } from 'react';
+import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
+
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './components/discover/HomePage';
 import GenreBrowser from './components/search/GenreBrowser';
-import { useLibraryStore } from './stores/libraryStore';
-import { useSettingsStore } from './stores/settingsStore';
-import { usePlayerStore } from './stores/playerStore';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { useMediaSession } from './hooks/useMediaSession';
-import { searchTracks, getTrending } from './services/youtube';
-import { getNewReleases } from './services/itunes';
-import { preloadTrackArtworks, preloadAlbumCovers, preloadImages } from './utils/imagePreloader';
-import { FEATURED_ARTISTS, FALLBACK_TRENDING_TRACKS } from './utils/constants';
-import { initNativeAndroid } from './services/nativeAndroid';
+import { AppErrorBoundary } from './components/ui/AppErrorBoundary';
+import { lazyWithRetry } from './utils/lazyWithRetry';
+import { useAppLifecycle } from './hooks/useAppLifecycle';
 
-class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Root application crash caught by AppErrorBoundary:', error, info);
-  }
-
-  handleReload = () => {
-    this.setState({ hasError: false });
-    window.location.reload();
-  };
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="fixed inset-0 bg-[#06060b] text-white flex items-center justify-center p-6 z-[999999]">
-          <div className="max-w-md w-full p-8 rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-2xl text-center shadow-2xl space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center mx-auto text-2xl">
-              🎵
-            </div>
-            <h1 className="text-xl font-black tracking-tight text-white">WaveCraft Recovered</h1>
-            <p className="text-sm text-white/60 leading-relaxed">
-              An unexpected render issue occurred. Your saved playlists and audio settings remain safe.
-            </p>
-            <button
-              onClick={this.handleReload}
-              className="w-full py-3 rounded-full bg-gradient-to-r from-[#fa2d48] to-[#ff5b79] text-white font-bold text-sm shadow-lg shadow-rose-500/25 hover:opacity-90 active:scale-[0.98] transition cursor-pointer"
-            >
-              Relaunch WaveCraft
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-function lazyWithRetry<T extends ComponentType<any>>(
-  componentImport: () => Promise<{ default: T }>
-) {
-  return lazy(async () => {
-    const getRefreshed = () => {
-      try {
-        return window.sessionStorage?.getItem('wavecraft_chunk_retry_refreshed') === 'true';
-      } catch {
-        return false;
-      }
-    };
-    const setRefreshed = (val: boolean) => {
-      try {
-        window.sessionStorage?.setItem('wavecraft_chunk_retry_refreshed', String(val));
-      } catch {}
-    };
-
-    try {
-      const component = await componentImport();
-      setRefreshed(false);
-      return component;
-    } catch (firstErr) {
-      // First attempt an immediate retry with brief delay to absorb transient packet drops
-      try {
-        await new Promise((res) => setTimeout(res, 250));
-        const component = await componentImport();
-        setRefreshed(false);
-        return component;
-      } catch (secondErr) {
-        console.warn('Chunk loading failed after retry, evaluating page recovery:', secondErr);
-        if (typeof window !== 'undefined' && !getRefreshed()) {
-          setRefreshed(true);
-          window.location.reload();
-          return { default: (() => null) as unknown as T };
-        }
-        throw secondErr;
-      }
-    }
-  });
-}
-
+// Code-split route components with resilient network-failure retry
 const SearchResults = lazyWithRetry(() => import('./components/search/SearchResults'));
 const LibraryPage = lazyWithRetry(() => import('./components/library/LibraryPage'));
 const LikedSongs = lazyWithRetry(() => import('./components/library/LikedSongs'));
@@ -119,91 +31,8 @@ const isElectronOrFile =
 const RouterComponent = isElectronOrFile ? HashRouter : BrowserRouter;
 
 function AppContent() {
-  const navigate = useNavigate();
-  const loadLibrary = useLibraryStore((s) => s.loadFromStorage);
-  const loadSettings = useSettingsStore((s) => s.loadFromStorage);
-  const playTrack = usePlayerStore((s) => s.playTrack);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const handledPlayParam = useRef<string | null>(null);
-
-  // Initialize Native Android Hardware Back button & edge-to-edge status bar
-  useEffect(() => {
-    const cleanup = initNativeAndroid((step) => navigate(step));
-    return cleanup;
-  }, [navigate]);
-
-  // Listen to global Windows media shortcuts from Electron main process
-  useEffect(() => {
-    if (window.electronAPI?.onMediaKey) {
-      const cleanup = window.electronAPI.onMediaKey((action) => {
-        const player = usePlayerStore.getState();
-        if (action === 'togglePlay') player.togglePlay();
-        else if (action === 'nextTrack') player.nextTrack();
-        else if (action === 'prevTrack') player.prevTrack();
-        else if (action === 'pause') player.pause();
-        else if (action === 'toggleMute') player.toggleMute();
-      });
-      return cleanup;
-    }
-  }, []);
-
-  // Initialize stores from IndexedDB on mount + eagerly pre-warm data & artworks before scroll
-  useEffect(() => {
-    loadLibrary();
-    loadSettings();
-
-    // Immediately pre-cache fallback artwork and featured artist images into browser memory
-    preloadTrackArtworks(FALLBACK_TRENDING_TRACKS);
-    preloadImages(FEATURED_ARTISTS.map((a) => a.avatar));
-
-    // Immediately fetch and pre-cache live trending tracks & new releases before user scrolls
-    getTrending('global')
-      .then((tracks) => preloadTrackArtworks(tracks))
-      .catch(() => {});
-
-    getNewReleases()
-      .then((releases) => preloadAlbumCovers(releases))
-      .catch(() => {});
-
-    // Pre-warm core navigation route chunks
-    const prewarmRoutes = () => {
-      import('./components/library/LibraryPage').catch(() => {});
-      import('./components/search/SearchResults').catch(() => {});
-      import('./components/library/LikedSongs').catch(() => {});
-    };
-
-    if (window.requestIdleCallback) {
-      const id = window.requestIdleCallback(prewarmRoutes, { timeout: 1500 });
-      return () => window.cancelIdleCallback?.(id);
-    } else {
-      const timer = setTimeout(prewarmRoutes, 600);
-      return () => clearTimeout(timer);
-    }
-  }, [loadLibrary, loadSettings]);
-
-  // Handle shared WaveCard deep-link (?play=Song+Artist)
-  useEffect(() => {
-    const playQuery = searchParams.get('play');
-    if (playQuery && handledPlayParam.current !== playQuery) {
-      handledPlayParam.current = playQuery;
-      searchTracks(playQuery)
-        .then((tracks) => {
-          if (tracks.length > 0) {
-            playTrack(tracks[0], tracks, 0);
-          }
-          const next = new URLSearchParams(searchParams);
-          next.delete('play');
-          setSearchParams(next, { replace: true });
-        })
-        .catch(() => {});
-    }
-  }, [searchParams, playTrack, setSearchParams]);
-
-  // Global keyboard shortcuts
-  useKeyboardShortcuts();
-
-  // Hardware Media Keys & OS Lock Screen integration
-  useMediaSession();
+  // Global lifecycle hooks: platform shortcuts, IndexedDB sync, media session, preloading
+  useAppLifecycle();
 
   return (
     <Routes>
