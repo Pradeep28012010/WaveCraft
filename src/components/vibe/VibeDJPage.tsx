@@ -145,7 +145,7 @@ export default function VibeDJPage() {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-8 pb-32 select-none">
+    <div className="p-3 sm:p-8 max-w-6xl mx-auto space-y-8 pb-44 sm:pb-32 select-none overflow-x-hidden">
       {/* Hero Studio Soundstage Banner */}
       <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-4 sm:p-8 md:p-10 shadow-2xl">
         <div
@@ -176,8 +176,8 @@ export default function VibeDJPage() {
                 type="text"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder='e.g. "late night coding synthwave with rain", "high energy gym phonk", "cozy autumn acoustic afternoon"...'
-                className="flex-1 h-14 px-5 rounded-2xl bg-black/50 border border-white/20 text-white placeholder-white/40 text-sm sm:text-base focus:outline-none focus:border-[var(--color-accent)] transition-all shadow-inner"
+                placeholder='e.g. "late night synthwave", "gym phonk", "cozy acoustic"...'
+                className="flex-1 h-14 px-5 rounded-2xl bg-black/50 border border-white/20 text-white placeholder-white/40 text-sm sm:text-base focus:outline-none focus:border-[var(--color-accent)] transition-all shadow-inner min-w-0"
               />
               <button
                 type="submit"

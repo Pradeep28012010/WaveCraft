@@ -272,7 +272,7 @@ export default function JamRoomPage() {
     members.length > 0 ? members : [{ id: 'self', name: userName || 'Listener', lastSeen: Date.now() }];
 
   return (
-    <div className="pb-28 pt-1 max-w-[1400px] mx-auto space-y-6 relative select-none text-white">
+    <div className="pb-44 sm:pb-28 pt-1 px-3 sm:px-6 max-w-[1400px] mx-auto space-y-6 relative select-none text-white overflow-x-hidden">
       {/* Floating Live Emoji Reactions Cannon Overlay */}
       <div className="fixed bottom-28 right-6 sm:right-8 z-40 pointer-events-none flex flex-col-reverse items-end gap-2.5">
         <AnimatePresence>
@@ -296,7 +296,7 @@ export default function JamRoomPage() {
         /* ================= LOBBY: SPATIAL SHAREPLAY & LIVE JAM STUDIO ================= */
         <div className="space-y-6">
           {/* Cinematic SharePlay Radar Hero */}
-          <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-6 sm:p-10 shadow-2xl">
+          <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-4 sm:p-10 shadow-2xl">
             <div className="absolute -top-28 -left-24 w-96 h-96 rounded-full bg-emerald-500/20 blur-[110px] pointer-events-none" />
             <div className="absolute -bottom-28 -right-24 w-96 h-96 rounded-full bg-[var(--color-accent)]/25 blur-[110px] pointer-events-none" />
 
@@ -307,7 +307,7 @@ export default function JamRoomPage() {
                   TRIPLE-TRANSPORT SHAREPLAY • &lt;15MS SYNC DRIFT
                 </div>
 
-                <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-[1.1]">
+                <h1 className="text-2xl sm:text-5xl font-black text-white tracking-tight leading-[1.1]">
                   Listen Together in <br />
                   <span className="bg-gradient-to-r from-emerald-300 via-cyan-300 to-rose-400 bg-clip-text text-transparent">
                     Real-Time Spatial Sync.
@@ -339,7 +339,7 @@ export default function JamRoomPage() {
                         setUserName(e.target.value);
                       }}
                       placeholder="Enter your DJ / Listener name..."
-                      className="flex-1 bg-transparent text-sm font-semibold text-white placeholder-white/35 focus:outline-none pr-4"
+                      className="flex-1 bg-transparent text-sm font-semibold text-white placeholder-white/35 focus:outline-none pr-4 min-w-0"
                     />
                     <span className="px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-extrabold uppercase tracking-wider mr-1 whitespace-nowrap flex-shrink-0">
                       Ready
@@ -350,7 +350,7 @@ export default function JamRoomPage() {
 
               {/* Animated SharePlay Sonic Radar Visual */}
               <div className="lg:col-span-5 flex items-center justify-center py-4">
-                <div className="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
+                <div className="relative w-52 h-52 sm:w-72 sm:h-72 flex items-center justify-center max-w-full">
                   {/* Concentric Radar Rings */}
                   <div className="absolute inset-0 rounded-full border border-emerald-400/20 animate-[ping_3.5s_cubic-bezier(0,0,0.2,1)_infinite]" />
                   <div className="absolute inset-4 rounded-full border border-cyan-400/25" />
@@ -358,14 +358,14 @@ export default function JamRoomPage() {
                   <div className="absolute inset-20 rounded-full border border-rose-500/30" />
 
                   {/* Orbiting Listener Nodes */}
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full liquid-glass border border-emerald-400/40 text-[10px] font-extrabold text-emerald-300 shadow-lg flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full liquid-glass border border-emerald-400/40 text-[9px] sm:text-[10px] font-extrabold text-emerald-300 shadow-lg flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                     <span>Cloud Relay</span>
                   </div>
-                  <div className="absolute bottom-5 left-4 px-2.5 py-1 rounded-full liquid-glass border border-cyan-400/40 text-[10px] font-extrabold text-cyan-300 shadow-lg whitespace-nowrap flex-shrink-0">
+                  <div className="absolute bottom-4 left-2 sm:left-4 px-2 sm:px-2.5 py-1 rounded-full liquid-glass border border-cyan-400/40 text-[9px] sm:text-[10px] font-extrabold text-cyan-300 shadow-lg whitespace-nowrap flex-shrink-0">
                     WebRTC P2P
                   </div>
-                  <div className="absolute bottom-5 right-4 px-2.5 py-1 rounded-full liquid-glass border border-rose-400/40 text-[10px] font-extrabold text-rose-300 shadow-lg whitespace-nowrap flex-shrink-0">
+                  <div className="absolute bottom-4 right-2 sm:right-4 px-2 sm:px-2.5 py-1 rounded-full liquid-glass border border-rose-400/40 text-[9px] sm:text-[10px] font-extrabold text-rose-300 shadow-lg whitespace-nowrap flex-shrink-0">
                     320kbps HD
                   </div>
 

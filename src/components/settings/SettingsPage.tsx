@@ -47,12 +47,12 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between py-3.5 border-b border-white/[0.07] last:border-0 gap-4">
-      <div className="flex flex-col">
-        <span className="text-white font-semibold text-sm sm:text-base">{label}</span>
-        {description && <span className="text-xs text-white/45 mt-0.5">{description}</span>}
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 border-b border-white/[0.07] last:border-0 gap-3 sm:gap-4">
+      <div className="flex flex-col min-w-0 pr-0 sm:pr-4 flex-1">
+        <span className="text-white font-semibold text-sm sm:text-base leading-snug">{label}</span>
+        {description && <span className="text-xs text-white/45 mt-1 leading-relaxed">{description}</span>}
       </div>
-      <div className="flex-shrink-0">{children}</div>
+      <div className="flex-shrink-0 w-full sm:w-auto flex justify-start sm:justify-end">{children}</div>
     </div>
   );
 }
@@ -172,7 +172,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto pt-2 pb-28 flex flex-col gap-8 text-white">
+    <div className="w-full max-w-4xl mx-auto pt-2 pb-44 sm:pb-28 px-3 sm:px-6 flex flex-col gap-8 text-white">
       <div>
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Settings & Studio EQ</h1>
         <p className="text-xs text-white/50 mt-1">
@@ -397,7 +397,7 @@ export default function SettingsPage() {
               label={`${settings.aiApiProvider === 'gemini' ? 'Google Gemini' : 'OpenAI'} API Key`}
               description="Stored securely on this device in local settings. Never transmitted to third parties."
             >
-              <div className="flex items-center gap-2 w-64 sm:w-80">
+              <div className="flex items-center gap-2 w-full sm:w-80">
                 <input
                   type={showApiKey ? 'text' : 'password'}
                   value={settings.aiApiKey || ''}

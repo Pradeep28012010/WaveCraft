@@ -122,7 +122,7 @@ export default function LibraryPage() {
   };
 
   return (
-    <div className="pb-28 pt-2 text-white min-h-screen">
+    <div className="pb-44 sm:pb-28 pt-2 text-white min-h-screen">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>

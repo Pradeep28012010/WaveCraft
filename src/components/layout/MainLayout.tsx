@@ -151,12 +151,12 @@ export default function MainLayout() {
             <GradualBlur
               target="parent"
               position="top"
-              height={isPhone ? '1.5rem' : '2.25rem'}
-              strength={1.5}
-              divCount={5}
+              height={isPhone ? '0.75rem' : '2.25rem'}
+              strength={isPhone ? 0.8 : 1.5}
+              divCount={isPhone ? 3 : 5}
               curve="bezier"
               exponential={true}
-              opacity={1}
+              opacity={isPhone ? 0.6 : 1}
             />
 
             {/* React Bits GradualBlur: Smooth mathematical edge blur above MiniPlayer dock */}

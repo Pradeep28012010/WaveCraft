@@ -198,7 +198,7 @@ export default function PlaylistView() {
     : 'Never';
 
   return (
-    <div className="pb-24 pt-6 text-white min-h-screen">
+    <div className="pb-44 sm:pb-24 pt-6 text-white min-h-screen">
       {/* Navigation Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-white/50 mb-6 font-semibold">
         <button

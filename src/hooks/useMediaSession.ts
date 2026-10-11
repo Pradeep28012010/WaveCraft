@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
 import { unlockAudioEngine, resumeAudioContextIfNeeded } from '../services/audioEngine';
+import { updateAndroidPlaybackState } from '../services/nativeAndroid';
 
 export function useMediaSession() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -121,6 +122,10 @@ export function useMediaSession() {
 
   // Keep OS playbackState synced so AirPods / Keyboard / Lock Screen buttons toggle properly
   useEffect(() => {
+    if (currentTrack) {
+      const state = usePlayerStore.getState();
+      updateAndroidPlaybackState(isPlaying, state.currentTime || 0, state.duration || 0);
+    }
     if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.playbackState = currentTrack
       ? isPlaying
@@ -132,13 +137,6 @@ export function useMediaSession() {
   // Sync lock-screen scrub bar position state via passive store subscription
   // so root AppContent NEVER re-renders on currentTime ticks
   useEffect(() => {
-    if (
-      !('mediaSession' in navigator) ||
-      typeof navigator.mediaSession.setPositionState !== 'function'
-    ) {
-      return;
-    }
-
     let lastSyncMs = 0;
     let lastTime = -1;
     let lastDuration = -1;
@@ -156,14 +154,22 @@ export function useMediaSession() {
       lastDuration = duration;
       lastSpeed = playbackSpeed;
 
-      try {
-        navigator.mediaSession.setPositionState({
-          duration,
-          playbackRate: playbackSpeed || 1,
-          position: Math.max(0, Math.min(duration, currentTime || 0))
-        });
-      } catch {
-        // Ignore transient position errors
+      const playing = usePlayerStore.getState().isPlaying;
+      updateAndroidPlaybackState(playing, currentTime, duration);
+
+      if (
+        'mediaSession' in navigator &&
+        typeof navigator.mediaSession.setPositionState === 'function'
+      ) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration,
+            playbackRate: playbackSpeed || 1,
+            position: Math.max(0, Math.min(duration, currentTime || 0))
+          });
+        } catch {
+          // Ignore transient position errors
+        }
       }
     };
 

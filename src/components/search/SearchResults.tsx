@@ -392,7 +392,7 @@ export default function SearchResults() {
   const topTrack = tracks[0];
 
   return (
-    <div className="flex flex-col gap-6 pb-28 pt-4 px-1 sm:px-3 text-white max-w-full">
+    <div className="flex flex-col gap-6 pb-44 sm:pb-28 pt-4 px-1 sm:px-3 text-white max-w-full">
       {/* Header & Filter Pills */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5 px-1">
         <div className="min-w-0 pr-2">

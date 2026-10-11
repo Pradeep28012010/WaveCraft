@@ -88,7 +88,9 @@ export const initNativeAndroid = (navigate?: (to: number) => void) => {
           state.currentTrack.title,
           state.currentTrack.artist,
           state.currentTrack.thumbnailLarge || state.currentTrack.thumbnail,
-          true
+          true,
+          state.currentTime || 0,
+          state.duration || 0
         );
       }
     }
@@ -100,6 +102,8 @@ export const initNativeAndroid = (navigate?: (to: number) => void) => {
   };
 };
 
+import { seekToTime } from './audioEngine';
+
 declare global {
   interface Window {
     AndroidAudioBridge?: {
@@ -107,7 +111,14 @@ declare global {
         title: string,
         artist: string,
         thumbnail?: string,
-        isPlaying?: boolean
+        isPlaying?: boolean,
+        positionSec?: number,
+        durationSec?: number
+      ) => void;
+      updatePlaybackState?: (
+        isPlaying: boolean,
+        positionSec: number,
+        durationSec: number
       ) => void;
       stopPlayback: () => void;
     };
@@ -125,6 +136,12 @@ if (typeof window !== 'undefined') {
       store.nextTrack();
     } else if (action === 'prev') {
       store.prevTrack();
+    } else if (action.startsWith('seek:')) {
+      const time = parseFloat(action.replace('seek:', ''));
+      if (!isNaN(time)) {
+        store.seekTo(time);
+        seekToTime(time);
+      }
     }
   };
 }
@@ -137,13 +154,33 @@ export const startAndroidBackgroundAudio = (
   title: string,
   artist: string,
   thumbnail?: string,
-  isPlaying: boolean = true
+  isPlaying: boolean = true,
+  positionSec: number = 0,
+  durationSec: number = 0
 ) => {
   if (typeof window !== 'undefined' && window.AndroidAudioBridge?.startPlayback) {
     try {
-      window.AndroidAudioBridge.startPlayback(title, artist, thumbnail, isPlaying);
+      window.AndroidAudioBridge.startPlayback(title, artist, thumbnail, isPlaying, positionSec, durationSec);
     } catch (e) {
       console.warn('Could not start Android foreground playback service:', e);
+    }
+  }
+};
+
+/**
+ * Updates Android native PlaybackState and MediaSession with live position and duration
+ * so phone lock screen and notification seekbars animate smoothly in real-time.
+ */
+export const updateAndroidPlaybackState = (
+  isPlaying: boolean,
+  positionSec: number,
+  durationSec: number
+) => {
+  if (typeof window !== 'undefined' && window.AndroidAudioBridge?.updatePlaybackState) {
+    try {
+      window.AndroidAudioBridge.updatePlaybackState(isPlaying, positionSec, durationSec);
+    } catch (e) {
+      console.warn('Could not update Android playback state:', e);
     }
   }
 };

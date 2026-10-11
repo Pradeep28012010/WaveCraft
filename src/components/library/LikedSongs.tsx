@@ -76,7 +76,7 @@ export default function LikedSongs() {
   };
 
   return (
-    <div className="pb-24 pt-2 text-white min-h-screen">
+    <div className="pb-44 sm:pb-24 pt-2 text-white min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row gap-7 items-start md:items-end mb-8 p-6 rounded-3xl liquid-glass">
         <div className="w-40 h-40 md:w-48 md:h-48 flex-shrink-0 rounded-2xl shadow-2xl overflow-hidden bg-gradient-to-br from-rose-500 via-pink-600 to-purple-700 flex items-center justify-center">

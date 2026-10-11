@@ -1176,11 +1176,14 @@ export default function YouTubeEmbed() {
       stopAndroidBackgroundAudio();
       return;
     }
+    const pState = usePlayerStore.getState();
     startAndroidBackgroundAudio(
       currentTrack.title,
       currentTrack.artist,
       currentTrack.thumbnailLarge || currentTrack.thumbnail,
-      isPlaying
+      isPlaying,
+      pState.currentTime || 0,
+      pState.duration || 0
     );
     if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
       return;

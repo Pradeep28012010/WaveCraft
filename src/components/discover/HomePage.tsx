@@ -287,7 +287,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="relative pb-24 pt-2 text-white min-h-screen">
+    <div className="relative pb-44 sm:pb-24 pt-2 text-white min-h-screen">
 
       {/* Welcome Header & Atmosphere Indicator */}
       <div className="mb-6 px-1 pt-1 flex flex-col sm:flex-row sm:items-end justify-between gap-4">

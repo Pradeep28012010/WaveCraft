@@ -71,7 +71,7 @@ export default function DownloadsPage() {
   const toggleOfflineModeOnly = useSettingsStore((s) => s.toggleOfflineModeOnly);
 
   return (
-    <div className="pb-24 pt-2 text-white min-h-screen">
+    <div className="pb-44 sm:pb-24 pt-2 text-white min-h-screen">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>

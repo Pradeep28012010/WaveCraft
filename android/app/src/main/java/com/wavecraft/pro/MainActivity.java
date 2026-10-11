@@ -14,7 +14,7 @@ public class MainActivity extends BridgeActivity {
 
     public class AndroidAudioBridge {
         @JavascriptInterface
-        public void startPlayback(String title, String artist, String thumbnail, boolean isPlaying) {
+        public void startPlayback(String title, String artist, String thumbnail, boolean isPlaying, double positionSec, double durationSec) {
             try {
                 Intent serviceIntent = new Intent(MainActivity.this, WaveCraftMediaService.class);
                 serviceIntent.setAction(WaveCraftMediaService.ACTION_START);
@@ -22,6 +22,8 @@ public class MainActivity extends BridgeActivity {
                 serviceIntent.putExtra(WaveCraftMediaService.EXTRA_ARTIST, artist);
                 serviceIntent.putExtra(WaveCraftMediaService.EXTRA_THUMBNAIL, thumbnail);
                 serviceIntent.putExtra(WaveCraftMediaService.EXTRA_IS_PLAYING, isPlaying);
+                serviceIntent.putExtra(WaveCraftMediaService.EXTRA_POSITION_MS, (long) (positionSec * 1000));
+                serviceIntent.putExtra(WaveCraftMediaService.EXTRA_DURATION_MS, (long) (durationSec * 1000));
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startForegroundService(serviceIntent);
                 } else {
@@ -33,8 +35,27 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public void startPlayback(String title, String artist, String thumbnail, boolean isPlaying) {
+            startPlayback(title, artist, thumbnail, isPlaying, 0, 0);
+        }
+
+        @JavascriptInterface
         public void startPlayback(String title, String artist) {
-            startPlayback(title, artist, null, true);
+            startPlayback(title, artist, null, true, 0, 0);
+        }
+
+        @JavascriptInterface
+        public void updatePlaybackState(boolean isPlaying, double positionSec, double durationSec) {
+            try {
+                Intent serviceIntent = new Intent(MainActivity.this, WaveCraftMediaService.class);
+                serviceIntent.setAction(WaveCraftMediaService.ACTION_UPDATE_STATE);
+                serviceIntent.putExtra(WaveCraftMediaService.EXTRA_IS_PLAYING, isPlaying);
+                serviceIntent.putExtra(WaveCraftMediaService.EXTRA_POSITION_MS, (long) (positionSec * 1000));
+                serviceIntent.putExtra(WaveCraftMediaService.EXTRA_DURATION_MS, (long) (durationSec * 1000));
+                startService(serviceIntent);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         @JavascriptInterface

@@ -92,12 +92,12 @@ export default function GlassSelect({
   }, [isOpen, updatePosition]);
 
   return (
-    <div className={`relative inline-block text-left select-none ${className}`}>
+    <div className={`relative inline-block text-left select-none max-w-full ${className}`}>
       <button
         ref={buttonRef}
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center justify-between gap-3 px-4 py-2 rounded-full liquid-glass text-xs sm:text-sm font-semibold text-white hover:border-white/35 transition-all cursor-pointer min-w-[155px]"
+        className="flex items-center justify-between gap-3 px-4 py-2 rounded-full liquid-glass text-xs sm:text-sm font-semibold text-white hover:border-white/35 transition-all cursor-pointer min-w-[155px] max-w-full"
       >
         <span className="truncate">{selectedOption?.label || value}</span>
         <svg
