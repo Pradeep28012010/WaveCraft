@@ -64,30 +64,6 @@ const bloomContainerVariants = {
   }
 };
 
-const bloomItemVariants = {
-  initial: {
-    opacity: 0,
-    y: 7,
-    scale: 0.97
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      duration: 0.28,
-      ease: [0.16, 1, 0.3, 1] as const
-    }
-  },
-  exit: {
-    opacity: 0,
-    y: 3,
-    transition: {
-      duration: 0.12
-    }
-  }
-};
-
 function ContextMenuInner() {
   const isOpen = useContextMenuStore((s) => s.isOpen);
   const x = useContextMenuStore((s) => s.x);

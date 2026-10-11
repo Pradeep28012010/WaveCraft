@@ -78,26 +78,22 @@
   transform: translateZ(0);
 }
 
-/* Progressive Blur & Feathered Mask System — softens edges so nothing abruptly cuts off */
-.progressive-mask-y {
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0px,
-    rgba(0, 0, 0, 0.4) 8px,
-    black 28px,
-    black calc(100% - 32px),
-    rgba(0, 0, 0, 0.4) calc(100% - 8px),
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0px,
-    rgba(0, 0, 0, 0.4) 8px,
-    black 28px,
-    black calc(100% - 32px),
-    rgba(0, 0, 0, 0.4) calc(100% - 8px),
-    transparent 100%
-  );
+/* Progressive Blur Edge System — softens borders with gradient backdrop blur without opaque color bands */
+.progressive-blur-edge {
+  position: relative;
+}
+.progressive-blur-edge::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -12px;
+  height: 12px;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
 }
 
 .progressive-mask-top {

@@ -110,26 +110,18 @@ export default function MainLayout() {
       <div className="flex flex-1 overflow-hidden relative z-10">
         <Sidebar />
 
-        <div className="flex-1 flex flex-col overflow-hidden relative min-w-0">
-          <TopBar />
-
-          {/* Top Edge Progressive Blur Diffuser Scrim */}
-          <div
-            className="absolute top-0 inset-x-0 h-6 pointer-events-none z-30 bg-gradient-to-b from-[#06060b]/60 to-transparent"
-            style={{
-              marginTop: isPhone ? '48px' : '80px',
-              maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)'
-            }}
-          />
-
+        <div className="flex-1 overflow-hidden relative min-w-0">
           <main
             ref={mainRef}
-            className={`flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain progressive-mask-y ${
-              isPhone ? 'p-3.5 pt-2' : 'p-6 pt-3'
-            }`}
+            className="h-full overflow-y-auto overflow-x-hidden overscroll-y-contain flex flex-col"
           >
-            <div className={`max-w-7xl mx-auto ${isPhone ? (hasCurrentTrack ? 'pb-44' : 'pb-28') : 'pb-24'}`}>
+            <TopBar />
+
+            <div className={`flex-1 w-full max-w-7xl mx-auto ${
+              isPhone
+                ? `px-3.5 pt-1.5 ${hasCurrentTrack ? 'pb-44' : 'pb-28'}`
+                : `px-6 lg:px-8 pt-3 ${hasCurrentTrack ? 'pb-32' : 'pb-24'}`
+            }`}>
               <RouteErrorBoundary resetKey={location.pathname}>
                 <motion.div
                   key={location.pathname}
