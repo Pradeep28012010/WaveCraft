@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useId, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Track } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -135,7 +134,6 @@ const TrackRow = memo(({
   onContextMenu
 }: TrackRowProps) => {
   const rowId = useId();
-  const navigate = useNavigate();
   const { isPhone } = useDevicePreset();
   const { isHovered, onMouseEnter, onMouseLeave } = useSharedTrackHover(rowId);
 
@@ -409,19 +407,9 @@ const TrackRow = memo(({
               </span>
             )}
           </div>
-          <div className="text-xs text-white/55 truncate mt-0.5 flex items-center gap-1">
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/artist/${encodeURIComponent(track.artist)}`);
-              }}
-              className="hover:underline hover:text-white/90 transition-colors cursor-pointer"
-              title={`View ${track.artist} profile`}
-            >
-              {track.artist}
-            </span>
-            {track.album && track.album !== 'Single' && <span>• {track.album}</span>}
-          </div>
+          <span className="text-xs text-white/55 truncate mt-0.5">
+            {track.artist} {track.album && track.album !== 'Single' ? `• ${track.album}` : ''}
+          </span>
         </div>
 
         {/* Right: Clean, consistent controls (Like, Duration, More Actions •••) */}
