@@ -17,6 +17,7 @@ import {
   type PlaylistDownloadProgress
 } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { useColorExtract } from '../../hooks/useColorExtract';
 
 export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
@@ -190,6 +191,7 @@ export default function PlaylistView() {
 
   const totalDuration = playlist.tracks.reduce((acc, track) => acc + (track.duration || 0), 0);
   const hdCoverUrl = getHighResPlaylistCover(playlist);
+  const { palette } = useColorExtract(hdCoverUrl);
   const lastSyncFormatted = playlist.lastSyncedAt
     ? new Date(playlist.lastSyncedAt).toLocaleTimeString([], {
         hour: '2-digit',
@@ -198,9 +200,29 @@ export default function PlaylistView() {
     : 'Never';
 
   return (
-    <div className="pb-24 pt-6 text-white min-h-screen">
+    <div className="pb-24 pt-6 text-white min-h-screen relative">
+      {/* Full-Bleed Apple Music Ambient Colored Backdrop (Image 4 Reference) */}
+      <div className="absolute top-0 inset-x-0 h-[520px] pointer-events-none overflow-hidden -z-10">
+        <div
+          className="absolute -top-24 left-1/4 w-[46rem] h-[46rem] rounded-full blur-[130px] opacity-35 transition-all duration-1000"
+          style={{ background: `radial-gradient(circle, ${palette.primary} 0%, transparent 70%)` }}
+        />
+        <div
+          className="absolute top-12 right-12 w-[38rem] h-[38rem] rounded-full blur-[120px] opacity-25 transition-all duration-1000"
+          style={{ background: `radial-gradient(circle, ${palette.secondary} 0%, transparent 65%)` }}
+        />
+        {hdCoverUrl && (
+          <img
+            src={hdCoverUrl}
+            alt=""
+            className="w-full h-full object-cover blur-3xl opacity-15 scale-125 select-none"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#06060b]/75 to-[#06060b]" />
+      </div>
+
       {/* Navigation Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs text-white/50 mb-6 font-semibold">
+      <div className="flex items-center gap-2 text-xs text-white/50 mb-6 font-semibold relative z-10">
         <button
           onClick={() => navigate('/library')}
           className="hover:text-white transition-colors cursor-pointer flex items-center gap-1"
@@ -228,8 +250,8 @@ export default function PlaylistView() {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row gap-8 items-end mb-8">
-        <div className="w-48 h-48 md:w-60 md:h-60 flex-shrink-0 rounded-2xl shadow-2xl overflow-hidden bg-white/10 relative shadow-black/40">
+      <div className="flex flex-col md:flex-row gap-8 items-end mb-8 relative z-10">
+        <div className="w-48 h-48 md:w-60 md:h-60 flex-shrink-0 rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden bg-white/10 relative border border-white/15">
           {hdCoverUrl ? (
             <img src={hdCoverUrl} alt={playlist.name} className="w-full h-full object-cover" />
           ) : (
@@ -385,8 +407,15 @@ export default function PlaylistView() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-sm text-white/60 mt-2">
-            <span className="font-medium text-white whitespace-nowrap">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-white/60 mt-2 font-medium">
+            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/10 text-white/80 border border-white/15 select-none">
+              Lossless
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/10 text-white/80 border border-white/15 select-none">
+              Dolby Atmos
+            </span>
+            <span>•</span>
+            <span className="font-semibold text-white whitespace-nowrap">
               {playlist.tracks.length} songs
             </span>
             <span>•</span>
@@ -547,23 +576,33 @@ export default function PlaylistView() {
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-4 mb-8">
-        <button
+      {/* Actions (Apple Music Pill Controls - Image 4 Reference) */}
+      <div className="flex items-center gap-3.5 mb-8">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handlePlayAll}
-          className="w-14 h-14 p-0 rounded-full glass-button-primary text-white flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
+          className="h-11 px-7 rounded-full bg-white text-zinc-950 font-black text-sm flex items-center justify-center gap-2 hover:bg-white/95 shadow-[0_8px_24px_rgba(255,255,255,0.25)] transition-all disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
           disabled={playlist.tracks.length === 0}
         >
-          <svg className="w-7 h-7 block" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
+          <svg className="w-5 h-5 block fill-current" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
           </svg>
-        </button>
-        <GlassButton onClick={handleShuffleAll} disabled={playlist.tracks.length === 0}>
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          <span>Play</span>
+        </motion.button>
+
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleShuffleAll}
+          disabled={playlist.tracks.length === 0}
+          className="h-11 px-6 rounded-full glass-button font-bold text-white text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+        >
+          <svg className="w-4 h-4 block" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
           </svg>
-          Shuffle
-        </GlassButton>
+          <span>Shuffle</span>
+        </motion.button>
 
         {/* 1-Click Batch Playlist Download to Offline Vault */}
         <button
@@ -700,7 +739,19 @@ export default function PlaylistView() {
       </div>
 
       {/* Tracks */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1.5">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1">
+        {playlist.tracks.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.08] text-[11px] font-bold uppercase tracking-wider text-white/40 select-none mb-1">
+            <div className="flex items-center gap-4">
+              <span className="w-6 text-center">#</span>
+              <span>Title</span>
+            </div>
+            <div className="flex items-center gap-8 pr-2">
+              <span className="hidden sm:inline">Artist</span>
+              <span>Time</span>
+            </div>
+          </div>
+        )}
         {playlist.tracks.length === 0 ? (
           <div className="text-center py-12 text-white/50 border border-dashed border-white/20 rounded-xl">
             <p className="text-lg">This playlist is empty.</p>

@@ -221,15 +221,146 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
         </div>
       </div>
 
-      {/* Symmetric Time Readout */}
-      <div className="flex justify-between -mt-1 text-[11px] text-white/55 font-semibold tabular-nums">
+      {/* Symmetric Time Readout with Apple Music Sing Badge */}
+      <div className="flex justify-between items-center -mt-1 text-[11px] text-white/55 font-semibold tabular-nums">
         <span>{formatTime(activeDisplayTime)}</span>
+        {useStudioStore.getState().isSingActive && (
+          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30 select-none animate-pulse">
+            Sing
+          </span>
+        )}
         <span>-{formatTime(Math.max(0, activeDuration - activeDisplayTime))}</span>
       </div>
     </div>
   );
 });
 NowPlayingScrubber.displayName = 'NowPlayingScrubber';
+
+/**
+ * Apple Music Sing Vertical Slider (Image 1 Reference)
+ * Exact recreation of the vertical microphone pill slider circled in red in user reference image.
+ */
+const AppleMusicSingSlider = memo(() => {
+  const isSingActive = useStudioStore((s) => s.isSingActive);
+  const singVocalLevel = useStudioStore((s) => s.singVocalLevel);
+  const setSingVocalLevel = useStudioStore((s) => s.setSingVocalLevel);
+  const toggleSing = useStudioStore((s) => s.toggleSing);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const updateFromPointer = (clientY: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const relativeY = rect.bottom - clientY;
+    const ratio = Math.max(0, Math.min(1, relativeY / rect.height));
+    setSingVocalLevel(ratio);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsDragging(true);
+    triggerAndroidHaptic('medium');
+    updateFromPointer(e.clientY);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      updateFromPointer(e.clientY);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    setIsDragging(false);
+    triggerAndroidHaptic('light');
+  };
+
+  const fillHeight = isSingActive ? Math.round(singVocalLevel * 100) : 100;
+
+  return (
+    <div className="flex flex-col items-center gap-2 select-none touch-none">
+      <div
+        ref={containerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        title={`Apple Music Sing Vocal Level: ${Math.round(singVocalLevel * 100)}% (Drag up/down to adjust vocal presence)`}
+        className={`relative w-10 sm:w-11 h-44 sm:h-52 rounded-full overflow-hidden cursor-pointer touch-none transition-all shadow-[0_12px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.25)] border ${
+          isSingActive
+            ? 'border-rose-400/40 bg-white/[0.14]'
+            : 'border-white/20 bg-white/[0.08] hover:border-white/35'
+        }`}
+      >
+        {/* Dynamic Background Fill representing vocal volume */}
+        <div
+          className={`absolute bottom-0 inset-x-0 transition-all ${
+            isDragging ? 'duration-0' : 'duration-200 ease-out'
+          } ${
+            isSingActive
+              ? 'bg-gradient-to-t from-white/90 via-white/80 to-rose-200/90'
+              : 'bg-white/40'
+          }`}
+          style={{ height: `${fillHeight}%` }}
+        />
+
+        {/* Level Percentage Indicator tooltip while dragging */}
+        {isDragging && (
+          <div className="absolute top-2 inset-x-0 text-center text-[10px] font-black text-black/80 tabular-nums z-20 pointer-events-none">
+            {Math.round(singVocalLevel * 100)}%
+          </div>
+        )}
+
+        {/* Microphone Icon at base (Click to toggle Sing mode) */}
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerAndroidHaptic('medium');
+            toggleSing();
+          }}
+          className="absolute bottom-2.5 inset-x-0 flex items-center justify-center z-10 pointer-events-auto"
+        >
+          <div
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+              fillHeight > 25
+                ? 'text-zinc-900 drop-shadow-sm'
+                : 'text-white drop-shadow-md'
+            }`}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Label under the slider */}
+      <button
+        type="button"
+        onClick={() => {
+          triggerAndroidHaptic('light');
+          toggleSing();
+        }}
+        className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+          isSingActive
+            ? 'bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-sm'
+            : 'text-white/60 hover:text-white'
+        }`}
+      >
+        Sing
+      </button>
+    </div>
+  );
+});
+AppleMusicSingSlider.displayName = 'AppleMusicSingSlider';
 
 const DECK_MODE_KEY = 'wavecraft_deck_mode_v1';
 
@@ -929,15 +1060,20 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           Show Art ✕
                         </button>
                       </div>
-                      <div className="flex-1 min-h-0">
-                        <LyricsView
-                          artist={currentTrack.artist}
-                          title={currentTrack.title}
-                          onShareLyric={(quote) => {
-                            setWaveCardQuote(quote);
-                            setShowWaveCard(true);
-                          }}
-                        />
+                      <div className="flex-1 min-h-0 flex items-center pr-2">
+                        <div className="flex-1 h-full min-w-0">
+                          <LyricsView
+                            artist={currentTrack.artist}
+                            title={currentTrack.title}
+                            onShareLyric={(quote) => {
+                              setWaveCardQuote(quote);
+                              setShowWaveCard(true);
+                            }}
+                          />
+                        </div>
+                        <div className="flex-shrink-0 pl-1.5 py-1">
+                          <AppleMusicSingSlider />
+                        </div>
                       </div>
                     </motion.div>
                   ) : deckMode === 'vinyl' ? (
@@ -1501,16 +1637,21 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       exit={{ opacity: 0, x: 28, scale: 0.97 }}
                       transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.65 }}
                       onPointerDown={(e) => e.stopPropagation()}
-                      className="w-full lg:col-span-7 h-[46vh] lg:h-[72vh] min-w-0 will-change-transform"
+                      className="w-full lg:col-span-7 h-[46vh] lg:h-[72vh] min-w-0 flex items-center gap-5 will-change-transform"
                     >
-                      <LyricsView
-                        artist={currentTrack.artist}
-                        title={currentTrack.title}
-                        onShareLyric={(quote) => {
-                          setWaveCardQuote(quote);
-                          setShowWaveCard(true);
-                        }}
-                      />
+                      <div className="flex-1 h-full min-w-0">
+                        <LyricsView
+                          artist={currentTrack.artist}
+                          title={currentTrack.title}
+                          onShareLyric={(quote) => {
+                            setWaveCardQuote(quote);
+                            setShowWaveCard(true);
+                          }}
+                        />
+                      </div>
+                      <div className="flex-shrink-0 pr-2">
+                        <AppleMusicSingSlider />
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

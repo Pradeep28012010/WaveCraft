@@ -351,81 +351,137 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 overflow-y-auto px-3 py-1.5 space-y-0.5 no-scrollbar">
-          {!collapsed && (
-            <div className="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/60">
-              Navigation
-            </div>
-          )}
-          {navItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              end={item.path === '/'}
-              className={({ isActive }) =>
-                `relative flex items-center justify-between gap-2 px-3.5 h-10 rounded-xl transition-colors duration-200 group ${
-                  isActive
-                    ? 'text-white font-semibold'
-                    : 'text-white/60 hover:text-white hover:bg-white/[0.05]'
-                }`
-              }
-              title={collapsed ? item.name : undefined}
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive && (
-                    <motion.div
-                      layoutId="sidebar-active-pill"
-                      transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                      style={{ position: 'absolute', inset: 0 }}
-                      className="rounded-xl bg-gradient-to-r from-white/[0.14] via-white/[0.08] to-white/[0.04] backdrop-blur-xl border border-white/15 shadow-[0_8px_24px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] pointer-events-none z-0 overflow-hidden"
-                    >
-                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
-                    </motion.div>
-                  )}
-                  <div
-                    className={`relative z-10 flex items-center gap-3.5 min-w-0 transition-transform duration-200 group-hover:translate-x-0.5 ${
-                      collapsed ? 'mx-auto' : ''
-                    }`}
-                  >
+        {/* Navigation Links - Apple Music 3-Tier Hierarchy */}
+        <nav className="flex-1 overflow-y-auto px-2.5 py-2 space-y-4 no-scrollbar">
+          {/* Section 1: Apple Music / Discover */}
+          <div className="space-y-0.5">
+            {!collapsed && (
+              <div className="px-3 pb-1 text-[10px] font-black uppercase tracking-wider text-white/40">
+                Apple Music
+              </div>
+            )}
+            {navItems.slice(0, 3).map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                end={item.path === '/'}
+                className={({ isActive }) =>
+                  `relative flex items-center justify-between gap-2 px-3 h-9 rounded-xl transition-all duration-150 group ${
+                    isActive
+                      ? 'text-white font-semibold'
+                      : 'text-white/60 hover:text-white hover:bg-white/[0.05]'
+                  }`
+                }
+                title={collapsed ? item.name : undefined}
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.div
+                        layoutId="sidebar-active-pill"
+                        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        style={{ position: 'absolute', inset: 0 }}
+                        className="rounded-xl bg-rose-500/15 border border-rose-500/25 shadow-[0_0_15px_rgba(244,63,94,0.15)] pointer-events-none z-0 overflow-hidden"
+                      >
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-rose-500 shadow-[0_0_8px_#f43f5e]" />
+                      </motion.div>
+                    )}
                     <div
-                      className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${
-                        isActive ? 'text-[var(--color-accent)]' : ''
+                      className={`relative z-10 flex items-center gap-3 min-w-0 ${
+                        collapsed ? 'mx-auto' : ''
                       }`}
                     >
-                      {item.icon}
+                      <div
+                        className={`w-4.5 h-4.5 flex-shrink-0 transition-transform duration-150 group-hover:scale-105 ${
+                          isActive ? 'text-rose-400' : 'text-white/70'
+                        }`}
+                      >
+                        {item.icon}
+                      </div>
+                      {!collapsed && <span className="text-xs truncate">{item.name}</span>}
                     </div>
-                    {!collapsed && <span className="text-sm truncate">{item.name}</span>}
-                  </div>
-                </>
-              )}
-            </NavLink>
-          ))}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
 
-          {/* Playlists Section */}
-          <div className="pt-6 pb-2">
+          {/* Section 2: Library */}
+          <div className="space-y-0.5">
             {!collapsed && (
-              <div className="flex items-center justify-between px-3 mb-2">
-                <h3 className="text-[11px] font-semibold text-white/35 uppercase tracking-wider">
-                  Playlists
-                </h3>
+              <div className="px-3 pb-1 text-[10px] font-black uppercase tracking-wider text-white/40">
+                Library
+              </div>
+            )}
+            {navItems.slice(5, 11).map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                end={item.path === '/'}
+                className={({ isActive }) =>
+                  `relative flex items-center justify-between gap-2 px-3 h-9 rounded-xl transition-all duration-150 group ${
+                    isActive
+                      ? 'text-white font-semibold'
+                      : 'text-white/60 hover:text-white hover:bg-white/[0.05]'
+                  }`
+                }
+                title={collapsed ? item.name : undefined}
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.div
+                        layoutId="sidebar-active-pill"
+                        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        style={{ position: 'absolute', inset: 0 }}
+                        className="rounded-xl bg-rose-500/15 border border-rose-500/25 shadow-[0_0_15px_rgba(244,63,94,0.15)] pointer-events-none z-0 overflow-hidden"
+                      >
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-rose-500 shadow-[0_0_8px_#f43f5e]" />
+                      </motion.div>
+                    )}
+                    <div
+                      className={`relative z-10 flex items-center gap-3 min-w-0 ${
+                        collapsed ? 'mx-auto' : ''
+                      }`}
+                    >
+                      <div
+                        className={`w-4.5 h-4.5 flex-shrink-0 transition-transform duration-150 group-hover:scale-105 ${
+                          isActive ? 'text-rose-400' : 'text-white/70'
+                        }`}
+                      >
+                        {item.icon}
+                      </div>
+                      {!collapsed && <span className="text-xs truncate">{item.name}</span>}
+                    </div>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
+
+          {/* Section 3: Playlists */}
+          <div className="space-y-1">
+            {!collapsed && (
+              <div className="flex items-center justify-between px-3 mb-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-white/40">
+                  Playlists ({playlists.length})
+                </span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setIsImportOpen(true)}
-                    className="p-1 rounded-lg text-emerald-400/80 hover:text-emerald-300 hover:bg-white/10 transition-colors cursor-pointer"
+                    className="p-1 rounded-md text-emerald-400 hover:text-emerald-300 hover:bg-white/10 transition-colors cursor-pointer"
                     title="Import External Playlist"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                   </button>
                   <button
                     onClick={() => setIsCreateOpen(true)}
-                    className="p-1 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    className="p-1 rounded-md text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                     title="New Playlist"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
@@ -434,39 +490,92 @@ export default function Sidebar() {
               </div>
             )}
 
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {playlists.map((playlist: Playlist) => (
                 <NavLink
                   key={playlist.id}
                   to={`/playlist/${playlist.id}`}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3.5 h-10 rounded-xl transition-all duration-200 ${
+                    `flex items-center gap-2.5 px-3 h-8.5 rounded-xl transition-all duration-150 ${
                       isActive
                         ? 'bg-white/15 text-white font-medium'
-                        : 'text-white/55 hover:text-white hover:bg-white/[0.05]'
+                        : 'text-white/60 hover:text-white hover:bg-white/[0.05]'
                     }`
                   }
                   title={collapsed ? playlist.name : undefined}
                 >
-                  <div className="w-6 h-6 rounded-md bg-gradient-to-br from-purple-500/60 to-pink-500/60 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                  <div className="w-5 h-5 rounded-md bg-gradient-to-br from-rose-500/60 to-purple-600/60 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
                     {playlist.name.charAt(0).toUpperCase()}
                   </div>
                   {!collapsed && (
-                    <span className="flex-1 truncate text-sm">{playlist.name}</span>
+                    <span className="flex-1 truncate text-xs">{playlist.name}</span>
                   )}
                 </NavLink>
               ))}
             </div>
           </div>
+
+          {/* Section 4: WaveCraft Studios & FX */}
+          <div className="space-y-0.5 pt-1 border-t border-white/[0.06]">
+            {!collapsed && (
+              <div className="px-3 pb-1 text-[10px] font-black uppercase tracking-wider text-white/40">
+                Studios & DSP
+              </div>
+            )}
+            {navItems.filter((_, idx) => idx === 1 || idx === 2 || idx === 3 || idx === 11).map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                end={item.path === '/'}
+                className={({ isActive }) =>
+                  `relative flex items-center justify-between gap-2 px-3 h-9 rounded-xl transition-all duration-150 group ${
+                    isActive
+                      ? 'text-white font-semibold'
+                      : 'text-white/60 hover:text-white hover:bg-white/[0.05]'
+                  }`
+                }
+                title={collapsed ? item.name : undefined}
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.div
+                        layoutId="sidebar-active-pill"
+                        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        style={{ position: 'absolute', inset: 0 }}
+                        className="rounded-xl bg-rose-500/15 border border-rose-500/25 shadow-[0_0_15px_rgba(244,63,94,0.15)] pointer-events-none z-0 overflow-hidden"
+                      >
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-rose-500 shadow-[0_0_8px_#f43f5e]" />
+                      </motion.div>
+                    )}
+                    <div
+                      className={`relative z-10 flex items-center gap-3 min-w-0 ${
+                        collapsed ? 'mx-auto' : ''
+                      }`}
+                    >
+                      <div
+                        className={`w-4.5 h-4.5 flex-shrink-0 transition-transform duration-150 group-hover:scale-105 ${
+                          isActive ? 'text-rose-400' : 'text-white/70'
+                        }`}
+                      >
+                        {item.icon}
+                      </div>
+                      {!collapsed && <span className="text-xs truncate">{item.name}</span>}
+                    </div>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
         </nav>
 
         {/* Collapse Toggle */}
-        <div className="p-3 border-t border-white/[0.06]">
+        <div className="p-2.5 border-t border-white/[0.06]">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center gap-2 w-full h-10 rounded-xl text-white/50 hover:text-white hover:bg-white/[0.07] transition-all text-xs font-medium cursor-pointer"
+            className="flex items-center justify-center gap-2 w-full h-9 rounded-xl text-white/50 hover:text-white hover:bg-white/[0.07] transition-all text-xs font-medium cursor-pointer"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="3" y1="12" x2="21" y2="12" />
               <line x1="3" y1="6" x2="21" y2="6" />
               <line x1="3" y1="18" x2="21" y2="18" />

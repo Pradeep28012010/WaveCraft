@@ -54,6 +54,7 @@ let analyserNode: AnalyserNode | null = null;
 let lastExciterDrive = -1;
 let autoMixerLowPass: BiquadFilterNode | null = null;
 let autoMixerHighTilt: BiquadFilterNode | null = null;
+let singVocalMidFilter: BiquadFilterNode | null = null;
 
 function createAnalogSaturationCurve(driveAmount: number): Float32Array<ArrayBuffer> {
   const samples = 4096;
@@ -546,9 +547,16 @@ export function initAudioGraph(
       sideDiffR.connect(sideBus);
       sideBus.connect(sideWidthGain);
 
-      midBus.connect(msMerger, 0, 0);
+      singVocalMidFilter = audioCtx.createBiquadFilter();
+      singVocalMidFilter.type = 'peaking';
+      singVocalMidFilter.frequency.value = 1000;
+      singVocalMidFilter.Q.value = 0.85;
+      singVocalMidFilter.gain.value = 0;
+
+      midBus.connect(singVocalMidFilter);
+      singVocalMidFilter.connect(msMerger, 0, 0);
       sideWidthGain.connect(msMerger, 0, 0);
-      midBus.connect(msMerger, 0, 1);
+      singVocalMidFilter.connect(msMerger, 0, 1);
       sideWidthGain.connect(sideInvertR);
       sideInvertR.connect(msMerger, 0, 1);
 
@@ -1092,6 +1100,16 @@ export function applyStudioFXToAudio(
     if (exciterWaveShaper && Math.abs((studio.harmonicDrive || 0) - lastExciterDrive) > 0.01) {
       lastExciterDrive = studio.harmonicDrive || 0;
       exciterWaveShaper.curve = createAnalogSaturationCurve(lastExciterDrive);
+    }
+
+    // Apple Music Sing: Real-Time Vocal Attenuation Filter
+    if (singVocalMidFilter) {
+      const isSing = studio.isSingActive;
+      const vocalLevel = isSing ? studio.singVocalLevel : 1.0;
+      // At vocalLevel = 1.0 (default), gain is 0dB (completely transparent)
+      // At vocalLevel = 0.0 (Sing / Karaoke mode), gain is -24dB (deep vocal attenuation)
+      const targetGain = isSing ? (vocalLevel - 1.0) * 24 : 0;
+      singVocalMidFilter.gain.setTargetAtTime(targetGain, now, 0.035);
     }
   }
 }

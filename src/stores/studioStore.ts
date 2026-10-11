@@ -102,6 +102,10 @@ interface StudioState {
   trebleAir: number; // -6 to +6 dB (11kHz Silk Air / Lo-Fi Cut)
   preservePitch: boolean; // True = time-stretch only, False = analog tape pitch+speed shift
 
+  // Apple Music Sing Vocal Attenuation
+  isSingActive: boolean;
+  singVocalLevel: number; // 0.0 (Full Karaoke / Instrumental) to 1.0 (Original Vocals)
+
   ambientVolumes: Record<AmbientLayerId, number>;
   isStudioModalOpen: boolean;
   isCommandPaletteOpen: boolean;
@@ -132,6 +136,10 @@ interface StudioState {
   setPreservePitch: (preserve: boolean) => void;
   resetMasteringRack: () => void;
   resetToOriginal: () => void;
+
+  // Apple Music Sing Actions
+  setSingVocalLevel: (level: number) => void;
+  toggleSing: () => void;
 
   setAmbientVolume: (id: AmbientLayerId, volume: number) => void;
   applyAmbientPreset: (preset: Partial<Record<AmbientLayerId, number>>) => void;
@@ -269,6 +277,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   reverbMix: initialStudioPrefs.reverbMix,
   trebleAir: initialStudioPrefs.trebleAir,
   preservePitch: initialStudioPrefs.preservePitch,
+  // Apple Music Sing Initial State
+  isSingActive: false,
+  singVocalLevel: 1.0,
+
   ambientVolumes: {
     rain: 0,
     vinyl: 0,
@@ -381,6 +393,23 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
     // Reset Equalizer back to 0dB Flat reference
     useSettingsStore.getState().setEqualizerPreset('Flat');
+  },
+
+  setSingVocalLevel: (level: number) => {
+    const clamped = Math.max(0, Math.min(1, level));
+    set({
+      singVocalLevel: clamped,
+      isSingActive: clamped < 0.98
+    });
+  },
+
+  toggleSing: () => {
+    const { isSingActive } = get();
+    if (isSingActive) {
+      set({ isSingActive: false, singVocalLevel: 1.0 });
+    } else {
+      set({ isSingActive: true, singVocalLevel: 0.25 });
+    }
   },
 
   setAmbientVolume: (id, volume) => {
