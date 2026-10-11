@@ -48,8 +48,10 @@ function wavecraftApiPlugin() {
   };
 }
 
+const isElectronBuild = process.env.ELECTRON_BUILD === 'true';
+
 export default defineConfig({
-  base: './',
+  base: isElectronBuild ? './' : '/',
   plugins: [
     react(),
     tailwindcss(),

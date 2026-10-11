@@ -22,6 +22,7 @@ export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const playlists = useLibraryStore((state) => state.playlists);
+  const isLoading = useLibraryStore((state) => state.isLoading);
   const folders = useLibraryStore((state) => state.folders);
   const removeFromPlaylist = useLibraryStore((state) => state.removeFromPlaylist);
   const deletePlaylist = useLibraryStore((state) => state.deletePlaylist);
@@ -51,26 +52,28 @@ export default function PlaylistView() {
   const currentFolder = playlist?.folderId ? folders.find((f) => f.id === playlist.folderId) : undefined;
   const isSyncing = Boolean(id && syncingPlaylistIds[id]);
 
+  const tracks = useMemo(() => (Array.isArray(playlist?.tracks) ? playlist.tracks : []), [playlist?.tracks]);
+
   const isAllOffline = useMemo(
-    () => (playlist ? isPlaylistFullyOffline(playlist.tracks) : false),
-    [playlist?.tracks, downloadProgress]
+    () => (playlist ? isPlaylistFullyOffline(tracks) : false),
+    [playlist, tracks, downloadProgress]
   );
   const offlineCount = useMemo(
-    () => (playlist ? getPlaylistOfflineCount(playlist.tracks) : 0),
-    [playlist?.tracks, downloadProgress]
+    () => (playlist ? getPlaylistOfflineCount(tracks) : 0),
+    [playlist, tracks, downloadProgress]
   );
 
   const handleDownloadAll = async () => {
-    if (!playlist || playlist.tracks.length === 0 || downloadProgress?.isDownloading) return;
+    if (!playlist || tracks.length === 0 || downloadProgress?.isDownloading) return;
     triggerAndroidHaptic('light');
-    await savePlaylistOffline(playlist.tracks, (prog) => {
+    await savePlaylistOffline(tracks, (prog) => {
       setDownloadProgress({ ...prog });
     });
   };
 
   const handleCopyTrackList = () => {
-    if (!playlist || !playlist.tracks.length) return;
-    const text = playlist.tracks
+    if (!playlist || !tracks.length) return;
+    const text = tracks
       .map((t, idx) => `${idx + 1}. ${t.artist} - ${t.title}`)
       .join('\n');
     navigator.clipboard.writeText(text);
@@ -110,6 +113,14 @@ export default function PlaylistView() {
   }, [playlist?.id, playlist?.isLiveSync, playlist?.sourceUrl, playlist?.syncIntervalMinutes]);
 
   if (!playlist) {
+    if (isLoading) {
+      return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-white/50">
+          <div className="w-8 h-8 border-2 border-white/20 border-t-[var(--color-accent)] rounded-full animate-spin" />
+          <p className="text-xs font-semibold text-white/40">Loading playlist...</p>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center py-20 text-white/50">
         <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,15 +179,15 @@ export default function PlaylistView() {
 
   const handlePlayAll = () => {
     triggerAndroidHaptic('medium');
-    if (playlist.tracks.length > 0) {
-      playTrack(playlist.tracks[0], playlist.tracks, 0);
+    if (tracks.length > 0) {
+      playTrack(tracks[0], tracks, 0);
     }
   };
 
   const handleShuffleAll = () => {
     triggerAndroidHaptic('medium');
-    if (playlist.tracks.length > 0) {
-      const shuffled = [...playlist.tracks].sort(() => Math.random() - 0.5);
+    if (tracks.length > 0) {
+      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
       playTrack(shuffled[0], shuffled, 0);
     }
   };
@@ -188,7 +199,7 @@ export default function PlaylistView() {
     }
   };
 
-  const totalDuration = playlist.tracks.reduce((acc, track) => acc + (track.duration || 0), 0);
+  const totalDuration = tracks.reduce((acc, track) => acc + (track?.duration || 0), 0);
   const hdCoverUrl = getHighResPlaylistCover(playlist);
   const lastSyncFormatted = playlist.lastSyncedAt
     ? new Date(playlist.lastSyncedAt).toLocaleTimeString([], {
@@ -387,7 +398,7 @@ export default function PlaylistView() {
 
           <div className="flex flex-wrap items-center gap-2 text-sm text-white/60 mt-2">
             <span className="font-medium text-white whitespace-nowrap">
-              {playlist.tracks.length} songs
+              {tracks.length} songs
             </span>
             <span>•</span>
             <span className="whitespace-nowrap">{formatTime(totalDuration)}</span>
@@ -552,13 +563,13 @@ export default function PlaylistView() {
         <button
           onClick={handlePlayAll}
           className="w-14 h-14 p-0 rounded-full glass-button-primary text-white flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
-          disabled={playlist.tracks.length === 0}
+          disabled={tracks.length === 0}
         >
           <svg className="w-7 h-7 block" fill="currentColor" viewBox="0 0 24 24">
             <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
           </svg>
         </button>
-        <GlassButton onClick={handleShuffleAll} disabled={playlist.tracks.length === 0}>
+        <GlassButton onClick={handleShuffleAll} disabled={tracks.length === 0}>
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
@@ -569,7 +580,7 @@ export default function PlaylistView() {
         <button
           type="button"
           onClick={handleDownloadAll}
-          disabled={playlist.tracks.length === 0 || downloadProgress?.isDownloading}
+          disabled={tracks.length === 0 || downloadProgress?.isDownloading}
           className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
             downloadProgress?.isDownloading
               ? 'glass-button-cyan text-cyan-200'
@@ -603,7 +614,7 @@ export default function PlaylistView() {
               <svg className="w-4 h-4 text-cyan-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              <span>Download All ({playlist.tracks.length - offlineCount})</span>
+              <span>Download All ({Math.max(0, tracks.length - offlineCount)})</span>
             </>
           )}
         </button>
@@ -701,7 +712,7 @@ export default function PlaylistView() {
 
       {/* Tracks */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1.5">
-        {playlist.tracks.length === 0 ? (
+        {tracks.length === 0 ? (
           <div className="text-center py-12 text-white/50 border border-dashed border-white/20 rounded-xl">
             <p className="text-lg">This playlist is empty.</p>
             <p className="text-sm mt-1">Search for songs and add them here.</p>
@@ -710,13 +721,13 @@ export default function PlaylistView() {
             </GlassButton>
           </div>
         ) : (
-          playlist.tracks.map((track, index) => (
+          tracks.map((track, index) => (
             <TrackRow
-              key={`${track.id}-${index}`}
+              key={track?.id ? `${track.id}-${index}` : `track-${index}`}
               track={track}
-              tracks={playlist.tracks}
+              tracks={tracks}
               index={index + 1}
-              onPlay={() => playTrack(track, playlist.tracks, index)}
+              onPlay={() => playTrack(track, tracks, index)}
               onRemove={() => removeFromPlaylist(playlist.id, track.id)}
             />
           ))

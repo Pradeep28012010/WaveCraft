@@ -39,6 +39,19 @@ function scheduleIdbWrite<T>(key: string, value: T, delayMs = 60): Promise<void>
   });
 }
 
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    pendingTimers.forEach((timer) => clearTimeout(timer));
+    pendingTimers.clear();
+    pendingValues.forEach((val, k) => {
+      try {
+        set(k, val);
+      } catch {}
+    });
+    pendingValues.clear();
+  });
+}
+
 export async function loadLikedSongs(): Promise<Track[]> {
   try {
     const data = await get(KEYS.LIKED_SONGS);

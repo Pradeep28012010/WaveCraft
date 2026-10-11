@@ -100,7 +100,10 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
           (t: unknown): t is Track => Boolean(t && typeof t === 'object' && 'id' in t && 'title' in t)
         )
         .map((t) => (t.audioUrl && isPreviewAudio(t.audioUrl) ? { ...t, audioUrl: undefined } : t));
-      const loadedPlaylists = (playlists || []) as Playlist[];
+      const loadedPlaylists = ((playlists || []) as Playlist[]).map((p) => ({
+        ...p,
+        tracks: Array.isArray(p?.tracks) ? p.tracks : []
+      }));
       const loadedFolders = (folders || []) as PlaylistFolder[];
       set({
         likedSongs: validLiked,
@@ -155,7 +158,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       id: generateId(),
       name,
       description,
-      tracks: [],
+      tracks: Array.isArray(extra?.tracks) ? extra.tracks : [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
       coverUrl,
