@@ -652,10 +652,17 @@ async function fetchYouTubeSearch(query, limit = 25) {
       if (seconds < 45 || (!wantsLong && seconds > 900)) continue;
 
       const rawTitle = v.title?.runs?.[0]?.text || 'Unknown Title';
+      const rawAuthor =
+        v.ownerText?.runs?.[0]?.text ||
+        v.longBylineText?.runs?.[0]?.text ||
+        'WaveCraft Cloud';
 
-      // Discard ringtones, whatsapp status clips, sound effects, and compilations if user didn't ask
+      const JUNK_DISCARD_REGEX =
+        /\b(karaoke|minus\s*one|backing\s*track|no\s*vocals?|without\s*vocals?|vocal\s*cut|off\s*vocal|sing\s*along|maa\s*paata\s*mee\s*nota|dance\s*performance|dance\s*cover|choreography|choreographed|duet\s*dance|college\s*dance|stage\s*performance|drama\s*company|reactions?|review|tutorial|lesson|ringtone|whatsapp\s*status|shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i;
+
+      // Discard ringtones, whatsapp status, dance performance, and karaoke videos if user didn't ask for instrumental
       if (!wantsInstrumental) {
-        if (/\b(ringtone|whatsapp\s*status|shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i.test(rawTitle)) {
+        if (JUNK_DISCARD_REGEX.test(rawTitle) || JUNK_DISCARD_REGEX.test(rawAuthor)) {
           continue;
         }
       }
@@ -667,16 +674,13 @@ async function fetchYouTubeSearch(query, limit = 25) {
 
       seenIds.add(v.videoId);
 
-      const rawAuthor =
-        v.ownerText?.runs?.[0]?.text ||
-        v.longBylineText?.runs?.[0]?.text ||
-        'WaveCraft Cloud';
-
       const { cleanTitle, cleanArtist } = parseTrackMetadata(rawTitle, rawAuthor);
       const thumb = `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
       const thumbLarge = `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`;
       const isInstrumentalOrBgm =
-        BGM_OR_INSTRUMENTAL_REGEX.test(rawTitle) || BGM_OR_INSTRUMENTAL_REGEX.test(cleanTitle || '');
+        BGM_OR_INSTRUMENTAL_REGEX.test(rawTitle) ||
+        BGM_OR_INSTRUMENTAL_REGEX.test(cleanTitle || '') ||
+        BGM_OR_INSTRUMENTAL_REGEX.test(rawAuthor || '');
 
       tracks.push({
         id: `yt_${v.videoId}`,
@@ -689,7 +693,9 @@ async function fetchYouTubeSearch(query, limit = 25) {
         thumbnailUrl: thumb,
         youtubeId: v.videoId,
         quality: 'Studio Audio',
-        isInstrumental: isInstrumentalOrBgm
+        isInstrumental: isInstrumentalOrBgm,
+        rawTitle,
+        rawAuthor
       });
     }
   }
@@ -701,6 +707,13 @@ async function fetchYouTubeSearch(query, limit = 25) {
       const bInst = Boolean(b.isInstrumental || BGM_OR_INSTRUMENTAL_REGEX.test(b.title));
       if (aInst && !bInst) return 1;
       if (!aInst && bInst) return -1;
+
+      // Prefer official video / full song / lyrical releases
+      const aOfficial = /\b(official\s*(?:video|audio)|full\s*(?:video\s*)?song|lyrical|video\s*song)\b/i.test(a.rawTitle || a.title);
+      const bOfficial = /\b(official\s*(?:video|audio)|full\s*(?:video\s*)?song|lyrical|video\s*song)\b/i.test(b.rawTitle || b.title);
+      if (aOfficial && !bOfficial) return -1;
+      if (!aOfficial && bOfficial) return 1;
+
       return 0;
     });
   }
@@ -1615,6 +1628,53 @@ function decryptSaavnMediaUrl(enc) {
   }
 }
 
+function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSubtitle) {
+  if (!candTitle || !targetTitle) return false;
+
+  const BGM_REGEX =
+    /\b(instrumental|karaoke|minus\s*one|backing\s*track|bgm|theme\s*(?:music|song|track)?|background\s*score|score|soundtrack)\b/i;
+
+  const normTarget = (targetTitle || '').toLowerCase().trim();
+  const normCand = (candTitle || '').toLowerCase().trim();
+  const candFull = `${normCand} ${(candSubtitle || '').toLowerCase()}`.trim();
+
+  // If user searched for a vocal track, reject candidate if candidate is instrumental / BGM / karaoke
+  const isTargetInst = BGM_REGEX.test(normTarget);
+  const isCandInst = BGM_REGEX.test(candFull);
+  if (!isTargetInst && isCandInst) {
+    return false;
+  }
+
+  const cleanTarget = normTarget
+    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const cleanCand = normCand
+    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (cleanTarget === cleanCand) return true;
+  if (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) return true;
+
+  const targetTokens = cleanTarget.split(/\s+/).filter((t) => t.length > 1);
+  const candTokens = cleanCand.split(/\s+/).filter((t) => t.length > 1);
+
+  if (targetTokens.length === 0) return false;
+
+  const matchedTokens = targetTokens.filter((t) => candTokens.includes(t));
+  const ratio = matchedTokens.length / targetTokens.length;
+
+  if (targetTokens.length === 1) {
+    return candTokens.includes(targetTokens[0]);
+  }
+
+  return ratio >= 0.6;
+}
+
 async function resolveDirectAudioStream(title, artist) {
   if (!title) return null;
   let cleanTitle = (title || '')
@@ -1648,6 +1708,9 @@ async function resolveDirectAudioStream(title, artist) {
         const results = data?.results || [];
         if (Array.isArray(results) && results.length > 0) {
           for (const item of results) {
+            if (!isStrictSaavnMatch(cleanTitle, cleanArtist, item.title, item.subtitle)) {
+              continue;
+            }
             const enc = item?.more_info?.encrypted_media_url;
             if (enc) {
               const directUrl = decryptSaavnMediaUrl(enc);

@@ -94,4 +94,85 @@ test('Search Ranking & Stream Fixes Validation', async (t) => {
     assert.equal(isValidCdnAudio('https://aac.saavncdn.com/123/sample_320.mp4'), true);
     assert.equal(isValidCdnAudio('blob:http://localhost:5173/abc-123'), true);
   });
+
+  await t.test('Junk Discard Regex Filters Karaoke Channels and Dance Clips', () => {
+    const JUNK_DISCARD_REGEX =
+      /\b(karaoke|minus\s*one|backing\s*track|no\s*vocals?|without\s*vocals?|vocal\s*cut|off\s*vocal|sing\s*along|maa\s*paata\s*mee\s*nota|dance\s*performance|dance\s*cover|choreography|choreographed|duet\s*dance|college\s*dance|stage\s*performance|drama\s*company|reactions?|review|tutorial|lesson|ringtone|whatsapp\s*status|shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i;
+
+    const testEntries = [
+      { text: 'Raa Raa Naa Veera Song With Telugu Lyrics | Ganga | Maa Paata Mee Nota', author: 'Maa Paata Mee Nota', expectDiscard: true },
+      { text: '"Raa Raa Naa Veera" Song Manikanta & Tejaswini Dance Performance', author: 'etvteluguindia', expectDiscard: true },
+      { text: 'Raa Raa Naa Veera Song - Dance Performance By Cherry & Hemakshi', author: 'ETV Dance Studio', expectDiscard: true },
+      { text: 'rara na veera duet dance @ iit roorkee #tarngini', author: 'Bheeshma Rangu', expectDiscard: true },
+      { text: 'RAA RA NA VEERA DANCE COVER | Ganga', author: 'N Dance Studio', expectDiscard: true },
+      { text: 'Raa Raa Naa Veera 4K 60FPS Full Video Song | Ganga Telugu', author: 'S P MUSIC', expectDiscard: false },
+      { text: 'raa ra na veera (ganga)', author: 'moodycrunch0344', expectDiscard: false },
+      { text: 'Vaaya En Veera - Video Song | Kanchana 2', author: 'Sun Music', expectDiscard: false }
+    ];
+
+    for (const te of testEntries) {
+      const isDiscarded = JUNK_DISCARD_REGEX.test(te.text) || JUNK_DISCARD_REGEX.test(te.author);
+      assert.equal(isDiscarded, te.expectDiscard, `Failed discard expectation for: ${te.text}`);
+    }
+  });
+
+  await t.test('isStrictSaavnMatch Rejects False Matches and Non-Vocal Hijacking', () => {
+    function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSubtitle) {
+      if (!candTitle || !targetTitle) return false;
+
+      const BGM_REGEX =
+        /\b(instrumental|karaoke|minus\s*one|backing\s*track|bgm|theme\s*(?:music|song|track)?|background\s*score|score|soundtrack)\b/i;
+
+      const normTarget = (targetTitle || '').toLowerCase().trim();
+      const normCand = (candTitle || '').toLowerCase().trim();
+      const candFull = `${normCand} ${(candSubtitle || '').toLowerCase()}`.trim();
+
+      const isTargetInst = BGM_REGEX.test(normTarget);
+      const isCandInst = BGM_REGEX.test(candFull);
+      if (!isTargetInst && isCandInst) {
+        return false;
+      }
+
+      const cleanTarget = normTarget
+        .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const cleanCand = normCand
+        .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (cleanTarget === cleanCand) return true;
+      if (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) return true;
+
+      const targetTokens = cleanTarget.split(/\s+/).filter((t) => t.length > 1);
+      const candTokens = cleanCand.split(/\s+/).filter((t) => t.length > 1);
+
+      if (targetTokens.length === 0) return false;
+
+      const matchedTokens = targetTokens.filter((t) => candTokens.includes(t));
+      const ratio = matchedTokens.length / targetTokens.length;
+
+      if (targetTokens.length === 1) {
+        return candTokens.includes(targetTokens[0]);
+      }
+
+      return ratio >= 0.6;
+    }
+
+    // Rejection tests: False matches that previously hijacked playback
+    assert.equal(isStrictSaavnMatch('Raa Raa Naa Veera', '', 'Ganga Mein Nahaya Na Karo', 'Khurshid Aalam'), false);
+    assert.equal(isStrictSaavnMatch('Raa Raa Naa Veera', '', 'Veera Soora', 'Yuvan Shankar Raja'), false);
+    assert.equal(isStrictSaavnMatch('Raa Raa Naa Veera', '', 'Reti Ra Ran Ma Chale', 'Sanatan Bhakti Ganga'), false);
+    assert.equal(isStrictSaavnMatch('Vaaste', 'Dhvani', 'Vaaste (Instrumental)', 'T-Series'), false);
+
+    // Acceptance tests: Genuine matches
+    assert.equal(isStrictSaavnMatch('Kesariya', 'Arijit Singh', 'Kesariya', 'Pritam, Arijit Singh'), true);
+    assert.equal(isStrictSaavnMatch('Shape of You', 'Ed Sheeran', 'Shape of You', 'Ed Sheeran'), true);
+    assert.equal(isStrictSaavnMatch('Samajavaragamana', 'Sid Sriram', 'Samajavaragamana (From Ala Vaikunthapurramuloo)', 'Sid Sriram'), true);
+    assert.equal(isStrictSaavnMatch('Interstellar Theme', 'Hans Zimmer', 'Interstellar Theme', 'Hans Zimmer'), true);
+  });
 });

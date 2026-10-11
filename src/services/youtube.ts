@@ -178,6 +178,8 @@ export function findStrictTrackMatch(
   const artistTokens = normTargetArtist.split(/\s+/).filter((t) => t.length > 2);
   const BGM_INSTRUMENTAL_REGEX =
     /\b(instrumental|karaoke|bgm|background\s*(?:score|music)|theme\s*(?:music|song|track)?|no\s*vocals?|without\s*vocals?|piano|flute|guitar|violin|sax)\b/i;
+  const JUNK_DISCARD_REGEX =
+    /\b(karaoke|minus\s*one|backing\s*track|no\s*vocals?|without\s*vocals?|vocal\s*cut|off\s*vocal|sing\s*along|maa\s*paata\s*mee\s*nota|dance\s*performance|dance\s*cover|choreography|choreographed|duet\s*dance|college\s*dance|stage\s*performance|drama\s*company|reactions?|review|tutorial|lesson|ringtone|whatsapp\s*status|shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i;
   const isTargetInstrumental =
     Boolean((targetTitle && BGM_INSTRUMENTAL_REGEX.test(targetTitle)) || (targetArtist && BGM_INSTRUMENTAL_REGEX.test(targetArtist)));
   const isTargetCover = /\b(cover|tribute|rendition)\b/i.test(targetTitle);
@@ -195,6 +197,11 @@ export function findStrictTrackMatch(
 
     // Reject instrumental if target is vocal
     if (!isTargetInstrumental && isCandInstrumental) {
+      continue;
+    }
+
+    // Reject karaoke, dance performance and junk if target is vocal
+    if (!isTargetInstrumental && (JUNK_DISCARD_REGEX.test(cand.title) || JUNK_DISCARD_REGEX.test(cand.artist) || JUNK_DISCARD_REGEX.test(candCombined))) {
       continue;
     }
 
@@ -301,6 +308,18 @@ function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
       if (isInst) {
         score -= 1500;
       }
+
+      const JUNK_DISCARD_REGEX =
+        /\b(karaoke|minus\s*one|backing\s*track|no\s*vocals?|without\s*vocals?|vocal\s*cut|off\s*vocal|sing\s*along|maa\s*paata\s*mee\s*nota|dance\s*performance|dance\s*cover|choreography|choreographed|duet\s*dance|college\s*dance|stage\s*performance|drama\s*company|reactions?|review|tutorial|lesson|ringtone|whatsapp\s*status|shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i;
+
+      if (JUNK_DISCARD_REGEX.test(title) || JUNK_DISCARD_REGEX.test(artist) || JUNK_DISCARD_REGEX.test(combined)) {
+        score -= 2500;
+      }
+
+      // Boost official releases, lyrical video and full songs
+      if (/\b(official\s*(?:video|audio)|full\s*(?:video\s*)?song|lyrical(?:\s*video)?|video\s*song)\b/i.test(title)) {
+        score += 350;
+      }
     }
     if (!wantsCover) {
       if (/\b(tribute|cover\s+by|covered\s+by|cover\s+version)\b/i.test(title)) {
@@ -384,6 +403,11 @@ async function fetchSaavnFallbackTracks(query: string): Promise<Track[]> {
         directUrl = decryptSaavnUrl(enc);
       }
 
+      const isInst =
+        /\b(bgm|background\s*(?:music|score)|theme\s*(?:music|video|song|track)?|instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|without\s*vocals?|off\s*vocal|vocal\s*cut|score)\b/i.test(
+          `${cleanTitle} ${cleanArtist}`
+        );
+
       tracks.push({
         id: `saavn_${item.id}`,
         title: cleanTitle,
@@ -395,7 +419,8 @@ async function fetchSaavnFallbackTracks(query: string): Promise<Track[]> {
         thumbnailUrl: highResThumb,
         audioUrl: directUrl,
         audioPreviewUrl: directUrl,
-        quality: directUrl ? '320kbps Studio AAC' : 'Studio Audio'
+        quality: directUrl ? '320kbps Studio AAC' : 'Studio Audio',
+        isInstrumental: isInst
       });
     }
     return tracks;

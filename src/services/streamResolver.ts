@@ -28,6 +28,58 @@ export function cleanTrackQuery(title: string, artist: string): { cleanTitle: st
   return { cleanTitle, cleanArtist };
 }
 
+const BGM_REGEX =
+  /\b(instrumental|karaoke|minus\s*one|backing\s*track|bgm|theme\s*(?:music|song|track)?|background\s*score|score|soundtrack)\b/i;
+
+export function isStrictSaavnMatch(
+  targetTitle: string,
+  _targetArtist: string,
+  candTitle?: string,
+  candSubtitle?: string
+): boolean {
+  if (!candTitle || !targetTitle) return false;
+
+  const normTarget = targetTitle.toLowerCase().trim();
+  const normCand = candTitle.toLowerCase().trim();
+  const candFull = `${normCand} ${(candSubtitle || '').toLowerCase()}`.trim();
+
+  // If user searched for a vocal track, reject candidate if candidate is instrumental / BGM / karaoke
+  const isTargetInst = BGM_REGEX.test(normTarget);
+  const isCandInst = BGM_REGEX.test(candFull);
+  if (!isTargetInst && isCandInst) {
+    return false;
+  }
+
+  const cleanTarget = normTarget
+    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const cleanCand = normCand
+    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (cleanTarget === cleanCand) return true;
+  if (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) return true;
+
+  const targetTokens = cleanTarget.split(/\s+/).filter((t) => t.length > 1);
+  const candTokens = cleanCand.split(/\s+/).filter((t) => t.length > 1);
+
+  if (targetTokens.length === 0) return false;
+
+  const matchedTokens = targetTokens.filter((t) => candTokens.includes(t));
+  const ratio = matchedTokens.length / targetTokens.length;
+
+  if (targetTokens.length === 1) {
+    return candTokens.includes(targetTokens[0]);
+  }
+
+  return ratio >= 0.6;
+}
+
 /**
  * Resolves a crystal-clear 320kbps CORS-enabled direct audio stream URL.
  * Employs a multi-tier resolution waterfall:
@@ -108,6 +160,9 @@ export async function resolveDirectAudio(
         const results = data?.results || [];
         if (Array.isArray(results) && results.length > 0) {
           for (const item of results) {
+            if (!isStrictSaavnMatch(cleanTitle, cleanArtist, item.title, item.subtitle)) {
+              continue;
+            }
             const enc = item?.more_info?.encrypted_media_url;
             if (enc) {
               const directUrl = decryptSaavnUrl(enc);
