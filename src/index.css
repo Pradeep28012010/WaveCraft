@@ -78,40 +78,13 @@
   transform: translateZ(0);
 }
 
-/* Progressive Blur Edge System — softens borders with gradient backdrop blur without opaque color bands */
+/* Progressive Blur Edge System — Powered by React Bits GradualBlur component */
 .progressive-blur-edge {
   position: relative;
-}
-.progressive-blur-edge::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -16px;
-  height: 16px;
-  pointer-events: none;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
 }
 
 .progressive-blur-dock {
   position: relative;
-}
-.progressive-blur-dock::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -24px;
-  height: 24px;
-  pointer-events: none;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  mask-image: linear-gradient(to top, black 0%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to top, black 0%, transparent 100%);
-  z-index: 10;
 }
 
 .progressive-mask-top {

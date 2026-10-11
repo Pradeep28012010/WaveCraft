@@ -10,6 +10,7 @@ import { formatTime } from '../../utils/formatTime';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import Shredder from '../ui/Shredder';
 import type { Track } from '../../types';
 
 interface QueuePanelProps {
@@ -222,6 +223,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'upnext' | 'history'>('upnext');
   const [isAiFilling, setIsAiFilling] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
+  const [useShredderMode, setUseShredderMode] = useState(false);
   const [draggedActualIndex, setDraggedActualIndex] = useState<number | null>(null);
   const [dragOverActualIndex, setDragOverActualIndex] = useState<number | null>(null);
   const dragNodeRef = useRef<number | null>(null);
@@ -524,6 +526,22 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                   >
                     {savedToast ? '✓ Saved' : 'Save'}
                   </button>
+
+                  <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setUseShredderMode((prev) => !prev);
+                    }}
+                    title={useShredderMode ? 'Switch to Standard List' : 'Switch to Physical Shredder Physics'}
+                    className={`h-7 px-2.5 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      useShredderMode
+                        ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(250,45,72,0.4)]'
+                        : 'glass-button text-white/75 hover:text-white'
+                    }`}
+                  >
+                    <span>✂️</span>
+                    <span>{useShredderMode ? 'Shredder ON' : 'Shredder'}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -660,6 +678,50 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                           {isAiFilling ? 'Curating 320kbps Mix...' : '✨ Auto-Fill 5 Similar Songs'}
                         </button>
                       )}
+                    </div>
+                  ) : useShredderMode ? (
+                    <div className="py-2 flex flex-col items-center">
+                      <p className="w-full text-center pb-2 text-[11px] text-white/50 font-medium">
+                        Drag to reorder • Drop into bottom slit to shred & delete
+                      </p>
+                      <Shredder
+                        items={upcomingItems.map((item) => ({
+                          id: `${item.track.id}-${item.actualIndex}`,
+                          track: item.track,
+                          actualIndex: item.actualIndex
+                        }))}
+                        width={isPhone ? 320 : 380}
+                        height={Math.min(480, Math.max(260, upcomingItems.length * 56 + 110))}
+                        gap={8}
+                        slitHeight={10}
+                        fallHeight={95}
+                        renderItem={(item) => (
+                          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 w-full select-none cursor-grab active:cursor-grabbing">
+                            <img
+                              src={item.track.thumbnail || DEFAULT_THUMBNAIL}
+                              alt={item.track.title}
+                              className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-white truncate">{item.track.title}</p>
+                              <p className="text-[10px] text-white/60 truncate">{item.track.artist}</p>
+                            </div>
+                            <span className="text-[10px] tabular-nums text-white/40 font-mono flex-shrink-0">
+                              {formatTime(item.track.duration || 210)}
+                            </span>
+                          </div>
+                        )}
+                        onShred={(item) => {
+                          triggerAndroidHaptic('medium');
+                          removeFromQueue(item.actualIndex);
+                        }}
+                        onReorder={(newItems) => {
+                          triggerAndroidHaptic('light');
+                          const beforeAndCurrent = effectiveIndex >= 0 ? queue.slice(0, effectiveIndex + 1) : [];
+                          const reorderedUpcoming = newItems.map((i) => i.track);
+                          usePlayerStore.setState({ queue: [...beforeAndCurrent, ...reorderedUpcoming] });
+                        }}
+                      />
                     </div>
                   ) : (
                     <div className="space-y-1.5">

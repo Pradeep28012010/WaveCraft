@@ -312,7 +312,7 @@ export default function TopBar() {
         style={{
           paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)'
         }}
-        className="flex items-center justify-between gap-2 px-3.5 pb-2.5 sticky top-0 z-40 liquid-glass bg-[#06060b]/80 backdrop-blur-2xl border-b border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all flex-shrink-0 w-full progressive-blur-edge"
+        className="flex items-center justify-between gap-2 px-3.5 pb-2.5 relative z-40 bg-[#06060b]/90 backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all flex-shrink-0 w-full"
       >
         {isRoot ? (
           /* Native App Home Bar: WaveCraft Brand + Pro Badge */
@@ -580,7 +580,7 @@ export default function TopBar() {
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)'
         }}
-        className="h-20 flex items-center justify-between px-6 lg:px-8 sticky top-0 z-40 bg-[#06060b]/70 backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.35)] transition-all flex-shrink-0 w-full progressive-blur-edge"
+        className="h-18 flex items-center justify-between px-6 lg:px-8 relative z-40 bg-[#06060b]/85 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_4px_24px_rgba(0,0,0,0.35)] transition-all flex-shrink-0 w-full"
       >
         {/* Navigation Controls */}
         <div className="flex items-center gap-2.5">

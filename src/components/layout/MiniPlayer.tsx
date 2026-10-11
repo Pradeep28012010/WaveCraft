@@ -451,7 +451,7 @@ export default function MiniPlayer() {
             setIsNowPlayingOpen(true);
           }
         }}
-        className="px-4 pb-3 pt-1.5 relative z-30 gpu-layer progressive-blur-dock"
+        className="px-4 pb-3 pt-1.5 relative z-30 gpu-layer"
       >
         <div className="h-20 liquid-glass rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)] border border-white/20">
           {/* Isolated 120fps Progress Scrubber */}
