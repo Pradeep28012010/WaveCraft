@@ -26,11 +26,14 @@ function createMainWindow() {
   const iconPath = fs.existsSync(icoPath) ? icoPath : pngPath;
   const appIcon = nativeImage.createFromPath(iconPath);
 
+  const isSetupMode = process.argv.includes('--setup') || process.argv.includes('--install');
+
   mainWindow = new BrowserWindow({
-    width: 1320,
-    height: 840,
-    minWidth: 940,
-    minHeight: 620,
+    width: isSetupMode ? 480 : 1320,
+    height: isSetupMode ? 620 : 840,
+    minWidth: isSetupMode ? 480 : 940,
+    minHeight: isSetupMode ? 620 : 620,
+    resizable: !isSetupMode,
     frame: false,
     titleBarStyle: 'hidden',
     backgroundColor: '#06060b',
@@ -49,9 +52,11 @@ function createMainWindow() {
   // Load production bundle or local dev server
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (devServerUrl) {
-    mainWindow.loadURL(devServerUrl);
+    mainWindow.loadURL(isSetupMode ? `${devServerUrl}#/setup` : devServerUrl);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
+      hash: isSetupMode ? 'setup' : ''
+    });
   }
 
   // Gracefully show window when DOM and styles are ready
@@ -195,6 +200,18 @@ ipcMain.handle('window:is-maximized', () => {
 
 ipcMain.on('track:update', (_event, track) => {
   updateTrayMenu(track);
+});
+
+ipcMain.handle('app:is-setup-mode', () => {
+  return process.argv.includes('--setup') || process.argv.includes('--install');
+});
+
+ipcMain.on('window:finish-setup', () => {
+  if (!mainWindow) return;
+  mainWindow.setResizable(true);
+  mainWindow.setMinimumSize(940, 620);
+  mainWindow.setSize(1320, 840, true);
+  mainWindow.center();
 });
 
 app.whenReady().then(() => {

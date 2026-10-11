@@ -169,6 +169,8 @@ export interface ElectronAPI {
   onMaximizedChange: (callback: (isMax: boolean) => void) => () => void;
   onMediaKey?: (callback: (action: string) => void) => () => void;
   updateTrack: (track: { title: string; artist: string }) => void;
+  finishSetup?: () => void;
+  isSetupMode?: () => Promise<boolean>;
 }
 
 import type { YouTubePlayerInstance } from '../services/audioEngine';

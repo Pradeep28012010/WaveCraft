@@ -17,5 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('media:action', handler);
     return () => ipcRenderer.removeListener('media:action', handler);
   },
-  updateTrack: (track) => ipcRenderer.send('track:update', track)
+  updateTrack: (track) => ipcRenderer.send('track:update', track),
+  finishSetup: () => ipcRenderer.send('window:finish-setup'),
+  isSetupMode: () => ipcRenderer.invoke('app:is-setup-mode')
 });

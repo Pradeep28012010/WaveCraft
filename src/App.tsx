@@ -23,6 +23,7 @@ const DJConsolePage = lazyWithRetry(() => import('./components/dj/DJConsolePage'
 const SonicGalaxyPage = lazyWithRetry(() => import('./components/galaxy/SonicGalaxyPage'));
 const LandingPage = lazyWithRetry(() => import('./components/landing/LandingPage'));
 const DownloadsPage = lazyWithRetry(() => import('./components/library/DownloadsPage'));
+const SetupPage = lazyWithRetry(() => import('./components/setup/SetupPage'));
 
 const isElectronOrFile =
   typeof window !== 'undefined' &&
@@ -36,6 +37,22 @@ function AppContent() {
 
   return (
     <Routes>
+      {/* Standalone setup page — liquid glass custom installer window */}
+      <Route
+        path="/setup"
+        element={
+          <Suspense
+            fallback={
+              <div className="fixed inset-0 bg-[#06060b] flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-white/15 border-t-[#fa2d48] rounded-full animate-spin" />
+              </div>
+            }
+          >
+            <SetupPage />
+          </Suspense>
+        }
+      />
+
       {/* Standalone landing page — no sidebar, topbar, or player chrome */}
       <Route
         path="/welcome"
