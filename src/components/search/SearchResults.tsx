@@ -249,18 +249,10 @@ export default function SearchResults() {
     };
   }, [query]);
 
-  const handlePlayTrack = useCallback(
-    (track: Track) => {
-      unlockAudioEngine();
-      const idx = tracks.findIndex((t) => t.id === track.id);
-      if (tracks.length > 0 && idx >= 0) {
-        playTrack(track, tracks, idx);
-      } else {
-        playTrackWithSmartQueue(track);
-      }
-    },
-    [tracks, playTrack]
-  );
+  const handlePlayTrack = useCallback((track: Track) => {
+    unlockAudioEngine();
+    playTrackWithSmartQueue(track);
+  }, []);
 
   const handleOpenAlbum = async (album: AlbumResult, autoPlayFirst = false) => {
     if (autoPlayFirst) {
@@ -601,8 +593,7 @@ export default function SearchResults() {
                         e.stopPropagation();
                         useContextMenuStore.getState().openTrackMenu(
                           { clientX: e.clientX, clientY: e.clientY },
-                          topTrack,
-                          tracks
+                          topTrack
                         );
                       }}
                       className="flex-1 flex flex-col justify-between cursor-pointer group relative overflow-hidden"
@@ -653,7 +644,6 @@ export default function SearchResults() {
                         <TrackRow
                           key={track.id}
                           track={track}
-                          tracks={tracks}
                           index={i + 1}
                           onPlay={handlePlayTrack}
                         />
@@ -684,7 +674,6 @@ export default function SearchResults() {
                       <TrackRow
                         key={track.id}
                         track={track}
-                        tracks={tracks}
                         index={activeTab === 'all' ? i + 5 : i + 1}
                         onPlay={handlePlayTrack}
                       />
