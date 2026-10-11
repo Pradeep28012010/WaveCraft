@@ -449,7 +449,7 @@ const TrackRow = memo(({
             type="button"
             onClick={handleOpenMenu}
             title="More actions"
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-75 flex-shrink-0 ${
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 flex-shrink-0 ${
               isPhone
                 ? 'glass-button text-white/70 hover:text-white'
                 : activeVisual

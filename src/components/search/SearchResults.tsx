@@ -392,23 +392,23 @@ export default function SearchResults() {
   const topTrack = tracks[0];
 
   return (
-    <div className="flex flex-col gap-6 pb-24 pt-2 text-white">
+    <div className="flex flex-col gap-6 pb-28 pt-4 px-1 sm:px-3 text-white max-w-full">
       {/* Header & Filter Pills */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-widest text-white/45">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5 px-1">
+        <div className="min-w-0 pr-2">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-white/50 block mb-1">
             {selectedAlbum ? 'Album View' : 'Search Results'}
           </span>
-          <h1 className="text-2xl font-extrabold text-white mt-0.5">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white truncate tracking-tight">
             {selectedAlbum ? selectedAlbum.title || selectedAlbum.name : `“${query}”`}
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap flex-shrink-0 px-1 pr-3 max-w-full">
           {selectedAlbum ? (
             <button
               onClick={() => setSelectedAlbum(null)}
-              className="px-4 py-2 rounded-full liquid-glass border border-white/20 text-xs font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+              className="px-4 py-2 rounded-full liquid-glass border border-white/20 text-xs font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-1.5 flex-shrink-0 shadow-md active:scale-95"
             >
               <span>← Back to “{query}”</span>
             </button>

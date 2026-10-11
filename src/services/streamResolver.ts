@@ -10,10 +10,10 @@ function getCacheKey(title: string, artist: string): string {
 
 export function cleanTrackQuery(title: string, artist: string): { cleanTitle: string; cleanArtist: string } {
   let cleanTitle = (title || '')
-    .replace(/\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?|second\s*single|first\s*single|third\s*single|promo|teaser|trailer)[\)\]]\s*/gi, ' ')
+    .replace(/\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?|second\s*single|first\s*single|third\s*single|promo|teaser|trailer|original\s*(?:motion\s*picture\s*)?soundtrack|soundtrack|ost|expanded(?:\s*edition)?|deluxe(?:\s*edition)?|special\s*edition|anniversary(?:\s*edition)?|score|bonus\s*track(?:s)?|from\s*["'].*?["'])[\)\]]\s*/gi, ' ')
     .replace(/\s+(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|full\s+audio|8k\s+video|4k\s+video|hd\s+video|official\s+video|official\s+audio|second\s+single|first\s+single|promo\s+song|video)\b.*$/i, '')
     .replace(/\|\s*.*$/g, '')
-    .replace(/[-–—]\s*(?:video|lyric|audio|full|song).*$/i, '')
+    .replace(/[-–—]\s*(?:video|lyric|audio|full|song|original\s*(?:motion\s*picture\s*)?soundtrack|expanded\s*edition|deluxe\s*edition).*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -179,6 +179,74 @@ export async function resolveDirectAudio(
         }
       }
     } catch {}
+  }
+
+  // 3. Apple Music / iTunes high-fidelity audio stream fallback (global coverage for Western, Soundtracks & International)
+  const itunesCandidates = [
+    cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle,
+    cleanTitle,
+    title.split(/[-–—]/)[0]?.trim()
+  ].filter((q, idx, arr): q is string => Boolean(q) && q.length > 1 && arr.indexOf(q) === idx);
+
+  for (const q of itunesCandidates) {
+    try {
+      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=5`;
+      const res = await fetch(itunesUrl, {
+        signal: AbortSignal.timeout(3500)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const results = data?.results || [];
+        if (Array.isArray(results) && results.length > 0) {
+          for (const item of results) {
+            const preview = item?.previewUrl;
+            if (preview && typeof preview === 'string' && preview.startsWith('https://')) {
+              if (streamCache.size >= MAX_CACHE_ENTRIES) {
+                const first = streamCache.keys().next().value;
+                if (first) streamCache.delete(first);
+              }
+              streamCache.set(cacheKey, preview);
+              return preview;
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 4. Invidious direct audio stream extraction fallback (when videoId exists)
+  if (videoId) {
+    const invidiousMirrors = [
+      `https://inv.nadeko.net/api/v1/videos/${videoId}`,
+      `https://invidious.nerdvpn.de/api/v1/videos/${videoId}`,
+      `https://vid.puffyan.us/api/v1/videos/${videoId}`
+    ];
+    for (const mirrorUrl of invidiousMirrors) {
+      try {
+        const res = await fetch(mirrorUrl, {
+          signal: AbortSignal.timeout(3500)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const adaptive = data?.adaptiveFormats || [];
+          const audioFormats = adaptive.filter(
+            (f: any) => f?.type && f.type.startsWith('audio/') && f.url && typeof f.url === 'string'
+          );
+          if (audioFormats.length > 0) {
+            audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate || '0', 10) || 0) - (parseInt(a.bitrate || '0', 10) || 0));
+            const bestAudio = audioFormats[0].url;
+            if (bestAudio && typeof bestAudio === 'string' && bestAudio.startsWith('https://')) {
+              if (streamCache.size >= MAX_CACHE_ENTRIES) {
+                const first = streamCache.keys().next().value;
+                if (first) streamCache.delete(first);
+              }
+              streamCache.set(cacheKey, bestAudio);
+              return bestAudio;
+            }
+          }
+        }
+      } catch {}
+    }
   }
 
   return null;

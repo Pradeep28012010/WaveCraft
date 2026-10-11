@@ -1686,10 +1686,10 @@ function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSubtitle) 
 async function resolveDirectAudioStream(title, artist) {
   if (!title) return null;
   let cleanTitle = (title || '')
-    .replace(/\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?|second\s*single|first\s*single|third\s*single|promo|teaser|trailer)[\)\]]\s*/gi, ' ')
+    .replace(/\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?|second\s*single|first\s*single|third\s*single|promo|teaser|trailer|original\s*(?:motion\s*picture\s*)?soundtrack|soundtrack|ost|expanded(?:\s*edition)?|deluxe(?:\s*edition)?|special\s*edition|anniversary(?:\s*edition)?|score|bonus\s*track(?:s)?|from\s*["'].*?["'])[\)\]]\s*/gi, ' ')
     .replace(/\s+(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|full\s+audio|8k\s+video|4k\s+video|hd\s+video|official\s+video|official\s+audio|second\s+single|first\s+single|promo\s+song|video)\b.*$/i, '')
     .replace(/\|\s*.*$/g, '')
-    .replace(/[-–—]\s*(?:video|lyric|audio|full|song).*$/i, '')
+    .replace(/[-–—]\s*(?:video|lyric|audio|full|song|original\s*(?:motion\s*picture\s*)?soundtrack|expanded\s*edition|deluxe\s*edition).*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -1730,6 +1730,31 @@ async function resolveDirectAudioStream(title, artist) {
                   artist: item.subtitle
                 };
               }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Apple Music / iTunes fallback for global soundtracks and international tracks
+  for (const q of candidateQueries) {
+    try {
+      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=5`;
+      const res = await fetchWithTimeout(itunesUrl, {}, 3500);
+      if (res.ok) {
+        const data = await res.json();
+        const results = data?.results || [];
+        if (Array.isArray(results) && results.length > 0) {
+          for (const item of results) {
+            const preview = item?.previewUrl;
+            if (preview && typeof preview === 'string' && preview.startsWith('https://')) {
+              return {
+                audioUrl: preview,
+                quality: '256kbps Apple AAC',
+                title: item.trackName,
+                artist: item.artistName
+              };
             }
           }
         }

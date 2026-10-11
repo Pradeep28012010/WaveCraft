@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Track } from '../types';
-import { resolveDirectAudio } from './streamResolver';
+import { resolveDirectAudio, cleanTrackQuery } from './streamResolver';
 import { apiUrl } from './apiConfig';
 import { createStore, get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from 'idb-keyval';
 
@@ -100,12 +100,21 @@ export async function saveTrackOffline(track: Track): Promise<boolean> {
     // 1. Proactively resolve direct audio stream if missing or temporary Spotify preview
     if (!resolvedTrack.audioUrl || resolvedTrack.audioUrl.includes('p.scdn.co')) {
       try {
-        const directUrl = await resolveDirectAudio(
+        let directUrl = await resolveDirectAudio(
           resolvedTrack.title,
           resolvedTrack.artist,
           resolvedTrack.duration,
           resolvedTrack.youtubeId
         );
+        if (!directUrl) {
+          const { cleanTitle, cleanArtist } = cleanTrackQuery(resolvedTrack.title, resolvedTrack.artist);
+          directUrl = await resolveDirectAudio(
+            cleanTitle,
+            cleanArtist,
+            resolvedTrack.duration,
+            resolvedTrack.youtubeId
+          );
+        }
         if (directUrl) {
           resolvedTrack.audioUrl = directUrl;
           resolvedTrack.quality = '320kbps Studio AAC';
@@ -151,12 +160,13 @@ export async function saveTrackOffline(track: Track): Promise<boolean> {
       } catch {}
     }
 
-    // Proxy Fallback 3: Re-resolve via serverless endpoint
+    // Proxy Fallback 3: Re-resolve via serverless endpoint with sanitized query
     if (!audioBlob || audioBlob.size < 1024) {
       try {
+        const { cleanTitle, cleanArtist } = cleanTrackQuery(resolvedTrack.title, resolvedTrack.artist);
         const resolveProxyUrl = `https://wavecraft-alpha.vercel.app/api/music?action=resolve-stream&title=${encodeURIComponent(
-          resolvedTrack.title
-        )}&artist=${encodeURIComponent(resolvedTrack.artist)}&videoId=${encodeURIComponent(
+          cleanTitle || resolvedTrack.title
+        )}&artist=${encodeURIComponent(cleanArtist || resolvedTrack.artist)}&videoId=${encodeURIComponent(
           resolvedTrack.youtubeId || ''
         )}`;
         const pRes = await fetch(resolveProxyUrl);

@@ -21,8 +21,35 @@ import {
 
 type StudioTab = 'spatial' | 'mastering' | 'arena' | 'ambient' | 'timers';
 
-const BACKDROP_TRANSITION = { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const };
-const PANEL_TRANSITION = { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const };
+const STUDIO_BACKDROP_TRANSITION = { duration: 0.38, ease: [0.16, 1, 0.3, 1] as const };
+const STUDIO_PANEL_VARIANTS = {
+  initial: {
+    opacity: 0,
+    scale: 0.93,
+    y: 18,
+    filter: 'blur(14px)'
+  },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: {
+      duration: 0.4,
+      ease: [0.16, 1, 0.3, 1] as const
+    }
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.96,
+    y: 12,
+    filter: 'blur(8px)',
+    transition: {
+      duration: 0.18,
+      ease: [0.16, 1, 0.3, 1] as const
+    }
+  }
+};
 
 function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   const {
@@ -1148,9 +1175,9 @@ export default function StudioFXModal() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={BACKDROP_TRANSITION}
+            transition={STUDIO_BACKDROP_TRANSITION}
             onClick={handleClose}
-            className="absolute inset-0 modal-backdrop-blur bg-[radial-gradient(circle_at_center,_rgba(6,182,212,0.12)_0%,_rgba(6,7,15,0.85)_75%)] cursor-pointer"
+            className="absolute inset-0 modal-backdrop-blur bg-[radial-gradient(circle_at_center,_rgba(6,182,212,0.14)_0%,_rgba(6,7,15,0.88)_75%)] cursor-pointer"
             aria-hidden="true"
           />
 
@@ -1160,12 +1187,12 @@ export default function StudioFXModal() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="studio-fx-modal-title"
-            initial={{ opacity: 0, scale: 0.98, y: 24 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 24 }}
-            transition={PANEL_TRANSITION}
+            variants={STUDIO_PANEL_VARIANTS}
+            initial="initial"
+            animate="animate"
+            exit="exit"
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-3xl modal-glass-panel text-white shadow-[0_32px_90px_rgba(0,0,0,0.88),0_0_60px_rgba(6,182,212,0.15)] overflow-hidden border border-white/20 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
+            className="relative z-10 w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[24px] glass-bloom-menu text-white shadow-[0_32px_90px_rgba(0,0,0,0.88),0_0_60px_rgba(6,182,212,0.15)] overflow-hidden border border-white/20 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
           >
             <StudioFXErrorBoundary onClose={handleClose}>
               <StudioFXModalContent onClose={handleClose} />

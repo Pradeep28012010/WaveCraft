@@ -597,11 +597,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   </button>
 
                   {/* Single Sleek ••• Tools Menu Button */}
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
                     onClick={() => setShowToolsMenu((prev) => !prev)}
                     className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer app-region-no-drag ${
                       showToolsMenu
-                        ? 'glass-button-primary text-white'
+                        ? 'glass-button-primary text-white shadow-lg'
                         : 'glass-button text-white/80 hover:text-white'
                     }`}
                     title="Tools & Playback Options"
@@ -612,17 +613,17 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       <circle cx="12" cy="12" r="2" />
                       <circle cx="12" cy="19" r="2" />
                     </svg>
-                  </button>
+                  </motion.button>
 
                   {/* Frosted-glass ••• Tools Menu Popover */}
                   <AnimatePresence>
                     {showToolsMenu && (
                       <motion.div
-                        initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                        transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="absolute right-0 top-12 w-64 rounded-2xl glass-heavy liquid-glass border border-white/20 p-2 shadow-[0_24px_64px_rgba(0,0,0,0.85)] z-50 space-y-1 text-xs"
+                        initial={{ opacity: 0, y: -6, scale: 0.92, filter: 'blur(12px)' }}
+                        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                        exit={{ opacity: 0, y: -6, scale: 0.95, filter: 'blur(8px)' }}
+                        transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+                        className="absolute right-0 top-12 w-64 rounded-[20px] glass-bloom-menu p-2 z-50 space-y-1 text-xs"
                       >
                         {/* 1. Generate Poster */}
                         <button

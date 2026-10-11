@@ -36,6 +36,58 @@ class ContextMenuErrorBoundary extends Component<
   }
 }
 
+const bloomContainerVariants = {
+  initial: {
+    opacity: 0,
+    scale: 0.92,
+    filter: 'blur(14px)'
+  },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    filter: 'blur(0px)',
+    transition: {
+      duration: 0.38,
+      ease: [0.16, 1, 0.3, 1] as const,
+      staggerChildren: 0.024,
+      delayChildren: 0.03
+    }
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    filter: 'blur(10px)',
+    transition: {
+      duration: 0.16,
+      ease: [0.16, 1, 0.3, 1] as const
+    }
+  }
+};
+
+const bloomItemVariants = {
+  initial: {
+    opacity: 0,
+    y: 7,
+    scale: 0.97
+  },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.28,
+      ease: [0.16, 1, 0.3, 1] as const
+    }
+  },
+  exit: {
+    opacity: 0,
+    y: 3,
+    transition: {
+      duration: 0.12
+    }
+  }
+};
+
 function ContextMenuInner() {
   const isOpen = useContextMenuStore((s) => s.isOpen);
   const x = useContextMenuStore((s) => s.x);
@@ -748,16 +800,16 @@ function ContextMenuInner() {
         ref={menuRef}
         onClick={(e) => e.stopPropagation()}
         onContextMenu={(e) => e.stopPropagation()}
-        initial={{ opacity: 0, scale: 0.95, y: 4 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 4 }}
-        transition={{ duration: 0.12, ease: 'easeOut' }}
+        variants={bloomContainerVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         style={{
           position: 'fixed',
           left: `${safeX}px`,
           top: `${safeY}px`
         }}
-        className="w-[240px] max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar rounded-2xl border border-white/20 glass-heavy liquid-glass shadow-[0_24px_64px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.1)] py-1.5 px-1.5 flex flex-col gap-0.5 text-xs text-white/90"
+        className="w-[240px] max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar rounded-[20px] glass-bloom-menu py-2 px-1.5 flex flex-col gap-0.5 text-xs text-white/90"
       >
         {/* Toast confirmation feedback if action triggered */}
         {toastMessage && (
@@ -913,11 +965,11 @@ function ContextMenuInner() {
               <AnimatePresence>
                 {showPlaylistSubmenu && (
                   <motion.div
-                    initial={{ opacity: 0, x: -6, scale: 0.95 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -6, scale: 0.95 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute left-[calc(100%+6px)] -top-2 w-[210px] max-h-[260px] overflow-y-auto no-scrollbar rounded-2xl border border-white/20 glass-heavy liquid-glass shadow-[0_16px_40px_rgba(0,0,0,0.92)] p-1.5 flex flex-col gap-1 z-30"
+                    initial={{ opacity: 0, x: -6, scale: 0.92, filter: 'blur(10px)' }}
+                    animate={{ opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, x: -4, scale: 0.95, filter: 'blur(8px)' }}
+                    transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute left-[calc(100%+6px)] -top-2 w-[210px] max-h-[260px] overflow-y-auto no-scrollbar rounded-[20px] glass-bloom-menu p-1.5 flex flex-col gap-1 z-30"
                   >
                     {/* Create New Playlist Form */}
                     {isCreatingPlaylist ? (

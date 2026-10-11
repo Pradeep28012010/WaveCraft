@@ -78,6 +78,84 @@
   transform: translateZ(0);
 }
 
+/* Progressive Blur & Feathered Mask System — softens edges so nothing abruptly cuts off */
+.progressive-mask-y {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    rgba(0, 0, 0, 0.4) 8px,
+    black 28px,
+    black calc(100% - 32px),
+    rgba(0, 0, 0, 0.4) calc(100% - 8px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    rgba(0, 0, 0, 0.4) 8px,
+    black 28px,
+    black calc(100% - 32px),
+    rgba(0, 0, 0, 0.4) calc(100% - 8px),
+    transparent 100%
+  );
+}
+
+.progressive-mask-top {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    rgba(0, 0, 0, 0.5) 10px,
+    black 32px,
+    black 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    rgba(0, 0, 0, 0.5) 10px,
+    black 32px,
+    black 100%
+  );
+}
+
+.progressive-mask-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    rgba(0, 0, 0, 0.4) 6px,
+    black 20px,
+    black calc(100% - 20px),
+    rgba(0, 0, 0, 0.4) calc(100% - 6px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    rgba(0, 0, 0, 0.4) 6px,
+    black 20px,
+    black calc(100% - 20px),
+    rgba(0, 0, 0, 0.4) calc(100% - 6px),
+    transparent 100%
+  );
+}
+
+/* Liquid Glass Blooming Menu & Panel Style (Image 2 Reference) */
+.glass-bloom-menu {
+  background: linear-gradient(
+    145deg,
+    rgba(32, 33, 52, 0.88) 0%,
+    rgba(14, 15, 27, 0.94) 100%
+  );
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.85),
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
 @layer components {
   .glass {
     background: linear-gradient(

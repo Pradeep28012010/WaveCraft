@@ -113,10 +113,20 @@ export default function MainLayout() {
         <div className="flex-1 flex flex-col overflow-hidden relative min-w-0">
           <TopBar />
 
+          {/* Top Edge Progressive Blur Diffuser Scrim */}
+          <div
+            className="absolute top-0 inset-x-0 h-6 pointer-events-none z-30 bg-gradient-to-b from-[#06060b]/60 to-transparent"
+            style={{
+              marginTop: isPhone ? '48px' : '80px',
+              maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)'
+            }}
+          />
+
           <main
             ref={mainRef}
-            className={`flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain ${
-              isPhone ? 'p-3.5' : 'p-6'
+            className={`flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain progressive-mask-y ${
+              isPhone ? 'p-3.5 pt-2' : 'p-6 pt-3'
             }`}
           >
             <div className={`max-w-7xl mx-auto ${isPhone ? (hasCurrentTrack ? 'pb-44' : 'pb-28') : 'pb-24'}`}>
