@@ -493,28 +493,11 @@ export async function playTrackWithSmartQueue(seedTrack: Track): Promise<void> {
     const newTracks = recommendations.filter((t) => !existingIds.has(t.id));
     if (newTracks.length === 0) return;
 
+    // Only append recommendations to Up Next behind the seed track
     if (currentState.currentTrack?.id === seedTrack.id) {
       usePlayerStore.setState({
         queue: [...currentState.queue, ...newTracks],
         originalQueue: [...currentState.originalQueue, ...newTracks]
-      });
-    } else if (
-      !currentState.isPlaying &&
-      currentState.queue.length <= 1 &&
-      currentState.queueIndex >= 0
-    ) {
-      // User tapped Next before recommendations finished loading: immediately start playing the first recommendation
-      const firstRec = newTracks[0];
-      usePlayerStore.setState({
-        queue: [seedTrack, ...newTracks],
-        originalQueue: [seedTrack, ...newTracks],
-        currentTrack: firstRec,
-        queueIndex: 1,
-        progress: 0,
-        currentTime: 0,
-        duration: firstRec.duration || 0,
-        isPlaying: true,
-        isLoading: true
       });
     }
   } catch {

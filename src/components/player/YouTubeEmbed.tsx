@@ -454,8 +454,8 @@ export default function YouTubeEmbed() {
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
                 return;
               }
-              // If paused automatically by Chromium/YouTube when app was minimized or document hidden:
-              if (!userInitiatedPauseRef.current && (typeof document !== 'undefined' && document.hidden)) {
+              // If user did NOT initiate the pause, this is a transient YouTube buffering or browser focus hiccup: auto-resume!
+              if (!userInitiatedPauseRef.current) {
                 try {
                   e.target.playVideo?.();
                 } catch {}
@@ -485,25 +485,25 @@ export default function YouTubeEmbed() {
               );
               setIsLoading(true);
 
-              const retryQuery =
-                retryAttemptRef.current === 1
-                  ? `${cur.title} ${cur.artist} audio`
-                  : `${cur.title} ${cur.artist} official audio`;
-
-              searchTracks(retryQuery)
-                .then((results) => {
-                  const failedId = cur.youtubeId || '';
-                  const alt = results.find((r) => r.youtubeId && r.youtubeId !== failedId) || results[0];
-                  if (alt?.youtubeId && alt.youtubeId !== failedId) {
-                    cur.youtubeId = alt.youtubeId;
-                    fallbackToYouTube(cur, alt.youtubeId, true);
+              // 1. FIRST: Resolve direct audio for THIS EXACT song (JioSaavn 320kbps CDN stream)
+              // This guarantees we play the EXACT song the user selected rather than jumping to an unrelated video!
+              resolveDirectAudio(cur.title, cur.artist, cur.duration)
+                .then((resolvedUrl) => {
+                  if (resolvedUrl) {
+                    cur.audioUrl = resolvedUrl;
+                    playNativeAudio(resolvedUrl, true);
                     return;
                   }
-                  resolveDirectAudio(cur.title, cur.artist, cur.duration)
-                    .then((resolvedUrl) => {
-                      if (resolvedUrl) {
-                        cur.audioUrl = resolvedUrl;
-                        playNativeAudio(resolvedUrl, true);
+
+                  // 2. If direct audio is not available, try searching YouTube for the audio release
+                  const retryQuery = `${cur.title} ${cur.artist} audio`;
+                  searchTracks(retryQuery)
+                    .then((results) => {
+                      const failedId = cur.youtubeId || '';
+                      const alt = results.find((r) => r.youtubeId && r.youtubeId !== failedId);
+                      if (alt?.youtubeId) {
+                        cur.youtubeId = alt.youtubeId;
+                        fallbackToYouTube(cur, alt.youtubeId, true);
                       } else {
                         skipOnError();
                       }
@@ -559,12 +559,7 @@ export default function YouTubeEmbed() {
     const audio = audioRef.current;
     if (audio) {
       try { audio.pause(); } catch {}
-      audio.loop = true;
-      audio.src =
-        'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-      if (shouldPlay) {
-        audio.play().catch(() => {});
-      }
+      audio.src = '';
     }
     setActiveEngine('youtube');
     const ytPlayer = getPlayer();
@@ -1059,17 +1054,8 @@ export default function YouTubeEmbed() {
         audio.pause();
       }
     } else if (getActiveEngine() === 'youtube') {
-      if (audioRef.current) {
-        if (isPlaying) {
-          if (!audioRef.current.src || !audioRef.current.src.startsWith('data:audio/wav')) {
-            audioRef.current.loop = true;
-            audioRef.current.src =
-              'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-          }
-          audioRef.current.play().catch(() => {});
-        } else {
-          audioRef.current.pause();
-        }
+      if (audioRef.current && !audioRef.current.paused) {
+        try { audioRef.current.pause(); } catch {}
       }
       if (window.ytPlayerReady) {
         const ytPlayer = getPlayer();
