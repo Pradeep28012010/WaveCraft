@@ -37,6 +37,31 @@ interface QueueTrackRowProps {
   onRemove: (index: number) => void;
 }
 
+const queueItemVariants = {
+  initial: { opacity: 0, y: 14, scale: 0.97 },
+  animate: (customIdx: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: 'spring',
+      stiffness: 380,
+      damping: 28,
+      mass: 0.75,
+      delay: Math.min(customIdx * 0.02, 0.22)
+    }
+  }),
+  exit: {
+    opacity: 0,
+    x: -30,
+    scale: 0.94,
+    transition: {
+      duration: 0.18,
+      ease: [0.16, 1, 0.3, 1] as const
+    }
+  }
+};
+
 const QueueTrackRow = memo(function QueueTrackRow({
   track,
   actualIndex,
@@ -56,7 +81,16 @@ const QueueTrackRow = memo(function QueueTrackRow({
   onRemove
 }: QueueTrackRowProps) {
   return (
-    <div
+    <motion.div
+      layout="position"
+      layoutId={`queue-row-${track.id}-${actualIndex}`}
+      custom={idx}
+      variants={queueItemVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      whileHover={{ scale: 1.012, x: 2 }}
+      whileTap={{ scale: 0.99 }}
       draggable
       onDragStart={() => onDragStart(actualIndex)}
       onDragOver={(e) => onDragOver(e, actualIndex)}
@@ -68,7 +102,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
         e.stopPropagation();
         useContextMenuStore.getState().openTrackMenu({ clientX: e.clientX, clientY: e.clientY }, track, queue);
       }}
-      className={`group flex items-center gap-2.5 p-2 rounded-2xl border transition-all duration-150 ${
+      className={`group flex items-center gap-2.5 p-2 rounded-2xl border transition-colors duration-150 ${
         isDragTarget
           ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)] scale-[1.01]'
           : isBeingDragged
@@ -193,7 +227,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
           </svg>
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 });
 
@@ -364,10 +398,10 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
           {/* Floating Liquid Glass Queue Studio Drawer / Mobile Sheet */}
           <motion.aside
-            initial={isPhone ? { y: '100%', opacity: 0.5 } : { x: '104%', opacity: 0.5 }}
-            animate={isPhone ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 }}
-            exit={isPhone ? { y: '100%', opacity: 0.5 } : { x: '104%', opacity: 0.5 }}
-            transition={{ type: 'spring', damping: 32, stiffness: 340, mass: 0.65 }}
+            initial={isPhone ? { y: '100%', opacity: 0.4, filter: 'blur(10px)' } : { x: '104%', opacity: 0.4, filter: 'blur(10px)' }}
+            animate={isPhone ? { y: 0, opacity: 1, filter: 'blur(0px)' } : { x: 0, opacity: 1, filter: 'blur(0px)' }}
+            exit={isPhone ? { y: '100%', opacity: 0, filter: 'blur(10px)' } : { x: '104%', opacity: 0, filter: 'blur(10px)' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.65 }}
             className={`fixed z-[110] flex flex-col overflow-hidden text-white select-none ${
               isPhone
                 ? 'inset-x-0 bottom-0 max-h-[88vh] rounded-t-[32px] glass-heavy liquid-glass border-t border-x border-white/20 shadow-[0_-20px_60px_rgba(0,0,0,0.95)]'
@@ -724,31 +758,33 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       />
                     </div>
                   ) : (
-                    <div className="space-y-1.5">
-                      {upcomingItems.map(({ track, actualIndex }, idx) => (
-                        <QueueTrackRow
-                          key={`${track.id}-${actualIndex}`}
-                          track={track}
-                          actualIndex={actualIndex}
-                          idx={idx}
-                          isBeingDragged={draggedActualIndex === actualIndex}
-                          isDragTarget={
-                            dragOverActualIndex === actualIndex &&
-                            draggedActualIndex !== actualIndex
-                          }
-                          canMoveUp={idx > 0}
-                          canMoveDown={idx < upcomingItems.length - 1}
-                          queue={queue}
-                          onDragStart={handleDragStart}
-                          onDragOver={handleDragOver}
-                          onDrop={handleDrop}
-                          onDragEnd={handleDragEnd}
-                          onJumpToTrack={handleJumpToTrack}
-                          onMoveToTop={handleMoveToTop}
-                          onReorder={reorderQueue}
-                          onRemove={removeFromQueue}
-                        />
-                      ))}
+                    <div className="space-y-1.5 overflow-hidden">
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        {upcomingItems.map(({ track, actualIndex }, idx) => (
+                          <QueueTrackRow
+                            key={`${track.id}-${actualIndex}`}
+                            track={track}
+                            actualIndex={actualIndex}
+                            idx={idx}
+                            isBeingDragged={draggedActualIndex === actualIndex}
+                            isDragTarget={
+                              dragOverActualIndex === actualIndex &&
+                              draggedActualIndex !== actualIndex
+                            }
+                            canMoveUp={idx > 0}
+                            canMoveDown={idx < upcomingItems.length - 1}
+                            queue={queue}
+                            onDragStart={handleDragStart}
+                            onDragOver={handleDragOver}
+                            onDrop={handleDrop}
+                            onDragEnd={handleDragEnd}
+                            onJumpToTrack={handleJumpToTrack}
+                            onMoveToTop={handleMoveToTop}
+                            onReorder={reorderQueue}
+                            onRemove={removeFromQueue}
+                          />
+                        ))}
+                      </AnimatePresence>
                     </div>
                   )}
                 </div>
@@ -768,43 +804,56 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-1.5">
-                      {historyItems.map(({ track, actualIndex }) => (
-                        <div
-                          key={`${track.id}-${actualIndex}`}
-                          onClick={() => handleJumpToTrack(track, actualIndex)}
-                          onContextMenu={(e) => {
-                            if (e.shiftKey) return;
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const clientX = e.clientX;
-                            const clientY = e.clientY;
-                            useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, queue);
-                          }}
-                          className="group flex items-center gap-3 p-2 rounded-2xl bg-white/[0.025] hover:bg-white/[0.08] border border-white/[0.05] hover:border-white/15 transition-all cursor-pointer"
-                        >
-                          <img
-                            src={track.thumbnail || DEFAULT_THUMBNAIL}
-                            alt={track.title}
-                            decoding="async"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                    <div className="space-y-1.5 overflow-hidden">
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        {historyItems.map(({ track, actualIndex }, hIdx) => (
+                          <motion.div
+                            key={`hist-${track.id}-${actualIndex}`}
+                            initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.93, height: 0, padding: 0 }}
+                            transition={{
+                              type: 'spring',
+                              stiffness: 380,
+                              damping: 28,
+                              delay: Math.min(hIdx * 0.02, 0.2)
                             }}
-                            className="w-10 h-10 rounded-xl object-cover opacity-75 group-hover:opacity-100 transition-opacity"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-white/75 group-hover:text-white truncate">
-                              {track.title}
-                            </p>
-                            <p className="text-[11px] text-white/60 truncate mt-0.5">
-                              {track.artist}
-                            </p>
-                          </div>
-                          <span className="text-[10px] font-bold text-[var(--color-accent)] opacity-0 group-hover:opacity-100 transition-opacity pr-2">
-                            Replay ↺
-                          </span>
-                        </div>
-                      ))}
+                            whileHover={{ scale: 1.012, x: 2 }}
+                            whileTap={{ scale: 0.99 }}
+                            onClick={() => handleJumpToTrack(track, actualIndex)}
+                            onContextMenu={(e) => {
+                              if (e.shiftKey) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const clientX = e.clientX;
+                              const clientY = e.clientY;
+                              useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, queue);
+                            }}
+                            className="group flex items-center gap-3 p-2 rounded-2xl bg-white/[0.025] hover:bg-white/[0.08] border border-white/[0.05] hover:border-white/15 transition-colors cursor-pointer"
+                          >
+                            <img
+                              src={track.thumbnail || DEFAULT_THUMBNAIL}
+                              alt={track.title}
+                              decoding="async"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                              }}
+                              className="w-10 h-10 rounded-xl object-cover opacity-75 group-hover:opacity-100 transition-opacity"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-white/75 group-hover:text-white truncate">
+                                {track.title}
+                              </p>
+                              <p className="text-[11px] text-white/60 truncate mt-0.5">
+                                {track.artist}
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-bold text-[var(--color-accent)] opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+                              Replay ↺
+                            </span>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
                     </div>
                   )}
                 </div>
