@@ -601,11 +601,14 @@ function parseTrackMetadata(rawTitle, rawArtist) {
 async function fetchYouTubeSearch(query, limit = 25) {
   if (!query) return [];
   const clean = query.trim();
-  const ytQuery = /song|remix|official|audio|music|album|track/i.test(clean) || clean.split(/\s+/).length > 2
+  const hasMusicIndicator = /\b(song|songs|remix|official|audio|music|album|track|lyric|lyrics|video|soundtrack|ost)\b/i.test(clean);
+  const ytQuery = hasMusicIndicator
     ? clean
     : `${clean} song`;
 
-  const wantsInstrumental = /\b(instrumental|karaoke|backing|piano|flute|guitar|bgm|violin|ringtone)\b/i.test(clean);
+  const wantsInstrumental = /\b(instrumental|karaoke|backing|piano|flute|guitar|bgm|violin|ringtone|soundtrack|score|theme)\b/i.test(clean);
+  const BGM_OR_INSTRUMENTAL_REGEX =
+    /\b(bgm|background\s*(?:music|score)|theme\s*(?:music|video|song|track)?|instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|without\s*vocals?|off\s*vocal|vocal\s*cut|score|piano\s*(?:cover|version)|flute|guitar\s*(?:cover|version)|violin\s*(?:cover|version)|sax\s*(?:cover|version)|orchestral\s*version|ringtone|soundtrack\s*suite)\b/i;
 
   const r = await fetchWithTimeout(
     'https://www.youtube.com/youtubei/v1/search?prettyPrint=false',
@@ -672,6 +675,8 @@ async function fetchYouTubeSearch(query, limit = 25) {
       const { cleanTitle, cleanArtist } = parseTrackMetadata(rawTitle, rawAuthor);
       const thumb = `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
       const thumbLarge = `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`;
+      const isInstrumentalOrBgm =
+        BGM_OR_INSTRUMENTAL_REGEX.test(rawTitle) || BGM_OR_INSTRUMENTAL_REGEX.test(cleanTitle || '');
 
       tracks.push({
         id: `yt_${v.videoId}`,
@@ -683,16 +688,17 @@ async function fetchYouTubeSearch(query, limit = 25) {
         thumbnailLarge: thumbLarge,
         thumbnailUrl: thumb,
         youtubeId: v.videoId,
-        quality: 'Studio Audio'
+        quality: 'Studio Audio',
+        isInstrumental: isInstrumentalOrBgm
       });
     }
   }
 
-  // Demote instrumental/karaoke below vocal tracks if user didn't ask for instrumental
+  // Demote instrumental/BGM below vocal tracks if user didn't ask for instrumental
   if (!wantsInstrumental) {
     tracks.sort((a, b) => {
-      const aInst = /\b(instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|piano\s*(?:cover|version)|flute|guitar\s*cover|bgm)\b/i.test(a.title);
-      const bInst = /\b(instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|piano\s*(?:cover|version)|flute|guitar\s*cover|bgm)\b/i.test(b.title);
+      const aInst = Boolean(a.isInstrumental || BGM_OR_INSTRUMENTAL_REGEX.test(a.title));
+      const bInst = Boolean(b.isInstrumental || BGM_OR_INSTRUMENTAL_REGEX.test(b.title));
       if (aInst && !bInst) return 1;
       if (!aInst && bInst) return -1;
       return 0;
@@ -1659,25 +1665,6 @@ async function resolveDirectAudioStream(title, artist) {
       }
     } catch {}
   }
-
-  // iTunes preview fallback
-  try {
-    const itunesQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}` : cleanTitle;
-    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(itunesQuery)}&entity=song&limit=3`;
-    const itRes = await fetchWithTimeout(itunesUrl, {}, 3500);
-    if (itRes.ok) {
-      const itData = await itRes.json();
-      const match = itData?.results?.find((r) => r.previewUrl && r.previewUrl.startsWith('https://'));
-      if (match?.previewUrl) {
-        return {
-          audioUrl: match.previewUrl,
-          quality: '256kbps High-Fidelity AAC',
-          title: match.trackName,
-          artist: match.artistName
-        };
-      }
-    }
-  } catch {}
 
   return null;
 }

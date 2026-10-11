@@ -126,26 +126,5 @@ export async function resolveDirectAudio(
     } catch {}
   }
 
-  // 3. Apple Music / iTunes high-fidelity AAC audio fallback (Guaranteed CORS enabled)
-  try {
-    const itunesQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}` : cleanTitle;
-    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(itunesQuery)}&entity=song&limit=3`;
-    const itRes = await fetch(itunesUrl, { signal: AbortSignal.timeout(3500) });
-    if (itRes.ok) {
-      const itData = await itRes.json();
-      const match = itData?.results?.find(
-        (r: { previewUrl?: string }) => r.previewUrl && r.previewUrl.startsWith('https://')
-      );
-      if (match?.previewUrl) {
-        if (streamCache.size >= MAX_CACHE_ENTRIES) {
-          const first = streamCache.keys().next().value;
-          if (first) streamCache.delete(first);
-        }
-        streamCache.set(cacheKey, match.previewUrl);
-        return match.previewUrl;
-      }
-    }
-  } catch {}
-
   return null;
 }

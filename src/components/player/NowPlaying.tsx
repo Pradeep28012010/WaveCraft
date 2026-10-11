@@ -863,8 +863,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-6 sm:pt-8 pb-6 overflow-y-auto no-scrollbar flex flex-col"
             >
               <div
-                className={`w-full max-w-6xl my-auto mx-auto flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12 ${
-                  showLyrics ? 'lg:justify-between' : ''
+                className={`w-full max-w-6xl my-auto mx-auto ${
+                  showLyrics
+                    ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-center'
+                    : 'flex flex-col items-center justify-center max-w-lg'
                 }`}
               >
                 {/* Left / Center Player Column */}
@@ -880,7 +882,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     );
                   }}
                   className={`flex flex-col items-center justify-center w-full my-auto ${
-                    showLyrics ? 'lg:w-5/12 max-w-md' : 'max-w-lg'
+                    showLyrics ? 'lg:col-span-5 max-w-md mx-auto' : 'max-w-lg'
                   }`}
                 >
                   {/* Album Cover OR Realistic Vinyl Turntable Deck */}
@@ -1342,30 +1344,30 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       </button>
                     </div>
                   ) : (
-                    <div className="w-full flex items-center justify-between gap-3 mt-5 pt-3 border-t border-white/10">
-                      <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full liquid-glass border border-white/10">
+                    <div className="w-full flex items-center justify-between gap-2.5 mt-5 pt-3 border-t border-white/10">
+                      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full liquid-glass border border-white/10 flex-shrink-0">
                         <button
                           onClick={toggleMute}
                           title={isMuted || volume === 0 ? 'Unmute Audio' : 'Mute Audio'}
-                          className={`w-8 h-8 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
+                          className={`w-7 h-7 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
                             isMuted || volume === 0
                               ? 'glass-button-primary text-rose-300'
                               : 'glass-button text-white/85 hover:text-white'
                           }`}
                         >
                           {isMuted || volume === 0 ? (
-                            <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg className="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                               <line x1="22" y1="9" x2="16" y2="15" />
                               <line x1="16" y1="9" x2="22" y2="15" />
                             </svg>
                           ) : volume < 0.4 ? (
-                            <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg className="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                               <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
                             </svg>
                           ) : (
-                            <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg className="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                               <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
                               <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
@@ -1381,20 +1383,20 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           onChange={(e) => setVolume(Number(e.target.value))}
                           onPointerDown={(e) => e.stopPropagation()}
                           onTouchStart={(e) => e.stopPropagation()}
-                          className="w-20 sm:w-24 touch-none"
+                          className="w-16 sm:w-20 touch-none"
                         />
-                        <span className="text-[11px] font-bold text-white/55 tabular-nums w-8">
+                        <span className="text-[10px] font-bold text-white/55 tabular-nums w-7">
                           {Math.round((isMuted ? 0 : volume) * 100)}%
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
                           onClick={() => {
                             setWaveCardQuote('');
                             setShowWaveCard(true);
                           }}
-                          className="px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 glass-button text-white/70 hover:text-white"
+                          className="px-2.5 sm:px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1 glass-button text-white/70 hover:text-white"
                           title="Generate Lyric Poster & Social Story"
                         >
                           <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -1404,7 +1406,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         </button>
                         <button
                           onClick={() => setShowLyrics(!showLyrics)}
-                          className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                          className={`px-2.5 sm:px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1 ${
                             showLyrics
                               ? 'glass-button-primary text-white'
                               : 'glass-button text-white/70 hover:text-white'
@@ -1417,7 +1419,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         </button>
                         <button
                           onClick={() => setShowQueue(!showQueue)}
-                          className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                          className={`px-2.5 sm:px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1 ${
                             showQueue
                               ? 'glass-button-primary text-white'
                               : 'glass-button text-white/70 hover:text-white'
@@ -1436,16 +1438,16 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Right Column: Synced Lyrics Panel (Pure GPU transform/opacity entrance) */}
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence>
                   {showLyrics && (
                     <motion.div
                       key="lyrics-panel"
-                      initial={{ opacity: 0, x: 32, scale: 0.96 }}
+                      initial={{ opacity: 0, x: 28, scale: 0.97 }}
                       animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: 32, scale: 0.96 }}
+                      exit={{ opacity: 0, x: 28, scale: 0.97 }}
                       transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.65 }}
                       onPointerDown={(e) => e.stopPropagation()}
-                      className="w-full lg:w-7/12 h-[42vh] lg:h-[72vh] flex-shrink-0 will-change-transform"
+                      className="w-full lg:col-span-7 h-[46vh] lg:h-[72vh] min-w-0 will-change-transform"
                     >
                       <LyricsView
                         artist={currentTrack.artist}

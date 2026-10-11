@@ -176,7 +176,10 @@ export function findStrictTrackMatch(
   const normTargetArtist = normalizeForMatch(targetArtist);
   const targetTokens = normTargetTitle.split(/\s+/).filter((t) => t.length > 1);
   const artistTokens = normTargetArtist.split(/\s+/).filter((t) => t.length > 2);
-  const isTargetInstrumental = /\b(instrumental|karaoke|bgm|piano|flute|guitar)\b/i.test(targetTitle);
+  const BGM_INSTRUMENTAL_REGEX =
+    /\b(instrumental|karaoke|bgm|background\s*(?:score|music)|theme\s*(?:music|song|track)?|no\s*vocals?|without\s*vocals?|piano|flute|guitar|violin|sax)\b/i;
+  const isTargetInstrumental =
+    Boolean((targetTitle && BGM_INSTRUMENTAL_REGEX.test(targetTitle)) || (targetArtist && BGM_INSTRUMENTAL_REGEX.test(targetArtist)));
   const isTargetCover = /\b(cover|tribute|rendition)\b/i.test(targetTitle);
 
   let bestMatch: Track | null = null;
@@ -186,7 +189,8 @@ export function findStrictTrackMatch(
     const candTitle = normalizeForMatch(cand.title);
     const candArtist = normalizeForMatch(cand.artist);
     const candCombined = `${candTitle} ${candArtist}`;
-    const isCandInstrumental = /\b(instrumental|karaoke|bgm|piano|flute|guitar)\b/i.test(cand.title);
+    const isCandInstrumental =
+      Boolean(cand.isInstrumental || BGM_INSTRUMENTAL_REGEX.test(cand.title) || BGM_INSTRUMENTAL_REGEX.test(cand.artist));
     const isCandCover = /\b(cover|tribute|rendition)\b/i.test(cand.title);
 
     // Reject instrumental if target is vocal
@@ -245,7 +249,7 @@ function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
   const q = rawQuery.toLowerCase().trim();
   const qTokens = q.split(/\s+/).filter(Boolean);
 
-  const wantsInstrumental = /\b(instrumental|karaoke|backing\s*track|piano|flute|guitar|bgm|violin|sax)\b/i.test(q);
+  const wantsInstrumental = /\b(instrumental|karaoke|backing\s*track|piano|flute|guitar|bgm|violin|sax|soundtrack|score|theme)\b/i.test(q);
   const wantsCover = /\bcover\b/i.test(q);
   const wantsRemix = /\b(remix|mashup)\b/i.test(q);
   const wantsLofi = /\b(lofi|lo-fi|slowed|reverb|8d)\b/i.test(q);
@@ -287,12 +291,15 @@ function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
 
     // 8. Instrumental / non-vocal content filter
     if (!wantsInstrumental) {
-      if (
-        /\b(instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|vocal\s*cut|piano\s*(?:cover|version)|flute\s*(?:cover|version)|guitar\s*(?:cover|version)|violin\s*(?:cover|version)|sax\s*(?:cover|version)|bgm|theme\s*music|background\s*score|shehnai|sitar|veena|bansuri)\b/i.test(
+      const isInst =
+        Boolean(track.isInstrumental) ||
+        /\b(instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|without\s*vocals?|off\s*vocal|vocal\s*cut|piano\s*(?:cover|version)|flute\s*(?:cover|version)|guitar\s*(?:cover|version)|violin\s*(?:cover|version)|sax\s*(?:cover|version)|bgm|theme\s*music|theme\s*song|theme\s*track|background\s*score|background\s*music|original\s*score|shehnai|sitar|veena|bansuri)\b/i.test(
           title
-        )
-      ) {
-        score -= 900;
+        ) ||
+        /\b(bgm|background\s*score|background\s*music|theme\s*music)\b/i.test(combined);
+
+      if (isInst) {
+        score -= 1500;
       }
     }
     if (!wantsCover) {
@@ -427,7 +434,7 @@ async function fetchItunesFallbackTracks(query: string): Promise<Track[]> {
         thumbnail: art,
         thumbnailLarge: art,
         thumbnailUrl: art,
-        audioUrl: item.previewUrl || undefined,
+        audioUrl: undefined,
         audioPreviewUrl: item.previewUrl || undefined,
         youtubeId: '',
         quality: 'Apple Master'

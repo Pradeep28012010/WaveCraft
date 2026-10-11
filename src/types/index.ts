@@ -19,6 +19,7 @@ export interface Track {
   mood?: string;
   energy?: number;
   vibeTag?: string;
+  isInstrumental?: boolean;
 }
 
 export interface PlaylistFolder {

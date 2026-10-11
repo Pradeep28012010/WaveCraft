@@ -779,10 +779,12 @@ export default function YouTubeEmbed() {
         return;
       }
 
-      // 2. Direct 320kbps Audio Stream already available (skip Spotify previews)
+      // 2. Direct 320kbps Audio Stream already available (skip 30s audio previews)
       const isDirectCdnStream =
         Boolean(track.audioUrl) &&
         !track.audioUrl!.includes('p.scdn.co') &&
+        !track.audioUrl!.includes('itunes.apple.com') &&
+        !track.audioUrl!.includes('mzstatic.com') &&
         (track.audioUrl!.startsWith('https://aac.saavncdn.com') ||
          track.audioUrl!.startsWith('blob:') ||
          track.audioUrl!.endsWith('.mp4') ||
