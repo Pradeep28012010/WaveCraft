@@ -78,53 +78,6 @@
   transform: translateZ(0);
 }
 
-/* Progressive Blur Edge System — Powered by React Bits GradualBlur component */
-.progressive-blur-edge {
-  position: relative;
-}
-
-.progressive-blur-dock {
-  position: relative;
-}
-
-.progressive-mask-top {
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0px,
-    rgba(0, 0, 0, 0.5) 10px,
-    black 32px,
-    black 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0px,
-    rgba(0, 0, 0, 0.5) 10px,
-    black 32px,
-    black 100%
-  );
-}
-
-.progressive-mask-x {
-  mask-image: linear-gradient(
-    to right,
-    transparent 0px,
-    rgba(0, 0, 0, 0.4) 6px,
-    black 20px,
-    black calc(100% - 20px),
-    rgba(0, 0, 0, 0.4) calc(100% - 6px),
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0px,
-    rgba(0, 0, 0, 0.4) 6px,
-    black 20px,
-    black calc(100% - 20px),
-    rgba(0, 0, 0, 0.4) calc(100% - 6px),
-    transparent 100%
-  );
-}
-
 /* Liquid Glass Blooming Menu & Panel Style (Image 2 Reference) */
 .glass-bloom-menu {
   background: linear-gradient(

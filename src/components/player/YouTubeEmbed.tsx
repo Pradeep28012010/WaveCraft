@@ -273,17 +273,47 @@ export default function YouTubeEmbed() {
       nextTrack();
     };
 
+    let stallRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
+
     const onWaiting = () => {
       if (getActiveEngine() === 'audio') setIsLoading(true);
     };
 
+    const onStalled = () => {
+      if (getActiveEngine() !== 'audio') return;
+      if (usePlayerStore.getState().isPlaying) {
+        setIsLoading(true);
+        if (!stallRecoveryTimer) {
+          stallRecoveryTimer = setTimeout(() => {
+            stallRecoveryTimer = null;
+            if (
+              getActiveEngine() === 'audio' &&
+              usePlayerStore.getState().isPlaying &&
+              audio.readyState < 3
+            ) {
+              console.warn('[WaveCraft] Audio stream stalled, recovering via backup stream');
+              onError();
+            }
+          }, 7000);
+        }
+      }
+    };
+
     const onPlaying = () => {
+      if (stallRecoveryTimer) {
+        clearTimeout(stallRecoveryTimer);
+        stallRecoveryTimer = null;
+      }
       if (getActiveEngine() === 'audio') {
         setIsLoading(false);
       }
     };
 
     const onError = () => {
+      if (stallRecoveryTimer) {
+        clearTimeout(stallRecoveryTimer);
+        stallRecoveryTimer = null;
+      }
       if (getActiveEngine() !== 'audio') return;
       const cur = usePlayerStore.getState().currentTrack;
       const effectiveYtId =
@@ -315,15 +345,21 @@ export default function YouTubeEmbed() {
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('stalled', onStalled);
     audio.addEventListener('playing', onPlaying);
     audio.addEventListener('error', onError);
 
     return () => {
+      if (stallRecoveryTimer) {
+        clearTimeout(stallRecoveryTimer);
+        stallRecoveryTimer = null;
+      }
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('stalled', onStalled);
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('error', onError);
     };

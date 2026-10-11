@@ -1,7 +1,48 @@
 const preloadedUrls = new Set<string>();
+const preloadQueue: string[] = [];
+let activePreloads = 0;
+const MAX_CONCURRENT_PRELOADS = 4;
+let isProcessingScheduled = false;
+
+function processQueue(): void {
+  isProcessingScheduled = false;
+  while (activePreloads < MAX_CONCURRENT_PRELOADS && preloadQueue.length > 0) {
+    const url = preloadQueue.shift();
+    if (!url) break;
+
+    activePreloads++;
+    try {
+      const img = new Image();
+      img.decoding = 'async';
+      const onDone = () => {
+        activePreloads--;
+        scheduleQueueProcessing();
+      };
+      img.onload = onDone;
+      img.onerror = onDone;
+      img.src = url;
+    } catch {
+      activePreloads--;
+    }
+  }
+}
+
+function scheduleQueueProcessing(): void {
+  if (isProcessingScheduled || preloadQueue.length === 0) return;
+  isProcessingScheduled = true;
+
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
+      .requestIdleCallback(processQueue, { timeout: 1200 });
+  } else if (typeof setTimeout !== 'undefined') {
+    setTimeout(processQueue, 40);
+  } else {
+    processQueue();
+  }
+}
 
 /**
- * Preloads a single image into browser memory cache.
+ * Enqueues an image URL for background caching without saturating network connections.
  * Avoids duplicate network calls by tracking preloaded URLs.
  */
 export function preloadImage(url?: string | null): void {
@@ -9,15 +50,12 @@ export function preloadImage(url?: string | null): void {
   if (url.startsWith('data:')) return;
 
   preloadedUrls.add(url);
-  try {
-    const img = new Image();
-    img.decoding = 'async';
-    img.src = url;
-  } catch {}
+  preloadQueue.push(url);
+  scheduleQueueProcessing();
 }
 
 /**
- * Preloads an array of image URLs concurrently.
+ * Preloads an array of image URLs sequentially with controlled concurrency.
  */
 export function preloadImages(urls: (string | undefined | null)[]): void {
   for (const url of urls) {

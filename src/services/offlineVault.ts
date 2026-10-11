@@ -43,6 +43,30 @@ function notifyListeners(changedTrackId?: string) {
   }
 }
 
+export interface StorageQuotaInfo {
+  quota: number;
+  usage: number;
+  available: number;
+  percentUsed: number;
+  isLow: boolean;
+}
+
+/**
+ * Checks remaining device storage quota for offline caching.
+ */
+export async function checkStorageQuota(): Promise<StorageQuotaInfo> {
+  if (typeof navigator !== 'undefined' && navigator.storage && typeof navigator.storage.estimate === 'function') {
+    try {
+      const { quota = 0, usage = 0 } = await navigator.storage.estimate();
+      const available = Math.max(0, quota - usage);
+      const percentUsed = quota > 0 ? (usage / quota) * 100 : 0;
+      const isLow = available < 30 * 1024 * 1024 || percentUsed > 95;
+      return { quota, usage, available, percentUsed, isLow };
+    } catch {}
+  }
+  return { quota: Infinity, usage: 0, available: Infinity, percentUsed: 0, isLow: false };
+}
+
 /**
  * Reads the list of offline-saved tracks from in-memory cache (backed by localStorage).
  */
@@ -189,13 +213,21 @@ export async function saveTrackOffline(track: Track): Promise<boolean> {
       return false;
     }
 
+    // Check storage quota before write to prevent corrupt partial downloads
+    const quotaInfo = await checkStorageQuota();
+    if (quotaInfo.isLow && quotaInfo.available < audioBlob.size + 10 * 1024 * 1024) {
+      console.warn('[OfflineVault] Insufficient storage space to download track:', resolvedTrack.title);
+      return false;
+    }
+
     resolvedTrack.fileSizeBytes = audioBlob.size;
 
     // 3. Save to IndexedDB (Works on Electron file:, Android, and Web)
     try {
       await idbSet(`audio_${resolvedTrack.id}`, audioBlob, vaultBlobStore);
     } catch (idbErr) {
-      console.warn('Failed to save audio to IndexedDB:', idbErr);
+      console.warn('Failed to save audio to IndexedDB (storage quota or access error):', idbErr);
+      return false;
     }
 
     // 4. Also store in CacheStorage if available

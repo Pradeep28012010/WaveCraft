@@ -1,6 +1,67 @@
-// Serverless API handler for Vercel / Vite / Netlify (/api/music)
+/**
+ * WaveCraft Serverless API Gateway (/api/music)
+ * Handles music search, trending charts, new releases, lyrics, stream resolution, and Live Jam sync.
+ * Equipped with in-memory caching, per-IP rate limiting, SSRF guardrails, and upstream abort timeouts.
+ */
 const responseCache = new Map();
 const MAX_CACHE_ENTRIES = 250;
+
+// Rate limiting: 100 requests per minute sliding window per IP
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_WINDOW = 100;
+const ipRequestCounts = new Map();
+
+function checkRateLimit(ip) {
+  if (!ip || ip === 'unknown') return true;
+  const now = Date.now();
+  const record = ipRequestCounts.get(ip);
+  if (!record || now > record.resetAt) {
+    ipRequestCounts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (record.count >= MAX_REQUESTS_PER_WINDOW) {
+    return false;
+  }
+  record.count++;
+  return true;
+}
+
+// Allowed upstream CDN domains for audio proxying (prevents SSRF attacks)
+const ALLOWED_AUDIO_DOMAINS = [
+  'googlevideo.com',
+  'youtube.com',
+  'saavn.com',
+  'jiosaavn.com',
+  'saavncdn.com',
+  'apple.com',
+  'mzstatic.com',
+  'itunes.apple.com',
+  'ytimg.com'
+];
+
+function isAllowedAudioProxyUrl(targetUrl) {
+  try {
+    const parsed = new URL(targetUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const hostname = parsed.hostname.toLowerCase();
+    // Deny loopback, private, and local metadata IP ranges
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('169.254.') ||
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.local')
+    ) {
+      return false;
+    }
+    return ALLOWED_AUDIO_DOMAINS.some((d) => hostname === d || hostname.endsWith(`.${d}`));
+  } catch {
+    return false;
+  }
+}
 
 function getCached(key) {
   const entry = responseCache.get(key);
@@ -38,12 +99,25 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // Rate limit protection
+  const rawIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+  const clientIp = typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+  }
+
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  const action = url.searchParams.get('action') || 'search';
-  const q = (url.searchParams.get('q') || '').trim();
+  const action = (url.searchParams.get('action') || 'search').toLowerCase();
+  const q = (url.searchParams.get('q') || '')
+    .replace(/[\x00-\x1F\x7F]/g, '')
+    .slice(0, 150)
+    .trim();
 
   try {
     if (action === 'search') {
+      if (!q) {
+        return res.status(200).json({ tracks: [], youtube: [] });
+      }
       const cacheKey = `search:${q.toLowerCase()}`;
       const cached = getCached(cacheKey);
       res.setHeader('Cache-Control', 'public, max-age=180, s-maxage=300, stale-while-revalidate=600');
@@ -298,6 +372,9 @@ export default async function handler(req, res) {
     if (action === 'proxy-stream') {
       const audioUrl = url.searchParams.get('url') || '';
       if (!audioUrl) return res.status(400).json({ error: 'URL required' });
+      if (!isAllowedAudioProxyUrl(audioUrl)) {
+        return res.status(403).json({ error: 'Proxy URL target domain not allowed' });
+      }
       try {
         const upstream = await fetchWithTimeout(audioUrl, {
           headers: {
