@@ -52,6 +52,7 @@ export default function YouTubeEmbed() {
   const isCrossfadingRef = useRef<boolean>(false);
   const retryAttemptRef = useRef<number>(0);
   const bufferingStartTimeRef = useRef<number>(0);
+  const ytBufferingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rampTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -273,47 +274,98 @@ export default function YouTubeEmbed() {
       nextTrack();
     };
 
-    let stallRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
+    let audioLoadingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let audioStallNudgeTimer: ReturnType<typeof setTimeout> | null = null;
+    let audioStallHardRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearAudioTimers = () => {
+      if (audioLoadingDebounceTimer) {
+        clearTimeout(audioLoadingDebounceTimer);
+        audioLoadingDebounceTimer = null;
+      }
+      if (audioStallNudgeTimer) {
+        clearTimeout(audioStallNudgeTimer);
+        audioStallNudgeTimer = null;
+      }
+      if (audioStallHardRecoveryTimer) {
+        clearTimeout(audioStallHardRecoveryTimer);
+        audioStallHardRecoveryTimer = null;
+      }
+    };
 
     const onWaiting = () => {
-      if (getActiveEngine() === 'audio') setIsLoading(true);
+      if (getActiveEngine() !== 'audio') return;
+      // Debounce loading indicator so transient network micro-buffers (e.g. 100-300ms) do NOT flash the UI
+      if (!audioLoadingDebounceTimer) {
+        audioLoadingDebounceTimer = setTimeout(() => {
+          if (getActiveEngine() === 'audio' && audio.readyState < 3) {
+            setIsLoading(true);
+          }
+        }, 450);
+      }
     };
 
     const onStalled = () => {
       if (getActiveEngine() !== 'audio') return;
-      if (usePlayerStore.getState().isPlaying) {
-        setIsLoading(true);
-        if (!stallRecoveryTimer) {
-          stallRecoveryTimer = setTimeout(() => {
-            stallRecoveryTimer = null;
-            if (
-              getActiveEngine() === 'audio' &&
-              usePlayerStore.getState().isPlaying &&
-              audio.readyState < 3
-            ) {
-              console.warn('[WaveCraft] Audio stream stalled, recovering via backup stream');
+      if (!usePlayerStore.getState().isPlaying) return;
+
+      if (!audioLoadingDebounceTimer) {
+        audioLoadingDebounceTimer = setTimeout(() => {
+          if (getActiveEngine() === 'audio' && audio.readyState < 3) {
+            setIsLoading(true);
+          }
+        }, 450);
+      }
+
+      // Step 1: After 2s of stalling, perform a gentle in-place buffer nudge to force HTTP range fetch
+      if (!audioStallNudgeTimer) {
+        audioStallNudgeTimer = setTimeout(() => {
+          audioStallNudgeTimer = null;
+          if (getActiveEngine() === 'audio' && usePlayerStore.getState().isPlaying && audio.readyState < 3) {
+            if (audio.paused) {
+              audio.play().catch(() => {});
+            } else {
+              const cur = audio.currentTime;
+              audio.currentTime = Math.max(0, cur + 0.01);
+              audio.play().catch(() => {});
+            }
+          }
+        }, 2000);
+      }
+
+      // Step 2: After 5.5s of persistent stall, re-load stream at current position
+      if (!audioStallHardRecoveryTimer) {
+        audioStallHardRecoveryTimer = setTimeout(() => {
+          audioStallHardRecoveryTimer = null;
+          if (getActiveEngine() === 'audio' && usePlayerStore.getState().isPlaying && audio.readyState < 3) {
+            console.warn('[WaveCraft] Persistent audio stall after 5.5s, reloading current stream segment');
+            const pos = audio.currentTime;
+            const currentSrc = audio.src;
+            if (currentSrc) {
+              audio.src = currentSrc;
+              audio.currentTime = pos;
+              audio.play().then(() => {
+                setIsLoading(false);
+              }).catch(() => {
+                onError();
+              });
+            } else {
               onError();
             }
-          }, 7000);
-        }
+          }
+        }, 5500);
       }
     };
 
     const onPlaying = () => {
-      if (stallRecoveryTimer) {
-        clearTimeout(stallRecoveryTimer);
-        stallRecoveryTimer = null;
-      }
+      clearAudioTimers();
       if (getActiveEngine() === 'audio') {
         setIsLoading(false);
       }
     };
 
     const onError = () => {
-      if (stallRecoveryTimer) {
-        clearTimeout(stallRecoveryTimer);
-        stallRecoveryTimer = null;
-      }
+      clearAudioTimers();
       if (getActiveEngine() !== 'audio') return;
       const cur = usePlayerStore.getState().currentTrack;
       const effectiveYtId =
@@ -327,10 +379,15 @@ export default function YouTubeEmbed() {
         window.ytPlayerReady &&
         (typeof navigator === 'undefined' || navigator.onLine)
       ) {
+        const curTime = audio.currentTime || 0;
         setActiveEngine('youtube');
         setIsLoading(true);
         if (usePlayerStore.getState().isPlaying) {
-          ytPlayer.loadVideoById?.(effectiveYtId);
+          try {
+            ytPlayer.loadVideoById?.({ videoId: effectiveYtId, startSeconds: curTime });
+          } catch {
+            ytPlayer.loadVideoById?.(effectiveYtId, curTime);
+          }
         } else {
           ytPlayer.cueVideoById?.(effectiveYtId);
         }
@@ -350,10 +407,7 @@ export default function YouTubeEmbed() {
     audio.addEventListener('error', onError);
 
     return () => {
-      if (stallRecoveryTimer) {
-        clearTimeout(stallRecoveryTimer);
-        stallRecoveryTimer = null;
-      }
+      clearAudioTimers();
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('timeupdate', onTimeUpdate);
@@ -472,6 +526,10 @@ export default function YouTubeEmbed() {
               trackTransitionIntentRef.current = true;
               usePlayerStore.getState().nextTrack();
             } else if (state === window.YT?.PlayerState?.PLAYING) {
+              if (ytBufferingDebounceTimerRef.current) {
+                clearTimeout(ytBufferingDebounceTimerRef.current);
+                ytBufferingDebounceTimerRef.current = null;
+              }
               isSwitchingTrackRef.current = false;
               trackTransitionIntentRef.current = false;
               userInitiatedPauseRef.current = false;
@@ -482,9 +540,6 @@ export default function YouTubeEmbed() {
               if (dur && dur > 0) {
                 usePlayerStore.getState().setDuration(dur);
               }
-              try {
-                e.target.setPlaybackQuality?.('small');
-              } catch {}
             } else if (state === window.YT?.PlayerState?.PAUSED) {
               // Ignore transient PAUSED event during track transition or when awaiting a new track
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
@@ -500,7 +555,14 @@ export default function YouTubeEmbed() {
               usePlayerStore.setState({ isPlaying: false, isLoading: false });
             } else if (state === window.YT?.PlayerState?.BUFFERING) {
               bufferingStartTimeRef.current = Date.now();
-              usePlayerStore.getState().setIsLoading(true);
+              // Debounce visual loading state so transient sub-second frame buffers don't cause UI flashing
+              if (!ytBufferingDebounceTimerRef.current) {
+                ytBufferingDebounceTimerRef.current = setTimeout(() => {
+                  if (bufferingStartTimeRef.current > 0) {
+                    usePlayerStore.getState().setIsLoading(true);
+                  }
+                }, 450);
+              }
             } else if (state === window.YT?.PlayerState?.CUED) {
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
                 return;
@@ -582,6 +644,10 @@ export default function YouTubeEmbed() {
         const player = getPlayer();
         player?.destroy?.();
       } catch {}
+      if (ytBufferingDebounceTimerRef.current) {
+        clearTimeout(ytBufferingDebounceTimerRef.current);
+        ytBufferingDebounceTimerRef.current = null;
+      }
       if (rampTimerRef.current) {
         clearInterval(rampTimerRef.current);
         rampTimerRef.current = null;
@@ -625,9 +691,6 @@ export default function YouTubeEmbed() {
       if (typeof ytPlayer.loadVideoById === 'function') {
         ytPlayer.loadVideoById(effectiveYtId);
       }
-      try {
-        ytPlayer.setPlaybackQuality?.('small');
-      } catch {}
 
       // Audiophile crossfade fade-in for YouTube streams
       if (crossfadeDuration > 0) {
@@ -697,6 +760,7 @@ export default function YouTubeEmbed() {
     setProgress(0, 0);
 
     audio.loop = false;
+    audio.preload = 'auto';
     if (audio.src !== targetUrl) {
       audio.src = targetUrl;
       audio.load();
@@ -1148,9 +1212,6 @@ export default function YouTubeEmbed() {
               activeLoadedYtIdRef.current = effectiveYtId;
               if (typeof ytPlayer.loadVideoById === 'function') {
                 ytPlayer.loadVideoById(effectiveYtId);
-                try {
-                  ytPlayer.setPlaybackQuality?.('small');
-                } catch {}
               }
             }
           } else if (typeof ytPlayer.pauseVideo === 'function') {
@@ -1253,16 +1314,37 @@ export default function YouTubeEmbed() {
           }
         }
 
-        // Smart Buffering Stall Watchdog: auto recover if stalled > 8.5s
-        if (
-          bufferingStartTimeRef.current > 0 &&
-          Date.now() - bufferingStartTimeRef.current > 8500
-        ) {
-          bufferingStartTimeRef.current = 0;
-          console.warn('[WaveCraft] Stream stalled in buffering for >8.5s, reconnecting stream...');
-          const cur = usePlayerStore.getState().currentTrack;
-          if (cur) {
-            startTrackPlayback(cur, true, false);
+        // Proactive Multi-Stage Buffering Stall Recovery Watchdog
+        if (bufferingStartTimeRef.current > 0) {
+          const stallMs = Date.now() - bufferingStartTimeRef.current;
+          // Tier 1 (after 2.2s): Gentle wake-up play kick
+          if (stallMs >= 2200 && stallMs < 3800) {
+            try { ytPlayer.playVideo?.(); } catch {}
+          }
+          // Tier 2 (after 4.0s): Unwedge buffer via in-place micro-seek without losing track position
+          else if (stallMs >= 4000 && stallMs < 6500) {
+            try {
+              const cur = ytPlayer.getCurrentTime?.() || 0;
+              ytPlayer.seekTo?.(Math.max(0, cur), true);
+              ytPlayer.playVideo?.();
+            } catch {}
+          }
+          // Tier 3 (after 7.0s): In-place soft-reload from current timestamp
+          else if (stallMs >= 7000) {
+            bufferingStartTimeRef.current = 0;
+            console.warn('[WaveCraft] Stream stalled in buffering for >7s, soft-reloading at current position...');
+            const curTrack = usePlayerStore.getState().currentTrack;
+            const curTime = ytPlayer.getCurrentTime?.() || 0;
+            const effectiveId =
+              activeLoadedYtIdRef.current ||
+              curTrack?.youtubeId ||
+              (curTrack?.id.startsWith('yt_') ? curTrack.id.replace('yt_', '') : '');
+
+            if (effectiveId && typeof ytPlayer.loadVideoById === 'function') {
+              ytPlayer.loadVideoById({ videoId: effectiveId, startSeconds: curTime });
+            } else if (curTrack) {
+              startTrackPlayback(curTrack, true, false);
+            }
           }
         }
       }
@@ -1286,13 +1368,13 @@ export default function YouTubeEmbed() {
       aria-hidden="true"
       style={{
         position: 'fixed',
-        bottom: 0,
-        right: 0,
+        top: '-9999px',
+        left: '-9999px',
         width: '320px',
         height: '180px',
-        opacity: 0.05,
+        opacity: 1,
         pointerEvents: 'none',
-        zIndex: -1,
+        zIndex: -9999,
         overflow: 'hidden'
       }}
     >

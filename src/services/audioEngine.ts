@@ -409,6 +409,11 @@ export function initAudioGraph(
   if (!audioCtx) {
     try {
       audioCtx = new Ctx({ latencyHint: 'playback' });
+      audioCtx.addEventListener('statechange', () => {
+        if (audioCtx && audioCtx.state === 'suspended' && usePlayerStore.getState().isPlaying) {
+          audioCtx.resume().catch(() => {});
+        }
+      });
       preGainNode = audioCtx.createGain();
       preGainNode.gain.value = 0.98;
 
