@@ -1,21 +1,26 @@
 ; Custom NSIS initialization for WaveCraft Pro Seamless Installer & Updater
 
 !macro customInit
-  ; Terminate any running or background tray instance of WaveCraft Pro before anything else
-  nsExec::Exec 'taskkill /F /IM "WaveCraft Pro.exe"'
-  nsExec::Exec 'taskkill /F /IM "${APP_EXECUTABLE_FILENAME}"'
-  Sleep 1000
+  ; Force terminate all active and background child processes of WaveCraft Pro before anything else
+  nsExec::Exec `"$SYSDIR\cmd.exe" /c taskkill /F /T /IM "WaveCraft Pro.exe" /IM "wavecraft.exe"`
+  nsExec::Exec `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -Command "Stop-Process -Name 'WaveCraft Pro', 'wavecraft' -Force -ErrorAction SilentlyContinue"`
+  Sleep 1200
 !macroend
 
 !macro customCheckAppRunning
-  ; Ensure no file-locking processes remain alive
-  nsExec::Exec 'taskkill /F /IM "WaveCraft Pro.exe"'
-  nsExec::Exec 'taskkill /F /IM "${APP_EXECUTABLE_FILENAME}"'
+  ; Ensure process tree is completely terminated so no files remain locked
+  nsExec::Exec `"$SYSDIR\cmd.exe" /c taskkill /F /T /IM "WaveCraft Pro.exe" /IM "wavecraft.exe"`
+  nsExec::Exec `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -Command "Stop-Process -Name 'WaveCraft Pro', 'wavecraft' -Force -ErrorAction SilentlyContinue"`
   Sleep 1000
 !macroend
 
+!macro customUnInit
+  ; Ensure uninstaller also terminates running processes cleanly
+  nsExec::Exec `"$SYSDIR\cmd.exe" /c taskkill /F /T /IM "WaveCraft Pro.exe" /IM "wavecraft.exe"`
+  Sleep 500
+!macroend
+
 !macro customUnInstallCheck
-  ; Seamlessly allow update to proceed even if prior version uninstaller reported a non-critical exit code
   ClearErrors
 !macroend
 
