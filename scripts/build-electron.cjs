@@ -4,6 +4,12 @@ const path = require('path');
 const rootDir = path.resolve(__dirname, '..');
 const args = process.argv.slice(2).join(' ') || '--win nsis';
 
+console.log('Ensuring standardized website icons are generated...');
+execSync('node ./scripts/generate-standard-icons.cjs', {
+  cwd: rootDir,
+  stdio: 'inherit'
+});
+
 console.log('Building Electron bundle (base: "./")...');
 execSync('node ./node_modules/vite/bin/vite.js build', {
   cwd: rootDir,
