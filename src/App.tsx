@@ -108,6 +108,7 @@ const DJConsolePage = lazyWithRetry(() => import('./components/dj/DJConsolePage'
 const SonicGalaxyPage = lazyWithRetry(() => import('./components/galaxy/SonicGalaxyPage'));
 const LandingPage = lazyWithRetry(() => import('./components/landing/LandingPage'));
 const DownloadsPage = lazyWithRetry(() => import('./components/library/DownloadsPage'));
+const ArtistPage = lazyWithRetry(() => import('./components/artist/ArtistPage'));
 
 const isElectronOrFile =
   typeof window !== 'undefined' &&
@@ -222,6 +223,7 @@ function AppContent() {
         <Route path="/liked" element={<LikedSongs />} />
         <Route path="/recent" element={<RecentlyPlayed />} />
         <Route path="/playlist/:id" element={<PlaylistView />} />
+        <Route path="/artist/:name" element={<ArtistPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

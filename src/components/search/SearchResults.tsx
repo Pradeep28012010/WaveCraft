@@ -745,7 +745,7 @@ export default function SearchResults() {
                         key={artist.id}
                         padding="md"
                         hover
-                        onClick={() => handleQuickSearch(artist.name)}
+                        onClick={() => navigate(`/artist/${encodeURIComponent(artist.name)}`)}
                         className="flex flex-col items-center text-center group cursor-pointer"
                       >
                         <div className="w-28 h-28 rounded-full overflow-hidden mb-3 relative shadow-xl border border-white/15">
