@@ -67,7 +67,7 @@ export default function WindowsTitleBar() {
   };
 
   return (
-    <header className="relative z-50 h-9 w-full bg-[#06060b]/90 border-b border-white/[0.08] backdrop-blur-xl flex items-center justify-between select-none app-region-drag flex-shrink-0">
+    <header className="relative z-50 h-9 w-full bg-[#06060b]/90 backdrop-blur-xl flex items-center justify-between select-none app-region-drag flex-shrink-0">
       {/* Left: Branding & Windows Edition Pill */}
       <div className="flex items-center gap-2.5 px-3">
         {/* Flame / Purple Wave Logo Icon */}
