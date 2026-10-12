@@ -75,6 +75,8 @@ export default function YouTubeEmbed() {
   const eqBands = useSettingsStore((s) => s.equalizerBands);
   const autoplay = useSettingsStore((s) => s.autoplay);
   const crossfadeDuration = useSettingsStore((s) => s.crossfadeDuration || s.crossfade || 0);
+  const crossfadeDurationRef = useRef(crossfadeDuration);
+  crossfadeDurationRef.current = crossfadeDuration;
   const loudnessNormalization = useSettingsStore((s) => s.loudnessNormalization ?? true);
   const offlineModeOnly = useSettingsStore((s) => s.offlineModeOnly ?? false);
   const fxMode = useStudioStore((s) => s.fxMode);
@@ -155,6 +157,7 @@ export default function YouTubeEmbed() {
       const st = useStudioStore.getState();
       if (!st.sleepActive || st.sleepEndAtTrack) return;
       if (st.sleepSeconds <= 1) {
+        clearInterval(id);
         st.tickSleepTimer();
         usePlayerStore.getState().pause();
         const restoreVol = usePlayerStore.getState().isMuted ? 0 : usePlayerStore.getState().volume;
@@ -234,20 +237,21 @@ export default function YouTubeEmbed() {
       }
 
       // Smooth audio crossfading transition near track completion
+      const activeCrossfade = crossfadeDurationRef.current;
       if (
-        crossfadeDuration > 0 &&
+        activeCrossfade > 0 &&
         dur > 15 &&
-        cur >= dur - crossfadeDuration &&
+        cur >= dur - activeCrossfade &&
         !isCrossfadingRef.current &&
         !trackTransitionIntentRef.current
       ) {
         isCrossfadingRef.current = true;
-        setSmoothOutputGain(audio, 0, crossfadeDuration * 0.7);
-        triggerFrequencyCarvedTransition(crossfadeDuration);
+        setSmoothOutputGain(audio, 0, activeCrossfade * 0.7);
+        triggerFrequencyCarvedTransition(activeCrossfade);
         setTimeout(() => {
           trackTransitionIntentRef.current = true;
           usePlayerStore.getState().nextTrack();
-        }, Math.min(3000, crossfadeDuration * 750));
+        }, Math.min(3000, activeCrossfade * 750));
       }
     };
 
@@ -261,32 +265,15 @@ export default function YouTubeEmbed() {
       }
       const pState = usePlayerStore.getState();
       if (pState.repeatMode === 'one') {
+        lastRecordedTrackId.current = null;
+        usePlayerStore.setState({ progress: 0, currentTime: 0 });
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        audio.play().catch(() => {
+          usePlayerStore.setState({ isPlaying: false, isLoading: false });
+        });
         return;
       }
-      if (
-        pState.repeatMode === 'off' &&
-        pState.queueIndex >= pState.queue.length - 1 &&
-        useSettingsStore.getState().autoplay &&
-        pState.currentTrack
-      ) {
-        getSmartRecommendations(pState.currentTrack, pState.queue, 8)
-          .then((recs) => {
-            if (recs.length > 0) {
-              const existingIds = new Set(usePlayerStore.getState().queue.map((t) => t.id));
-              const fresh = recs.filter((t) => !existingIds.has(t.id));
-              fresh.forEach((t) => usePlayerStore.getState().addToQueue(t));
-              usePlayerStore.getState().nextTrack();
-            } else {
-              nextTrack();
-            }
-          })
-          .catch(() => {
-            nextTrack();
-          });
-        return;
-      }
+      // Delegate advancing queue and autoplay recommendations directly to playerStore
       nextTrack();
     };
 
@@ -561,6 +548,10 @@ export default function YouTubeEmbed() {
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
                 return;
               }
+              // If page/webview is hidden, do NOT fight with Chromium background suspension
+              if (typeof document !== 'undefined' && document.hidden) {
+                return;
+              }
               // If user did NOT initiate the pause, this is a transient YouTube buffering or browser focus hiccup: auto-resume!
               if (!userInitiatedPauseRef.current) {
                 try {
@@ -674,12 +665,12 @@ export default function YouTubeEmbed() {
 
   // Helper to fallback or play on YouTube IFrame
   const fallbackToYouTube = (_track: Track, effectiveYtId: string, shouldPlay: boolean) => {
+    setActiveEngine('youtube');
     const audio = audioRef.current;
     if (audio) {
       try { audio.pause(); } catch {}
       audio.src = '';
     }
-    setActiveEngine('youtube');
     const ytPlayer = getPlayer();
     if (!ytPlayer || !window.ytPlayerReady) {
       activeLoadedYtIdRef.current = effectiveYtId;
@@ -838,6 +829,15 @@ export default function YouTubeEmbed() {
       trackTransitionIntentRef.current = true;
       userInitiatedPauseRef.current = false;
 
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+        fadeIntervalRef.current = null;
+      }
+      if (rampTimerRef.current) {
+        clearInterval(rampTimerRef.current);
+        rampTimerRef.current = null;
+      }
+
       // Cleanly and immediately silence both engines to prevent prior song bleed
       if (audio) {
         try { audio.pause(); } catch {}
@@ -926,9 +926,43 @@ export default function YouTubeEmbed() {
         (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
         (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
-      // 3. YouTube Direct Playback: If this track originated from YouTube search, trending, or a playlist,
-      // play the EXACT YouTube video the user selected! Do NOT hijack it with a generic title-matched Saavn stream.
+      // 3. YouTube Direct Playback:
+      // On Android native APK, HTML5 direct audio is REQUIRED for continuous background playback
+      // (as YouTube video iframes are suspended by Android OS Chromium when the app is minimized).
       if (effectiveYtId) {
+        if (isAndroidNative() && audio) {
+          setIsLoading(true);
+          resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
+            .then((resolvedUrl) => {
+              if (resolveToken !== resolvingTokenRef.current) return;
+              if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+              if (resolvedUrl && !isAudioPreviewUrl(resolvedUrl)) {
+                track.audioUrl = resolvedUrl;
+                track.quality = '320kbps Studio AAC';
+                usePlayerStore.setState((s) => ({
+                  currentTrack:
+                    s.currentTrack?.id === track.id
+                      ? { ...s.currentTrack, audioUrl: resolvedUrl, quality: '320kbps Studio AAC' }
+                      : s.currentTrack,
+                  queue: s.queue.map((t) =>
+                    t.id === track.id
+                      ? { ...t, audioUrl: resolvedUrl, quality: '320kbps Studio AAC' }
+                      : t
+                  )
+                }));
+                playNativeAudio(resolvedUrl, shouldPlay);
+              } else {
+                fallbackToYouTube(track, effectiveYtId, shouldPlay);
+              }
+            })
+            .catch(() => {
+              if (resolveToken !== resolvingTokenRef.current) return;
+              fallbackToYouTube(track, effectiveYtId, shouldPlay);
+            });
+          return;
+        }
+
+        // On laptop / desktop browsers, preserve the standard YouTube direct playback
         fallbackToYouTube(track, effectiveYtId, shouldPlay);
         return;
       }
@@ -1001,9 +1035,14 @@ export default function YouTubeEmbed() {
         if (!best && cleanTitle && cleanTitle !== primaryQuery) {
           try {
             const fallbackResults = await searchTracks(cleanTitle);
+            if (token !== resolvingTokenRef.current) return;
+            if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
             best = findStrictTrackMatch(track.title, track.artist, fallbackResults, track.duration);
           } catch {}
         }
+
+        if (token !== resolvingTokenRef.current) return;
+        if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
         const resolved = best || (results.length > 0 ? results[0] : null);
 
@@ -1064,7 +1103,7 @@ export default function YouTubeEmbed() {
     const isDifferentTrack = currentTrackIdRef.current !== currentTrack.id;
     currentTrackIdRef.current = currentTrack.id;
 
-    if (isDifferentTrack && lastRecordedTrackId.current !== currentTrack.id) {
+    if (isDifferentTrack || lastRecordedTrackId.current !== currentTrack.id) {
       lastRecordedTrackId.current = currentTrack.id;
       const lib = useLibraryStore.getState();
       lib.addToRecentlyPlayed(currentTrack);
@@ -1090,16 +1129,26 @@ export default function YouTubeEmbed() {
       // If user clicked the same track to replay from start (progress & currentTime reset to 0)
       if (usePlayerStore.getState().currentTime === 0 && usePlayerStore.getState().progress === 0 && shouldPlay) {
         seekToTime(0);
-        if (audioRef.current && getActiveEngine() === 'audio') {
+        const engine = getActiveEngine();
+        if (engine === 'audio' && audioRef.current?.src) {
           audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => {});
-        }
-        const yt = getPlayer();
-        if (yt && getActiveEngine() === 'youtube') {
-          try {
-            yt.seekTo?.(0, true);
-            yt.playVideo?.();
-          } catch {}
+          audioRef.current.play().catch(() => {
+            startTrackPlayback(currentTrack, shouldPlay, true);
+          });
+        } else if (engine === 'youtube') {
+          const yt = getPlayer();
+          if (yt && window.ytPlayerReady) {
+            try {
+              yt.seekTo?.(0, true);
+              yt.playVideo?.();
+            } catch {
+              startTrackPlayback(currentTrack, shouldPlay, true);
+            }
+          } else {
+            startTrackPlayback(currentTrack, shouldPlay, true);
+          }
+        } else {
+          startTrackPlayback(currentTrack, shouldPlay, true);
         }
       }
       return;
@@ -1259,6 +1308,7 @@ export default function YouTubeEmbed() {
 
     if (isPlaying && currentTrack && getActiveEngine() === 'youtube') {
       anchor.volume = 0.001;
+      anchor.loop = true;
       if (!anchor.src || !anchor.src.startsWith('data:audio/wav')) {
         anchor.src = SILENT_AUDIO_URI;
       }
@@ -1270,6 +1320,47 @@ export default function YouTubeEmbed() {
         anchor.pause();
       }
     }
+  }, [isPlaying, currentTrack]);
+
+  // Seamless Background Continuity Handoff:
+  // If the app is minimized/hidden while active on YouTube iframe (e.g. on mobile browsers or backgrounded APK),
+  // seamlessly hand off to HTML5 direct audio so playback continues without stopping!
+  useEffect(() => {
+    const handleVisibilityOrBackground = () => {
+      if (typeof document === 'undefined') return;
+      if (document.hidden && getActiveEngine() === 'youtube' && isPlaying && currentTrack) {
+        const curTime = usePlayerStore.getState().currentTime || 0;
+        const effectiveId =
+          currentTrack.youtubeId ||
+          (currentTrack.id.startsWith('yt_') ? currentTrack.id.replace('yt_', '') : '') ||
+          (currentTrack.id.startsWith('yt-') ? currentTrack.id.replace('yt-', '') : '');
+
+        resolveDirectAudio(currentTrack.title, currentTrack.artist, currentTrack.duration, effectiveId)
+          .then((resolvedUrl) => {
+            if (!resolvedUrl || usePlayerStore.getState().currentTrack?.id !== currentTrack.id) return;
+            const audio = audioRef.current;
+            if (audio) {
+              const ytPlayer = getPlayer();
+              try { ytPlayer?.pauseVideo?.(); } catch {}
+              setActiveEngine('audio');
+              audio.loop = false;
+              audio.preload = 'auto';
+              if (audio.src !== resolvedUrl) {
+                audio.src = resolvedUrl;
+              }
+              audio.currentTime = curTime;
+              resumeAudioContextIfNeeded();
+              audio.play().catch(() => {});
+            }
+          })
+          .catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrBackground);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrBackground);
+    };
   }, [isPlaying, currentTrack]);
 
   // Sync Volume & Mute with Audiophile Loudness Normalization

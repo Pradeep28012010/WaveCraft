@@ -124,6 +124,10 @@ export default function TopBar() {
       ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
       : hasActiveAmbient
       ? 'Ambient Mix'
+      : sleepActive
+      ? 'Sleep Timer'
+      : pomodoroActive
+      ? 'Pomodoro'
       : 'Studio FX';
 
   const [isOnline, setIsOnline] = useState(() =>

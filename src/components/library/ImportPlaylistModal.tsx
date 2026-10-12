@@ -131,7 +131,7 @@ export default function ImportPlaylistModal({
     let completed = 0;
     let addedSoFar = 0;
     const matchedFingerprints: string[] = [];
-    const batchSize = 8;
+    const batchSize = 5;
 
     for (let i = 0; i < queries.length; i += batchSize) {
       if (abortRef.current) break;
@@ -214,6 +214,11 @@ export default function ImportPlaylistModal({
       setStatusText(
         `Matched ${addedSoFar} of ${queries.length} songs (${Math.min(completed, queries.length)} scanned)...`
       );
+
+      // Brief pacing delay between batches to respect network rate limits
+      if (i + batchSize < queries.length && !abortRef.current) {
+        await new Promise((r) => setTimeout(r, 120));
+      }
     }
 
     if (extraMeta?.sourceUrl) {

@@ -212,7 +212,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const addToPlaylist = useLibraryStore((s) => s.addToPlaylist);
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isCurrentLiked = useLibraryStore((s) =>
-    currentTrack ? s.likedSongs.some((t) => t.id === currentTrack.id) : false
+    currentTrack ? Boolean(s.likedIds[currentTrack.id]) : false
   );
   const { isPhone } = useDevicePreset();
 

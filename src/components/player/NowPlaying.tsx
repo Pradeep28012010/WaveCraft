@@ -893,41 +893,29 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     !isPhone && showLyrics ? 'lg:col-span-5 max-w-md mx-auto' : 'max-w-lg'
                   }`}
                 >
-                  {/* On Phone: When Lyrics Active, Lyrics takes the Center Stage; Otherwise Album Art / Turntable */}
+                  {/* On Phone: When Lyrics Active, Lyrics takes the Center Stage with fluid full-height layout */}
                   {isPhone && showLyrics ? (
                     <motion.div
                       key="mobile-lyrics-stage"
-                      initial={{ opacity: 0, scale: 0.96 }}
+                      initial={{ opacity: 0, scale: 0.97 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
+                      exit={{ opacity: 0, scale: 0.97 }}
                       transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-                      className="w-full h-[36vh] min-h-[230px] max-h-[360px] rounded-2xl liquid-glass overflow-hidden my-auto flex flex-col shadow-2xl border border-white/20"
+                      className="w-full h-[46vh] min-h-[300px] max-h-[460px] my-auto flex flex-col will-change-transform"
                     >
-                      <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/10 bg-white/[0.04] flex-shrink-0">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--color-accent)] flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
-                          <span>SYNCHRONIZED LYRICS</span>
-                        </span>
-                        <button
-                          onClick={() => {
-                            triggerAndroidHaptic('light');
-                            setShowLyrics(false);
-                          }}
-                          className="px-2.5 py-0.5 rounded-full text-[10px] font-bold glass-button text-white/80 hover:text-white cursor-pointer active:scale-95"
-                        >
-                          Show Art ✕
-                        </button>
-                      </div>
-                      <div className="flex-1 min-h-0">
-                        <LyricsView
-                          artist={currentTrack.artist}
-                          title={currentTrack.title}
-                          onShareLyric={(quote) => {
-                            setWaveCardQuote(quote);
-                            setShowWaveCard(true);
-                          }}
-                        />
-                      </div>
+                      <LyricsView
+                        artist={currentTrack.artist}
+                        title={currentTrack.title}
+                        headerTitle="SYNCHRONIZED LYRICS"
+                        onClose={() => {
+                          triggerAndroidHaptic('light');
+                          setShowLyrics(false);
+                        }}
+                        onShareLyric={(quote) => {
+                          setWaveCardQuote(quote);
+                          setShowWaveCard(true);
+                        }}
+                      />
                     </motion.div>
                   ) : deckMode === 'vinyl' ? (
                     <div

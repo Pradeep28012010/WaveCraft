@@ -50,7 +50,10 @@ function loadPlayerSessionSync(): PersistedPlayerSession {
           ? Math.max(0, Math.min(1, parsed.volume))
           : defaults.volume,
       isMuted: typeof parsed.isMuted === 'boolean' ? parsed.isMuted : false,
-      repeatMode: 'off',
+      repeatMode:
+        parsed.repeatMode && ['off', 'all', 'one'].includes(parsed.repeatMode)
+          ? parsed.repeatMode
+          : 'off',
       isShuffled: typeof parsed.isShuffled === 'boolean' ? parsed.isShuffled : false,
       playbackSpeed:
         typeof parsed.playbackSpeed === 'number' ? parsed.playbackSpeed : 1,
@@ -231,14 +234,22 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
               const track = state.currentTrack;
               getSmartRecommendations(track, get().queue, 8)
                 .then((recommended) => {
-                  const currentQ = get().queue;
+                  const currentStore = get();
+                  // Guard against zombie overwrite: check if user hasn't already switched tracks
+                  if (
+                    currentStore.currentTrack?.id !== track.id ||
+                    currentStore.queueIndex < currentStore.queue.length - 1
+                  ) {
+                    return;
+                  }
+                  const currentQ = currentStore.queue;
                   const existingIds = new Set(currentQ.map((t) => t.id));
                   const fresh = recommended.filter((t) => !existingIds.has(t.id));
                   if (fresh.length > 0) {
                     const newQueue = [...currentQ, ...fresh];
                     set({
                       queue: newQueue,
-                      originalQueue: [...get().originalQueue, ...fresh],
+                      originalQueue: [...currentStore.originalQueue, ...fresh],
                       currentTrack: fresh[0],
                       queueIndex: currentQ.length,
                       progress: 0,
@@ -324,7 +335,12 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     savePlayerSessionSync(get());
   },
   toggleMute: () => {
-    set((state) => ({ isMuted: !state.isMuted }));
+    set((state) => {
+      const nextMuted = !state.isMuted;
+      // If unmuting when volume is 0, restore to an audible level (0.25)
+      const nextVolume = !nextMuted && state.volume === 0 ? 0.25 : state.volume;
+      return { isMuted: nextMuted, volume: nextVolume };
+    });
     savePlayerSessionSync(get());
   },
 
@@ -407,12 +423,21 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   removeFromQueue: (index) => {
     set((state) => {
       const newQueue = [...state.queue];
-      const removed = newQueue.splice(index, 1)[0];
-      const newOriginalQueue = state.originalQueue.filter((t) => t.id !== removed?.id);
+      const [removed] = newQueue.splice(index, 1);
+      if (!removed) return state;
+
+      // Find the specific instance in originalQueue rather than wiping all instances with same ID
+      const newOriginalQueue = [...state.originalQueue];
+      const origIndex = newOriginalQueue.findIndex((t) => t.id === removed.id);
+      if (origIndex !== -1) {
+        newOriginalQueue.splice(origIndex, 1);
+      }
 
       let newIndex = state.queueIndex;
       if (index < state.queueIndex) {
         newIndex--;
+      } else if (index === state.queueIndex) {
+        newIndex = Math.min(newIndex, newQueue.length - 1);
       }
 
       return {
@@ -428,7 +453,18 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     set((state) => {
       const newQueue = [...state.queue];
       const [moved] = newQueue.splice(fromIndex, 1);
+      if (!moved) return state;
       newQueue.splice(toIndex, 0, moved);
+
+      // Also maintain originalQueue in sync if shuffle is off
+      let newOriginalQueue = state.originalQueue;
+      if (!state.isShuffled) {
+        newOriginalQueue = [...state.originalQueue];
+        const [origMoved] = newOriginalQueue.splice(fromIndex, 1);
+        if (origMoved) {
+          newOriginalQueue.splice(toIndex, 0, origMoved);
+        }
+      }
 
       let newIndex = state.queueIndex;
       if (state.queueIndex === fromIndex) {
@@ -439,7 +475,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         newIndex++;
       }
 
-      return { queue: newQueue, queueIndex: newIndex };
+      return { queue: newQueue, originalQueue: newOriginalQueue, queueIndex: newIndex };
     });
     savePlayerSessionSync(get());
   },

@@ -330,8 +330,16 @@ export default async function handler(req, res) {
         res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mp4');
         const length = upstream.headers.get('content-length');
         if (length) res.setHeader('Content-Length', length);
-        const arrayBuf = await upstream.arrayBuffer();
-        return res.status(200).send(Buffer.from(arrayBuf));
+
+        if (upstream.body && typeof upstream.body.getReader === 'function') {
+          const { Readable } = await import('node:stream');
+          res.status(200);
+          Readable.fromWeb(upstream.body).pipe(res);
+          return;
+        } else {
+          const arrayBuf = await upstream.arrayBuffer();
+          return res.status(200).send(Buffer.from(arrayBuf));
+        }
       } catch (err) {
         return res.status(500).json({ error: err.message });
       }

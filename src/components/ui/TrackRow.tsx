@@ -260,6 +260,10 @@ const TrackRow = memo(({
     if ((e as React.MouseEvent).shiftKey) return;
     e.preventDefault();
     e.stopPropagation();
+    if (didLongPressRef.current) {
+      didLongPressRef.current = false;
+      return;
+    }
     triggerAndroidHaptic('medium');
     if (onContextMenu) {
       onContextMenu(e, track);

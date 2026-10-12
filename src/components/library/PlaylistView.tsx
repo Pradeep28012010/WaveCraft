@@ -85,22 +85,27 @@ export default function PlaylistView() {
   useEffect(() => {
     if (!playlist || !playlist.isLiveSync || !playlist.sourceUrl) return;
 
+    let isCancelled = false;
     const intervalMs = Math.max(5, playlist.syncIntervalMinutes || 15) * 60 * 1000;
     const elapsed = Date.now() - (playlist.lastSyncedAt || 0);
 
     if (elapsed > intervalMs) {
       syncLivePlaylist(playlist.id, (status, pct) => {
-        setSyncStatusText(status);
-        setSyncProgressPct(pct);
+        if (!isCancelled) {
+          setSyncStatusText(status);
+          setSyncProgressPct(pct);
+        }
       }).then((res) => {
-        setSyncStatusText('');
-        setSyncProgressPct(0);
-        if (res.added > 0 || res.removed > 0) {
-          setSyncResultBanner(
-            `Live Sync complete: +${res.added} new song${res.added === 1 ? '' : 's'} added${
-              res.removed > 0 ? `, ${res.removed} removed` : ''
-            }`
-          );
+        if (!isCancelled) {
+          setSyncStatusText('');
+          setSyncProgressPct(0);
+          if (res.added > 0 || res.removed > 0) {
+            setSyncResultBanner(
+              `Live Sync complete: +${res.added} new song${res.added === 1 ? '' : 's'} added${
+                res.removed > 0 ? `, ${res.removed} removed` : ''
+              }`
+            );
+          }
         }
       });
     }
@@ -109,7 +114,10 @@ export default function PlaylistView() {
       syncLivePlaylist(playlist.id);
     }, intervalMs);
 
-    return () => clearInterval(timer);
+    return () => {
+      isCancelled = true;
+      clearInterval(timer);
+    };
   }, [playlist?.id, playlist?.isLiveSync, playlist?.sourceUrl, playlist?.syncIntervalMinutes]);
 
   if (!playlist) {

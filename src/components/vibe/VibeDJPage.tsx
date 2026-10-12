@@ -145,7 +145,7 @@ export default function VibeDJPage() {
   };
 
   return (
-    <div className="p-3 sm:p-8 max-w-6xl mx-auto space-y-8 pb-44 sm:pb-32 select-none overflow-x-hidden">
+    <div className="p-3.5 sm:p-8 max-w-6xl mx-auto space-y-7 pb-64 sm:pb-36 select-none overflow-x-hidden">
       {/* Hero Studio Soundstage Banner */}
       <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-4 sm:p-8 md:p-10 shadow-2xl">
         <div
@@ -170,23 +170,35 @@ export default function VibeDJPage() {
           </p>
 
           {/* AI Vibe Prompt Input */}
-          <form onSubmit={handleFormSubmit} className="mt-6 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder='e.g. "late night synthwave", "gym phonk", "cozy acoustic"...'
-                className="flex-1 h-14 px-5 rounded-2xl bg-black/50 border border-white/20 text-white placeholder-white/40 text-sm sm:text-base focus:outline-none focus:border-[var(--color-accent)] transition-all shadow-inner min-w-0"
-              />
+          <form onSubmit={handleFormSubmit} className="mt-5 sm:mt-6 space-y-3.5">
+            <div className="relative flex flex-col sm:flex-row gap-2.5 sm:gap-3 p-1.5 rounded-2xl bg-black/40 backdrop-blur-2xl border border-white/15 focus-within:border-[var(--color-accent)]/80 focus-within:ring-2 focus-within:ring-[var(--color-accent)]/20 shadow-2xl transition-all">
+              <div className="flex-1 flex items-center min-w-0 px-3 h-12 sm:h-13 gap-2.5">
+                <span className="text-base text-[var(--color-accent)] select-none">✨</span>
+                <input
+                  type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder='e.g. "late night synthwave", "gym phonk", "cozy acoustic"...'
+                  className="flex-1 bg-transparent text-white placeholder-white/40 text-xs sm:text-base focus:outline-none min-w-0"
+                />
+                {prompt && (
+                  <button
+                    type="button"
+                    onClick={() => setPrompt('')}
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white/40 hover:text-white bg-white/10 text-xs cursor-pointer flex-shrink-0 transition-colors"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
               <button
                 type="submit"
                 disabled={isGenerating || !prompt.trim()}
-                className="h-14 px-8 rounded-2xl glass-button-primary text-white font-extrabold text-sm sm:text-base cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2.5 flex-shrink-0 shadow-lg"
+                className="h-11 sm:h-13 px-6 sm:px-8 rounded-xl glass-button-primary text-white font-extrabold text-xs sm:text-sm cursor-pointer disabled:opacity-40 flex items-center justify-center gap-2 flex-shrink-0 shadow-lg active:scale-98 transition-all"
               >
                 {isGenerating ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     <span>Sequencing Set...</span>
                   </>
                 ) : (
@@ -197,8 +209,26 @@ export default function VibeDJPage() {
               </button>
             </div>
 
+            {/* Quick Inspiration Preset Chips */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              <span className="text-[11px] font-bold text-white/40 uppercase tracking-wider flex-shrink-0">
+                Quick Vibes:
+              </span>
+              {INSPIRATIONAL_PRESETS.slice(0, 5).map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handlePresetSelect(preset)}
+                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-white/20 text-white/80 hover:text-white whitespace-nowrap cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 flex-shrink-0"
+                >
+                  <span>{preset.emoji}</span>
+                  <span>{preset.title}</span>
+                </button>
+              ))}
+            </div>
+
             {/* Studio Options Row */}
-            <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
+            <div className="flex items-center justify-between flex-wrap gap-3 pt-0.5">
               <label className="inline-flex items-center gap-2.5 text-xs text-white/70 cursor-pointer select-none">
                 <input
                   type="checkbox"

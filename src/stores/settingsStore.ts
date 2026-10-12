@@ -81,14 +81,21 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
   return {
     theme: state.theme,
     accentColor: state.accentColor,
-    crossfadeDuration: state.crossfadeDuration,
+    crossfadeDuration:
+      typeof state.crossfadeDuration === 'number'
+        ? state.crossfadeDuration
+        : typeof (state as any).crossfade === 'number'
+          ? (state as any).crossfade
+          : 0,
     audioQuality: state.audioQuality,
     showVisualizer: state.showVisualizer,
     visualizerStyle: state.visualizerStyle,
-    equalizerPreset: state.equalizerPreset,
+    equalizerPreset: state.equalizerPreset || (state as any).eqPreset || 'Flat',
     equalizerBands: Array.isArray(state.equalizerBands)
       ? [...state.equalizerBands]
-      : [...defaultSettings.equalizerBands],
+      : Array.isArray((state as any).eqBands)
+        ? [...(state as any).eqBands]
+        : [...defaultSettings.equalizerBands],
     autoplay: state.autoplay,
     showLyrics: state.showLyrics,
     language: state.language,

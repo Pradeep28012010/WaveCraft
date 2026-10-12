@@ -557,10 +557,12 @@ export function initAudioGraph(
       sideWidthGain.connect(sideInvertR);
       sideInvertR.connect(msMerger, 0, 1);
 
-      spatialHeadShadowFilter = audioCtx.createBiquadFilter();
-      spatialHeadShadowFilter.type = 'lowpass';
-      spatialHeadShadowFilter.frequency.value = 20000;
-      spatialHeadShadowFilter.Q.value = 0.707;
+      if (!spatialHeadShadowFilter) {
+        spatialHeadShadowFilter = audioCtx.createBiquadFilter();
+        spatialHeadShadowFilter.type = 'lowpass';
+        spatialHeadShadowFilter.frequency.value = 20000;
+        spatialHeadShadowFilter.Q.value = 0.707;
+      }
 
       if (stereoPanner) {
         msMerger.connect(stereoPanner);
@@ -893,32 +895,36 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
     }
 
     // 2. Live Concert Stadium Arena — crowd ambiance only (no synthetic sub-bass oscillator)
-    arenaAcousticsGain = ctx.createGain();
-    arenaAcousticsGain.gain.value = 0;
+    if (!arenaAcousticsGain) {
+      arenaAcousticsGain = ctx.createGain();
+      arenaAcousticsGain.gain.value = 0;
+    }
 
-    const crowdBuffer = createCrowdArenaBuffer(ctx);
-    arenaCrowdSource = ctx.createBufferSource();
-    arenaCrowdSource.buffer = crowdBuffer;
-    arenaCrowdSource.loop = true;
+    if (!arenaCrowdSource) {
+      const crowdBuffer = createCrowdArenaBuffer(ctx);
+      arenaCrowdSource = ctx.createBufferSource();
+      arenaCrowdSource.buffer = crowdBuffer;
+      arenaCrowdSource.loop = true;
 
-    const crowdHP = ctx.createBiquadFilter();
-    crowdHP.type = 'highpass';
-    crowdHP.frequency.value = 320;
+      const crowdHP = ctx.createBiquadFilter();
+      crowdHP.type = 'highpass';
+      crowdHP.frequency.value = 320;
 
-    const crowdLP = ctx.createBiquadFilter();
-    crowdLP.type = 'lowpass';
-    crowdLP.frequency.value = 3500;
+      const crowdLP = ctx.createBiquadFilter();
+      crowdLP.type = 'lowpass';
+      crowdLP.frequency.value = 3500;
 
-    const crowdGain = ctx.createGain();
-    crowdGain.gain.value = 0.36;
+      const crowdGain = ctx.createGain();
+      crowdGain.gain.value = 0.36;
 
-    arenaCrowdSource.connect(crowdHP);
-    crowdHP.connect(crowdLP);
-    crowdLP.connect(crowdGain);
-    crowdGain.connect(arenaAcousticsGain);
-    arenaCrowdSource.start();
+      arenaCrowdSource.connect(crowdHP);
+      crowdHP.connect(crowdLP);
+      crowdLP.connect(crowdGain);
+      crowdGain.connect(arenaAcousticsGain);
+      arenaCrowdSource.start();
 
-    arenaAcousticsGain.connect(analyserNode || ctx.destination);
+      arenaAcousticsGain.connect(analyserNode || ctx.destination);
+    }
 
     // 3. Sentinel gain nodes for guard-check (no synthetic oscillators or noise buffers).
     //    Real sub-bass boost: subBassRackNode (lowshelf 54Hz on actual music in main chain).

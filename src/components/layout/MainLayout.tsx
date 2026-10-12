@@ -151,6 +151,7 @@ export default function MainLayout() {
             <GradualBlur
               target="parent"
               position="top"
+              className="pointer-events-none"
               height={isPhone ? '0.75rem' : '2.25rem'}
               strength={isPhone ? 0.8 : 1.5}
               divCount={isPhone ? 3 : 5}
@@ -163,6 +164,7 @@ export default function MainLayout() {
             <GradualBlur
               target="parent"
               position="bottom"
+              className="pointer-events-none"
               height={hasCurrentTrack ? (isPhone ? '4.5rem' : '3.5rem') : '1.5rem'}
               strength={1.5}
               divCount={5}

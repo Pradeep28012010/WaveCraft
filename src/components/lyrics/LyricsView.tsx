@@ -17,6 +17,8 @@ interface LyricsViewProps {
   title?: string;
   isFullScreen?: boolean;
   onShareLyric?: (quote: string) => void;
+  onClose?: () => void;
+  headerTitle?: string;
 }
 
 const formatTimestamp = (seconds: number) => (seconds < 0 || isNaN(seconds) ? '' : formatTime(seconds));
@@ -242,7 +244,7 @@ const LyricRow = memo(
 );
 LyricRow.displayName = 'LyricRow';
 
-export default function LyricsView({ artist, title, onShareLyric }: LyricsViewProps) {
+export default function LyricsView({ artist, title, onShareLyric, onClose, headerTitle }: LyricsViewProps) {
   const [result, setResult] = useState<LyricsResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userScrolling, setUserScrolling] = useState(false);
@@ -519,11 +521,18 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
   return (
     <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
       {/* Clean Lyrics Header */}
-      <div className="h-14 px-5 flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.025] backdrop-blur-xl flex-shrink-0 z-20">
+      <div className="h-12 sm:h-14 px-4 sm:px-5 flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.03] backdrop-blur-xl flex-shrink-0 z-20">
         <div className="flex items-center gap-2.5 min-w-0">
-          <h3 className="text-sm font-extrabold text-white tracking-wide">
-            Lyrics
-          </h3>
+          {headerTitle ? (
+            <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-[var(--color-accent)] flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+              <span>{headerTitle}</span>
+            </span>
+          ) : (
+            <h3 className="text-xs sm:text-sm font-extrabold text-white tracking-wide">
+              Lyrics
+            </h3>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -550,7 +559,7 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
                 setShowSyncDrawer(true);
               }
             }}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
               showSearchDrawer || showSyncDrawer
                 ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(255,255,255,0.2)]'
                 : 'glass-button text-white/70 hover:text-white'
@@ -559,7 +568,7 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
             aria-label="Lyrics options and tools"
           >
             <svg
-              className="w-4 h-4 flex-shrink-0"
+              className="w-3.5 h-3.5 flex-shrink-0"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -578,6 +587,16 @@ export default function LyricsView({ artist, title, onShareLyric }: LyricsViewPr
               <line x1="17" y1="16" x2="23" y2="16" />
             </svg>
           </button>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-2.5 py-1 rounded-full text-[10px] font-bold glass-button text-white/80 hover:text-white cursor-pointer active:scale-95 flex items-center gap-1"
+            >
+              <span>Show Art</span>
+              <span>✕</span>
+            </button>
+          )}
         </div>
       </div>
 

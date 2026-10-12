@@ -57,14 +57,16 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
       document.documentElement.style.setProperty('--ambient-dynamic-glow', `${target.c1}40`);
     }
 
-    if (activeBuffer === 'A') {
-      setBufferB(target);
-      setActiveBuffer('B');
-    } else {
-      setBufferA(target);
-      setActiveBuffer('A');
-    }
-  }, [target.c1, target.c2, target.c3, activeBuffer, dynamicEnabled]);
+    setActiveBuffer((prev) => {
+      if (prev === 'A') {
+        setBufferB(target);
+        return 'B';
+      } else {
+        setBufferA(target);
+        return 'A';
+      }
+    });
+  }, [target.c1, target.c2, target.c3, dynamicEnabled]);
 
   // Opacity tiers based on user settings
   const baseOpacity =

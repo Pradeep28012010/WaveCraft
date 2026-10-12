@@ -293,7 +293,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
           pct
         );
 
-        await Promise.all(
+        const batchResults = await Promise.all(
           slice.map(async (qIdx) => {
             const q = remoteQueries[qIdx];
             if (q.videoId) {
@@ -307,22 +307,24 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
                 thumbnailLarge: `https://i.ytimg.com/vi/${q.videoId}/maxresdefault.jpg`,
                 youtubeId: q.videoId
               };
-              newlyAddedCount++;
-              return;
+              return true;
             }
 
             const searchStr = `${q.title} ${q.artist || ''}`.trim();
-            if (!searchStr) return;
+            if (!searchStr) return false;
             try {
               const results = await searchTracks(searchStr);
               if (results && results.length > 0) {
                 resolvedRemoteTracks[qIdx].track = results[0];
-                newlyAddedCount++;
-                return;
+                return true;
               }
-            } catch {}
+            } catch {
+              return false;
+            }
+            return false;
           })
         );
+        newlyAddedCount += batchResults.filter(Boolean).length;
       }
 
       const validRemote = resolvedRemoteTracks.filter(

@@ -132,16 +132,19 @@ public class WaveCraftMediaService extends Service {
     }
 
     private void updatePlaybackStateOnly(boolean playing, long pos, long dur) {
+        boolean playStateChanged = (isCurrentlyPlaying != playing);
         isCurrentlyPlaying = playing;
         if (pos >= 0) currentPositionMs = pos;
         if (dur > 0) currentDurationMs = dur;
 
-        updateMediaMetadata();
         updatePlaybackSessionState();
 
-        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (manager != null) {
-            manager.notify(NOTIFICATION_ID, buildNotification());
+        if (playStateChanged) {
+            updateMediaMetadata();
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.notify(NOTIFICATION_ID, buildNotification());
+            }
         }
     }
 
@@ -157,7 +160,9 @@ public class WaveCraftMediaService extends Service {
             currentArtist = artist;
         }
         isCurrentlyPlaying = isPlaying;
-        if (pos >= 0) currentPositionMs = pos;
+        if (pos > 0 || (pos == 0 && currentPositionMs == 0)) {
+            currentPositionMs = pos;
+        }
         if (dur > 0) currentDurationMs = dur;
 
         initMediaSession();

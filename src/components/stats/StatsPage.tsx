@@ -379,9 +379,12 @@ export default function StatsPage() {
   }, [badges, badgeFilter]);
 
   // Generate & Download High-Res 1080x1350 "WaveCraft Wrapped" Listener Passport PNG
-  const handleDownloadWrappedPoster = () => {
+  const handleDownloadWrappedPoster = async () => {
     setIsExportingPoster(true);
     try {
+      if (typeof document !== 'undefined' && document.fonts?.ready) {
+        await document.fonts.ready;
+      }
       const canvas = document.createElement('canvas');
       canvas.width = 1080;
       canvas.height = 1350;

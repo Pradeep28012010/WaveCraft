@@ -8,36 +8,28 @@ export function lazyWithRetry<T extends ComponentType<any>>(
   componentImport: () => Promise<{ default: T }>
 ) {
   return lazy(async () => {
-    const getRefreshed = () => {
-      try {
-        return window.sessionStorage?.getItem('wavecraft_chunk_retry_refreshed') === 'true';
-      } catch {
-        return false;
-      }
-    };
-    const setRefreshed = (val: boolean) => {
-      try {
-        window.sessionStorage?.setItem('wavecraft_chunk_retry_refreshed', String(val));
-      } catch {}
-    };
-
     try {
-      const component = await componentImport();
-      setRefreshed(false);
-      return component;
+      return await componentImport();
     } catch (firstErr) {
       // First attempt an immediate retry with brief delay to absorb transient packet drops
       try {
-        await new Promise((res) => setTimeout(res, 250));
-        const component = await componentImport();
-        setRefreshed(false);
-        return component;
+        await new Promise((res) => setTimeout(res, 300));
+        return await componentImport();
       } catch (secondErr) {
         console.warn('Chunk loading failed after retry, evaluating page recovery:', secondErr);
-        if (typeof window !== 'undefined' && !getRefreshed()) {
-          setRefreshed(true);
-          window.location.reload();
-          return { default: (() => null) as unknown as T };
+        if (typeof window !== 'undefined') {
+          const lastReload = Number(
+            window.sessionStorage?.getItem('wavecraft_last_chunk_reload') || 0
+          );
+          const now = Date.now();
+          // Allow at most 1 reload per 15 seconds to prevent reload loops during offline/bad connections
+          if (now - lastReload > 15_000) {
+            try {
+              window.sessionStorage?.setItem('wavecraft_last_chunk_reload', String(now));
+            } catch {}
+            window.location.reload();
+            return { default: (() => null) as unknown as T };
+          }
         }
         throw secondErr;
       }

@@ -229,6 +229,8 @@ export default function DJConsolePage() {
     audio.addEventListener('ended', onEnd);
 
     return () => {
+      padTimeoutsRef.current.forEach(clearTimeout);
+      padTimeoutsRef.current = [];
       audio.pause();
       audio.src = '';
       audio.removeEventListener('timeupdate', onTime);
@@ -804,28 +806,32 @@ export default function DJConsolePage() {
       padTimeoutsRef.current.push(t1);
     } else if (padId === 'nightcore') {
       setFxMode('arena-live');
-      setTimeout(() => {
+      const t = setTimeout(() => {
         setFxMode('normal');
         setActivePad(null);
       }, 2600);
+      padTimeoutsRef.current.push(t);
     } else if (padId === 'stutter-roll') {
       const origin = currentTimeA;
       seekToA(Math.max(0, origin - 0.35));
-      setTimeout(() => seekToA(Math.max(0, origin - 0.35)), 220);
-      setTimeout(() => seekToA(Math.max(0, origin - 0.35)), 440);
-      setTimeout(() => setActivePad(null), 700);
+      const t1 = setTimeout(() => seekToA(Math.max(0, origin - 0.35)), 220);
+      const t2 = setTimeout(() => seekToA(Math.max(0, origin - 0.35)), 440);
+      const t3 = setTimeout(() => setActivePad(null), 700);
+      padTimeoutsRef.current.push(t1, t2, t3);
     } else if (padId === 'hipass-riser') {
       setKillA((prev) => ({ ...prev, low: true }));
       setEqA((prev) => ({ ...prev, high: 6 }));
-      setTimeout(() => {
+      const t = setTimeout(() => {
         setKillA((prev) => ({ ...prev, low: false }));
         setEqA((prev) => ({ ...prev, high: 0 }));
         setActivePad(null);
       }, 2000);
+      padTimeoutsRef.current.push(t);
     } else if (padId === 'bass-swap') {
       setKillA((prev) => ({ ...prev, low: !prev.low }));
       setKillB((prev) => ({ ...prev, low: !prev.low }));
-      setTimeout(() => setActivePad(null), 900);
+      const t = setTimeout(() => setActivePad(null), 900);
+      padTimeoutsRef.current.push(t);
     }
   };
 

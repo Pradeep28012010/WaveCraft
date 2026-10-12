@@ -42,6 +42,9 @@ export function isAllowedAudioProxyUrl(targetUrl) {
   try {
     const parsed = new URL(targetUrl);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    if (parsed.port && parsed.port !== '80' && parsed.port !== '443') {
+      return false;
+    }
     const hostname = parsed.hostname.toLowerCase();
     // Deny loopback, private, and local metadata IP ranges
     if (

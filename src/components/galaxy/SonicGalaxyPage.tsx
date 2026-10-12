@@ -260,11 +260,18 @@ function computeDnaCosineSimilarity(a: SonicDNA, b: SonicDNA): number {
 
 // Cache loaded HTMLImageElements so canvas can draw circular album artwork inside 3D stars at 120fps
 const imageCache = new Map<string, HTMLImageElement>();
+const MAX_IMAGE_CACHE_ENTRIES = 120;
+
 function getCachedAlbumImage(url?: string): HTMLImageElement | null {
   if (!url) return null;
   const existing = imageCache.get(url);
   if (existing) {
     return existing.complete && existing.naturalWidth > 0 ? existing : null;
+  }
+  // Enforce max capacity to prevent unbounded memory growth during long sessions
+  if (imageCache.size >= MAX_IMAGE_CACHE_ENTRIES) {
+    const oldestKey = imageCache.keys().next().value;
+    if (oldestKey) imageCache.delete(oldestKey);
   }
   const img = new Image();
   img.crossOrigin = 'anonymous';

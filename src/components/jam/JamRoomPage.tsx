@@ -124,10 +124,14 @@ export default function JamRoomPage() {
     }
   }, [urlRoom]);
 
-  // Auto-scroll live chat feed when new messages arrive
+  // Auto-scroll live chat feed when new messages arrive (if near bottom)
   useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    const el = chatScrollRef.current;
+    if (el) {
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+      if (isNearBottom || messages.length <= 1) {
+        el.scrollTop = el.scrollHeight;
+      }
     }
   }, [messages.length]);
 

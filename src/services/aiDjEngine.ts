@@ -1576,13 +1576,13 @@ export function applyEnergyCurve(
         const scoreA = a.acoustics.energy * 20 + a.acoustics.bpm;
         return scoreB - scoreA;
       })
-      .map((item) => {
-        item.track.bpm = item.acoustics.bpm;
-        item.track.mood = item.acoustics.mood;
-        item.track.energy = item.acoustics.energy;
-        item.track.vibeTag = item.acoustics.vibeTag;
-        return item.track;
-      });
+      .map((item) => ({
+        ...item.track,
+        bpm: item.acoustics.bpm,
+        mood: item.acoustics.mood,
+        energy: item.acoustics.energy,
+        vibeTag: item.acoustics.vibeTag
+      }));
   }
 
   if (curve === 'steady') {
@@ -1598,13 +1598,13 @@ export function applyEnergyCurve(
       return diffA - diffB;
     });
 
-    return steadySorted.map((item) => {
-      item.track.bpm = item.acoustics.bpm;
-      item.track.mood = item.acoustics.mood;
-      item.track.energy = item.acoustics.energy;
-      item.track.vibeTag = item.acoustics.vibeTag;
-      return item.track;
-    });
+    return steadySorted.map((item) => ({
+      ...item.track,
+      bpm: item.acoustics.bpm,
+      mood: item.acoustics.mood,
+      energy: item.acoustics.energy,
+      vibeTag: item.acoustics.vibeTag
+    }));
   }
 
   // Default: 'wave' (Wave Flow)
@@ -1626,13 +1626,13 @@ export function applyEnergyCurve(
 
   const sequenced = [...warmup, ...buildAndPeak, ...cooldown.reverse()];
 
-  return sequenced.map((item) => {
-    item.track.bpm = item.acoustics.bpm;
-    item.track.mood = item.acoustics.mood;
-    item.track.energy = item.acoustics.energy;
-    item.track.vibeTag = item.acoustics.vibeTag;
-    return item.track;
-  });
+  return sequenced.map((item) => ({
+    ...item.track,
+    bpm: item.acoustics.bpm,
+    mood: item.acoustics.mood,
+    energy: item.acoustics.energy,
+    vibeTag: item.acoustics.vibeTag
+  }));
 }
 
 // ============================================================================
@@ -2030,11 +2030,13 @@ export async function regenerateTrackInMix(
             vibeTag: targetAcoustics.vibeTag,
             genre: targetAcoustics.genre
           });
-          cand.bpm = acoustics.bpm;
-          cand.energy = acoustics.energy;
-          cand.mood = acoustics.mood;
-          cand.vibeTag = acoustics.vibeTag;
-          return cand;
+          return {
+            ...cand,
+            bpm: acoustics.bpm,
+            energy: acoustics.energy,
+            mood: acoustics.mood,
+            vibeTag: acoustics.vibeTag
+          };
         }
       }
     } catch {}

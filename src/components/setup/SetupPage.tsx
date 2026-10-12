@@ -39,9 +39,9 @@ export default function SetupPage() {
   }, []);
 
   const handleLaunch = () => {
-    if (window.electronAPI?.finishSetup) {
-      window.electronAPI.finishSetup();
-    }
+    try {
+      window.electronAPI?.finishSetup?.();
+    } catch {}
     navigate('/');
   };
 

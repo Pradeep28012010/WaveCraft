@@ -52,6 +52,9 @@ export function handleJamRoomSseStream(req, res, roomCode) {
   req.on?.('close', () => {
     clearInterval(keepAlive);
     subs.delete(res);
+    if (subs.size === 0) {
+      roomSubscribers.delete(roomCode);
+    }
   });
 }
 
@@ -86,7 +89,18 @@ export async function handleJamRoomRequest(req, url, roomCode) {
   const now = Date.now();
   // Clean up expired rooms (> 2 hours idle)
   for (const [key, rm] of jamRooms.entries()) {
-    if (now - rm.updatedAt > 7_200_000) jamRooms.delete(key);
+    if (now - rm.updatedAt > 7_200_000) {
+      jamRooms.delete(key);
+      const subs = roomSubscribers.get(key);
+      if (subs) {
+        for (const client of subs) {
+          try {
+            client.end();
+          } catch {}
+        }
+        roomSubscribers.delete(key);
+      }
+    }
   }
 
   const op = url.searchParams.get('op') || (req.method === 'POST' ? 'sync' : 'get');

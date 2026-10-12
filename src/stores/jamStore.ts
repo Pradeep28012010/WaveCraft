@@ -655,10 +655,23 @@ export const useJamStore = create<JamStore>((set, get) => {
     });
   };
 
+  const stopRoomPolling = () => {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    if (hostPulseInterval) {
+      clearInterval(hostPulseInterval);
+      hostPulseInterval = null;
+    }
+    if (guestPingInterval) {
+      clearInterval(guestPingInterval);
+      guestPingInterval = null;
+    }
+  };
+
   const startRoomPolling = () => {
-    if (pollInterval) clearInterval(pollInterval);
-    if (hostPulseInterval) clearInterval(hostPulseInterval);
-    if (guestPingInterval) clearInterval(guestPingInterval);
+    stopRoomPolling();
 
     const currentCode = get().roomCode;
     if (currentCode) {

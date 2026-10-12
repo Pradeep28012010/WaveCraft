@@ -223,7 +223,12 @@ function GradualBlur(props: GradualBlurProps) {
 
     const baseStyle: React.CSSProperties = {
       position: isPageTarget ? 'fixed' : 'absolute',
-      pointerEvents: config.hoverIntensity ? 'auto' : 'none',
+      pointerEvents:
+        config.className?.includes('pointer-events-none')
+          ? 'none'
+          : config.hoverIntensity
+            ? 'auto'
+            : 'none',
       opacity: isVisible ? 1 : 0,
       transition: config.animated ? `opacity ${config.duration} ${config.easing}` : undefined,
       zIndex: isPageTarget ? (config.zIndex || 20) + 100 : config.zIndex || 20,

@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('window:maximized-change', handler);
     return () => ipcRenderer.removeListener('window:maximized-change', handler);
   },
+  onMaximizeChange: (callback) => {
+    const handler = (_event, isMax) => callback(isMax);
+    ipcRenderer.on('window:maximized-change', handler);
+    return () => ipcRenderer.removeListener('window:maximized-change', handler);
+  },
   onMediaKey: (callback) => {
     const handler = (_event, action) => callback(action);
     ipcRenderer.on('media:action', handler);

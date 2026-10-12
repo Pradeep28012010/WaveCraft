@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -145,57 +146,56 @@ export default function Sidebar() {
     }
   ];
 
-  // Phone UI Preset: Slide-over Drawer (never permanently squishes the phone viewport)
+  // Phone UI Preset: Slide-over Drawer (rendered via portal to body at z-[9999] so MiniPlayer & BottomNav never overlap it)
   if (isPhone) {
-    return (
-      <>
-        <AnimatePresence>
-          {isMobileDrawerOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileDrawerOpen(false)}
-              className="fixed inset-0 z-[9980] bg-black/75 backdrop-blur-md flex"
+    const mobileDrawer = (
+      <AnimatePresence>
+        {isMobileDrawerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileDrawerOpen(false)}
+            className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex"
+          >
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 360, damping: 32 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-80 max-w-[86vw] h-full liquid-glass bg-[#080814]/95 backdrop-blur-3xl border-r border-white/20 flex flex-col select-none shadow-[0_24px_80px_rgba(0,0,0,0.95)] z-[10000]"
+              style={{
+                paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)',
+                paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)'
+              }}
             >
-              <motion.aside
-                initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ type: 'spring', stiffness: 360, damping: 32 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-80 max-w-[86vw] h-full liquid-glass bg-[#080814]/92 backdrop-blur-3xl border-r border-white/20 flex flex-col select-none shadow-[0_24px_80px_rgba(0,0,0,0.95)]"
-                style={{
-                  paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)',
-                  paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)'
-                }}
-              >
-                <div className="flex items-center justify-between px-5 h-16 border-b border-white/10 flex-shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25">
-                      <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                        <path d="M12 3v18M17 6v12M21 10v4M7 6v12M3 10v4" />
-                      </svg>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-base font-black tracking-tight text-white leading-none">
-                        WaveCraft
-                      </span>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--color-accent)] mt-1">
-                        PRO STUDIO
-                      </span>
-                    </div>
+              <div className="flex items-center justify-between px-5 h-16 border-b border-white/10 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25">
+                    <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                      <path d="M12 3v18M17 6v12M21 10v4M7 6v12M3 10v4" />
+                    </svg>
                   </div>
-                  <button
-                    onClick={() => setMobileDrawerOpen(false)}
-                    className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex flex-col">
+                    <span className="text-base font-black tracking-tight text-white leading-none">
+                      WaveCraft
+                    </span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--color-accent)] mt-1">
+                      PRO STUDIO
+                    </span>
+                  </div>
                 </div>
+                <button
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
 
-                <nav className="flex-1 overflow-y-auto px-3.5 py-3 space-y-1 no-scrollbar">
-                  <div className="px-2 pt-1 pb-1.5 text-[10px] font-black uppercase tracking-wider text-white/40">
+              <nav className="flex-1 overflow-y-auto px-3.5 py-3 space-y-1 no-scrollbar pb-40">
+                <div className="px-2 pt-1 pb-1.5 text-[10px] font-black uppercase tracking-wider text-white/40">
                     DISCOVER & INTERACT
                   </div>
                   {navItems.slice(0, 5).map((item) => (
@@ -316,7 +316,11 @@ export default function Sidebar() {
             </motion.div>
           )}
         </AnimatePresence>
+    );
 
+    return (
+      <>
+        {typeof document !== 'undefined' ? createPortal(mobileDrawer, document.body) : mobileDrawer}
         <CreatePlaylist isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
         <ImportPlaylistModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />
       </>
@@ -376,7 +380,7 @@ export default function Sidebar() {
                 <>
                   {isActive && (
                     <motion.div
-                      layoutId="sidebar-active-pill"
+                      layoutId="sidebar-active-pill-desktop"
                       transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                       style={{ position: 'absolute', inset: 0 }}
                       className="rounded-xl bg-gradient-to-r from-white/[0.14] via-white/[0.08] to-white/[0.04] backdrop-blur-xl border border-white/15 shadow-[0_8px_24px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] pointer-events-none z-0 overflow-hidden"

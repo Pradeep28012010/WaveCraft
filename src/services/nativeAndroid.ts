@@ -84,14 +84,7 @@ export const initNativeAndroid = (navigate?: (to: number) => void) => {
     if (!isActive) {
       const state = usePlayerStore.getState();
       if (state.isPlaying && state.currentTrack) {
-        startAndroidBackgroundAudio(
-          state.currentTrack.title,
-          state.currentTrack.artist,
-          state.currentTrack.thumbnailLarge || state.currentTrack.thumbnail,
-          true,
-          state.currentTime || 0,
-          state.duration || 0
-        );
+        updateAndroidPlaybackState(true, state.currentTime || 0, state.duration || 0);
       }
     }
   });
