@@ -31,5 +31,5 @@ nsis:
   uninstallerIcon: build/icon.ico
   installerHeaderIcon: build/icon.ico
   deleteAppDataOnUninstall: false
-  runAfterFinish: true
+  runAfterFinish: false
   include: build/installer.nsh

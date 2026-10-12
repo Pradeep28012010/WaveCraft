@@ -104,6 +104,11 @@ export default function TopBar() {
   }, [showSuggestions]);
 
   const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
+  const isNativeOrDesktop =
+    typeof window !== 'undefined' &&
+    (Boolean(window.electronAPI) ||
+      /Electron/i.test(navigator.userAgent) ||
+      Boolean((window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()));
   const { isPhone, toggleMobileDrawer } = useDevicePreset();
   const roomCode = useJamStore((s) => s.roomCode);
 
@@ -842,8 +847,8 @@ export default function TopBar() {
             <span className="hidden sm:inline">{activeFxLabel}</span>
           </button>
 
-          {/* Install App (PWA) Button */}
-          {!isInstalled && (
+          {/* Install App (PWA) Button — only shown in standard web browsers */}
+          {!isInstalled && !isNativeOrDesktop && (
             <button
               onClick={triggerInstall}
               title="Install WaveCraft as Desktop / Mobile App"
@@ -860,8 +865,8 @@ export default function TopBar() {
         </div>
       </header>
 
-      {/* Fallback PWA Install Instructions Modal */}
-      {showInstallGuide &&
+      {/* Fallback PWA Install Instructions Modal — only for browser contexts */}
+      {showInstallGuide && !isNativeOrDesktop &&
         createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div

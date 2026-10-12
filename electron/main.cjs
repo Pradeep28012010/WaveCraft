@@ -4,6 +4,7 @@ const path = require('path');
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
+let isSetupMode = false;
 
 // Ensure single running instance on Windows
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -26,7 +27,7 @@ function createMainWindow() {
   const iconPath = fs.existsSync(icoPath) ? icoPath : pngPath;
   const appIcon = nativeImage.createFromPath(iconPath);
 
-  const isSetupMode = process.argv.includes('--setup') || process.argv.includes('--install');
+  isSetupMode = process.argv.includes('--setup') || process.argv.includes('--install');
 
   mainWindow = new BrowserWindow({
     width: isSetupMode ? 480 : 1320,
@@ -55,7 +56,7 @@ function createMainWindow() {
     mainWindow.loadURL(isSetupMode ? `${devServerUrl}#/setup` : devServerUrl);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
-      hash: isSetupMode ? 'setup' : ''
+      hash: isSetupMode ? '/setup' : ''
     });
   }
 
@@ -75,6 +76,11 @@ function createMainWindow() {
 
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
+      if (isSetupMode) {
+        isQuitting = true;
+        app.quit();
+        return;
+      }
       event.preventDefault();
       mainWindow.hide();
     }
@@ -191,7 +197,13 @@ ipcMain.on('window:maximize', () => {
 });
 
 ipcMain.on('window:close', () => {
-  if (mainWindow) mainWindow.close();
+  if (!mainWindow) return;
+  if (isSetupMode) {
+    isQuitting = true;
+    app.quit();
+  } else {
+    mainWindow.close();
+  }
 });
 
 ipcMain.handle('window:is-maximized', () => {
@@ -203,15 +215,17 @@ ipcMain.on('track:update', (_event, track) => {
 });
 
 ipcMain.handle('app:is-setup-mode', () => {
-  return process.argv.includes('--setup') || process.argv.includes('--install');
+  return isSetupMode;
 });
 
 ipcMain.on('window:finish-setup', () => {
   if (!mainWindow) return;
+  isSetupMode = false;
   mainWindow.setResizable(true);
   mainWindow.setMinimumSize(940, 620);
   mainWindow.setSize(1320, 840, true);
   mainWindow.center();
+  mainWindow.focus();
 });
 
 app.whenReady().then(() => {

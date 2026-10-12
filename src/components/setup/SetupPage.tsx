@@ -46,7 +46,10 @@ export default function SetupPage() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#06060b] flex items-center justify-center p-4 select-none overflow-hidden">
+    <div
+      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      className="fixed inset-0 bg-[#06060b] flex items-center justify-center p-4 select-none overflow-hidden"
+    >
       {/* Ambient Aurora Glow */}
       <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full bg-rose-600/25 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full bg-indigo-600/30 blur-3xl pointer-events-none" />
@@ -60,7 +63,10 @@ export default function SetupPage() {
         className="w-full max-w-[420px] rounded-3xl p-7 liquid-glass border border-white/20 shadow-2xl relative z-10 flex flex-col items-center text-center"
       >
         {/* Top Window Control Buttons */}
-        <div className="absolute top-4 right-4 flex items-center gap-2">
+        <div
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          className="absolute top-4 right-4 flex items-center gap-2"
+        >
           {window.electronAPI && (
             <>
               <button
@@ -136,6 +142,7 @@ export default function SetupPage() {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={handleLaunch}
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#fa2d48] to-[#7c3aed] text-white font-black text-xs tracking-wider uppercase shadow-lg shadow-rose-500/30 hover:opacity-95 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2"
           >
             <span>Launch WaveCraft Studio</span>
