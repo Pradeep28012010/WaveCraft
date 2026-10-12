@@ -433,25 +433,13 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* Top Drag Handle Pill (Native Music App Fluid Drag Sheet) */}
-          <div
-            className="relative z-30 pt-2.5 pb-1 flex justify-center w-full cursor-grab active:cursor-grabbing group touch-none select-none"
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              onClose();
-            }}
-            title="Drag down or click to collapse to mini-player"
-          >
-            <div className="w-12 h-1.5 rounded-full bg-white/35 group-hover:bg-white/60 group-active:scale-95 transition-all shadow-sm" />
-          </div>
-
           {/* Top Bar */}
           <div
             className={`relative z-30 app-region-no-drag ${
-              isPhone ? 'h-14 px-4' : 'h-16 px-6 sm:px-10'
+              isPhone ? 'h-13 px-4' : 'h-13 px-5 sm:px-8'
             } flex items-center justify-between flex-shrink-0`}
             style={{
-              paddingTop: isPhone ? 'max(env(safe-area-inset-top), 6px)' : undefined
+              paddingTop: isPhone ? 'max(env(safe-area-inset-top), 4px)' : undefined
             }}
           >
             {isPhone ? (
@@ -880,7 +868,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
           ) : (
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
             <div
-              className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-6 sm:pt-8 pb-6 overflow-y-auto no-scrollbar flex flex-col"
+              className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-1 sm:pt-2 pb-4 overflow-y-auto no-scrollbar flex flex-col"
             >
               <div
                 className={`w-full max-w-6xl my-auto mx-auto ${
