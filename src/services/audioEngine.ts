@@ -1,6 +1,7 @@
 import { usePlayerStore } from '../stores/playerStore';
 import { useStudioStore, type StudioFXMode } from '../stores/studioStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { isAndroidNative } from './apiConfig';
 
 const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -76,6 +77,9 @@ function createAnalogSaturationCurve(driveAmount: number): Float32Array<ArrayBuf
 
 export function setHtmlAudioElement(el: HTMLAudioElement | null): void {
   htmlAudioElement = el;
+  if (isAndroidNative()) {
+    return;
+  }
   if (el && audioCtx && preGainNode && !sourceNode) {
     try {
       sourceNode = audioCtx.createMediaElementSource(el);
@@ -160,7 +164,7 @@ export function setSmoothOutputGain(
   targetGain: number,
   timeConstant = 0.035
 ): void {
-  if (audioCtx && gainNode) {
+  if (audioCtx && gainNode && !isAndroidNative()) {
     if (audio) audio.volume = 1.0;
     gainNode.gain.setTargetAtTime(Math.max(0, targetGain), audioCtx.currentTime, timeConstant);
   } else if (audio) {

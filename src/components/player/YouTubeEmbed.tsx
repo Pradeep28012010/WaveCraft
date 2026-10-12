@@ -548,11 +548,7 @@ export default function YouTubeEmbed() {
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
                 return;
               }
-              // If page/webview is hidden, do NOT fight with Chromium background suspension
-              if (typeof document !== 'undefined' && document.hidden) {
-                return;
-              }
-              // If user did NOT initiate the pause, this is a transient YouTube buffering or browser focus hiccup: auto-resume!
+              // If user did NOT initiate the pause, this is a transient YouTube buffering, focus loss, or background event: auto-resume!
               if (!userInitiatedPauseRef.current) {
                 try {
                   e.target.playVideo?.();
@@ -927,42 +923,8 @@ export default function YouTubeEmbed() {
         (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
       // 3. YouTube Direct Playback:
-      // On Android native APK, HTML5 direct audio is REQUIRED for continuous background playback
-      // (as YouTube video iframes are suspended by Android OS Chromium when the app is minimized).
+      // Plays video stream with seamless background playback via Android Page Visibility KeepAlive
       if (effectiveYtId) {
-        if (isAndroidNative() && audio) {
-          setIsLoading(true);
-          resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
-            .then((resolvedUrl) => {
-              if (resolveToken !== resolvingTokenRef.current) return;
-              if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-              if (resolvedUrl && !isAudioPreviewUrl(resolvedUrl)) {
-                track.audioUrl = resolvedUrl;
-                track.quality = '320kbps Studio AAC';
-                usePlayerStore.setState((s) => ({
-                  currentTrack:
-                    s.currentTrack?.id === track.id
-                      ? { ...s.currentTrack, audioUrl: resolvedUrl, quality: '320kbps Studio AAC' }
-                      : s.currentTrack,
-                  queue: s.queue.map((t) =>
-                    t.id === track.id
-                      ? { ...t, audioUrl: resolvedUrl, quality: '320kbps Studio AAC' }
-                      : t
-                  )
-                }));
-                playNativeAudio(resolvedUrl, shouldPlay);
-              } else {
-                fallbackToYouTube(track, effectiveYtId, shouldPlay);
-              }
-            })
-            .catch(() => {
-              if (resolveToken !== resolvingTokenRef.current) return;
-              fallbackToYouTube(track, effectiveYtId, shouldPlay);
-            });
-          return;
-        }
-
-        // On laptop / desktop browsers, preserve the standard YouTube direct playback
         fallbackToYouTube(track, effectiveYtId, shouldPlay);
         return;
       }
@@ -1328,32 +1290,18 @@ export default function YouTubeEmbed() {
   useEffect(() => {
     const handleVisibilityOrBackground = () => {
       if (typeof document === 'undefined') return;
-      if (document.hidden && getActiveEngine() === 'youtube' && isPlaying && currentTrack) {
-        const curTime = usePlayerStore.getState().currentTime || 0;
-        const effectiveId =
-          currentTrack.youtubeId ||
-          (currentTrack.id.startsWith('yt_') ? currentTrack.id.replace('yt_', '') : '') ||
-          (currentTrack.id.startsWith('yt-') ? currentTrack.id.replace('yt-', '') : '');
-
-        resolveDirectAudio(currentTrack.title, currentTrack.artist, currentTrack.duration, effectiveId)
-          .then((resolvedUrl) => {
-            if (!resolvedUrl || usePlayerStore.getState().currentTrack?.id !== currentTrack.id) return;
-            const audio = audioRef.current;
-            if (audio) {
-              const ytPlayer = getPlayer();
-              try { ytPlayer?.pauseVideo?.(); } catch {}
-              setActiveEngine('audio');
-              audio.loop = false;
-              audio.preload = 'auto';
-              if (audio.src !== resolvedUrl) {
-                audio.src = resolvedUrl;
-              }
-              audio.currentTime = curTime;
-              resumeAudioContextIfNeeded();
-              audio.play().catch(() => {});
-            }
-          })
-          .catch(() => {});
+      if (!document.hidden && isPlaying) {
+        // Foreground restore watchdog: verify active engine is running without user pause
+        const engine = getActiveEngine();
+        if (engine === 'youtube') {
+          const ytPlayer = getPlayer();
+          if (ytPlayer && !userInitiatedPauseRef.current) {
+            try { ytPlayer.playVideo?.(); } catch {}
+          }
+        } else if (engine === 'audio' && audioRef.current?.paused && !userInitiatedPauseRef.current) {
+          resumeAudioContextIfNeeded();
+          audioRef.current.play().catch(() => {});
+        }
       }
     };
 
@@ -1361,7 +1309,7 @@ export default function YouTubeEmbed() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityOrBackground);
     };
-  }, [isPlaying, currentTrack]);
+  }, [isPlaying]);
 
   // Sync Volume & Mute with Audiophile Loudness Normalization
   useEffect(() => {
@@ -1506,13 +1454,13 @@ export default function YouTubeEmbed() {
       aria-hidden="true"
       style={{
         position: 'fixed',
-        top: '-9999px',
-        left: '-9999px',
-        width: '320px',
-        height: '180px',
-        opacity: 1,
+        bottom: 0,
+        right: 0,
+        width: '4px',
+        height: '4px',
+        opacity: 0.001,
         pointerEvents: 'none',
-        zIndex: -9999,
+        zIndex: -100,
         overflow: 'hidden'
       }}
     >

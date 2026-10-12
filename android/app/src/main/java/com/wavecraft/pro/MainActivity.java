@@ -109,6 +109,33 @@ public class MainActivity extends BridgeActivity {
 
             // Register native bridge for background audio foreground service
             webView.addJavascriptInterface(new AndroidAudioBridge(), "AndroidAudioBridge");
+
+            injectBackgroundAudioKeepAlive(webView);
+        }
+    }
+
+    private void injectBackgroundAudioKeepAlive(WebView webView) {
+        String js = "(function() {" +
+            "  try {" +
+            "    Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true });" +
+            "    Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true });" +
+            "    Object.defineProperty(document, 'webkitHidden', { get: function() { return false; }, configurable: true });" +
+            "    Object.defineProperty(document, 'webkitVisibilityState', { get: function() { return 'visible'; }, configurable: true });" +
+            "    window.addEventListener('visibilitychange', function(e) { e.stopImmediatePropagation(); }, true);" +
+            "    document.addEventListener('visibilitychange', function(e) { e.stopImmediatePropagation(); }, true);" +
+            "  } catch(e) {}" +
+            "})();";
+        webView.post(() -> webView.evaluateJavascript(js, null));
+    }
+
+    private void keepWebViewAlive() {
+        if (bridge != null && bridge.getWebView() != null) {
+            WebView webView = bridge.getWebView();
+            webView.post(() -> {
+                webView.resumeTimers();
+                webView.onResume();
+                injectBackgroundAudioKeepAlive(webView);
+            });
         }
     }
 
@@ -121,28 +148,20 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onPause() {
         super.onPause();
-        // Crucial: keep WebView timers & audio decoders running so audio continues when minimized
-        if (bridge != null && bridge.getWebView() != null) {
-            bridge.getWebView().resumeTimers();
-            bridge.getWebView().onResume();
-        }
+        keepWebViewAlive();
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if (bridge != null && bridge.getWebView() != null) {
-            bridge.getWebView().resumeTimers();
-            bridge.getWebView().onResume();
-        }
+        keepWebViewAlive();
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (!hasFocus && bridge != null && bridge.getWebView() != null) {
-            bridge.getWebView().resumeTimers();
-            bridge.getWebView().onResume();
+        if (!hasFocus) {
+            keepWebViewAlive();
         }
     }
 

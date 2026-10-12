@@ -17,6 +17,7 @@ import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.SystemClock;
+import android.net.wifi.WifiManager;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -44,6 +45,7 @@ public class WaveCraftMediaService extends Service {
     private static final int NOTIFICATION_ID = 1001;
 
     private PowerManager.WakeLock wakeLock;
+    private WifiManager.WifiLock wifiLock;
     private MediaSession mediaSession;
 
     private String currentTitle = "WaveCraft Music";
@@ -53,6 +55,7 @@ public class WaveCraftMediaService extends Service {
     private boolean isCurrentlyPlaying = true;
     private long currentPositionMs = 0;
     private long currentDurationMs = 210000L;
+    private long lastNotificationUpdateMs = 0;
 
     @Override
     public void onCreate() {
@@ -61,6 +64,11 @@ public class WaveCraftMediaService extends Service {
         if (powerManager != null) {
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WaveCraft:PlaybackWakeLock");
             wakeLock.setReferenceCounted(false);
+        }
+        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        if (wifiManager != null) {
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "WaveCraft:PlaybackWifiLock");
+            wifiLock.setReferenceCounted(false);
         }
         createNotificationChannel();
         initMediaSession();
@@ -139,7 +147,9 @@ public class WaveCraftMediaService extends Service {
 
         updatePlaybackSessionState();
 
-        if (playStateChanged) {
+        long now = SystemClock.elapsedRealtime();
+        if (playStateChanged || (now - lastNotificationUpdateMs > 4000)) {
+            lastNotificationUpdateMs = now;
             updateMediaMetadata();
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager != null) {
@@ -151,6 +161,9 @@ public class WaveCraftMediaService extends Service {
     private void startForegroundPlayback(String title, String artist, String thumbnail, boolean isPlaying, long pos, long dur) {
         if (wakeLock != null && !wakeLock.isHeld()) {
             wakeLock.acquire(12 * 60 * 60 * 1000L); // 12 hours max safety limit
+        }
+        if (wifiLock != null && !wifiLock.isHeld()) {
+            try { wifiLock.acquire(); } catch (Exception ignored) {}
         }
 
         if (title != null && !title.trim().isEmpty()) {
@@ -349,6 +362,11 @@ public class WaveCraftMediaService extends Service {
                 wakeLock.release();
             } catch (Exception ignored) {}
         }
+        if (wifiLock != null && wifiLock.isHeld()) {
+            try {
+                wifiLock.release();
+            } catch (Exception ignored) {}
+        }
         if (mediaSession != null) {
             mediaSession.setActive(false);
         }
@@ -380,6 +398,11 @@ public class WaveCraftMediaService extends Service {
         if (wakeLock != null && wakeLock.isHeld()) {
             try {
                 wakeLock.release();
+            } catch (Exception ignored) {}
+        }
+        if (wifiLock != null && wifiLock.isHeld()) {
+            try {
+                wifiLock.release();
             } catch (Exception ignored) {}
         }
         if (mediaSession != null) {

@@ -47,8 +47,11 @@ const Visualizer = memo(
     const particlesRef = useRef<Particle2D[]>([]);
 
     const initStarsAndParticles = (width: number, height: number) => {
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const starCount = isMobile ? 45 : 140;
+      const particleCount = isMobile ? 20 : 55;
       if (starsRef.current.length === 0) {
-        starsRef.current = Array.from({ length: 140 }, () => {
+        starsRef.current = Array.from({ length: starCount }, () => {
           const z = Math.random() * width + 1;
           return {
             x: (Math.random() - 0.5) * width * 2,
@@ -60,7 +63,7 @@ const Visualizer = memo(
         });
       }
       if (particlesRef.current.length === 0) {
-        particlesRef.current = Array.from({ length: 55 }, () => ({
+        particlesRef.current = Array.from({ length: particleCount }, () => ({
           x: Math.random() * width,
           y: Math.random() * height,
           vx: (Math.random() - 0.5) * 0.8,

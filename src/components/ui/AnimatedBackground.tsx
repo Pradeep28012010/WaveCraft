@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, memo } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useDevicePreset } from '../../hooks/useDevicePreset';
 import type { AmbientPalette } from '../../types';
 
 interface AnimatedBackgroundProps {
@@ -25,6 +26,7 @@ const DEFAULT_BUFFER: BufferState = {
 };
 
 const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) => {
+  const { isPhone } = useDevicePreset();
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const intensity = useSettingsStore((s) => s.ambientGlowIntensity ?? 'vibrant');
   const dynamicEnabled = useSettingsStore((s) => s.dynamicAmbientGlow ?? true);
@@ -94,7 +96,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
       <>
         {/* Radiant Floating Node 1: Primary Dominant Glow (Top Left) */}
         <div
-          className={`absolute -top-12 left-[12%] w-[42rem] h-[42rem] rounded-full animate-float blur-[60px] will-change-transform transition-transform duration-1000 ${
+          className={`absolute -top-12 left-[12%] ${isPhone ? 'w-64 h-64 blur-2xl' : 'w-[42rem] h-[42rem] blur-[60px]'} rounded-full animate-float will-change-transform transition-transform duration-1000 ${
             isPlaying ? 'scale-105' : 'scale-95'
           }`}
           style={{
@@ -106,7 +108,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
 
         {/* Radiant Floating Node 2: Secondary Harmonic Glow (Top Right) */}
         <div
-          className={`absolute top-[18%] -right-16 w-[46rem] h-[46rem] rounded-full animate-float blur-[70px] will-change-transform transition-transform duration-1000 ${
+          className={`absolute top-[18%] -right-16 ${isPhone ? 'w-64 h-64 blur-2xl' : 'w-[46rem] h-[46rem] blur-[70px]'} rounded-full animate-float will-change-transform transition-transform duration-1000 ${
             isPlaying ? 'scale-105' : 'scale-95'
           }`}
           style={{
@@ -117,7 +119,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
           }}
         />
 
-        {performanceProfile === 'ultra' && (
+        {!isPhone && performanceProfile === 'ultra' && (
           <>
             {/* Radiant Floating Node 3: Deep Ambient Foundation (Bottom Center) */}
             <div
