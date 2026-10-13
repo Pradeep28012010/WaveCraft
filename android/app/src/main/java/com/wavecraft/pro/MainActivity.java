@@ -414,9 +414,15 @@ public class MainActivity extends BridgeActivity {
     private void keepWebViewAlive() {
         if (bridge != null && bridge.getWebView() != null) {
             WebView webView = bridge.getWebView();
-            webView.post(() -> {
+            try {
                 webView.resumeTimers();
                 webView.onResume();
+            } catch (Exception ignored) {}
+            webView.post(() -> {
+                try {
+                    webView.resumeTimers();
+                    webView.onResume();
+                } catch (Exception ignored) {}
             });
         }
     }

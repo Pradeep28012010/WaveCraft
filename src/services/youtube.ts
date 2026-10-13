@@ -1,7 +1,5 @@
 import type { Track } from '../types';
 import { apiUrl, PROD_API_ORIGIN } from './apiConfig';
-import { decryptSaavnUrl } from '../utils/saavnDecrypt';
-import { DEFAULT_THUMBNAIL } from '../utils/constants';
 
 export function decodeHtmlEntities(str?: string): string {
   if (!str) return '';
@@ -375,96 +373,57 @@ function deduplicateTracks(tracks: Track[]): Track[] {
   return result;
 }
 
-async function fetchSaavnFallbackTracks(query: string): Promise<Track[]> {
+async function fetchClientYouTubeSearch(query: string): Promise<Track[]> {
   try {
-    const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=25&q=${encodeURIComponent(query)}`;
-    const res = await fetch(saavnUrl, {
-      signal: AbortSignal.timeout(4500)
+    const res = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'WEB',
+            clientVersion: '2.20240101.00.00',
+            hl: 'en',
+            gl: 'US'
+          }
+        },
+        query: `${query.trim()} song`
+      }),
+      signal: AbortSignal.timeout(5000)
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const results = data?.results || [];
-    if (!Array.isArray(results) || results.length === 0) return [];
-
+    const sections =
+      data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
     const tracks: Track[] = [];
-    for (const item of results) {
-      if (!item.title) continue;
-      const cleanTitle = decodeHtmlEntities(item.title);
-      const rawArtist = item.subtitle || item.more_info?.music || item.more_info?.singers || 'Unknown Artist';
-      const cleanArtist = decodeHtmlEntities(rawArtist);
-      const album = item.more_info?.album ? decodeHtmlEntities(item.more_info.album) : 'WaveCraft Cloud';
-      const duration = parseInt(item.more_info?.duration || item.duration || '210', 10);
-      const rawImg = item.image || '';
-      const highResThumb = rawImg.replace(/150x150/g, '500x500') || DEFAULT_THUMBNAIL;
+    const seen = new Set<string>();
 
-      let directUrl: string | undefined = undefined;
-      const enc = item.more_info?.encrypted_media_url;
-      if (enc) {
-        directUrl = decryptSaavnUrl(enc);
-      }
+    for (const sec of sections) {
+      const items = sec?.itemSectionRenderer?.contents || [];
+      for (const item of items) {
+        const v = item.videoRenderer;
+        if (!v || !v.videoId || seen.has(v.videoId)) continue;
+        seen.add(v.videoId);
 
-      const isInst =
-        /\b(bgm|background\s*(?:music|score)|theme\s*(?:music|video|song|track)?|instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|without\s*vocals?|off\s*vocal|vocal\s*cut|score)\b/i.test(
-          `${cleanTitle} ${cleanArtist}`
+        const lengthText = v.lengthText?.simpleText || '';
+        const parts = lengthText.split(':').map(Number);
+        let seconds = 0;
+        if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
+        else if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+
+        tracks.push(
+          mapYouTubeItemToTrack({
+            videoId: v.videoId,
+            title: v.title?.runs?.[0]?.text || 'Unknown Title',
+            author: v.ownerText?.runs?.[0]?.text || 'YouTube Music',
+            lengthSeconds: seconds || 210,
+            thumbnail: `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
+            thumbnailLarge: `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`
+          })
         );
-
-      tracks.push({
-        id: `saavn_${item.id}`,
-        title: cleanTitle,
-        artist: cleanArtist,
-        album,
-        duration: isNaN(duration) || duration <= 0 ? 210 : duration,
-        thumbnail: highResThumb,
-        thumbnailLarge: highResThumb,
-        thumbnailUrl: highResThumb,
-        audioUrl: directUrl,
-        audioPreviewUrl: directUrl,
-        quality: directUrl ? '320kbps Studio AAC' : 'Studio Audio',
-        isInstrumental: isInst
-      });
+      }
     }
     return tracks;
-  } catch {
-    return [];
-  }
-}
-
-async function fetchItunesFallbackTracks(query: string): Promise<Track[]> {
-  try {
-    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=25`;
-    const res = await fetch(itunesUrl, {
-      signal: AbortSignal.timeout(4500)
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const results: Array<{
-      artworkUrl100?: string;
-      trackId: number;
-      trackName?: string;
-      artistName?: string;
-      collectionName?: string;
-      trackTimeMillis?: number;
-      previewUrl?: string;
-    }> = data?.results || [];
-    if (!Array.isArray(results) || results.length === 0) return [];
-
-    return results.map((item) => {
-      const art = item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : DEFAULT_THUMBNAIL;
-      return {
-        id: `itunes_${item.trackId}`,
-        title: item.trackName || 'Unknown Title',
-        artist: item.artistName || 'Unknown Artist',
-        album: item.collectionName || 'WaveCraft Cloud',
-        duration: Math.round((item.trackTimeMillis || 210000) / 1000),
-        thumbnail: art,
-        thumbnailLarge: art,
-        thumbnailUrl: art,
-        audioUrl: undefined,
-        audioPreviewUrl: item.previewUrl || undefined,
-        youtubeId: '',
-        quality: 'Apple Master'
-      };
-    });
   } catch {
     return [];
   }
@@ -483,7 +442,7 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
   }
 
   const requestPromise = (async () => {
-    // 1. Primary backend API call with robust timeout and automatic absolute-URL retry
+    // 1. Primary backend API call with robust timeout and automatic absolute-URL retry (pure YouTube)
     try {
       const endpoint = apiUrl(`/api/music?action=search&q=${encodeURIComponent(query.trim())}`);
       let res = await fetch(endpoint, {
@@ -509,27 +468,14 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
         }
       }
     } catch (err) {
-      console.warn('Primary /api/music search error, switching to resilient fallback:', err);
+      console.warn('Primary /api/music search error, trying direct YouTube client:', err);
     }
 
-    // 2. High-speed client-side JioSaavn Fallback (provides direct 320kbps streams with zero CORS restrictions)
+    // 2. Direct client-side YouTube fallback (pure YouTube, no other sources)
     try {
-      const saavnTracks = await fetchSaavnFallbackTracks(query);
-      if (saavnTracks.length > 0) {
-        const deduped = deduplicateTracks(saavnTracks);
-        const ranked = rankTracksByRelevance(deduped, query);
-        if (ranked.length > 0) {
-          setBoundedCache(searchCache, cleanKey, ranked, MAX_SEARCH_CACHE_ENTRIES);
-          return ranked;
-        }
-      }
-    } catch {}
-
-    // 3. Apple iTunes Fallback (100% reliable global music catalogue with high-res artwork)
-    try {
-      const itunesTracks = await fetchItunesFallbackTracks(query);
-      if (itunesTracks.length > 0) {
-        const deduped = deduplicateTracks(itunesTracks);
+      const directYtTracks = await fetchClientYouTubeSearch(query);
+      if (directYtTracks.length > 0) {
+        const deduped = deduplicateTracks(directYtTracks);
         const ranked = rankTracksByRelevance(deduped, query);
         if (ranked.length > 0) {
           setBoundedCache(searchCache, cleanKey, ranked, MAX_SEARCH_CACHE_ENTRIES);
