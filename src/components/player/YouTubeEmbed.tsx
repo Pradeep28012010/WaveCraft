@@ -32,6 +32,7 @@ import {
   startAndroidBackgroundAudio,
   stopAndroidBackgroundAudio
 } from '../../services/nativeAndroid';
+import { updateMediaSessionMetadata } from '../../hooks/useMediaSession';
 import type { Track, YTPlayerEvent } from '../../types';
 
 // Re-export audio engine controls so existing consumers continue to work seamlessly
@@ -675,6 +676,7 @@ export default function YouTubeEmbed() {
 
   // Helper to fallback or play on YouTube IFrame
   const fallbackToYouTube = (_track: Track, effectiveYtId: string, shouldPlay: boolean) => {
+    updateMediaSessionMetadata(_track);
     setActiveEngine('youtube');
     const audio = audioRef.current;
     if (audio) {
@@ -761,6 +763,8 @@ export default function YouTubeEmbed() {
 
   // Helper to play on Native HTML5 Audio Engine with full Web Audio 8D / Live Concert DSP
   const playNativeAudio = (targetUrl: string, shouldPlay: boolean) => {
+    const cur = usePlayerStore.getState().currentTrack;
+    if (cur) updateMediaSessionMetadata(cur);
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -826,6 +830,7 @@ export default function YouTubeEmbed() {
 
   // Helper to load and start playing a track with automatic HD stream resolution
   const startTrackPlayback = (track: Track, shouldPlay: boolean, isNewTrack: boolean = true) => {
+    updateMediaSessionMetadata(track);
     const audio = audioRef.current;
 
     // Immediately increment resolving token to discard in-flight async operations

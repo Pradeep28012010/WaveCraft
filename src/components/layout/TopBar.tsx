@@ -562,6 +562,25 @@ export default function TopBar() {
             </svg>
           </button>
 
+          {/* Mobile Download App Button */}
+          {!isNativeOrDesktop && (
+            <button
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                navigate('/download');
+              }}
+              aria-label="Download App"
+              className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-emerald-400 hover:text-white active:scale-90 transition-transform cursor-pointer"
+              title="Download APK / Windows App"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </button>
+          )}
+
           {/* Mobile Drawer Menu Button (Available on all mobile screens) */}
           <button
             onClick={() => {
@@ -850,6 +869,22 @@ export default function TopBar() {
             <span>🎛️</span>
             <span className="hidden sm:inline">{activeFxLabel}</span>
           </button>
+
+          {/* Download App Hub Button */}
+          {!isNativeOrDesktop && (
+            <button
+              onClick={() => navigate('/download')}
+              title="Download WaveCraft App (.apk / .exe)"
+              className="hidden lg:flex items-center gap-1.5 px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/90 hover:text-white cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Download App</span>
+            </button>
+          )}
 
           {/* Install App (PWA) Button — only shown in standard web browsers */}
           {!isInstalled && !isNativeOrDesktop && (

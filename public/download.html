@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download WaveCraft Pro — Windows & Android</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon.png">
+  <meta name="description" content="Download WaveCraft Pro for Windows (.exe) and Android (.apk) with 320kbps audiophile sound, background play, and offline library.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 50% -20%, #200f38 0%, #06060b 65%, #020204 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      box-shadow: 0 0 24px rgba(250, 45, 72, 0.25);
+      margin-bottom: 20px;
+    }
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fa2d48;
+      box-shadow: 0 0 10px #fa2d48;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.85); } }
+    h1 {
+      font-size: clamp(32px, 6vw, 56px);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      text-align: center;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #ffffff 40%, #c4b5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      font-size: clamp(14px, 2.5vw, 17px);
+      color: rgba(255, 255, 255, 0.65);
+      text-align: center;
+      max-width: 620px;
+      line-height: 1.6;
+      margin-bottom: 48px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 28px;
+      max-width: 980px;
+      width: 100%;
+      margin-bottom: 40px;
+    }
+    .card {
+      position: relative;
+      border-radius: 28px;
+      padding: 36px 32px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.25s ease;
+      overflow: hidden;
+    }
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-4px);
+    }
+    .card.android:hover { border-color: rgba(16, 185, 129, 0.5); }
+    .card.windows:hover { border-color: rgba(59, 130, 246, 0.5); }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+    .icon-box {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-box.android {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+    }
+    .icon-box.windows {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #3b82f6;
+    }
+    .pill {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 999px;
+      letter-spacing: 0.05em;
+    }
+    .pill.android { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .pill.windows { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .card h2 {
+      font-size: 24px;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.65);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .meta {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 20px;
+    }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      height: 50px;
+      border-radius: 16px;
+      font-weight: 800;
+      font-size: 14px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 12px;
+      border: none;
+    }
+    .btn.emerald {
+      background: #10b981;
+      color: #000;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);
+    }
+    .btn.emerald:hover { background: #34d399; transform: scale(1.01); }
+    .btn.blue {
+      background: #3b82f6;
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+    }
+    .btn.blue:hover { background: #60a5fa; transform: scale(1.01); }
+    .btn.glass {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 12px;
+    }
+    .btn.glass:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+    .qr-row {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .qr-img {
+      width: 72px;
+      height: 72px;
+      border-radius: 12px;
+      background: #fff;
+      padding: 6px;
+      flex-shrink: 0;
+    }
+    .qr-img img { width: 100%; height: 100%; object-fit: contain; }
+    .qr-text {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.55);
+      line-height: 1.5;
+    }
+    .qr-text strong { color: #fff; display: block; margin-bottom: 2px; }
+    .web-bar {
+      max-width: 980px;
+      width: 100%;
+      border-radius: 20px;
+      padding: 24px 32px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: gap;
+      gap: 20px;
+    }
+    .web-btn {
+      padding: 12px 28px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #fa2d48, #e11d48);
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      text-decoration: none;
+      box-shadow: 0 6px 20px rgba(250, 45, 72, 0.35);
+      white-space: nowrap;
+    }
+    .web-btn:hover { opacity: 0.92; }
+    footer {
+      margin-top: 48px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="badge">
+    <span class="badge-dot"></span>
+    <span>WaveCraft Pro v5.0 Downloads</span>
+  </div>
+
+  <h1>Experience Studio Sound Everywhere</h1>
+  <p class="subtitle">Download the native high-performance apps for Windows and Android with background playback, offline caching, and 320kbps audiophile acoustics.</p>
+
+  <div class="grid">
+    <!-- Android Card -->
+    <div class="card android">
+      <div>
+        <div class="card-top">
+          <div class="icon-box android">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-1.0001s.4482-.9993.9993-.9993c.551 0 .9993.4478.9993.9993s-.4483 1.0001-.9993 1.0001m-11.046 0c-.5511 0-.9993-.4486-.9993-1.0001s.4482-.9993.9993-.9993c.5511 0 .9993.4478.9993.9993s-.4482 1.0001-.9993 1.0001m11.4045-6.02l1.996-3.4572c.119-.2061.048-.4707-.1581-.5898-.2061-.119-.4707-.048-.5898.1581l-2.0226 3.5034C15.6022 8.3592 13.8568 8 12 8s-3.6022.3592-5.107 1.036l-2.0226-3.5034c-.1191-.2061-.3837-.2771-.5898-.1581-.2061.1191-.2771.3837-.1581.5898l1.996 3.4572C2.6889 11.2867.3432 15.1543 0 19.882h24c-.3432-4.7277-2.6889-8.5953-6.1185-10.5606" />
+            </svg>
+          </div>
+          <span class="pill android">Android APK</span>
+        </div>
+        <h2>WaveCraft for Android</h2>
+        <p class="meta">~5.0 MB • Android 8.0+ • Full Background Playback</p>
+        <p>Native Android app with foreground keep-alive service, zero-stutter lock screen playback, Bluetooth & car media controls, and instant offline music downloads.</p>
+      </div>
+
+      <div>
+        <a href="/WaveCraft.apk" download="WaveCraft.apk" class="btn emerald">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download APK (Direct Fast Link)
+        </a>
+        <a href="https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft.apk" target="_blank" rel="noopener" class="btn glass">
+          GitHub Releases Mirror
+        </a>
+        <div class="qr-row">
+          <div class="qr-img">
+            <img id="qr-code" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=https%3A%2F%2Fwavecraft-alpha.vercel.app%2FWaveCraft.apk" alt="Scan to Download APK">
+          </div>
+          <div class="qr-text">
+            <strong>Scan with Phone Camera</strong>
+            Point your Android phone camera at this QR code to download the APK directly to your phone.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Windows Card -->
+    <div class="card windows">
+      <div>
+        <div class="card-top">
+          <div class="icon-box windows">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.551H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.802" />
+            </svg>
+          </div>
+          <span class="pill windows">Windows 10 / 11</span>
+        </div>
+        <h2>WaveCraft for Windows</h2>
+        <p class="meta">~126 MB • 64-bit EXE • Liquid Glass Desktop</p>
+        <p>Standalone desktop installer with keyboard media key controls, system tray minimization, 10-band equalizer DSP, and lossless offline library vault.</p>
+      </div>
+
+      <div>
+        <a href="https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe" target="_blank" rel="noopener" class="btn blue">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download Windows Setup (.exe)
+        </a>
+        <a href="https://github.com/Pradeep28012010/WaveCraft/releases" target="_blank" rel="noopener" class="btn glass">
+          All GitHub Releases & Changelog
+        </a>
+        <p style="font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 16px; line-height: 1.4;">
+          💡 <strong>SmartScreen tip:</strong> If Windows shows "Windows protected your PC", click <u style="color: #fff">More info</u> &rarr; <u style="color: #fff">Run anyway</u>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="web-bar">
+    <div>
+      <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 4px;">Prefer to listen in your browser?</h3>
+      <p style="font-size: 13px; color: rgba(255, 255, 255, 0.6);">WaveCraft runs as a high-fidelity web app with zero installation required.</p>
+    </div>
+    <a href="/" class="web-btn">Open Web App &rarr;</a>
+  </div>
+
+  <footer>
+    WaveCraft Studio • High-Fidelity 320kbps Audio Streaming Platform
+  </footer>
+
+  <script>
+    // Dynamically set QR code to current domain if opened on deployed site
+    try {
+      var origin = window.location.origin;
+      var fullUrl = origin + '/WaveCraft.apk';
+      var qr = document.getElementById('qr-code');
+      if (qr && origin.indexOf('http') === 0) {
+        qr.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=' + encodeURIComponent(fullUrl);
+      }
+    } catch (e) {}
+  </script>
+</body>
+</html>

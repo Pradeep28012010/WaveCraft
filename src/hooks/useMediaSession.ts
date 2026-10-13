@@ -3,6 +3,111 @@ import { usePlayerStore } from '../stores/playerStore';
 import { unlockAudioEngine, resumeAudioContextIfNeeded } from '../services/audioEngine';
 import { updateAndroidPlaybackState } from '../services/nativeAndroid';
 
+function decodeTitle(text?: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+}
+
+export function buildMediaSessionArtwork(track: {
+  thumbnail?: string;
+  thumbnailLarge?: string;
+  thumbnailUrl?: string;
+  youtubeId?: string;
+  id?: string;
+}): MediaImage[] {
+  const images: MediaImage[] = [];
+  const added = new Set<string>();
+
+  const add = (url: string | undefined, sizes: string, type = 'image/jpeg') => {
+    if (!url || typeof url !== 'string') return;
+    const trimmed = url.trim();
+    if (!trimmed || added.has(trimmed)) return;
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('data:image/')) return;
+    added.add(trimmed);
+    images.push({ src: trimmed, sizes, type });
+  };
+
+  const ytId = track.youtubeId || (track.id?.startsWith('yt_') ? track.id.replace('yt_', '') : null);
+
+  // 1. High-resolution primary covers (enhanced for Saavn, Apple/iTunes, YouTube)
+  const rawLarge = track.thumbnailLarge || track.thumbnail || track.thumbnailUrl;
+  if (rawLarge) {
+    let enhanced = rawLarge;
+    // JioSaavn: upgrade 150x150 or 50x50 to 500x500 high-res
+    if (enhanced.includes('saavncdn.com')) {
+      enhanced = enhanced.replace(/-(?:50x50|150x150)\.jpg/gi, '-500x500.jpg');
+    }
+    // Apple iTunes: upgrade 100x100 to 600x600 high-res
+    if (enhanced.includes('mzstatic.com')) {
+      enhanced = enhanced.replace(/\/\d+x\d+bb\./g, '/600x600bb.');
+    }
+    add(enhanced, '512x512', 'image/jpeg');
+    add(enhanced, '384x384', 'image/jpeg');
+    add(enhanced, '256x256', 'image/jpeg');
+  }
+
+  // 2. YouTube multi-tier fallback cascade:
+  // Note: maxresdefault (1280x720) can 404 on non-HD uploads,
+  // but sddefault (640x480) and hqdefault (480x360) are 100% guaranteed to exist on YouTube!
+  if (ytId) {
+    add(`https://i.ytimg.com/vi/${ytId}/maxresdefault.jpg`, '1280x720', 'image/jpeg');
+    add(`https://i.ytimg.com/vi/${ytId}/sddefault.jpg`, '640x480', 'image/jpeg');
+    add(`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`, '480x360', 'image/jpeg');
+    add(`https://i.ytimg.com/vi/${ytId}/mqdefault.jpg`, '320x180', 'image/jpeg');
+  }
+
+  // 3. Secondary / standard thumbnail fallbacks
+  if (track.thumbnail) {
+    add(track.thumbnail, '192x192', 'image/jpeg');
+    add(track.thumbnail, '96x96', 'image/jpeg');
+  }
+  if (track.thumbnailUrl) {
+    add(track.thumbnailUrl, '128x128', 'image/jpeg');
+  }
+
+  // 4. Guaranteed fallback
+  if (images.length === 0) {
+    add('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=512&q=80', '512x512', 'image/jpeg');
+  }
+
+  return images;
+}
+
+export function updateMediaSessionMetadata(track: {
+  title?: string;
+  artist?: string;
+  album?: string;
+  thumbnail?: string;
+  thumbnailLarge?: string;
+  thumbnailUrl?: string;
+  youtubeId?: string;
+  id?: string;
+} | null): void {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !track) return;
+
+  try {
+    const artwork = buildMediaSessionArtwork(track);
+    const title = decodeTitle(track.title) || 'WaveCraft Music';
+    const artist = decodeTitle(track.artist) || 'WaveCraft Studio';
+    const album = decodeTitle(track.album) || 'WaveCraft Studio';
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist,
+      album,
+      artwork
+    });
+  } catch {
+    // Ignore metadata errors
+  }
+}
+
 export function useMediaSession() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -96,28 +201,7 @@ export function useMediaSession() {
 
   // Update lock-screen / OS media overlay metadata when track changes
   useEffect(() => {
-    if (!('mediaSession' in navigator) || !currentTrack) return;
-
-    const rawArt = currentTrack.thumbnailLarge || currentTrack.thumbnail;
-    const isHttpUrl = rawArt && (rawArt.startsWith('http://') || rawArt.startsWith('https://'));
-    const safeArtUrl = isHttpUrl
-      ? rawArt
-      : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=512&q=80';
-
-    try {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentTrack.title || 'WaveCraft Music',
-        artist: currentTrack.artist || 'WaveCraft Studio',
-        album: currentTrack.album || 'WaveCraft Studio',
-        artwork: [
-          { src: safeArtUrl, sizes: '96x96', type: 'image/jpeg' },
-          { src: safeArtUrl, sizes: '192x192', type: 'image/jpeg' },
-          { src: safeArtUrl, sizes: '512x512', type: 'image/jpeg' }
-        ]
-      });
-    } catch {
-      // Ignore metadata errors
-    }
+    updateMediaSessionMetadata(currentTrack);
   }, [currentTrack]);
 
   // Keep OS playbackState synced so AirPods / Keyboard / Lock Screen buttons toggle properly

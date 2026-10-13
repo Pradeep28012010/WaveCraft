@@ -24,6 +24,7 @@ const SonicGalaxyPage = lazyWithRetry(() => import('./components/galaxy/SonicGal
 const LandingPage = lazyWithRetry(() => import('./components/landing/LandingPage'));
 const DownloadsPage = lazyWithRetry(() => import('./components/library/DownloadsPage'));
 const SetupPage = lazyWithRetry(() => import('./components/setup/SetupPage'));
+const DownloadPage = lazyWithRetry(() => import('./components/download/DownloadPage'));
 
 const isElectronOrFile =
   typeof window !== 'undefined' &&
@@ -85,6 +86,8 @@ function AppContent() {
         <Route path="/playlist/:id" element={<PlaylistView />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/download" element={<DownloadPage />} />
+        <Route path="/get-app" element={<DownloadPage />} />
       </Route>
     </Routes>
   );
