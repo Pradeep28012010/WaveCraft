@@ -548,6 +548,20 @@ export default function YouTubeEmbed() {
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
                 return;
               }
+              // If document is currently hidden (tab backgrounded / screen locked), do NOT force playVideo()
+              // in a tight spin loop because browser hidden media policy blocks it and causes 1s -> 0s stutter!
+              if (typeof document !== 'undefined' && document.hidden) {
+                const cur = usePlayerStore.getState().currentTrack;
+                if (cur && !userInitiatedPauseRef.current) {
+                  resolveDirectAudio(cur.title, cur.artist, cur.duration, cur.youtubeId).then((directUrl) => {
+                    if (directUrl && usePlayerStore.getState().currentTrack?.id === cur.id) {
+                      cur.audioUrl = directUrl;
+                      playNativeAudio(directUrl, true);
+                    }
+                  }).catch(() => {});
+                }
+                return;
+              }
               // If user did NOT initiate the pause, this is a transient YouTube buffering, focus loss, or background event: auto-resume!
               if (!userInitiatedPauseRef.current) {
                 try {
@@ -922,15 +936,9 @@ export default function YouTubeEmbed() {
         (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
         (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
-      // 3. YouTube Direct Playback:
-      // Plays video stream with seamless background playback via Android Page Visibility KeepAlive
-      if (effectiveYtId) {
-        fallbackToYouTube(track, effectiveYtId, shouldPlay);
-        return;
-      }
-
-      // 4. For tracks WITHOUT a YouTube ID (e.g. imported from Spotify or iTunes metadata),
-      // resolve a verified direct 320kbps audio stream or search YouTube for the full song.
+      // 3. ALWAYS RESOLVE DIRECT 320KBPS CDN AUDIO FIRST:
+      // Direct HTML5 audio guarantees uninterrupted background playback across
+      // minimized browser tabs, switched windows, phone screen lock, and Android APK!
       if (audio && (track.title || track.artist)) {
         setIsLoading(true);
         resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
@@ -953,18 +961,30 @@ export default function YouTubeEmbed() {
                 )
               }));
               playNativeAudio(resolvedUrl, shouldPlay);
+            } else if (effectiveYtId) {
+              fallbackToYouTube(track, effectiveYtId, shouldPlay);
             } else {
               searchAndPlayYouTube(track, shouldPlay);
             }
           })
           .catch(() => {
             if (resolveToken !== resolvingTokenRef.current) return;
-            searchAndPlayYouTube(track, shouldPlay);
+            if (effectiveYtId) {
+              fallbackToYouTube(track, effectiveYtId, shouldPlay);
+            } else {
+              searchAndPlayYouTube(track, shouldPlay);
+            }
           });
         return;
       }
 
-      // 5. Fallback: Search YouTube
+      // 4. Resilient Fallback to YouTube if audio element is not ready
+      if (effectiveYtId) {
+        fallbackToYouTube(track, effectiveYtId, shouldPlay);
+        return;
+      }
+
+      // 5. Final Fallback: Search YouTube
       searchAndPlayYouTube(track, shouldPlay);
     }
   };
@@ -1163,9 +1183,9 @@ export default function YouTubeEmbed() {
         .catch(() => {});
     }
 
-    // Pre-resolve 320kbps audioUrl only for non-YouTube tracks (e.g. Spotify/iTunes import)
-    if (!hasYtId && !nextTrackCandidate.audioUrl) {
-      resolveDirectAudio(nextTrackCandidate.title, nextTrackCandidate.artist, nextTrackCandidate.duration)
+    // Pre-resolve 320kbps audioUrl proactively for upcoming tracks so next track switch is always instant
+    if (!nextTrackCandidate.audioUrl) {
+      resolveDirectAudio(nextTrackCandidate.title, nextTrackCandidate.artist, nextTrackCandidate.duration, nextTrackCandidate.youtubeId)
         .then((resolvedUrl) => {
           if (resolvedUrl) {
             usePlayerStore.setState((s) => ({
@@ -1290,7 +1310,23 @@ export default function YouTubeEmbed() {
   useEffect(() => {
     const handleVisibilityOrBackground = () => {
       if (typeof document === 'undefined') return;
-      if (!document.hidden && isPlaying) {
+      if (document.hidden && isPlaying) {
+        const engine = getActiveEngine();
+        if (engine === 'youtube' && currentTrack) {
+          const curTime = usePlayerStore.getState().currentTime || 0;
+          resolveDirectAudio(currentTrack.title, currentTrack.artist, currentTrack.duration, currentTrack.youtubeId)
+            .then((resolvedUrl) => {
+              if (resolvedUrl && usePlayerStore.getState().currentTrack?.id === currentTrack.id) {
+                currentTrack.audioUrl = resolvedUrl;
+                playNativeAudio(resolvedUrl, true);
+                if (curTime > 1 && audioRef.current) {
+                  audioRef.current.currentTime = curTime;
+                }
+              }
+            })
+            .catch(() => {});
+        }
+      } else if (!document.hidden && isPlaying) {
         // Foreground restore watchdog: verify active engine is running without user pause
         const engine = getActiveEngine();
         if (engine === 'youtube') {
@@ -1309,7 +1345,7 @@ export default function YouTubeEmbed() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityOrBackground);
     };
-  }, [isPlaying]);
+  }, [isPlaying, currentTrack]);
 
   // Sync Volume & Mute with Audiophile Loudness Normalization
   useEffect(() => {

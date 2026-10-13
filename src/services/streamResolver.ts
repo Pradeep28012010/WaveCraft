@@ -1,5 +1,6 @@
 import { decryptSaavnUrl } from '../utils/saavnDecrypt';
-import { apiUrl } from './apiConfig';
+import { apiUrl, PROD_API_ORIGIN } from './apiConfig';
+import { fetchAndroidNativeUrl } from './nativeAndroid';
 
 const streamCache = new Map<string, string>();
 const MAX_CACHE_ENTRIES = 350;
@@ -51,7 +52,13 @@ export function isStrictSaavnMatch(
   }
 
   // Validate artist if specified: prevent wrong song by different artist with identical title
-  if (targetArtist && targetArtist.trim().length > 1) {
+  const isGenericPlaceholder =
+    !targetArtist ||
+    /^(wavecraft|youtube\s*music|various\s*artists|unknown\s*artist|official\s*audio|top\s*hits|music|artist)$/i.test(
+      targetArtist.trim()
+    );
+
+  if (!isGenericPlaceholder && targetArtist && targetArtist.trim().length > 1) {
     const cleanTargetArtist = targetArtist
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, ' ')
@@ -103,9 +110,10 @@ export function isStrictSaavnMatch(
 /**
  * Resolves a crystal-clear 320kbps CORS-enabled direct audio stream URL.
  * Employs a multi-tier resolution waterfall:
- * 1. Serverless backend stream resolver
- * 2. High-speed JioSaavn 320kbps CDN with progressive query fallback
- * 3. Invidious direct adaptive audio stream fallback (when videoId exists)
+ * 1. Android Native network bridge (bypasses browser CORS with zero latency)
+ * 2. Serverless backend stream resolver (/api/music?action=resolve-stream)
+ * 3. Backend stream proxy (/api/music?action=proxy-stream)
+ * 4. Client-side direct fetch
  */
 export async function resolveDirectAudio(
   title: string,
@@ -121,7 +129,44 @@ export async function resolveDirectAudio(
     return streamCache.get(cacheKey)!;
   }
 
-  // 1. Try serverless backend resolver (/api/music?action=resolve-stream)
+  const candidateQueries = [
+    cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle,
+    cleanTitle,
+    title.split(/[-–—]/)[0]?.trim()
+  ].filter((q, idx, arr): q is string => Boolean(q) && q.length > 1 && arr.indexOf(q) === idx);
+
+  // 1. Android Native Network Bridge (Instant zero-CORS resolution directly on mobile)
+  for (const q of candidateQueries) {
+    try {
+      const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const rawJson = fetchAndroidNativeUrl(saavnUrl);
+      if (rawJson) {
+        const data = JSON.parse(rawJson);
+        const results = data?.results || [];
+        if (Array.isArray(results) && results.length > 0) {
+          for (const item of results) {
+            if (!isStrictSaavnMatch(cleanTitle, cleanArtist, item.title, item.subtitle)) {
+              continue;
+            }
+            const enc = item?.more_info?.encrypted_media_url;
+            if (enc) {
+              const directUrl = decryptSaavnUrl(enc);
+              if (directUrl && directUrl.startsWith('https://')) {
+                if (streamCache.size >= MAX_CACHE_ENTRIES) {
+                  const first = streamCache.keys().next().value;
+                  if (first) streamCache.delete(first);
+                }
+                streamCache.set(cacheKey, directUrl);
+                return directUrl;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Serverless backend resolver (/api/music?action=resolve-stream)
   try {
     const apiQuery = new URLSearchParams({
       action: 'resolve-stream',
@@ -141,7 +186,7 @@ export async function resolveDirectAudio(
     // Fallback to direct PROD_API_ORIGIN if local fetch failed
     if (!res || !res.ok) {
       try {
-        res = await fetch(`https://wavecraft-alpha.vercel.app/api/music?${apiQuery.toString()}`, {
+        res = await fetch(`${PROD_API_ORIGIN}/api/music?${apiQuery.toString()}`, {
           headers: { Accept: 'application/json' },
           signal: AbortSignal.timeout(4500)
         });
@@ -161,19 +206,54 @@ export async function resolveDirectAudio(
     }
   } catch {}
 
-  // 2. Client-side direct resolution waterfall via high-speed JioSaavn CDN
-  const candidateQueries = [
-    cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle,
-    cleanTitle,
-    title.split(/[-–—]/)[0]?.trim()
-  ].filter((q, idx, arr): q is string => Boolean(q) && q.length > 1 && arr.indexOf(q) === idx);
+  // 3. Backend Proxy Fallback (/api/music?action=proxy-stream) for web browsers to bypass CORS
+  for (const q of candidateQueries) {
+    try {
+      const saavnTarget = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const proxyEndpoint = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`);
+      let res = await fetch(proxyEndpoint, {
+        signal: AbortSignal.timeout(4000)
+      }).catch(() => null);
 
+      if (!res?.ok) {
+        res = await fetch(`${PROD_API_ORIGIN}/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`, {
+          signal: AbortSignal.timeout(4000)
+        }).catch(() => null);
+      }
+
+      if (res && res.ok) {
+        const data = await res.json();
+        const results = data?.results || [];
+        if (Array.isArray(results) && results.length > 0) {
+          for (const item of results) {
+            if (!isStrictSaavnMatch(cleanTitle, cleanArtist, item.title, item.subtitle)) {
+              continue;
+            }
+            const enc = item?.more_info?.encrypted_media_url;
+            if (enc) {
+              const directUrl = decryptSaavnUrl(enc);
+              if (directUrl && directUrl.startsWith('https://')) {
+                if (streamCache.size >= MAX_CACHE_ENTRIES) {
+                  const first = streamCache.keys().next().value;
+                  if (first) streamCache.delete(first);
+                }
+                streamCache.set(cacheKey, directUrl);
+                return directUrl;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 4. Client-side direct fetch (if supported by environment)
   for (const q of candidateQueries) {
     try {
       const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
       const res = await fetch(saavnUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(3500)
+        signal: AbortSignal.timeout(3000)
       });
       if (res.ok) {
         const data = await res.json();
@@ -200,6 +280,7 @@ export async function resolveDirectAudio(
       }
     } catch {}
   }
+
 
   // NOTE: Do NOT fall back to iTunes previewUrl here.
   // Apple iTunes previewUrl is hard-capped at 30 seconds and causes cutoff.

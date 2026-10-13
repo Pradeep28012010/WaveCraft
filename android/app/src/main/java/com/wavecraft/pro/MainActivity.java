@@ -68,6 +68,32 @@ public class MainActivity extends BridgeActivity {
                 e.printStackTrace();
             }
         }
+
+        @JavascriptInterface
+        public String fetchUrlNative(String urlString) {
+            try {
+                java.net.URL url = new java.net.URL(urlString);
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(4500);
+                conn.setReadTimeout(4500);
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36");
+                int status = conn.getResponseCode();
+                if (status >= 200 && status < 400) {
+                    java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    reader.close();
+                    return sb.toString();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
     }
 
     public static void sendMediaAction(String action) {

@@ -110,7 +110,13 @@ export function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSub
   }
 
   // Validate artist if specified: prevent wrong song by different artist with identical title
-  if (targetArtist && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
+  const isGenericPlaceholder =
+    !targetArtist ||
+    /^(wavecraft|youtube\s*music|various\s*artists|unknown\s*artist|official\s*audio|top\s*hits|music|artist)$/i.test(
+      targetArtist.trim()
+    );
+
+  if (!isGenericPlaceholder && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
     const cleanTargetArtist = targetArtist
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, ' ')
@@ -159,7 +165,7 @@ export function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSub
   return ratio >= 0.6;
 }
 
-export async function resolveDirectAudioStream(title, artist) {
+export async function resolveDirectAudioStream(title, artist, clientIp = '103.212.156.1') {
   if (!title) return null;
   let cleanTitle = (title || '')
     .replace(/\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?|second\s*single|first\s*single|third\s*single|promo|teaser|trailer|original\s*(?:motion\s*picture\s*)?soundtrack|soundtrack|ost|expanded(?:\s*edition)?|deluxe(?:\s*edition)?|special\s*edition|anniversary(?:\s*edition)?|score|bonus\s*track(?:s)?|from\s*["'].*?["'])[\)\]]\s*/gi, ' ')
@@ -177,6 +183,11 @@ export async function resolveDirectAudioStream(title, artist) {
     .replace(/\s+/g, ' ')
     .trim();
 
+  const ipHeader =
+    clientIp && clientIp !== 'unknown' && !clientIp.startsWith('127.') && !clientIp.startsWith('192.168.') && !clientIp.startsWith('::1')
+      ? clientIp
+      : '103.212.156.1';
+
   const candidateQueries = [
     cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle,
     cleanTitle,
@@ -186,7 +197,18 @@ export async function resolveDirectAudioStream(title, artist) {
   for (const q of candidateQueries) {
     try {
       const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
-      const res = await fetchWithTimeout(saavnUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, 3500);
+      const res = await fetchWithTimeout(
+        saavnUrl,
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            'X-Forwarded-For': ipHeader,
+            'Client-IP': ipHeader,
+            'X-Real-IP': ipHeader
+          }
+        },
+        3500
+      );
       if (res.ok) {
         const data = await res.json();
         const results = data?.results || [];

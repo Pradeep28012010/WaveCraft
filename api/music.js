@@ -292,12 +292,14 @@ export default async function handler(req, res) {
 
       const cacheKey = `stream:${videoId || `${title.toLowerCase()}__${artist.toLowerCase()}`}`;
       const cached = getCached(cacheKey);
-      res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=3600');
-      if (cached) return res.status(200).json(cached);
+      if (cached) {
+        res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=7200');
+        return res.status(200).json(cached);
+      }
 
       let streamData = null;
       if (title) {
-        streamData = await resolveDirectAudioStream(title, artist);
+        streamData = await resolveDirectAudioStream(title, artist, clientIp);
       }
       if (!streamData && videoId) {
         streamData = await resolveYouTubeAudioStream(videoId);
@@ -305,8 +307,10 @@ export default async function handler(req, res) {
 
       if (streamData?.audioUrl) {
         setCached(cacheKey, streamData, 3_600_000);
+        res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=7200');
         return res.status(200).json(streamData);
       }
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
       return res.status(404).json({ error: 'Direct stream not found' });
     }
 

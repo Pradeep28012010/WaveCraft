@@ -834,6 +834,9 @@ if (typeof document !== 'undefined') {
     () => {
       const studio = useStudioStore.getState();
       const isPlaying = usePlayerStore.getState().isPlaying;
+      if (audioCtx && audioCtx.state === 'suspended' && isPlaying) {
+        audioCtx.resume().catch(() => {});
+      }
       if (document.hidden) {
         if (studio.fxMode === '8d-orbit' && isPlaying && isOrbitLoopRunning) {
           if (orbitRafId) {

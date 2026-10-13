@@ -134,7 +134,13 @@ test('Search Ranking & Stream Fixes Validation', async (t) => {
       }
 
       // Validate artist if specified: prevent wrong song by different artist with identical title
-      if (targetArtist && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
+      const isGenericPlaceholder =
+        !targetArtist ||
+        /^(wavecraft|youtube\s*music|various\s*artists|unknown\s*artist|official\s*audio|top\s*hits|music|artist)$/i.test(
+          targetArtist.trim()
+        );
+
+      if (!isGenericPlaceholder && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
         const cleanTargetArtist = targetArtist
           .toLowerCase()
           .replace(/[^a-z0-9\s]/g, ' ')

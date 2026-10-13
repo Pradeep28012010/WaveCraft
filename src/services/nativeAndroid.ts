@@ -114,10 +114,27 @@ declare global {
         durationSec: number
       ) => void;
       stopPlayback: () => void;
+      fetchUrlNative?: (url: string) => string | null;
     };
     __wavecraft_media_action?: (action: string) => void;
   }
 }
+
+/**
+ * Fetches an external URL directly using Android native Java HttpURLConnection.
+ * Completely bypasses browser CORS restrictions and avoids serverless proxy latencies on Android APK.
+ */
+export const fetchAndroidNativeUrl = (url: string): string | null => {
+  if (typeof window !== 'undefined' && window.AndroidAudioBridge?.fetchUrlNative) {
+    try {
+      return window.AndroidAudioBridge.fetchUrlNative(url);
+    } catch (e) {
+      console.warn('Native URL fetch error:', e);
+      return null;
+    }
+  }
+  return null;
+};
 
 // Global media action bridge for native Android notification playback controls
 if (typeof window !== 'undefined') {
