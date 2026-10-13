@@ -147,9 +147,7 @@ public class WaveCraftMediaService extends Service {
 
         updatePlaybackSessionState();
 
-        long now = SystemClock.elapsedRealtime();
-        if (playStateChanged || (now - lastNotificationUpdateMs > 4000)) {
-            lastNotificationUpdateMs = now;
+        if (playStateChanged) {
             updateMediaMetadata();
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager != null) {

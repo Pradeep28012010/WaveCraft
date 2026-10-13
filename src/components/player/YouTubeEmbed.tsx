@@ -1053,7 +1053,28 @@ export default function YouTubeEmbed() {
                 : t
             )
           }));
-          fallbackToYouTube(track, ytid, shouldPlay);
+
+          // Proactively attempt direct 320kbps audio resolution on the discovered YouTube match
+          // to ensure background playback works with screen locked across all platforms!
+          const titleToUse = resolved?.title || track.title;
+          const artistToUse = resolved?.artist || track.artist;
+          resolveDirectAudio(titleToUse, artistToUse, resolved?.duration || track.duration, ytid)
+            .then((directAudio) => {
+              if (token !== resolvingTokenRef.current) return;
+              if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+              if (directAudio) {
+                track.audioUrl = directAudio;
+                track.quality = '320kbps Studio AAC';
+                playNativeAudio(directAudio, shouldPlay);
+              } else {
+                fallbackToYouTube(track, ytid, shouldPlay);
+              }
+            })
+            .catch(() => {
+              if (token !== resolvingTokenRef.current) return;
+              fallbackToYouTube(track, ytid, shouldPlay);
+            });
+          return;
         } else if (resolved?.audioUrl && !resolved.audioUrl.includes('preview') && !resolved.audioUrl.includes('mzstatic') && !resolved.audioUrl.includes('itunes')) {
           track.audioUrl = resolved.audioUrl;
           usePlayerStore.setState((s) => ({

@@ -601,7 +601,7 @@ export function initAudioGraph(
     }
   }
 
-  if (audio && !sourceNode && audioCtx && preGainNode) {
+  if (!isAndroidNative() && audio && !sourceNode && audioCtx && preGainNode) {
     try {
       sourceNode = audioCtx.createMediaElementSource(audio);
       sourceNode.connect(preGainNode);

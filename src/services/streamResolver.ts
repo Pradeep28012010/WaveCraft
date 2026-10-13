@@ -82,7 +82,7 @@ export function cleanTrackQuery(title: string, artist: string): CleanQueryDetail
 }
 
 const BGM_REGEX =
-  /\b(instrumental|karaoke|minus\s*one|backing\s*track|bgm|theme\s*(?:music|song|track)?|background\s*score|score|soundtrack)\b/i;
+  /\b(instrumental|karaoke|minus\s*one|backing\s*track|bgm)\b/i;
 
 export function isStrictSaavnMatch(
   targetTitle: string,
@@ -97,9 +97,9 @@ export function isStrictSaavnMatch(
   const normCand = candTitle.toLowerCase().trim();
   const candFull = `${normCand} ${(candSubtitle || '').toLowerCase()}`.trim();
 
-  // If user searched for a vocal track, reject candidate if candidate is instrumental / BGM / karaoke
+  // If user searched for a vocal track, reject candidate if candidate title is instrumental / BGM / karaoke
   const isTargetInst = BGM_REGEX.test(normTarget);
-  const isCandInst = BGM_REGEX.test(candFull);
+  const isCandInst = BGM_REGEX.test(normCand);
   if (!isTargetInst && isCandInst) {
     return false;
   }
@@ -121,6 +121,9 @@ export function isStrictSaavnMatch(
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  const normVowels = (s: string) =>
+    (s || '').replace(/aa+/g, 'a').replace(/ee+/g, 'i').replace(/oo+/g, 'u').replace(/ii+/g, 'i');
 
   // Validate artist if specified: prevent wrong song by different artist with identical title
   const isGenericPlaceholder =
@@ -165,11 +168,16 @@ export function isStrictSaavnMatch(
     .filter((t) => t.length > 2);
   const subMatchesRawTitle = candSubTokens.some((tok) => cleanRawTarget.includes(tok));
 
-  // 1. Exact title match
-  if (cleanTarget === cleanCand) {
+  // 1. Exact or vowel-normalized title match
+  if (cleanTarget === cleanCand || normVowels(cleanTarget) === normVowels(cleanCand)) {
     return true;
   }
-  if (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) {
+  if (
+    cleanCand.startsWith(cleanTarget) ||
+    cleanTarget.startsWith(cleanCand) ||
+    normVowels(cleanCand).startsWith(normVowels(cleanTarget)) ||
+    normVowels(cleanTarget).startsWith(normVowels(cleanCand))
+  ) {
     return true;
   }
 
@@ -183,14 +191,27 @@ export function isStrictSaavnMatch(
   const matchedCandTokens = targetTokens.filter((t) => candTokens.includes(t));
   const matchedFullTokens = targetTokens.filter((t) => candFullTokens.includes(t));
 
+  const targetVowelTokens = targetTokens.map(normVowels);
+  const candVowelTokens = candTokens.map(normVowels);
+  const matchedVowelTokens = targetVowelTokens.filter((t) => candVowelTokens.includes(t));
+
   const ratioCand = matchedCandTokens.length / targetTokens.length;
   const ratioFull = matchedFullTokens.length / targetTokens.length;
+  const ratioVowel = matchedVowelTokens.length / targetTokens.length;
 
   if (targetTokens.length === 1) {
-    return candTokens.includes(targetTokens[0]) || (subMatchesRawTitle && candFullTokens.includes(targetTokens[0]));
+    return (
+      candTokens.includes(targetTokens[0]) ||
+      candVowelTokens.includes(normVowels(targetTokens[0])) ||
+      (subMatchesRawTitle && candFullTokens.includes(targetTokens[0]))
+    );
   }
 
-  return ratioCand >= 0.6 || (ratioFull >= 0.75 && (artistMatches || subMatchesRawTitle));
+  return (
+    ratioCand >= 0.6 ||
+    (ratioVowel >= 0.5 && (artistMatches || subMatchesRawTitle)) ||
+    (ratioFull >= 0.75 && (artistMatches || subMatchesRawTitle))
+  );
 }
 
 /**

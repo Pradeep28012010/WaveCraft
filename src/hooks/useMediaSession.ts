@@ -219,26 +219,37 @@ export function useMediaSession() {
   }, [isPlaying, currentTrack]);
 
   // Sync lock-screen scrub bar position state via passive store subscription
-  // so root AppContent NEVER re-renders on currentTime ticks
+  // Only updates on explicit seeks, duration changes, or play-state toggles.
+  // This eliminates periodic jitter and lets the OS/browser interpolate the scrubber smoothly!
   useEffect(() => {
-    let lastSyncMs = 0;
     let lastTime = -1;
     let lastDuration = -1;
     let lastSpeed = -1;
+    let lastPlaying: boolean | null = null;
 
-    const syncPosition = (currentTime: number, duration: number, playbackSpeed: number) => {
+    const syncPosition = (
+      currentTime: number,
+      duration: number,
+      playbackSpeed: number,
+      playing: boolean
+    ) => {
       if (duration <= 0 || !isFinite(duration)) return;
-      const now = performance.now();
-      const jumped = Math.abs(currentTime - lastTime) > 2.5;
+      const jumped = Math.abs(currentTime - lastTime) > 2.0;
       const metaChanged = duration !== lastDuration || playbackSpeed !== lastSpeed;
-      if (!jumped && !metaChanged && now - lastSyncMs < 1500) return;
+      const playChanged = lastPlaying !== null && lastPlaying !== playing;
 
-      lastSyncMs = now;
+      // Crucial: Only update MediaSession position on seeks, duration/speed changes, or play toggle.
+      // Normal continuous 1s playback ticks must NOT be sent to prevent OS/browser scrubber backward-jumping!
+      if (!jumped && !metaChanged && !playChanged && lastPlaying !== null) {
+        lastTime = currentTime;
+        return;
+      }
+
       lastTime = currentTime;
       lastDuration = duration;
       lastSpeed = playbackSpeed;
+      lastPlaying = playing;
 
-      const playing = usePlayerStore.getState().isPlaying;
       updateAndroidPlaybackState(playing, currentTime, duration);
 
       if (
@@ -248,7 +259,7 @@ export function useMediaSession() {
         try {
           navigator.mediaSession.setPositionState({
             duration,
-            playbackRate: playbackSpeed || 1,
+            playbackRate: playing ? playbackSpeed || 1 : 0,
             position: Math.max(0, Math.min(duration, currentTime || 0))
           });
         } catch {
@@ -258,10 +269,10 @@ export function useMediaSession() {
     };
 
     const init = usePlayerStore.getState();
-    syncPosition(init.currentTime, init.duration, init.playbackSpeed);
+    syncPosition(init.currentTime, init.duration, init.playbackSpeed, init.isPlaying);
 
     return usePlayerStore.subscribe((state) => {
-      syncPosition(state.currentTime, state.duration, state.playbackSpeed);
+      syncPosition(state.currentTime, state.duration, state.playbackSpeed, state.isPlaying);
     });
   }, []);
 }
