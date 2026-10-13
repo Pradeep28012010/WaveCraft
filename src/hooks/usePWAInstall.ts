@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { isAppInstalled } from '../services/apiConfig';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -8,30 +9,15 @@ interface BeforeInstallPromptEvent extends Event {
 
 let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
 
-const isNativeOrDesktopApp = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  const isElectron =
-    Boolean((window as unknown as { electronAPI?: unknown }).electronAPI) ||
-    /Electron/i.test(navigator.userAgent);
-  const isCapacitor = Boolean(
-    (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
-  );
-  const isStandalone =
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-  return isElectron || isCapacitor || isStandalone;
-};
-
 export function usePWAInstall() {
-  const isNative = isNativeOrDesktopApp();
-  const [canInstall, setCanInstall] = useState<boolean>(() => !isNative && Boolean(deferredInstallPrompt));
-  const [isInstalled, setIsInstalled] = useState<boolean>(() => isNative);
+  const [isInstalled, setIsInstalled] = useState<boolean>(() => isAppInstalled());
+  const [canInstall, setCanInstall] = useState<boolean>(() => !isAppInstalled() && Boolean(deferredInstallPrompt));
   const [showInstallGuide, setShowInstallGuide] = useState(false);
 
   useEffect(() => {
-    if (isNative) {
-      setCanInstall(false);
+    if (isAppInstalled()) {
       setIsInstalled(true);
+      setCanInstall(false);
       return;
     }
 
@@ -42,6 +28,9 @@ export function usePWAInstall() {
     };
 
     const onAppInstalled = () => {
+      try {
+        localStorage.setItem('wavecraft_installed', 'true');
+      } catch {}
       deferredInstallPrompt = null;
       setCanInstall(false);
       setIsInstalled(true);
@@ -51,19 +40,42 @@ export function usePWAInstall() {
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onAppInstalled);
 
+    let mediaQuery: MediaQueryList | null = null;
+    try {
+      mediaQuery = window.matchMedia('(display-mode: standalone)');
+      const handleDisplayMode = (e: MediaQueryListEvent) => {
+        if (e.matches) {
+          try {
+            localStorage.setItem('wavecraft_installed', 'true');
+          } catch {}
+          setIsInstalled(true);
+          setCanInstall(false);
+        }
+      };
+      mediaQuery.addEventListener('change', handleDisplayMode);
+      return () => {
+        window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+        window.removeEventListener('appinstalled', onAppInstalled);
+        mediaQuery?.removeEventListener('change', handleDisplayMode);
+      };
+    } catch {}
+
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onAppInstalled);
     };
-  }, [isNative]);
+  }, []);
 
   const triggerInstall = useCallback(async () => {
-    if (isNative) return;
+    if (isAppInstalled()) return;
     if (deferredInstallPrompt) {
       try {
         await deferredInstallPrompt.prompt();
         const choice = await deferredInstallPrompt.userChoice;
         if (choice.outcome === 'accepted') {
+          try {
+            localStorage.setItem('wavecraft_installed', 'true');
+          } catch {}
           deferredInstallPrompt = null;
           setCanInstall(false);
           setIsInstalled(true);
@@ -74,12 +86,12 @@ export function usePWAInstall() {
     } else {
       setShowInstallGuide(true);
     }
-  }, [isNative]);
+  }, []);
 
   return {
-    canInstall: isNative ? false : canInstall,
-    isInstalled: isNative ? true : isInstalled,
-    showInstallGuide: isNative ? false : showInstallGuide,
+    canInstall: isInstalled ? false : canInstall,
+    isInstalled,
+    showInstallGuide: isInstalled ? false : showInstallGuide,
     setShowInstallGuide,
     triggerInstall
   };

@@ -5,6 +5,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
 import { useUpdateStore } from '../../stores/updateStore';
 import { isAndroidNative } from '../../services/nativeAndroid';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { clearAllData } from '../../services/storage';
 import { useOfflineVault } from '../../services/offlineVault';
 import GlassCard from '../ui/GlassCard';
@@ -74,6 +75,7 @@ export default function SettingsPage() {
     hasUpdate
   } = useUpdateStore();
   const isNative = isAndroidNative();
+  const { isInstalled } = usePWAInstall();
 
   const handleBandChange = (index: number, newDb: number) => {
     const clamped = Math.round(Math.max(-12, Math.min(12, newDb)));
@@ -706,12 +708,14 @@ export default function SettingsPage() {
                 <span>🔄 Check for Updates</span>
               )}
             </button>
-            <a
-              href="/download"
-              className="py-2.5 px-4 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
-            >
-              <span>Download Hub</span>
-            </a>
+            {!isInstalled && (
+              <a
+                href="/download"
+                className="py-2.5 px-4 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+              >
+                <span>Download Hub</span>
+              </a>
+            )}
           </div>
         </GlassCard>
 

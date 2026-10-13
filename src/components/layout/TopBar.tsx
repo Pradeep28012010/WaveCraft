@@ -105,11 +105,6 @@ export default function TopBar() {
   }, [showSuggestions]);
 
   const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
-  const isNativeOrDesktop =
-    typeof window !== 'undefined' &&
-    (Boolean(window.electronAPI) ||
-      /Electron/i.test(navigator.userAgent) ||
-      Boolean((window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()));
   const { isPhone, toggleMobileDrawer } = useDevicePreset();
   const roomCode = useJamStore((s) => s.roomCode);
 
@@ -588,8 +583,8 @@ export default function TopBar() {
             </svg>
           </button>
 
-          {/* Mobile Download App Button */}
-          {!isNativeOrDesktop && (
+          {/* Mobile Download App Button (only shown in standard web browsers when not installed) */}
+          {!isInstalled && (
             <button
               onClick={() => {
                 triggerAndroidHaptic('light');
@@ -896,8 +891,8 @@ export default function TopBar() {
             <span className="hidden sm:inline">{activeFxLabel}</span>
           </button>
 
-          {/* Download App Hub Button */}
-          {!isNativeOrDesktop && (
+          {/* Download App Hub Button (only shown in standard web browsers when not installed) */}
+          {!isInstalled && (
             <button
               onClick={() => navigate('/download')}
               title="Download WaveCraft App (.apk / .exe)"
@@ -912,8 +907,8 @@ export default function TopBar() {
             </button>
           )}
 
-          {/* Install App (PWA) Button — only shown in standard web browsers */}
-          {!isInstalled && !isNativeOrDesktop && (
+          {/* Install App (PWA) Button — only shown in standard web browsers when not installed */}
+          {!isInstalled && (
             <button
               onClick={triggerInstall}
               title="Install WaveCraft as Desktop / Mobile App"
@@ -931,7 +926,7 @@ export default function TopBar() {
       </header>
 
       {/* Fallback PWA Install Instructions Modal — only for browser contexts */}
-      {showInstallGuide && !isNativeOrDesktop &&
+      {showInstallGuide && !isInstalled &&
         createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div

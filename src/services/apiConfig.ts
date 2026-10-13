@@ -11,6 +11,7 @@ export function isAndroidNative(): boolean {
     Capacitor.isNativePlatform() ||
     Capacitor.getPlatform() === 'android' ||
     window.location.protocol === 'capacitor:' ||
+    typeof (window as unknown as { AndroidAudioBridge?: unknown }).AndroidAudioBridge !== 'undefined' ||
     (window.location.hostname === 'localhost' && !['3000', '5173', '4173'].includes(window.location.port))
   );
 }
@@ -20,7 +21,40 @@ export function isAndroidNative(): boolean {
  */
 export function isElectronApp(): boolean {
   if (typeof window === 'undefined') return false;
-  return Boolean(window.electronAPI) || window.location.protocol === 'file:';
+  return (
+    Boolean((window as unknown as { electronAPI?: unknown }).electronAPI) ||
+    window.location.protocol === 'file:' ||
+    /Electron/i.test(navigator.userAgent)
+  );
+}
+
+/**
+ * Returns true if running as an installed standalone PWA on Windows, Android, or iOS.
+ */
+export function isStandalonePWA(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const isStandaloneMQ =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches;
+    const isIosStandalone = Boolean((window.navigator as unknown as { standalone?: boolean }).standalone);
+    const isAndroidAppReferrer =
+      typeof document !== 'undefined' && Boolean(document.referrer && document.referrer.includes('android-app://'));
+    const isMarkedInstalled = localStorage.getItem('wavecraft_installed') === 'true';
+    return isStandaloneMQ || isIosStandalone || isAndroidAppReferrer || isMarkedInstalled;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Returns true if the app is already installed and running as a native app or standalone PWA
+ * on Windows or Android.
+ */
+export function isAppInstalled(): boolean {
+  return isAndroidNative() || isElectronApp() || isStandalonePWA();
 }
 
 /**

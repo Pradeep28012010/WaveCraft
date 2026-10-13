@@ -56,6 +56,30 @@ export default function DownloadPage() {
         >
           Get the native apps for Windows and Android with background playback, offline caching, and 320kbps audiophile acoustics — or install directly from your browser.
         </motion.p>
+
+        {isInstalled && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto p-4 rounded-2xl liquid-glass border border-emerald-500/40 bg-emerald-500/10 flex items-center justify-between gap-4 text-left shadow-[0_8px_32px_rgba(16,185,129,0.2)]"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-bold flex items-center justify-center flex-shrink-0">
+                ✓
+              </span>
+              <div>
+                <p className="text-sm font-bold text-white">WaveCraft is already installed on this device!</p>
+                <p className="text-xs text-white/60">You are running the installed application. Re-downloading is not required.</p>
+              </div>
+            </div>
+            <a
+              href="/"
+              className="px-3.5 py-1.5 rounded-xl glass-button text-xs font-bold text-white hover:text-emerald-300 flex-shrink-0"
+            >
+              Go to Player
+            </a>
+          </motion.div>
+        )}
       </div>
 
       {/* Main Download Grid */}

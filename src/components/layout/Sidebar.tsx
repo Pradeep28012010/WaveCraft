@@ -6,6 +6,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useFeedbackStore } from '../../stores/feedbackStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 import CreatePlaylist from '../library/CreatePlaylist';
 import ImportPlaylistModal from '../library/ImportPlaylistModal';
 import type { Playlist } from '../../types';
@@ -16,6 +17,7 @@ export default function Sidebar() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const playlists = useLibraryStore((state) => state.playlists) || [];
   const { isPhone, isMobileDrawerOpen, setMobileDrawerOpen } = useDevicePreset();
+  const { isInstalled } = usePWAInstall();
 
   const navItems: Array<{
     name: string;
@@ -157,7 +159,7 @@ export default function Sidebar() {
         </svg>
       )
     }
-  ];
+  ].filter((item) => item.path !== '/download' || !isInstalled);
 
   // Phone UI Preset: Slide-over Drawer (rendered via portal to body at z-[9999] so MiniPlayer & BottomNav never overlap it)
   if (isPhone) {
