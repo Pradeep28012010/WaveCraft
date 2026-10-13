@@ -6,6 +6,7 @@ import {
   downloadAndInstallNativeUpdate,
   triggerNativePendingInstall
 } from '../services/nativeAndroid';
+import { isVersionGreater } from '../utils/versionUtils';
 
 export interface AppVersionInfo {
   version: string;
@@ -48,8 +49,41 @@ interface UpdateState {
   openPermissionSettings: () => void;
 }
 
-import { isVersionGreater } from '../utils/versionUtils';
 export { isVersionGreater };
+
+/**
+ * Defensive version comparison helper that never throws
+ */
+export function safeCompareVersions(latest: string, current: string): boolean {
+  try {
+    if (typeof isVersionGreater === 'function') {
+      return isVersionGreater(latest, current);
+    }
+  } catch {}
+  try {
+    const l = String(latest || '').replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
+    const c = String(current || '').replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
+    const len = Math.max(l.length, c.length);
+    for (let i = 0; i < len; i++) {
+      const vl = l[i] ?? 0;
+      const vc = c[i] ?? 0;
+      if (vl > vc) return true;
+      if (vl < vc) return false;
+    }
+  } catch {}
+  return false;
+}
+
+const resolveApkDownloadUrl = (rawUrl?: string): string => {
+  const url = rawUrl || '/WaveCraft.apk';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    if (url.includes('localhost')) {
+      return 'https://wavecraft-alpha.vercel.app/WaveCraft.apk';
+    }
+    return url;
+  }
+  return `https://wavecraft-alpha.vercel.app${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 export const useUpdateStore = create<UpdateState>((set, get) => {
   const detectedCurrent =
@@ -83,26 +117,36 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
 
       try {
         let versionData: AppVersionInfo | null = null;
+        const isNative = isAndroidNative();
 
-        // 1. Try local version API
-        try {
-          const res = await fetch('/api/music?action=version', { cache: 'no-store' });
-          if (res.ok) {
-            versionData = await res.json();
-          }
-        } catch {}
+        // Endpoints to check: live remote Vercel API, remote version.json, github raw, or local
+        const endpoints = isNative
+          ? [
+              'https://wavecraft-alpha.vercel.app/api/music?action=version',
+              'https://wavecraft-alpha.vercel.app/version.json',
+              'https://raw.githubusercontent.com/Pradeep28012010/WaveCraft/main/public/version.json',
+              '/version.json'
+            ]
+          : [
+              '/api/music?action=version',
+              '/version.json',
+              'https://wavecraft-alpha.vercel.app/api/music?action=version'
+            ];
 
-        // 2. Try static public/version.json
-        if (!versionData) {
+        for (const ep of endpoints) {
           try {
-            const res = await fetch('/version.json', { cache: 'no-store' });
+            const res = await fetch(ep, { cache: 'no-store' });
             if (res.ok) {
-              versionData = await res.json();
+              const data = await res.json();
+              if (data && data.version) {
+                versionData = data;
+                break;
+              }
             }
           } catch {}
         }
 
-        // 3. Fallback to GitHub Release API
+        // Fallback to GitHub Release API
         if (!versionData) {
           try {
             const res = await fetch(
@@ -117,9 +161,9 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
               );
               versionData = {
                 version: tag,
-                versionCode: 5,
+                versionCode: 6,
                 releaseDate: gh.published_at?.split('T')[0] || new Date().toISOString().split('T')[0],
-                downloadUrl: apkAsset?.browser_download_url || '/WaveCraft.apk',
+                downloadUrl: apkAsset?.browser_download_url || 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
                 title: gh.name || `WaveCraft v${tag}`,
                 releaseNotes: gh.body
                   ? gh.body.split('\n').filter((l: string) => l.trim().length > 0)
@@ -133,7 +177,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
         const current = getNativeAppVersion() || get().currentVersion || '5.0.0';
 
         if (versionData) {
-          const updateNeeded = isVersionGreater(versionData.version, current);
+          const updateNeeded = safeCompareVersions(versionData.version, current);
           set({
             latestVersionInfo: versionData,
             hasUpdate: updateNeeded,
@@ -158,14 +202,11 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
 
     startInstallUpdate: () => {
       const { latestVersionInfo } = get();
-      const rawUrl = latestVersionInfo?.downloadUrl || '/WaveCraft.apk';
-      const fullUrl = rawUrl.startsWith('http')
-        ? rawUrl
-        : `${window.location.origin}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+      const resolvedApkUrl = resolveApkDownloadUrl(latestVersionInfo?.downloadUrl);
 
       if (isAndroidNative()) {
         set({ status: 'downloading', downloadProgress: 1, errorMessage: null, isModalOpen: true });
-        const started = downloadAndInstallNativeUpdate(fullUrl);
+        const started = downloadAndInstallNativeUpdate(resolvedApkUrl);
         if (!started) {
           set({
             status: 'error',
@@ -175,7 +216,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
       } else {
         // Desktop / Web PWA fallback
         const link = document.createElement('a');
-        link.href = fullUrl;
+        link.href = resolvedApkUrl;
         link.download = 'WaveCraft.apk';
         document.body.appendChild(link);
         link.click();

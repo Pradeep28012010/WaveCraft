@@ -47,4 +47,12 @@ describe('In-App Updater & Semver Comparison Logic', () => {
     assert.strictEqual(isVersionGreater('5.0.0.1', '5.0.0'), true);
     assert.strictEqual(isVersionGreater('5.0.0', '5.0.0.1'), false);
   });
+
+  it('handles null, undefined, and non-string inputs safely without throwing', () => {
+    assert.strictEqual(isVersionGreater('', '5.0.0'), false);
+    assert.strictEqual(isVersionGreater(null, '5.0.0'), false);
+    assert.strictEqual(isVersionGreater(undefined, '5.0.0'), false);
+    assert.strictEqual(isVersionGreater('5.0.1', null), true);
+    assert.strictEqual(isVersionGreater('5.0.1', undefined), true);
+  });
 });
