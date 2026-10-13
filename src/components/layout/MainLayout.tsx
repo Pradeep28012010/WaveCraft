@@ -9,6 +9,7 @@ import CommandPalette from './CommandPalette';
 import StudioFXModal from '../player/StudioFXModal';
 import ContextMenu from '../ui/ContextMenu';
 import FeedbackModal from '../feedback/FeedbackModal';
+import UpdateModal from '../updater/UpdateModal';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
@@ -105,6 +106,7 @@ export default function MainLayout() {
       <StudioFXModal />
       <ContextMenu />
       <FeedbackModal />
+      <UpdateModal />
 
       {/* Windows 11 Acrylic Frameless Title Bar (Desktop / Electron) */}
       <WindowsTitleBar />

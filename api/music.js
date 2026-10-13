@@ -394,6 +394,24 @@ export default async function handler(req, res) {
       });
     }
 
+    if (action === 'version') {
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      return res.status(200).json({
+        version: '5.0.0',
+        versionCode: 5,
+        releaseDate: '2026-10-13',
+        downloadUrl: '/WaveCraft.apk',
+        title: 'WaveCraft Pro v5.0.0 (Fullscreen & In-App Updater)',
+        releaseNotes: [
+          'Edge-to-edge immersive sticky fullscreen on Android (unobstructed top controls)',
+          'One-tap in-app APK updater: zero manual downloads or file searching',
+          'High-resolution lock screen and notification media artwork',
+          'Interactive Bug Reporting and Feature Suggestions hub'
+        ],
+        forceUpdate: false
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('API error:', err);

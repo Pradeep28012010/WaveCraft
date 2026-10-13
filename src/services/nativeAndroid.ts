@@ -38,11 +38,11 @@ export const triggerAndroidHaptic = async (type: 'light' | 'medium' | 'heavy' = 
 export const initNativeAndroid = (navigate?: (to: number) => void) => {
   if (!Capacitor.isNativePlatform()) return () => {};
 
-  // 1. Native Status Bar setup (non-overlapping, matching deep pitch-black theme)
+  // 1. Native Status Bar setup (immersive edge-to-edge fullscreen)
   try {
-    StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
+    StatusBar.hide().catch(() => {});
+    StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
     StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-    StatusBar.setBackgroundColor({ color: '#06060b' }).catch(() => {});
   } catch {}
 
   // 2. Hardware Back Button Navigation Stack
@@ -115,8 +115,17 @@ declare global {
       ) => void;
       stopPlayback: () => void;
       fetchUrlNative?: (url: string) => string | null;
+      getAppVersion?: () => string;
+      getAppVersionCode?: () => number;
+      canInstallPackages?: () => boolean;
+      openInstallPermissionSettings?: () => void;
+      downloadAndInstallUpdate?: (url: string) => void;
+      triggerPendingInstall?: () => void;
     };
     __wavecraft_media_action?: (action: string) => void;
+    __wavecraft_update_progress?: (percent: number) => void;
+    __wavecraft_update_status?: (status: string) => void;
+    __wavecraft_update_error?: (error: string) => void;
   }
 }
 
@@ -207,4 +216,71 @@ export const stopAndroidBackgroundAudio = () => {
     }
   }
 };
+
+/**
+ * Returns native app version string (e.g. "5.0.0") if running inside Android APK.
+ */
+export const getNativeAppVersion = (): string | null => {
+  if (typeof window !== 'undefined' && window.AndroidAudioBridge?.getAppVersion) {
+    try {
+      return window.AndroidAudioBridge.getAppVersion();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+/**
+ * Returns true if the Android app has permission to install package updates.
+ */
+export const canNativeInstallPackages = (): boolean => {
+  if (typeof window !== 'undefined' && window.AndroidAudioBridge?.canInstallPackages) {
+    try {
+      return window.AndroidAudioBridge.canInstallPackages();
+    } catch {
+      return false;
+    }
+  }
+  return false;
+};
+
+/**
+ * Opens system settings for user to toggle "Install Unknown Apps" permission.
+ */
+export const openNativeInstallSettings = (): void => {
+  if (typeof window !== 'undefined' && window.AndroidAudioBridge?.openInstallPermissionSettings) {
+    try {
+      window.AndroidAudioBridge.openInstallPermissionSettings();
+    } catch {}
+  }
+};
+
+/**
+ * Triggers background download of updated APK and launches package installer directly on completion.
+ */
+export const downloadAndInstallNativeUpdate = (apkUrl: string): boolean => {
+  if (typeof window !== 'undefined' && window.AndroidAudioBridge?.downloadAndInstallUpdate) {
+    try {
+      window.AndroidAudioBridge.downloadAndInstallUpdate(apkUrl);
+      return true;
+    } catch (e) {
+      console.warn('Failed to invoke native update installer:', e);
+      return false;
+    }
+  }
+  return false;
+};
+
+/**
+ * Re-triggers installation for an already-downloaded update package.
+ */
+export const triggerNativePendingInstall = (): void => {
+  if (typeof window !== 'undefined' && window.AndroidAudioBridge?.triggerPendingInstall) {
+    try {
+      window.AndroidAudioBridge.triggerPendingInstall();
+    } catch {}
+  }
+};
+
 

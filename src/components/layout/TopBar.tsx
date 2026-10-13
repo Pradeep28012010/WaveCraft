@@ -9,6 +9,7 @@ import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useSearchHistory } from '../../utils/searchHistory';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useUpdateStore } from '../../stores/updateStore';
 
 const formatClock = (sec: number) => {
   const m = Math.floor(sec / 60);
@@ -135,6 +136,17 @@ export default function TopBar() {
   );
   const offlineModeOnly = useSettingsStore((s) => s.offlineModeOnly ?? false);
   const toggleOfflineModeOnly = useSettingsStore((s) => s.toggleOfflineModeOnly);
+
+  const hasUpdate = useUpdateStore((s) => s.hasUpdate);
+  const openUpdateModal = useUpdateStore((s) => s.openModal);
+  const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      checkForUpdates(false);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [checkForUpdates]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -319,7 +331,7 @@ export default function TopBar() {
     return (
       <header
         style={{
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)'
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 10px)'
         }}
         className="flex items-center justify-between gap-2 px-3.5 pb-2.5 relative z-40 bg-[#06060b]/90 backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all flex-shrink-0 w-full"
       >
@@ -518,6 +530,20 @@ export default function TopBar() {
 
         {/* Right Action Icons (Studio FX, Active Timers & Drawer) */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {hasUpdate && (
+            <button
+              onClick={() => {
+                triggerAndroidHaptic('medium');
+                openUpdateModal();
+              }}
+              className="h-7 px-2.5 rounded-full text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all glass-button-primary text-white shadow-[0_0_12px_rgba(250,45,72,0.4)] animate-pulse"
+              title="Update Available — Tap to install"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+              <span>Update</span>
+            </button>
+          )}
+
           {(offlineModeOnly || !isOnline) && (
             <button
               onClick={() => {

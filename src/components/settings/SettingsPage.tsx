@@ -3,6 +3,8 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
+import { useUpdateStore } from '../../stores/updateStore';
+import { isAndroidNative } from '../../services/nativeAndroid';
 import { clearAllData } from '../../services/storage';
 import { useOfflineVault } from '../../services/offlineVault';
 import GlassCard from '../ui/GlassCard';
@@ -64,6 +66,14 @@ export default function SettingsPage() {
   const settings = useSettingsStore();
   const library = useLibraryStore();
   const openFeedback = useFeedbackStore((s) => s.openFeedback);
+  const {
+    currentVersion,
+    checkForUpdates,
+    status: updateStatus,
+    openModal: openUpdateModal,
+    hasUpdate
+  } = useUpdateStore();
+  const isNative = isAndroidNative();
 
   const handleBandChange = (index: number, newDb: number) => {
     const clamped = Math.round(Math.max(-12, Math.min(12, newDb)));
@@ -647,6 +657,61 @@ export default function SettingsPage() {
             >
               <span>⭐ General Feedback</span>
             </button>
+          </div>
+        </GlassCard>
+
+        {/* In-App Auto-Updates & Version Manager */}
+        <GlassCard variant="liquid" padding="md" className="flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>🚀 App Updates & Version</span>
+                <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/30 text-[10px] font-black text-purple-300">
+                  v{currentVersion}
+                </span>
+              </h3>
+              {hasUpdate && (
+                <span className="px-2 py-0.5 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 text-[10px] font-black text-[var(--color-accent)] animate-pulse">
+                  Update Ready
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-white/55 mt-1 leading-relaxed">
+              {isNative
+                ? 'Zero-headache seamless in-app updater: downloads directly and opens package installer without browsing or searching files.'
+                : 'Stay current with latest streaming performance optimizations, acoustic algorithms, and new features.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2.5 mt-6">
+            <button
+              type="button"
+              onClick={() => {
+                if (hasUpdate) {
+                  openUpdateModal();
+                } else {
+                  checkForUpdates(true);
+                }
+              }}
+              disabled={updateStatus === 'checking'}
+              className="flex-1 min-w-[140px] py-2.5 px-4 rounded-xl glass-button-primary text-xs font-extrabold text-white flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+            >
+              {updateStatus === 'checking' ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Checking...</span>
+                </>
+              ) : hasUpdate ? (
+                <span>⚡ Install Update Now</span>
+              ) : (
+                <span>🔄 Check for Updates</span>
+              )}
+            </button>
+            <a
+              href="/download"
+              className="py-2.5 px-4 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+            >
+              <span>Download Hub</span>
+            </a>
           </div>
         </GlassCard>
 
