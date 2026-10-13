@@ -92,7 +92,16 @@ export function decryptSaavnMediaUrl(enc) {
   }
 }
 
-export function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSubtitle) {
+const LABEL_CHANNEL_REGEX =
+  /(?:t-series|aditya|sony|zee|saregama|think|lahari|junglee|tips|yrf|mythri|hombale|vevo|speed|white\s*hill|records|films|movies|music|media|studios|entertainment|international|audio|series|channel|official|ap\s*international)/i;
+
+export function isStrictSaavnMatch(
+  targetTitle,
+  targetArtist,
+  candTitle,
+  candSubtitle,
+  rawTargetTitle
+) {
   if (!candTitle || !targetTitle) return false;
 
   const BGM_REGEX =
@@ -109,32 +118,6 @@ export function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSub
     return false;
   }
 
-  // Validate artist if specified: prevent wrong song by different artist with identical title
-  const isGenericPlaceholder =
-    !targetArtist ||
-    /^(wavecraft|youtube\s*music|various\s*artists|unknown\s*artist|official\s*audio|top\s*hits|music|artist)$/i.test(
-      targetArtist.trim()
-    );
-
-  if (!isGenericPlaceholder && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
-    const cleanTargetArtist = targetArtist
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    const cleanCandArtist = `${(candSubtitle || '').toLowerCase()} ${normCand}`
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    const artistTokens = cleanTargetArtist.split(/\s+/).filter((t) => t.length > 2);
-    if (artistTokens.length > 0) {
-      const hasArtistMatch = artistTokens.some((tok) => cleanCandArtist.includes(tok));
-      if (!hasArtistMatch) {
-        return false;
-      }
-    }
-  }
-
   const cleanTarget = normTarget
     .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
     .replace(/[^a-z0-9\s]/g, ' ')
@@ -147,27 +130,95 @@ export function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSub
     .replace(/\s+/g, ' ')
     .trim();
 
-  if (cleanTarget === cleanCand) return true;
-  if (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) return true;
+  const cleanRawTarget = (rawTargetTitle || targetTitle || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
+  // Validate artist if specified: prevent wrong song by different artist with identical title
+  const isGenericPlaceholder =
+    !targetArtist ||
+    /^(wavecraft|youtube\s*music|various\s*artists|unknown\s*artist|official\s*audio|top\s*hits|music|artist)$/i.test(
+      String(targetArtist).trim()
+    );
+
+  const isLabelOrChannel = Boolean(targetArtist && LABEL_CHANNEL_REGEX.test(targetArtist));
+
+  let artistMatches = true;
+  let artistMismatch = false;
+
+  if (!isGenericPlaceholder && !isLabelOrChannel && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
+    const cleanTargetArtist = targetArtist
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/(?:vevo|records|entertainment|music|official|channel|series|films)\b.*$/i, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const artistTokens = cleanTargetArtist.split(/\s+/).filter((t) => t.length > 2);
+    if (artistTokens.length > 0) {
+      artistMatches = artistTokens.some((tok) => candFull.includes(tok));
+      if (!artistMatches) {
+        artistMismatch = true;
+      }
+    }
+  }
+
+  // Reject wrong artist if target had a specific distinct singer
+  if (artistMismatch) {
+    return false;
+  }
+
+  // Subtitle contains tokens of raw title (e.g. film name, composer, co-singer)
+  const candSubTokens = (candSubtitle || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length > 2);
+  const subMatchesRawTitle = candSubTokens.some((tok) => cleanRawTarget.includes(tok));
+
+  // 1. Exact title match
+  if (cleanTarget === cleanCand) {
+    return true;
+  }
+  if (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) {
+    return true;
+  }
+
+  // 2. Token matching across candidate full text
   const targetTokens = cleanTarget.split(/\s+/).filter((t) => t.length > 1);
   const candTokens = cleanCand.split(/\s+/).filter((t) => t.length > 1);
+  const candFullTokens = candFull.split(/\s+/).filter((t) => t.length > 1);
 
   if (targetTokens.length === 0) return false;
 
-  const matchedTokens = targetTokens.filter((t) => candTokens.includes(t));
-  const ratio = matchedTokens.length / targetTokens.length;
+  const matchedCandTokens = targetTokens.filter((t) => candTokens.includes(t));
+  const matchedFullTokens = targetTokens.filter((t) => candFullTokens.includes(t));
+
+  const ratioCand = matchedCandTokens.length / targetTokens.length;
+  const ratioFull = matchedFullTokens.length / targetTokens.length;
 
   if (targetTokens.length === 1) {
-    return candTokens.includes(targetTokens[0]);
+    return candTokens.includes(targetTokens[0]) || (subMatchesRawTitle && candFullTokens.includes(targetTokens[0]));
   }
 
-  return ratio >= 0.6;
+  return ratioCand >= 0.6 || (ratioFull >= 0.75 && (artistMatches || subMatchesRawTitle));
 }
 
 export async function resolveDirectAudioStream(title, artist, clientIp = '103.212.156.1') {
   if (!title) return null;
-  let cleanTitle = (title || '')
+  const raw = (title || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .trim();
+
+  const pipeParts = raw.split('|').map((s) => s.trim()).filter(Boolean);
+  const movieContext = pipeParts.length >= 2 ? pipeParts[1].replace(/[-–—].*$/, '').trim() : undefined;
+
+  let cleanTitle = raw
     .replace(/\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?|second\s*single|first\s*single|third\s*single|promo|teaser|trailer|original\s*(?:motion\s*picture\s*)?soundtrack|soundtrack|ost|expanded(?:\s*edition)?|deluxe(?:\s*edition)?|special\s*edition|anniversary(?:\s*edition)?|score|bonus\s*track(?:s)?|from\s*["'].*?["'])[\)\]]\s*/gi, ' ')
     .replace(/\s+(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|full\s+audio|8k\s+video|4k\s+video|hd\s+video|official\s+video|official\s+audio|second\s+single|first\s+single|promo\s+song|video)\b.*$/i, '')
     .replace(/\|\s*.*$/g, '')
@@ -177,22 +228,42 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
 
   let cleanArtist = (artist || '')
     .replace(/\s*-\s*Topic$/i, '')
-    .replace(/\s*(?:VEVO|Records|Entertainment|Music|Official|Channel|Series|Films)\b.*$/i, '')
-    .replace(/\s*,\s*.*$/, '')
-    .replace(/\s+(?:feat\.|ft\.|second\s*single|first\s*single).*$/i, '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/(?:vevo|records|entertainment|music|official|channel|series|films)\b.*$/i, '')
+    .replace(/[-_]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  const dashParts = cleanTitle.split(/\s*[-–—]\s*/).map((s) => s.trim()).filter(Boolean);
+  let songName = cleanTitle;
+  let detectedArtist = cleanArtist;
+  if (dashParts.length >= 2) {
+    songName = dashParts[1];
+    detectedArtist = dashParts[0];
+  }
+
+  const querySet = new Set();
+  if (detectedArtist && songName && !LABEL_CHANNEL_REGEX.test(detectedArtist)) {
+    querySet.add(`${songName} ${detectedArtist}`.trim());
+  }
+  if (movieContext && songName) {
+    querySet.add(`${songName} ${movieContext}`.trim());
+  }
+  if (cleanArtist && songName && cleanArtist !== detectedArtist && !LABEL_CHANNEL_REGEX.test(cleanArtist)) {
+    querySet.add(`${songName} ${cleanArtist}`.trim());
+  }
+  if (songName) querySet.add(songName);
+  if (cleanTitle) querySet.add(cleanTitle);
+  if (cleanArtist && cleanTitle && !LABEL_CHANNEL_REGEX.test(cleanArtist)) {
+    querySet.add(`${cleanTitle} ${cleanArtist}`.trim());
+  }
+
+  const candidateQueries = Array.from(querySet).filter((q) => q.length > 1);
 
   const ipHeader =
     clientIp && clientIp !== 'unknown' && !clientIp.startsWith('127.') && !clientIp.startsWith('192.168.') && !clientIp.startsWith('::1')
       ? clientIp
       : '103.212.156.1';
-
-  const candidateQueries = [
-    cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle,
-    cleanTitle,
-    title.split(/[-–—]/)[0]?.trim()
-  ].filter((q, idx, arr) => Boolean(q) && q.length > 1 && arr.indexOf(q) === idx);
 
   for (const q of candidateQueries) {
     try {
@@ -214,7 +285,7 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
         const results = data?.results || [];
         if (Array.isArray(results) && results.length > 0) {
           for (const item of results) {
-            if (!isStrictSaavnMatch(cleanTitle, cleanArtist, item.title, item.subtitle)) {
+            if (!isStrictSaavnMatch(songName, detectedArtist || cleanArtist, item.title, item.subtitle, title)) {
               continue;
             }
             const enc = item?.more_info?.encrypted_media_url;

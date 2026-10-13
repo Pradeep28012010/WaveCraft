@@ -407,22 +407,8 @@ public class MainActivity extends BridgeActivity {
             // Register native bridge for background audio foreground service & auto-updates
             webView.addJavascriptInterface(new AndroidAudioBridge(), "AndroidAudioBridge");
 
-            injectBackgroundAudioKeepAlive(webView);
+            keepWebViewAlive();
         }
-    }
-
-    private void injectBackgroundAudioKeepAlive(WebView webView) {
-        String js = "(function() {" +
-            "  try {" +
-            "    Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true });" +
-            "    Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true });" +
-            "    Object.defineProperty(document, 'webkitHidden', { get: function() { return false; }, configurable: true });" +
-            "    Object.defineProperty(document, 'webkitVisibilityState', { get: function() { return 'visible'; }, configurable: true });" +
-            "    window.addEventListener('visibilitychange', function(e) { e.stopImmediatePropagation(); }, true);" +
-            "    document.addEventListener('visibilitychange', function(e) { e.stopImmediatePropagation(); }, true);" +
-            "  } catch(e) {}" +
-            "})();";
-        webView.post(() -> webView.evaluateJavascript(js, null));
     }
 
     private void keepWebViewAlive() {
@@ -431,7 +417,6 @@ public class MainActivity extends BridgeActivity {
             webView.post(() -> {
                 webView.resumeTimers();
                 webView.onResume();
-                injectBackgroundAudioKeepAlive(webView);
             });
         }
     }
@@ -447,6 +432,7 @@ public class MainActivity extends BridgeActivity {
     public void onResume() {
         super.onResume();
         setImmersiveFullscreen();
+        keepWebViewAlive();
     }
 
     @Override

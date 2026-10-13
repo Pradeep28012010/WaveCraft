@@ -27,6 +27,8 @@ import {
   resetAutoMixerFilters
 } from '../../services/audioEngine';
 import { jamSyncEngine } from '../../services/jamSyncEngine';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { isAndroidNative, PROD_API_ORIGIN } from '../../services/apiConfig';
 import {
   startAndroidBackgroundAudio,
@@ -1313,9 +1315,9 @@ export default function YouTubeEmbed() {
   // If the app is minimized/hidden while active on YouTube iframe (e.g. on mobile browsers or backgrounded APK),
   // seamlessly hand off to HTML5 direct audio so playback continues without stopping!
   useEffect(() => {
-    const handleVisibilityOrBackground = () => {
-      if (typeof document === 'undefined') return;
-      if (document.hidden && isPlaying) {
+    const handleVisibilityOrBackground = (forceHidden?: boolean) => {
+      const isHidden = forceHidden ?? (typeof document !== 'undefined' ? document.hidden : false);
+      if (isHidden && isPlaying) {
         const engine = getActiveEngine();
         if (engine === 'youtube' && currentTrack) {
           const curTime = usePlayerStore.getState().currentTime || 0;
@@ -1331,7 +1333,7 @@ export default function YouTubeEmbed() {
             })
             .catch(() => {});
         }
-      } else if (!document.hidden && isPlaying) {
+      } else if (!isHidden && isPlaying) {
         // Foreground restore watchdog: verify active engine is running without user pause
         const engine = getActiveEngine();
         if (engine === 'youtube') {
@@ -1346,9 +1348,23 @@ export default function YouTubeEmbed() {
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityOrBackground);
+    const onVisChange = () => handleVisibilityOrBackground();
+    document.addEventListener('visibilitychange', onVisChange);
+
+    let capHandle: { remove: () => void } | null = null;
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('appStateChange', ({ isActive }) => {
+        handleVisibilityOrBackground(!isActive);
+      }).then((h) => {
+        capHandle = h;
+      }).catch(() => {});
+    }
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityOrBackground);
+      document.removeEventListener('visibilitychange', onVisChange);
+      if (capHandle) {
+        try { capHandle.remove(); } catch {}
+      }
     };
   }, [isPlaying, currentTrack]);
 
@@ -1460,24 +1476,22 @@ export default function YouTubeEmbed() {
         }
 
         // Proactive Multi-Stage Buffering Stall Recovery Watchdog
-        if (bufferingStartTimeRef.current > 0) {
+        // Only run foreground nudge if tab is visible and not actively transitioning
+        if (
+          bufferingStartTimeRef.current > 0 &&
+          typeof document !== 'undefined' &&
+          !document.hidden &&
+          !isSwitchingTrackRef.current &&
+          !trackTransitionIntentRef.current
+        ) {
           const stallMs = Date.now() - bufferingStartTimeRef.current;
-          // Tier 1 (after 2.2s): Gentle wake-up play kick
-          if (stallMs >= 2200 && stallMs < 3800) {
+          // Tier 1 (after 2.5s): Gentle wake-up play kick
+          if (stallMs >= 2500 && stallMs < 4500) {
             try { ytPlayer.playVideo?.(); } catch {}
           }
-          // Tier 2 (after 4.0s): Unwedge buffer via in-place micro-seek without losing track position
-          else if (stallMs >= 4000 && stallMs < 6500) {
-            try {
-              const cur = ytPlayer.getCurrentTime?.() || 0;
-              ytPlayer.seekTo?.(Math.max(0, cur), true);
-              ytPlayer.playVideo?.();
-            } catch {}
-          }
-          // Tier 3 (after 7.0s): In-place soft-reload from current timestamp
-          else if (stallMs >= 7000) {
+          // Tier 2 (after 4.5s): Soft reload at current timestamp without resetting queue progress
+          else if (stallMs >= 4500) {
             bufferingStartTimeRef.current = 0;
-            console.warn('[WaveCraft] Stream stalled in buffering for >7s, soft-reloading at current position...');
             const curTrack = usePlayerStore.getState().currentTrack;
             const curTime = ytPlayer.getCurrentTime?.() || 0;
             const effectiveId =
@@ -1486,9 +1500,9 @@ export default function YouTubeEmbed() {
               (curTrack?.id.startsWith('yt_') ? curTrack.id.replace('yt_', '') : '');
 
             if (effectiveId && typeof ytPlayer.loadVideoById === 'function') {
-              ytPlayer.loadVideoById({ videoId: effectiveId, startSeconds: curTime });
-            } else if (curTrack) {
-              startTrackPlayback(curTrack, true, false);
+              try {
+                ytPlayer.loadVideoById({ videoId: effectiveId, startSeconds: curTime });
+              } catch {}
             }
           }
         }
