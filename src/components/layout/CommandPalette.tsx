@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudioStore } from '../../stores/studioStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useFeedbackStore } from '../../stores/feedbackStore';
 import { searchTracks } from '../../services/youtube';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
@@ -260,6 +261,33 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         subtitle: 'Jump to the next preloaded song',
         icon: '⏭️',
         run: () => nextTrack()
+      },
+      {
+        id: 'report-bug',
+        category: 'Help & Feedback',
+        title: 'Report a Bug',
+        subtitle: 'Encountered an issue? Report it with automatic device diagnostics',
+        badge: 'SUPPORT',
+        icon: '🐛',
+        run: () => useFeedbackStore.getState().openFeedback('bug')
+      },
+      {
+        id: 'suggest-feature',
+        category: 'Help & Feedback',
+        title: 'Suggest a Feature or Idea',
+        subtitle: 'Share your ideas to improve WaveCraft audio or interface',
+        badge: 'IDEA',
+        icon: '💡',
+        run: () => useFeedbackStore.getState().openFeedback('feature')
+      },
+      {
+        id: 'send-feedback',
+        category: 'Help & Feedback',
+        title: 'Send Feedback & Review',
+        subtitle: 'Rate your experience and share thoughts with the team',
+        badge: 'FEEDBACK',
+        icon: '⭐',
+        run: () => useFeedbackStore.getState().openFeedback('general')
       }
     ],
     [

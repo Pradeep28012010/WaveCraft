@@ -2,6 +2,7 @@ import React from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useFeedbackStore } from '../../stores/feedbackStore';
 import { clearAllData } from '../../services/storage';
 import { useOfflineVault } from '../../services/offlineVault';
 import GlassCard from '../ui/GlassCard';
@@ -62,6 +63,7 @@ const BAND_LABELS = ['32Hz', '64Hz', '125Hz', '250Hz', '500Hz', '1kHz', '2kHz', 
 export default function SettingsPage() {
   const settings = useSettingsStore();
   const library = useLibraryStore();
+  const openFeedback = useFeedbackStore((s) => s.openFeedback);
 
   const handleBandChange = (index: number, newDb: number) => {
     const clamped = Math.round(Math.max(-12, Math.min(12, newDb)));
@@ -605,6 +607,46 @@ export default function SettingsPage() {
             >
               Reset All Data
             </GlassButton>
+          </div>
+        </GlassCard>
+
+        {/* User Feedback & Bug Reporting */}
+        <GlassCard variant="liquid" padding="md" className="flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>💬 Help, Feedback & Suggestions</span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-[10px] font-black text-amber-300">
+                  Community
+                </span>
+              </h3>
+            </div>
+            <p className="text-xs text-white/55 mt-1 leading-relaxed">
+              Found a bug or have an idea to make WaveCraft better? Report issues with automatic device diagnostics or submit feature suggestions.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2.5 mt-6">
+            <button
+              type="button"
+              onClick={() => openFeedback('bug')}
+              className="flex-1 min-w-[130px] py-2 px-3 rounded-xl bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 text-xs font-bold text-amber-300 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+            >
+              <span>🐛 Report Bug</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openFeedback('feature')}
+              className="flex-1 min-w-[130px] py-2 px-3 rounded-xl bg-purple-500/15 border border-purple-500/30 hover:bg-purple-500/25 text-xs font-bold text-purple-300 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+            >
+              <span>💡 Suggest Feature</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openFeedback('general')}
+              className="flex-1 min-w-[130px] py-2 px-3 rounded-xl glass-button text-xs font-bold text-white/90 hover:text-white flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+            >
+              <span>⭐ General Feedback</span>
+            </button>
           </div>
         </GlassCard>
 

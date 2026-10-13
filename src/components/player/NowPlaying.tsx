@@ -6,6 +6,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
+import { useFeedbackStore } from '../../stores/feedbackStore';
 import QueuePanel from './QueuePanel';
 import LyricsView from '../lyrics/LyricsView';
 import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
@@ -773,6 +774,22 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           <span className="px-2 py-0.5 rounded-full glass-button text-[10px] font-semibold text-white/80">
                             {playbackSpeed}x
                           </span>
+                        </button>
+
+                        {/* 8. Report Playback Issue / Feedback */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowToolsMenu(false);
+                            useFeedbackStore.getState().openFeedback('bug', 'Audio Playback / Stuttering');
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-amber-300/90 hover:text-amber-200 hover:bg-amber-500/10 active:scale-[0.98] transition-all cursor-pointer border-t border-white/10 pt-2 mt-1"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm">🐛</span>
+                            <span className="font-medium">Report Playback Issue</span>
+                          </div>
+                          <span className="text-[10px] text-amber-400/70">Help</span>
                         </button>
                       </motion.div>
                     )}

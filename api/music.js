@@ -363,6 +363,37 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     }
 
+    if (action === 'feedback') {
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      let body = {};
+      if (req.method === 'POST') {
+        try {
+          body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+        } catch {
+          body = {};
+        }
+      }
+      const feedbackEntry = {
+        id: `fb_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        type: body.type || url.searchParams.get('type') || 'general',
+        category: body.category || url.searchParams.get('category') || 'general',
+        title: body.title || url.searchParams.get('title') || '',
+        message: body.message || url.searchParams.get('message') || '',
+        rating: body.rating || Number(url.searchParams.get('rating')) || 5,
+        email: body.email || url.searchParams.get('email') || '',
+        diagnostics: body.diagnostics || {},
+        timestamp: new Date().toISOString(),
+        clientIp
+      };
+      console.log('[WaveCraft Feedback Received]:', JSON.stringify(feedbackEntry));
+      return res.status(200).json({
+        success: true,
+        id: feedbackEntry.id,
+        receivedAt: feedbackEntry.timestamp,
+        message: 'Feedback received successfully. Thank you for making WaveCraft better!'
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('API error:', err);

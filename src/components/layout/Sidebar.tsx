@@ -4,6 +4,8 @@ import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
+import { useFeedbackStore } from '../../stores/feedbackStore';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import CreatePlaylist from '../library/CreatePlaylist';
 import ImportPlaylistModal from '../library/ImportPlaylistModal';
 import type { Playlist } from '../../types';
@@ -322,6 +324,18 @@ export default function Sidebar() {
                       </NavLink>
                     ))}
                   </div>
+
+                  <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setMobileDrawerOpen(false);
+                      useFeedbackStore.getState().openFeedback();
+                    }}
+                    className="w-full flex items-center gap-3 px-3.5 h-10 rounded-xl text-amber-300/90 hover:text-amber-200 bg-amber-500/10 border border-amber-500/20 text-xs font-bold transition-all cursor-pointer mt-4"
+                  >
+                    <span className="text-base">🐛</span>
+                    <span>Feedback & Bug Report</span>
+                  </button>
                 </nav>
               </motion.aside>
             </motion.div>
@@ -475,11 +489,25 @@ export default function Sidebar() {
           </div>
         </nav>
 
-        {/* Collapse Toggle */}
-        <div className="p-3 pt-2">
+        {/* Feedback & Collapse Controls */}
+        <div className="p-3 pt-2 space-y-1.5 flex-shrink-0">
+          <button
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              useFeedbackStore.getState().openFeedback();
+            }}
+            className={`flex items-center justify-center gap-2 w-full h-9 rounded-xl text-amber-300/90 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+              collapsed ? 'px-0' : 'px-3'
+            }`}
+            title="Report a bug or suggest an idea"
+          >
+            <span>🐛</span>
+            {!collapsed && <span>Feedback & Bugs</span>}
+          </button>
+
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center gap-2 w-full h-10 rounded-xl text-white/60 hover:text-white glass-button text-xs font-medium cursor-pointer"
+            className="flex items-center justify-center gap-2 w-full h-9 rounded-xl text-white/60 hover:text-white glass-button text-xs font-medium cursor-pointer"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="3" y1="12" x2="21" y2="12" />
