@@ -48,7 +48,8 @@ interface UpdateState {
   openPermissionSettings: () => void;
 }
 
-export { isVersionGreater } from '../utils/versionUtils';
+import { isVersionGreater } from '../utils/versionUtils';
+export { isVersionGreater };
 
 export const useUpdateStore = create<UpdateState>((set, get) => {
   const detectedCurrent =

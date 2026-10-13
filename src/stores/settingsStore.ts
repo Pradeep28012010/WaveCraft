@@ -51,6 +51,13 @@ interface SettingsStore extends SettingsState {
   resetSettings: () => void;
 }
 
+const isMobileDevice =
+  typeof window !== 'undefined' &&
+  (window.innerWidth < 768 ||
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    ));
+
 const defaultSettings: SettingsState = {
   theme: 'dark',
   accentColor: '#fa2d48',
@@ -67,7 +74,7 @@ const defaultSettings: SettingsState = {
   language: 'en',
   loudnessNormalization: true,
   offlineModeOnly: false,
-  performanceProfile: 'ultra',
+  performanceProfile: isMobileDevice ? 'balanced' : 'ultra',
   aiApiProvider: 'none',
   aiApiKey: '',
   autoMixerFilterSweeps: true

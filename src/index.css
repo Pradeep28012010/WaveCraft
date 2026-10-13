@@ -69,11 +69,15 @@
 
 /* High-FPS Rendering Optimization — pre-rendered upfront for smooth scroll */
 .contain-track-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 56px;
   contain: layout style;
   transform: translateZ(0);
 }
 
 .contain-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 220px;
   contain: layout style;
   transform: translateZ(0);
 }

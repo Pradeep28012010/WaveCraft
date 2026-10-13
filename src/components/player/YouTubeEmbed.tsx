@@ -223,7 +223,7 @@ export default function YouTubeEmbed() {
       const cur = audio.currentTime || 0;
       const dur = audio.duration || currentTrack?.duration || 1;
 
-      if (Math.abs(cur - lastReportedTime) >= 0.08 || cur < 0.15) {
+      if (Math.abs(cur - lastReportedTime) >= 0.25 || cur < 0.15) {
         lastReportedTime = cur;
         const pct = dur > 0 ? (cur / dur) * 100 : 0;
         setProgress(pct, cur);
@@ -1390,8 +1390,23 @@ export default function YouTubeEmbed() {
     }
   }, [playbackSpeed]);
 
+  // Sync playback state with Electron powerSaveBlocker
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const electron = (window as unknown as { electronAPI?: { sendPlaybackState?: (p: boolean) => void } }).electronAPI;
+      if (typeof electron?.sendPlaybackState === 'function') {
+        try {
+          electron.sendPlaybackState(isPlaying);
+        } catch {}
+      }
+    }
+  }, [isPlaying]);
+
   // Progress Tracker, Crossfading & Buffering Stall Watchdog for YouTube engine
   useEffect(() => {
+    if (!isPlaying) return;
+    let lastReportedYtTime = -1;
+
     const interval = setInterval(() => {
       const ytPlayer = getPlayer();
       if (
@@ -1405,7 +1420,10 @@ export default function YouTubeEmbed() {
         const current = ytPlayer.getCurrentTime() || 0;
         const duration = ytPlayer.getDuration?.() || currentTrack?.duration || 1;
         if (duration > 0) {
-          setProgress((current / duration) * 100, current);
+          if (Math.abs(current - lastReportedYtTime) >= 0.25 || current < 0.15) {
+            lastReportedYtTime = current;
+            setProgress((current / duration) * 100, current);
+          }
           setDuration(duration);
 
           // Smooth Audio Crossfading when approaching end of track

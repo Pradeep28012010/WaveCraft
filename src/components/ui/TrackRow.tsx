@@ -284,7 +284,7 @@ const TrackRow = memo(({
 
   return (
     <div
-      className="relative rounded-2xl group/row select-none"
+      className="relative rounded-2xl group/row select-none contain-track-row"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

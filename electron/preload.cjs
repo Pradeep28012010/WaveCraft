@@ -23,6 +23,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('media:action', handler);
   },
   updateTrack: (track) => ipcRenderer.send('track:update', track),
+  sendPlaybackState: (isPlaying) => ipcRenderer.send('media:playback-state', isPlaying),
+  onVisibilityChange: (callback) => {
+    const handler = (_event, isVisible) => callback(isVisible);
+    ipcRenderer.on('app:visibility-change', handler);
+    return () => ipcRenderer.removeListener('app:visibility-change', handler);
+  },
   finishSetup: () => ipcRenderer.send('window:finish-setup'),
   isSetupMode: () => ipcRenderer.invoke('app:is-setup-mode')
 });

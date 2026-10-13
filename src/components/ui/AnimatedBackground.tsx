@@ -28,9 +28,36 @@ const DEFAULT_BUFFER: BufferState = {
 const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) => {
   const { isPhone } = useDevicePreset();
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const isNowPlayingOpen = usePlayerStore((s) => s.isNowPlayingOpen);
   const intensity = useSettingsStore((s) => s.ambientGlowIntensity ?? 'vibrant');
   const dynamicEnabled = useSettingsStore((s) => s.dynamicAmbientGlow ?? true);
   const performanceProfile = useSettingsStore((s) => s.performanceProfile ?? 'ultra');
+
+  const [isAppVisible, setIsAppVisible] = useState(() =>
+    typeof document === 'undefined' ? true : !document.hidden
+  );
+
+  useEffect(() => {
+    const handleVis = () => {
+      setIsAppVisible(!document.hidden);
+    };
+    document.addEventListener('visibilitychange', handleVis);
+
+    const cleanupElectron =
+      typeof window !== 'undefined' &&
+      (window as unknown as { electronAPI?: { onVisibilityChange?: (cb: (v: boolean) => void) => () => void } }).electronAPI?.onVisibilityChange?.(
+        (visible: boolean) => {
+          setIsAppVisible(visible && !document.hidden);
+        }
+      );
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVis);
+      if (typeof cleanupElectron === 'function') {
+        cleanupElectron();
+      }
+    };
+  }, []);
 
   // Dual-buffer state for liquid cross-fading
   const [activeBuffer, setActiveBuffer] = useState<'A' | 'B'>('A');
@@ -78,6 +105,8 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
   const tertiaryOpacity =
     intensity === 'subtle' ? 0.10 : intensity === 'aurora' ? 0.26 : 0.18;
 
+  const shouldAnimateNodes = isAppVisible && !isNowPlayingOpen && performanceProfile !== 'performance';
+
   const renderAuroraLayer = (buf: BufferState, isVisible: boolean) => (
     <div
       className={`absolute inset-0 transition-opacity duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none will-change-opacity ${
@@ -92,29 +121,31 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
         `
       }}
     >
-      {isVisible && performanceProfile !== 'performance' && (
+      {isVisible && shouldAnimateNodes && (
       <>
         {/* Radiant Floating Node 1: Primary Dominant Glow (Top Left) */}
         <div
-          className={`absolute -top-12 left-[12%] ${isPhone ? 'w-64 h-64 blur-2xl' : 'w-[42rem] h-[42rem] blur-[60px]'} rounded-full animate-float will-change-transform transition-transform duration-1000 ${
+          className={`absolute -top-12 left-[12%] ${isPhone ? 'w-56 h-56 blur-xl' : 'w-[42rem] h-[42rem] blur-[60px]'} rounded-full animate-float will-change-transform transition-transform duration-1000 ${
             isPlaying ? 'scale-105' : 'scale-95'
           }`}
           style={{
             background: `radial-gradient(circle, ${buf.c1} 0%, transparent 70%)`,
             opacity: baseOpacity,
+            animationPlayState: isPlaying ? 'running' : 'paused',
             transform: 'translate3d(0,0,0)'
           }}
         />
 
         {/* Radiant Floating Node 2: Secondary Harmonic Glow (Top Right) */}
         <div
-          className={`absolute top-[18%] -right-16 ${isPhone ? 'w-64 h-64 blur-2xl' : 'w-[46rem] h-[46rem] blur-[70px]'} rounded-full animate-float will-change-transform transition-transform duration-1000 ${
+          className={`absolute top-[18%] -right-16 ${isPhone ? 'w-56 h-56 blur-xl' : 'w-[46rem] h-[46rem] blur-[70px]'} rounded-full animate-float will-change-transform transition-transform duration-1000 ${
             isPlaying ? 'scale-105' : 'scale-95'
           }`}
           style={{
             background: `radial-gradient(circle, ${buf.c2} 0%, transparent 68%)`,
             animationDelay: '-3.2s',
             opacity: secondaryOpacity,
+            animationPlayState: isPlaying ? 'running' : 'paused',
             transform: 'translate3d(0,0,0)'
           }}
         />
@@ -128,6 +159,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
                 background: `radial-gradient(circle, ${buf.c3} 0%, transparent 65%)`,
                 animationDelay: '-5.8s',
                 opacity: tertiaryOpacity,
+                animationPlayState: isPlaying ? 'running' : 'paused',
                 transform: 'translate3d(0,0,0)'
               }}
             />
@@ -139,6 +171,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
                 background: `radial-gradient(circle, ${buf.accent} 0%, transparent 72%)`,
                 animationDelay: '-8.4s',
                 opacity: baseOpacity * 0.75,
+                animationPlayState: isPlaying ? 'running' : 'paused',
                 transform: 'translate3d(0,0,0)'
               }}
             />

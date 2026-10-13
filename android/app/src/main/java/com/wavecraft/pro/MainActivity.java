@@ -396,7 +396,13 @@ public class MainActivity extends BridgeActivity {
             settings.setDomStorageEnabled(true);
             settings.setDatabaseEnabled(true);
             settings.setJavaScriptEnabled(true);
-            settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+            // Enable hardware layer composition for buttery smooth 60-120fps GPU animations
+            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+            // Pre-rasterize offscreen content to eliminate scroll stutter
+            settings.setOffscreenPreRaster(true);
+            // Disable unused background sensor services to save battery
+            settings.setGeolocationEnabled(false);
+            settings.setNeedInitialFocus(false);
 
             // Register native bridge for background audio foreground service & auto-updates
             webView.addJavascriptInterface(new AndroidAudioBridge(), "AndroidAudioBridge");

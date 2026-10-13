@@ -1,10 +1,18 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, globalShortcut, powerSaveBlocker } = require('electron');
 const path = require('path');
 
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 let isSetupMode = false;
+let powerSaveBlockerId = null;
+
+// High-Performance Chromium Engine Optimization & Resource Efficiency
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('force_high_performance_gpu');
 
 // Ensure single running instance on Windows
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -46,7 +54,10 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: false,
-      allowRunningInsecureContent: true
+      allowRunningInsecureContent: true,
+      spellcheck: false, // Saves 35-50MB RAM by disabling dictionary engine
+      backgroundThrottling: false, // Prevents background audio stuttering
+      v8CacheOptions: 'bypassHeatCheck'
     }
   });
 
@@ -74,6 +85,22 @@ function createMainWindow() {
     mainWindow.webContents.send('window:maximized-change', false);
   });
 
+  mainWindow.on('minimize', () => {
+    mainWindow.webContents.send('app:visibility-change', false);
+  });
+
+  mainWindow.on('restore', () => {
+    mainWindow.webContents.send('app:visibility-change', true);
+  });
+
+  mainWindow.on('hide', () => {
+    mainWindow.webContents.send('app:visibility-change', false);
+  });
+
+  mainWindow.on('show', () => {
+    mainWindow.webContents.send('app:visibility-change', true);
+  });
+
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       if (isSetupMode) {
@@ -83,6 +110,7 @@ function createMainWindow() {
       }
       event.preventDefault();
       mainWindow.hide();
+      mainWindow.webContents.send('app:visibility-change', false);
     }
   });
 
@@ -212,6 +240,21 @@ ipcMain.handle('window:is-maximized', () => {
 
 ipcMain.on('track:update', (_event, track) => {
   updateTrayMenu(track);
+});
+
+ipcMain.on('media:playback-state', (_event, isPlaying) => {
+  try {
+    if (isPlaying) {
+      if (powerSaveBlockerId === null || !powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+        powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+      }
+    } else {
+      if (powerSaveBlockerId !== null && powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+        powerSaveBlocker.stop(powerSaveBlockerId);
+        powerSaveBlockerId = null;
+      }
+    }
+  } catch {}
 });
 
 ipcMain.handle('app:is-setup-mode', () => {
