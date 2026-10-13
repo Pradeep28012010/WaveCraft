@@ -161,7 +161,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
               );
               versionData = {
                 version: tag,
-                versionCode: 6,
+                versionCode: 7,
                 releaseDate: gh.published_at?.split('T')[0] || new Date().toISOString().split('T')[0],
                 downloadUrl: apkAsset?.browser_download_url || 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
                 title: gh.name || `WaveCraft v${tag}`,

@@ -397,16 +397,16 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'public, max-age=300');
       return res.status(200).json({
-        version: '5.0.1',
-        versionCode: 6,
+        version: '5.0.2',
+        versionCode: 7,
         releaseDate: '2026-10-13',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
-        title: 'WaveCraft Pro v5.0.1 (Background Audio & Zero-Headache Installer)',
+        title: 'WaveCraft Pro v5.0.2 (Smooth Scrubber & Background Audio)',
         releaseNotes: [
-          'Fix background playback stalls and scrubber jitter across Web, Android, and Windows',
-          'One-tap in-app APK updater: zero manual downloads or file searching',
+          'Fix media player notification progress bar jitter and backward-jumping',
+          'Fix background audio suspension when screen is off or app is minimized',
           'Enhanced stream matching with 320kbps direct CDN audio pipeline',
-          'Edge-to-edge immersive sticky fullscreen on Android'
+          'One-tap seamless in-app updater directly inside the app'
         ],
         forceUpdate: false
       });
