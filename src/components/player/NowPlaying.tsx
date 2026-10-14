@@ -475,7 +475,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     PLAYING FROM QUEUE
                   </span>
                   <span className="text-xs font-bold text-white/85 truncate">
-                    {currentTrack.album || currentTrack.artist}
+                    {currentTrack.album && !/wavecraft/i.test(currentTrack.album) ? currentTrack.album : currentTrack.artist}
                   </span>
                 </div>
 

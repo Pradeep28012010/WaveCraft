@@ -201,7 +201,7 @@ export async function fetchYouTubeSearch(query, limit = 25) {
 
       seenIds.add(v.videoId);
 
-      const { cleanTitle, cleanArtist } = parseTrackMetadata(rawTitle, rawAuthor);
+      const { cleanTitle, cleanArtist, cleanAlbum } = parseTrackMetadata(rawTitle, rawAuthor);
       const thumb = `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
       const thumbLarge = `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`;
       const isInstrumentalOrBgm =
@@ -213,7 +213,7 @@ export async function fetchYouTubeSearch(query, limit = 25) {
         id: `yt_${v.videoId}`,
         title: cleanTitle || rawTitle,
         artist: cleanArtist || rawAuthor,
-        album: 'WaveCraft Cloud',
+        album: cleanAlbum || '',
         duration: seconds || 210,
         thumbnail: thumb,
         thumbnailLarge: thumbLarge,

@@ -548,7 +548,7 @@ export async function searchItunesSongs(query: string, limit = 20): Promise<Trac
         id: `itunes_${item.trackId}`,
         title: item.trackName || 'Unknown Title',
         artist: item.artistName || 'Unknown Artist',
-        album: item.collectionName || 'WaveCraft Cloud',
+        album: item.collectionName || '',
         duration: Math.round((item.trackTimeMillis || 210000) / 1000),
         thumbnail: art,
         thumbnailLarge: art,

@@ -6,6 +6,46 @@
 
 import { fetchWithTimeout } from './cache.js';
 
+const JUNK_SEGMENT_REGEX =
+  /^(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video\s+song|lyrical\s+video|lyrical\s+song|lyrical|audio\s+song|full\s+song|full\s+audio|official\s+video|official\s+audio|official\s+music\s+video|title\s+track\s+(?:video\s+)?song|title\s+track|teaser|trailer|promo|glimpse|making|behind\s+the\s+scenes|4k|8k|hd|1080p|uhd|telugu|tamil|hindi|kannada|malayalam|bhojpuri|punjabi|english|remastered|status|shorts)$/i;
+
+function isJunkSegment(segment) {
+  if (!segment) return true;
+  const s = segment.trim();
+  if (s.length <= 1) return true;
+  return JUNK_SEGMENT_REGEX.test(s);
+}
+
+function cleanSongTitlePart(str) {
+  if (!str) return '';
+  return str
+    .replace(
+      /\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*(?:video\s*)?song|lyrical\s*video|video\s*song|full\s*(?:video\s*)?song|full\s*song|full\s*video|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?|with\s*lyrics|song)[\)\]]\s*/gi,
+      ' '
+    )
+    .replace(
+      /\s*(?:latest\s*(?:punjabi|hindi|telugu|tamil|bhojpuri|malayalam|kannada|english)?\s*songs?\s*(?:202\d)?|new\s*(?:hindi|punjabi|telugu|tamil|bhojpuri|malayalam|kannada|english)?\s*songs?\s*(?:202\d)?)\s*/gi,
+      ' '
+    )
+    .replace(
+      /^(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|official\s+music\s+video|official\s+video|official\s+audio|4k\s+video|8k\s+video|audio\s+song|audio)\s*[:\-–—]?\s*/i,
+      ''
+    )
+    .replace(
+      /\s*[-–—:|]?\s*(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|full\s+audio|8k\s+video|4k\s+video|hd\s+video|official\s+music\s+video|official\s+video|official\s+audio|audio\s+song|title\s+track\s+(?:video\s+)?song|title\s+track)\b.*$/i,
+      ''
+    )
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s\-–—:|]+|[\s\-–—:|]+$/g, '')
+    .trim();
+}
+
+const KNOWN_COMPOSERS_REGEX =
+  /\b(anirudh|devi\s*sri\s*prasad|dsp|thaman|rahman|a\.?r\.?\s*rahman|pritam|sachin-jigar|sachin\s*jigar|arijit|sid\s*sriram|karan\s*aujla|diljit|badshah|shreya|sunidhi|armaan\s*malik|darshan\s*raval|jubin|vishal|shekhar|amit\s*trivedi|santhosh\s*narayanan|sushin\s*shyam|hesham|harris\s*jayaraj|yuvan|g\.?v\.?\s*prakash|keeravaani|keeravani|ilaiyaraaja|chithra|spb|shankar\s*mahadevan|hariharan|udit\s*narayan|kumar\s*sanu|alka\s*yagnik|sonu\s*nigam|gv\s*prakash|honey\s*singh|mc\s*stan|raftaar|king|divine|sidhu\s*moose\s*wala|jasleen\s*royal|shilpa\s*rao|monali\s*thakur|neha\s*kakkar|tony\s*kakkar|mika\s*singh|guru\s*randhawa)\b/i;
+
+const STUDIO_LABEL_DISCARD_REGEX =
+  /\b(sun\s*pictures|lyca\s*productions|sithara\s*entertainments|mythri\s*movie\s*makers|t-series|sony\s*music|aditya\s*music|zee\s*music|lahari|saregama|think\s*music|tips|yrf|hombale|pen\s*movies|geetha\s*arts|dvo|shree\s*music|times\s*music|vevo|official|channel|records|films|movies)\b/i;
+
 export function parseTrackMetadata(rawTitle, rawArtist) {
   let title = (rawTitle || '')
     .replace(/&quot;/g, '"')
@@ -16,7 +56,7 @@ export function parseTrackMetadata(rawTitle, rawArtist) {
     .replace(/&gt;/g, '>')
     .trim();
 
-  let artist = (rawArtist || '')
+  let channelAuthor = (rawArtist || '')
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'")
     .replace(/&apos;/g, "'")
@@ -24,92 +64,120 @@ export function parseTrackMetadata(rawTitle, rawArtist) {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/ - Topic$/i, '')
+    .replace(/\s*-\s*Official.*$/i, '')
     .trim();
 
-  // Strip generic label channels from artist
   const isLabelChannel =
-    /^(?:t-series|aditya\s*music|sony\s*music|zee\s*music|saregama|think\s*music|lahari\s*music|junglee\s*music|tips\s*official|yrf|mythri|hombale|speed\s*records|white\s*hill|wavecraft|unknown\s*artist|official\s*channel|records|films|movies)\b/i.test(
-      artist
+    /^(?:t-series|aditya\s*music|sony\s*music|zee\s*music|saregama|think\s*music|lahari\s*music|junglee\s*music|tips\s*official|yrf|mythri|hombale|speed\s*records|white\s*hill|wavecraft|unknown\s*artist|official\s*channel|records|films|movies|music\s*company)\b/i.test(
+      channelAuthor
     );
-  if (isLabelChannel) {
-    artist = '';
-  }
 
-  // Remove common YouTube video fluff in parentheses/brackets
-  title = title
-    .replace(
-      /\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?)[\)\]]\s*/gi,
-      ' '
-    )
-    .replace(
-      /\s*(?:latest\s*(?:punjabi|hindi|telugu|tamil|bhojpuri|english)?\s*songs?\s*(?:202\d)?|new\s*(?:hindi|punjabi|telugu|tamil|english)?\s*songs?\s*(?:202\d)?)\s*/gi,
-      ' '
-    )
-    .replace(/\s+/g, ' ')
-    .trim();
+  const rawPipes = title.split('|').map((p) => p.trim()).filter(Boolean);
+  const pipeParts = rawPipes.filter((p) => !isJunkSegment(cleanSongTitlePart(p)));
 
-  // If title has pipes: e.g., "Song | Movie | Artist" or "New Song | Title | Artist"
-  if (title.includes('|')) {
-    const pipeParts = title.split('|').map((p) => p.trim()).filter(Boolean);
-    if (/new\s*songs?|latest\s*songs?/i.test(pipeParts[0]) && pipeParts[1]) {
-      title = pipeParts[1];
-      if (!artist && pipeParts[2]) artist = pipeParts[2];
+  let cleanTitle = '';
+  let cleanArtist = '';
+  let cleanAlbum = '';
+
+  if (pipeParts.length >= 2) {
+    cleanTitle = cleanSongTitlePart(pipeParts[0]);
+
+    const dashInTitle = cleanTitle.split(/\s+[-–—]\s+/);
+    if (dashInTitle.length === 2) {
+      if (isJunkSegment(dashInTitle[1])) {
+        cleanTitle = cleanSongTitlePart(dashInTitle[0]);
+      } else if (isJunkSegment(dashInTitle[0])) {
+        cleanTitle = cleanSongTitlePart(dashInTitle[1]);
+      }
+    }
+
+    if (isLabelChannel) {
+      cleanAlbum = pipeParts[1].replace(/\s*[-–—]\s*(?:movie|film|album)\b/i, '').trim();
+
+      if (pipeParts.length >= 3) {
+        const potentialArtists = pipeParts
+          .slice(2)
+          .map((p) => p.replace(/\s*[\(\[].*?[\)\]]/g, '').trim())
+          .filter((p) => p && !STUDIO_LABEL_DISCARD_REGEX.test(p) && !isJunkSegment(p));
+
+        if (potentialArtists.length > 0) {
+          const composerIndex = potentialArtists.findIndex((p) => KNOWN_COMPOSERS_REGEX.test(p));
+          if (composerIndex !== -1) {
+            const composer = potentialArtists[composerIndex];
+            const others = potentialArtists.filter((_, idx) => idx !== composerIndex);
+            cleanArtist = others.length > 0 ? `${composer}, ${others[0]}` : composer;
+          } else {
+            cleanArtist = potentialArtists[potentialArtists.length - 1];
+          }
+        }
+      }
+
+      if (!cleanArtist) {
+        cleanArtist =
+          channelAuthor.replace(/\b(Music|Records|Films|Entertainment|South|India|Company|Media)\b/gi, '').trim() ||
+          channelAuthor;
+      }
     } else {
-      title = pipeParts[0] || title;
-      if (!artist && pipeParts.length >= 2) {
-        artist = pipeParts[1];
-      }
-    }
-  }
-
-  // Check for "Artist - Title" or "Title - Artist" with space-padded dash
-  if (/\s+[-–—]\s+/.test(title)) {
-    const parts = title.split(/\s+[-–—]\s+/).map((p) => p.trim()).filter(Boolean);
-    if (parts.length >= 2) {
-      const part0 = parts[0];
-      const part1 = parts.slice(1).join(' - ');
-
-      const normArtist = artist.toLowerCase().replace(/vevo|official/gi, '').trim();
-      const norm0 = part0.toLowerCase();
-      const norm1 = part1.toLowerCase();
-
-      if (normArtist && (norm0.includes(normArtist) || normArtist.includes(norm0))) {
-        artist = part0;
-        title = part1;
-      } else if (normArtist && (norm1.includes(normArtist) || normArtist.includes(norm1))) {
-        artist = part1;
-        title = part0;
+      if (
+        pipeParts[1].toLowerCase().includes(channelAuthor.toLowerCase()) ||
+        channelAuthor.toLowerCase().includes(pipeParts[1].toLowerCase())
+      ) {
+        cleanArtist = pipeParts[1];
       } else {
-        // Standard "Artist - Title" format
-        artist = part0;
-        title = part1;
+        cleanAlbum = pipeParts[1];
+        cleanArtist = channelAuthor;
       }
+    }
+  } else {
+    const rawCleaned = cleanSongTitlePart(title);
+    const dashParts = rawCleaned.split(/\s+[-–—]\s+/);
+
+    if (dashParts.length >= 2) {
+      const part0 = dashParts[0].trim();
+      const part1 = dashParts.slice(1).join(' - ').trim();
+
+      if (isJunkSegment(part1)) {
+        cleanTitle = cleanSongTitlePart(part0);
+        cleanArtist = channelAuthor;
+      } else if (isJunkSegment(part0)) {
+        cleanTitle = cleanSongTitlePart(part1);
+        cleanArtist = channelAuthor;
+      } else if (isLabelChannel) {
+        cleanAlbum = part0;
+        cleanTitle = cleanSongTitlePart(part1);
+        cleanArtist =
+          channelAuthor.replace(/\b(Music|Records|Films|Entertainment|South|India|Company|Media)\b/gi, '').trim() ||
+          channelAuthor;
+      } else {
+        cleanArtist = part0;
+        cleanTitle = cleanSongTitlePart(part1);
+      }
+    } else {
+      cleanTitle = rawCleaned || title;
+      cleanArtist = channelAuthor;
     }
   }
 
-  // Clean title: remove "(From ...)", feat, etc.
-  let cleanTitle = title
+  if (isJunkSegment(cleanTitle) || !cleanTitle) {
+    cleanTitle = cleanSongTitlePart(rawPipes[0] || title) || title;
+  }
+  if (!cleanArtist || isJunkSegment(cleanArtist)) {
+    cleanArtist = channelAuthor || 'YouTube Music';
+  }
+
+  cleanTitle = cleanTitle
     .replace(/\s*[\(\[](?:from\s+.*?|feat\..*?|ft\..*?)[\)\]]/gi, '')
     .replace(/\s*[-–—]\s*(?:from|feat|ft|telugu|hindi|tamil|malayalam|kannada)\b.*$/i, '')
     .replace(/\s+feat\..*$/i, '')
     .replace(/\s+ft\..*$/i, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  cleanTitle = cleanTitle.replace(/^["']|["']$/g, '').trim();
-
-  let cleanArtist = (artist || '')
-    .replace(/vevo$/i, '')
-    .replace(/official$/i, '')
-    .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/^["']|["']$/g, '')
     .trim();
 
   const primaryArtist = cleanArtist
     .split(/[,&/]|(?:\s+feat\.?\s+)|\s+ft\.?\s+/i)[0]
     .trim();
 
-  return { cleanTitle: cleanTitle || title, cleanArtist: cleanArtist || 'YouTube Music', primaryArtist };
+  return { cleanTitle: cleanTitle || title, cleanArtist: cleanArtist || 'YouTube Music', primaryArtist, cleanAlbum };
 }
 
 export function normalizeForMatch(str) {

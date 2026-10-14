@@ -581,7 +581,7 @@ export default function SearchResults() {
               {activeTab === 'all' && topTrack && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                   {/* Top Result Spotlight Card */}
-                  <div className="lg:col-span-5 flex flex-col">
+                  <div className="lg:col-span-5 flex flex-col min-w-0">
                     <h2 className="text-xl font-bold mb-3">Top Result</h2>
                     <GlassCard
                       variant="liquid"
@@ -596,7 +596,7 @@ export default function SearchResults() {
                           topTrack
                         );
                       }}
-                      className="flex-1 flex flex-col justify-between cursor-pointer group relative overflow-hidden"
+                      className="flex-1 flex flex-col justify-between cursor-pointer group relative overflow-hidden min-w-0"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <img
@@ -605,22 +605,25 @@ export default function SearchResults() {
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                           }}
-                          className="w-28 h-28 rounded-2xl object-cover shadow-2xl group-hover:scale-105 transition-transform"
+                          className="w-28 h-28 rounded-2xl object-cover shadow-2xl group-hover:scale-105 transition-transform flex-shrink-0"
                         />
-                        <button className="w-14 h-14 rounded-full glass-button-primary text-white flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform cursor-pointer">
+                        <button className="w-14 h-14 rounded-full glass-button-primary text-white flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform cursor-pointer flex-shrink-0">
                           <svg className="w-7 h-7 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z" />
                           </svg>
                         </button>
                       </div>
 
-                      <div className="mt-6">
+                      <div className="mt-6 min-w-0 w-full">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-accent)] block mb-1">
                           Song
                         </span>
-                        <h3 className="text-2xl font-extrabold text-white truncate">{topTrack.title}</h3>
-                        <p className="text-sm text-white/65 truncate mt-1">
-                          {topTrack.artist} • {topTrack.album}
+                        <h3 className="text-xl sm:text-2xl font-extrabold text-white leading-snug line-clamp-2 break-words">
+                          {topTrack.title}
+                        </h3>
+                        <p className="text-sm text-white/65 mt-1.5 font-medium leading-relaxed break-words line-clamp-2">
+                          {topTrack.artist}
+                          {topTrack.album && !/wavecraft/i.test(topTrack.album) ? ` • ${topTrack.album}` : ''}
                         </p>
                       </div>
                     </GlassCard>
