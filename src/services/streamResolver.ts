@@ -1,3 +1,14 @@
+import { decryptSaavnUrl } from '../utils/saavnDecrypt';
+import { apiUrl, PROD_API_ORIGIN } from './apiConfig';
+import { fetchAndroidNativeUrl } from './nativeAndroid';
+
+const streamCache = new Map<string, string>();
+const MAX_CACHE_ENTRIES = 350;
+
+function getCacheKey(title: string, artist: string): string {
+  return `${(artist || '').toLowerCase().trim()}:::${(title || '').toLowerCase().trim()}`;
+}
+
 const LABEL_CHANNEL_REGEX =
   /(?:t-series|aditya|sony|zee|saregama|think|lahari|junglee|tips|yrf|mythri|hombale|vevo|speed|white\s*hill|records|films|movies|music|media|studios|entertainment|international|audio|series|channel|official|ap\s*international)/i;
 
@@ -212,11 +223,200 @@ export function isStrictSaavnMatch(
  * 4. Client-side direct fetch
  */
 export async function resolveDirectAudio(
-  _title: string,
-  _artist: string,
+  title: string,
+  artist: string,
   _duration?: number,
-  _videoId?: string
+  videoId?: string
 ): Promise<string | null> {
-  // Pure YouTube streaming: all songs stream directly through the YouTube audio pipeline
+  if (!title && !videoId) return null;
+  const queryDetails = cleanTrackQuery(title, artist);
+  const { cleanTitle, cleanArtist, songName, detectedArtist, candidateQueries } = queryDetails;
+  const cacheKey = videoId ? `vid:${videoId}` : getCacheKey(cleanTitle, cleanArtist);
+
+  if (streamCache.has(cacheKey)) {
+    return streamCache.get(cacheKey)!;
+  }
+
+  // 1. Android Native Network Bridge (Instant zero-CORS resolution directly on mobile)
+  for (const q of candidateQueries) {
+    try {
+      const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const rawJson = fetchAndroidNativeUrl(saavnUrl);
+      if (rawJson) {
+        const data = JSON.parse(rawJson);
+        const results = data?.results || [];
+        if (Array.isArray(results) && results.length > 0) {
+          for (const item of results) {
+            if (!isStrictSaavnMatch(songName, detectedArtist || cleanArtist, item.title, item.subtitle, title)) {
+              continue;
+            }
+            const enc = item?.more_info?.encrypted_media_url;
+            if (enc) {
+              const directUrl = decryptSaavnUrl(enc);
+              if (directUrl && directUrl.startsWith('https://')) {
+                if (streamCache.size >= MAX_CACHE_ENTRIES) {
+                  const first = streamCache.keys().next().value;
+                  if (first) streamCache.delete(first);
+                }
+                streamCache.set(cacheKey, directUrl);
+                return directUrl;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Serverless backend resolver (/api/music?action=resolve-stream)
+  try {
+    const apiQuery = new URLSearchParams({
+      action: 'resolve-stream',
+      title: cleanTitle,
+      artist: cleanArtist
+    });
+    if (videoId) apiQuery.set('videoId', videoId);
+
+    let res: Response | null = null;
+    try {
+      res = await fetch(apiUrl(`/api/music?${apiQuery.toString()}`), {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(4500)
+      });
+    } catch {}
+
+    // Fallback to direct PROD_API_ORIGIN if local fetch failed
+    if (!res || !res.ok) {
+      try {
+        res = await fetch(`${PROD_API_ORIGIN}/api/music?${apiQuery.toString()}`, {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(4500)
+        });
+      } catch {}
+    }
+
+    if (res && res.ok) {
+      const data = await res.json();
+      if (data?.audioUrl && typeof data.audioUrl === 'string' && data.audioUrl.startsWith('https://')) {
+        if (streamCache.size >= MAX_CACHE_ENTRIES) {
+          const first = streamCache.keys().next().value;
+          if (first) streamCache.delete(first);
+        }
+        streamCache.set(cacheKey, data.audioUrl);
+        return data.audioUrl;
+      }
+    }
+  } catch {}
+
+  // 3. Backend Proxy Fallback (/api/music?action=proxy-stream) for web browsers to bypass CORS
+  for (const q of candidateQueries) {
+    try {
+      const saavnTarget = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const proxyEndpoint = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`);
+      let res = await fetch(proxyEndpoint, {
+        signal: AbortSignal.timeout(4000)
+      }).catch(() => null);
+
+      if (!res?.ok) {
+        res = await fetch(`${PROD_API_ORIGIN}/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`, {
+          signal: AbortSignal.timeout(4000)
+        }).catch(() => null);
+      }
+
+      if (res && res.ok) {
+        const data = await res.json();
+        const results = data?.results || [];
+        if (Array.isArray(results) && results.length > 0) {
+          for (const item of results) {
+            if (!isStrictSaavnMatch(songName, detectedArtist || cleanArtist, item.title, item.subtitle, title)) {
+              continue;
+            }
+            const enc = item?.more_info?.encrypted_media_url;
+            if (enc) {
+              const directUrl = decryptSaavnUrl(enc);
+              if (directUrl && directUrl.startsWith('https://')) {
+                if (streamCache.size >= MAX_CACHE_ENTRIES) {
+                  const first = streamCache.keys().next().value;
+                  if (first) streamCache.delete(first);
+                }
+                streamCache.set(cacheKey, directUrl);
+                return directUrl;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 4. Client-side direct fetch (if supported by environment)
+  for (const q of candidateQueries) {
+    try {
+      const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const res = await fetch(saavnUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(3000)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const results = data?.results || [];
+        if (Array.isArray(results) && results.length > 0) {
+          for (const item of results) {
+            if (!isStrictSaavnMatch(songName, detectedArtist || cleanArtist, item.title, item.subtitle, title)) {
+              continue;
+            }
+            const enc = item?.more_info?.encrypted_media_url;
+            if (enc) {
+              const directUrl = decryptSaavnUrl(enc);
+              if (directUrl && directUrl.startsWith('https://')) {
+                if (streamCache.size >= MAX_CACHE_ENTRIES) {
+                  const first = streamCache.keys().next().value;
+                  if (first) streamCache.delete(first);
+                }
+                streamCache.set(cacheKey, directUrl);
+                return directUrl;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 5. Invidious direct audio stream extraction fallback (when videoId exists)
+  if (videoId) {
+    const invidiousMirrors = [
+      `https://inv.nadeko.net/api/v1/videos/${videoId}`,
+      `https://invidious.nerdvpn.de/api/v1/videos/${videoId}`,
+      `https://vid.puffyan.us/api/v1/videos/${videoId}`
+    ];
+    for (const mirrorUrl of invidiousMirrors) {
+      try {
+        const res = await fetch(mirrorUrl, {
+          signal: AbortSignal.timeout(3500)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const adaptive = data?.adaptiveFormats || [];
+          const audioFormats = adaptive.filter(
+            (f: any) => f?.type && f.type.startsWith('audio/') && f.url && typeof f.url === 'string'
+          );
+          if (audioFormats.length > 0) {
+            audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate || '0', 10) || 0) - (parseInt(a.bitrate || '0', 10) || 0));
+            const bestAudio = audioFormats[0].url;
+            if (bestAudio && typeof bestAudio === 'string' && bestAudio.startsWith('https://')) {
+              if (streamCache.size >= MAX_CACHE_ENTRIES) {
+                const first = streamCache.keys().next().value;
+                if (first) streamCache.delete(first);
+              }
+              streamCache.set(cacheKey, bestAudio);
+              return bestAudio;
+            }
+          }
+        }
+      } catch {}
+    }
+  }
+
   return null;
 }

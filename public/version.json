@@ -1,14 +1,14 @@
 {
-  "version": "5.0.3",
-  "versionCode": 8,
-  "releaseDate": "2026-10-13",
+  "version": "5.0.4",
+  "versionCode": 9,
+  "releaseDate": "2026-10-14",
   "downloadUrl": "https://wavecraft-alpha.vercel.app/WaveCraft.apk",
-  "title": "WaveCraft Pro v5.0.3 (Pure YouTube Engine & Uninterrupted Background Audio)",
+  "title": "WaveCraft Pro v5.0.4 (Instant Lockscreen Media Updates & Reliable Offline Vault)",
   "releaseNotes": [
-    "Pure YouTube Streaming: Removed all third-party sources (JioSaavn, iTunes) for unified stream consistency",
-    "Continuous Background Playback: Guaranteed background audio when screen is locked or app is minimized",
-    "Fixed notification progress bar jitter and backward-jumping across all devices",
-    "Direct in-app one-tap update installer"
+    "Instant Lockscreen Updates: Android notification & lock-screen media player repaints immediately 100% of the time on song changes",
+    "Restored Direct Audio & Offline Downloads: Full 320kbps streams restored for reliable offline vault saving and uninterrupted background playback",
+    "Auto-Prune Unplayable Tracks: Automatically discards dead tracks from queue so playback never freezes",
+    "Seekbar Reset: Corrected notification scrub bar position on new track start"
   ],
   "forceUpdate": false
 }

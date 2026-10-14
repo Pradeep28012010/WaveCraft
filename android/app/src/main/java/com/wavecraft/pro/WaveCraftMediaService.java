@@ -171,10 +171,13 @@ public class WaveCraftMediaService extends Service {
             currentArtist = artist;
         }
         isCurrentlyPlaying = isPlaying;
-        if (pos > 0 || (pos == 0 && currentPositionMs == 0)) {
-            currentPositionMs = pos;
-        }
+        currentPositionMs = Math.max(0, pos);
         if (dur > 0) currentDurationMs = dur;
+
+        // Reset art bitmap if thumbnail changed to prevent stale artwork from prior track
+        if (thumbnail != null && !thumbnail.equals(currentArtUrl)) {
+            currentArtBitmap = null;
+        }
 
         initMediaSession();
         updateMediaMetadata();
@@ -186,6 +189,12 @@ public class WaveCraftMediaService extends Service {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
         } else {
             startForeground(NOTIFICATION_ID, notification);
+        }
+
+        // Explicitly repaint the foreground notification on modern Android (12+)
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) {
+            manager.notify(NOTIFICATION_ID, notification);
         }
 
         // Asynchronously fetch high-resolution artwork with multi-CDN resolution waterfall

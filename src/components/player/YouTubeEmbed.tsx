@@ -6,7 +6,7 @@ import { useStudioStore } from '../../stores/studioStore';
 import { searchTracks, findStrictTrackMatch } from '../../services/youtube';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
 import { getOfflineAudioObjectUrl, isTrackOffline } from '../../services/offlineVault';
-import { cleanTrackQuery } from '../../services/streamResolver';
+import { cleanTrackQuery, resolveDirectAudio } from '../../services/streamResolver';
 import {
   setHtmlAudioElement,
   setYtPlayerInstance,
@@ -194,6 +194,25 @@ export default function YouTubeEmbed() {
         });
     }
   }, [currentTrack, queue, queueIndex, autoplay]);
+
+  // Auto-prune unplayable or undownloadable songs from queue and skip immediately
+  const pruneAndSkipTrack = (failedTrackId: string) => {
+    const store = usePlayerStore.getState();
+    console.warn(`[WaveCraft] Removing unplayable/undownloadable song from queue: ${failedTrackId}`);
+    const remainingQueue = store.queue.filter((t) => t.id !== failedTrackId);
+
+    if (remainingQueue.length === 0) {
+      usePlayerStore.setState({ queue: [], currentTrack: null, isPlaying: false, isLoading: false });
+      stopAndroidBackgroundAudio();
+      return;
+    }
+
+    usePlayerStore.setState({ queue: remainingQueue });
+    trackTransitionIntentRef.current = true;
+    userInitiatedPauseRef.current = false;
+    setIsLoading(false);
+    store.nextTrack();
+  };
 
   // Initialize HTML5 Audio (retained for direct 320kbps streams and offline vault)
   useEffect(() => {
@@ -400,7 +419,11 @@ export default function YouTubeEmbed() {
         return;
       }
       setIsLoading(false);
-      nextTrack();
+      if (cur) {
+        pruneAndSkipTrack(cur.id);
+      } else {
+        nextTrack();
+      }
     };
 
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
@@ -607,10 +630,14 @@ export default function YouTubeEmbed() {
             }
 
             function skipOnError() {
-              trackTransitionIntentRef.current = true;
-              userInitiatedPauseRef.current = false;
-              setIsLoading(false);
-              usePlayerStore.getState().nextTrack();
+              if (cur) {
+                pruneAndSkipTrack(cur.id);
+              } else {
+                trackTransitionIntentRef.current = true;
+                userInitiatedPauseRef.current = false;
+                setIsLoading(false);
+                usePlayerStore.getState().nextTrack();
+              }
             }
 
             skipOnError();
@@ -795,6 +822,8 @@ export default function YouTubeEmbed() {
             fallbackToYouTube(cur, effectiveYtId, true);
           } else if (err?.name === 'NotAllowedError') {
             usePlayerStore.getState().pause();
+          } else if (cur) {
+            pruneAndSkipTrack(cur.id);
           }
         });
     } else {
@@ -807,6 +836,14 @@ export default function YouTubeEmbed() {
   // Helper to load and start playing a track with automatic HD stream resolution
   const startTrackPlayback = (track: Track, shouldPlay: boolean, isNewTrack: boolean = true) => {
     updateMediaSessionMetadata(track);
+    startAndroidBackgroundAudio(
+      track.title,
+      track.artist,
+      track.thumbnailLarge || track.thumbnail,
+      shouldPlay,
+      0,
+      track.duration || 0
+    );
     const audio = audioRef.current;
 
     // Immediately increment resolving token to discard in-flight async operations
@@ -917,14 +954,37 @@ export default function YouTubeEmbed() {
         (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
         (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
-      // Pure YouTube streaming: play directly on YouTube engine with zero third-party delay
-      if (effectiveYtId) {
-        fallbackToYouTube(track, effectiveYtId, shouldPlay);
-        return;
-      }
+      // 3. Proactively resolve direct audio stream (320kbps Studio Audio)
+      resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
+        .then((directAudioUrl) => {
+          if (resolveToken !== resolvingTokenRef.current) return;
+          if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
-      // If track does not have a youtubeId yet, search and play on YouTube
-      searchAndPlayYouTube(track, shouldPlay);
+          if (directAudioUrl) {
+            track.audioUrl = directAudioUrl;
+            track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+            usePlayerStore.setState((s) => ({
+              currentTrack:
+                s.currentTrack?.id === track.id
+                  ? { ...s.currentTrack, audioUrl: directAudioUrl, quality: track.quality }
+                  : s.currentTrack,
+              queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directAudioUrl, quality: track.quality } : t))
+            }));
+            playNativeAudio(directAudioUrl, shouldPlay);
+          } else if (effectiveYtId) {
+            fallbackToYouTube(track, effectiveYtId, shouldPlay);
+          } else {
+            searchAndPlayYouTube(track, shouldPlay);
+          }
+        })
+        .catch(() => {
+          if (resolveToken !== resolvingTokenRef.current) return;
+          if (effectiveYtId) {
+            fallbackToYouTube(track, effectiveYtId, shouldPlay);
+          } else {
+            searchAndPlayYouTube(track, shouldPlay);
+          }
+        });
     }
   };
 
@@ -993,7 +1053,7 @@ export default function YouTubeEmbed() {
           setIsLoading(false);
           isSwitchingTrackRef.current = false;
           trackTransitionIntentRef.current = false;
-          usePlayerStore.getState().nextTrack();
+          pruneAndSkipTrack(track.id);
         }
       })
       .catch((err) => {
@@ -1002,6 +1062,7 @@ export default function YouTubeEmbed() {
         setIsLoading(false);
         isSwitchingTrackRef.current = false;
         trackTransitionIntentRef.current = false;
+        pruneAndSkipTrack(track.id);
       });
   };
 
@@ -1066,7 +1127,7 @@ export default function YouTubeEmbed() {
     startTrackPlayback(currentTrack, shouldPlay, true);
   }, [currentTrack]);
 
-  // Proactive Queue Lookahead: Pre-resolve YouTube ID for next track in queue so Next is always instant
+  // Proactive Queue Lookahead: Pre-resolve direct audio & YouTube ID for next track in queue so Next is always instant
   useEffect(() => {
     if (!currentTrack || queue.length === 0) return;
     const nextIdx = queueIndex + 1;
@@ -1076,13 +1137,40 @@ export default function YouTubeEmbed() {
     const nextTrackCandidate = queue[nextIdx];
     if (!nextTrackCandidate) return;
 
+    preResolvingIndexRef.current = nextIdx;
+
+    // 1. Pre-resolve direct 320kbps audio stream for background and offline continuity
+    if (!nextTrackCandidate.audioUrl) {
+      resolveDirectAudio(
+        nextTrackCandidate.title,
+        nextTrackCandidate.artist,
+        nextTrackCandidate.duration,
+        nextTrackCandidate.youtubeId
+      )
+        .then((directUrl) => {
+          if (directUrl) {
+            usePlayerStore.setState((s) => ({
+              queue: s.queue.map((t, idx) =>
+                idx === nextIdx
+                  ? {
+                      ...t,
+                      audioUrl: directUrl,
+                      quality: directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio'
+                    }
+                  : t
+              )
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+
     const hasYtId =
       nextTrackCandidate.youtubeId ||
       nextTrackCandidate.id.startsWith('yt_') ||
       nextTrackCandidate.id.startsWith('yt-');
 
     if (!hasYtId) {
-      preResolvingIndexRef.current = nextIdx;
       searchTracks(`${nextTrackCandidate.title} ${nextTrackCandidate.artist}`)
         .then((results) => {
           const match =
@@ -1111,7 +1199,7 @@ export default function YouTubeEmbed() {
     }
   }, [currentTrack, queueIndex, queue]);
 
-  // Sync Play / Pause when isPlaying toggles on the current track
+  // Sync Play / Pause when isPlaying toggles or track switches
   useEffect(() => {
     if (!currentTrack) {
       stopAndroidBackgroundAudio();
@@ -1124,7 +1212,7 @@ export default function YouTubeEmbed() {
       currentTrack.thumbnailLarge || currentTrack.thumbnail,
       isPlaying,
       pState.currentTime || 0,
-      pState.duration || 0
+      currentTrack.duration || pState.duration || 0
     );
     if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
       return;
@@ -1187,7 +1275,7 @@ export default function YouTubeEmbed() {
         }
       }
     }
-  }, [isPlaying]);
+  }, [currentTrack?.id, isPlaying]);
 
   // Browser Background Audio & System MediaSession Keepalive Anchor:
   // When streaming via YouTube iframe on mobile Chrome/Safari, mobile OSes freeze iframes

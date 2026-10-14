@@ -1,7 +1,11 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
 import { unlockAudioEngine, resumeAudioContextIfNeeded } from '../services/audioEngine';
-import { updateAndroidPlaybackState } from '../services/nativeAndroid';
+import {
+  updateAndroidPlaybackState,
+  startAndroidBackgroundAudio,
+  stopAndroidBackgroundAudio
+} from '../services/nativeAndroid';
 
 function decodeTitle(text?: string): string {
   if (!text) return '';
@@ -199,9 +203,22 @@ export function useMediaSession() {
     };
   }, []);
 
-  // Update lock-screen / OS media overlay metadata when track changes
+  // Update lock-screen / OS media overlay metadata and native Android foreground notification when track changes
   useEffect(() => {
     updateMediaSessionMetadata(currentTrack);
+    if (currentTrack) {
+      const state = usePlayerStore.getState();
+      startAndroidBackgroundAudio(
+        currentTrack.title,
+        currentTrack.artist,
+        currentTrack.thumbnailLarge || currentTrack.thumbnail,
+        state.isPlaying,
+        0,
+        currentTrack.duration || state.duration || 0
+      );
+    } else {
+      stopAndroidBackgroundAudio();
+    }
   }, [currentTrack]);
 
   // Keep OS playbackState synced so AirPods / Keyboard / Lock Screen buttons toggle properly

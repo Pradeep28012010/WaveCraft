@@ -286,7 +286,47 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
       ? clientIp
       : '103.212.156.1';
 
-  // Pure YouTube streaming: all songs stream directly from YouTube
+  for (const q of candidateQueries) {
+    try {
+      const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const res = await fetchWithTimeout(
+        saavnUrl,
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            'X-Forwarded-For': ipHeader,
+            'Client-IP': ipHeader,
+            'X-Real-IP': ipHeader
+          }
+        },
+        3500
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const results = data?.results || [];
+        if (Array.isArray(results) && results.length > 0) {
+          for (const item of results) {
+            if (!isStrictSaavnMatch(songName, detectedArtist || cleanArtist, item.title, item.subtitle, title)) {
+              continue;
+            }
+            const enc = item?.more_info?.encrypted_media_url;
+            if (enc) {
+              const directUrl = decryptSaavnMediaUrl(enc);
+              if (directUrl && directUrl.startsWith('https://')) {
+                return {
+                  audioUrl: directUrl,
+                  quality: '320kbps Studio AAC',
+                  title: item.title,
+                  artist: item.subtitle
+                };
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
   return null;
 }
 
