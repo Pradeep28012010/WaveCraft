@@ -14,7 +14,8 @@ import {
 } from './lib/cache.js';
 import {
   handleJamRoomSseStream,
-  handleJamRoomRequest
+  handleJamRoomRequest,
+  readJsonBody
 } from './lib/jam.js';
 import {
   fetchMultiSourceLyrics
@@ -282,6 +283,73 @@ export default async function handler(req, res) {
       const playlistUrl = url.searchParams.get('url') || '';
       const imported = await importExternalPlaylist(playlistUrl);
       return res.status(200).json(imported);
+    }
+
+    if (action === 'batch-search') {
+      const body = req.method === 'POST' ? await readJsonBody(req) : {};
+      let queries = Array.isArray(body?.queries) ? body.queries : [];
+      if (queries.length === 0) {
+        const rawQ = url.searchParams.get('queries');
+        if (rawQ) {
+          try {
+            queries = JSON.parse(rawQ);
+          } catch {}
+        }
+      }
+
+      if (!Array.isArray(queries) || queries.length === 0) {
+        return res.status(200).json({ results: [] });
+      }
+
+      const targetQueries = queries.slice(0, 30);
+      const results = [];
+
+      for (let i = 0; i < targetQueries.length; i += 5) {
+        const chunk = targetQueries.slice(i, i + 5);
+        const chunkPromises = chunk.map(async (item) => {
+          const title = (item.title || '').trim();
+          const artist = (item.artist || '').trim();
+          if (!title) return { title, artist, track: null };
+
+          if (item.videoId) {
+            return {
+              title,
+              artist,
+              track: {
+                id: `yt_${item.videoId}`,
+                title,
+                artist: artist || 'YouTube Music',
+                album: 'Imported',
+                duration: 210,
+                thumbnail: `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
+                thumbnailLarge: `https://i.ytimg.com/vi/${item.videoId}/maxresdefault.jpg`,
+                youtubeId: item.videoId
+              }
+            };
+          }
+
+          const cacheKey = `search:${title.toLowerCase()} ${artist.toLowerCase()}`.trim();
+          const cached = getCached(cacheKey);
+          if (cached?.tracks?.[0]) {
+            return { title, artist, track: cached.tracks[0] };
+          }
+
+          try {
+            const tracks = await fetchYouTubeSearch(`${title} ${artist}`.trim(), 2);
+            if (tracks.length > 0) {
+              setCached(cacheKey, { tracks, youtube: tracks }, 300_000);
+              return { title, artist, track: tracks[0] };
+            }
+          } catch {}
+
+          return { title, artist, track: null };
+        });
+
+        const chunkResults = await Promise.all(chunkPromises);
+        results.push(...chunkResults);
+      }
+
+      return res.status(200).json({ results });
     }
 
     if (action === 'resolve-stream') {

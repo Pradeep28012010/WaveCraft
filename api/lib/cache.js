@@ -5,23 +5,23 @@
 export const responseCache = new Map();
 export const MAX_CACHE_ENTRIES = 250;
 
-// Rate limiting: 100 requests per minute sliding window per IP
+// Rate limiting: 400 requests per minute sliding window per IP
 export const RATE_LIMIT_WINDOW_MS = 60_000;
-export const MAX_REQUESTS_PER_WINDOW = 100;
+export const MAX_REQUESTS_PER_WINDOW = 400;
 export const ipRequestCounts = new Map();
 
-export function checkRateLimit(ip) {
+export function checkRateLimit(ip, cost = 1) {
   if (!ip || ip === 'unknown') return true;
   const now = Date.now();
   const record = ipRequestCounts.get(ip);
   if (!record || now > record.resetAt) {
-    ipRequestCounts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    ipRequestCounts.set(ip, { count: cost, resetAt: now + RATE_LIMIT_WINDOW_MS });
     return true;
   }
-  if (record.count >= MAX_REQUESTS_PER_WINDOW) {
+  if (record.count + cost > MAX_REQUESTS_PER_WINDOW) {
     return false;
   }
-  record.count++;
+  record.count += cost;
   return true;
 }
 

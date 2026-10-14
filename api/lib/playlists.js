@@ -23,7 +23,7 @@ export async function importExternalPlaylist(playlistUrl) {
   // 1. Spotify Playlist / Album / Track Link
   if (targetUrl.includes('spotify.com') || targetUrl.startsWith('spotify:')) {
     const typeMatch =
-      targetUrl.match(/spotify\.com\/(?:intl-[a-zA-Z-]+\/)?(playlist|album|track)\/([a-zA-Z0-9]+)/i) ||
+      targetUrl.match(/spotify\.com\/(?:intl-[a-zA-Z-]+\/)?(?:user\/[^/]+\/)?(playlist|album|track)\/([a-zA-Z0-9]+)/i) ||
       targetUrl.match(/spotify:(playlist|album|track):([a-zA-Z0-9]+)/i);
 
     if (typeMatch) {
@@ -123,19 +123,68 @@ export async function importExternalPlaylist(playlistUrl) {
   // 2. YouTube / YouTube Music Playlist Link
   if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
     const listMatch = targetUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/i);
+    const ytClientContext = {
+      client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' }
+    };
+
     if (listMatch) {
       const listId = listMatch[1];
-      const ytClientContext = {
-        client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' }
-      };
 
+      // 2A: YouTube Mix (list=RD...)
+      if (listId.startsWith('RD')) {
+        const vMatch = targetUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
+        const videoId = vMatch ? vMatch[1] : (listId.length >= 13 ? listId.slice(2, 13) : undefined);
+        try {
+          const nextRes = await fetch('https://www.youtube.com/youtubei/v1/next?prettyPrint=false', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              context: ytClientContext,
+              playlistId: listId,
+              ...(videoId ? { videoId } : {})
+            })
+          });
+          if (nextRes.ok) {
+            const nextData = await nextRes.json();
+            const playlist = nextData?.contents?.twoColumnWatchNextResults?.playlist?.playlist;
+            const mixTitle = playlist?.title || 'YouTube Mix';
+            const items = playlist?.contents || [];
+            const queries = [];
+            for (const it of items) {
+              const pv = it?.playlistPanelVideoRenderer;
+              if (pv && pv.videoId) {
+                const fullTitle = pv.title?.simpleText || pv.title?.runs?.[0]?.text || '';
+                const artist = pv.shortBylineText?.simpleText || pv.shortBylineText?.runs?.[0]?.text || '';
+                queries.push({
+                  title: fullTitle,
+                  artist,
+                  videoId: pv.videoId
+                });
+              }
+            }
+            if (queries.length > 0) {
+              return {
+                platform: 'YouTube',
+                name: mixTitle,
+                coverUrl: `https://i.ytimg.com/vi/${queries[0].videoId}/hqdefault.jpg`,
+                queries
+              };
+            }
+          }
+        } catch (err) {
+          console.warn('YouTube Mix next fetch failed:', err);
+        }
+      }
+
+      // 2B: Standard YouTube / YouTube Music playlist or album
       try {
+        const browseId = listId.startsWith('VL') ? listId : `VL${listId}`;
         const r = await fetch('https://www.youtube.com/youtubei/v1/browse?prettyPrint=false', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             context: ytClientContext,
-            browseId: `VL${listId}`
+            browseId
           })
         });
 
@@ -196,6 +245,7 @@ export async function importExternalPlaylist(playlistUrl) {
 
               // Continuation Token (both formats)
               const cont =
+                item.continuationItemViewModel?.continuationCommand?.innertubeCommand?.continuationCommand?.token ||
                 item.continuationItemViewModel?.continuationEndpoint?.continuationCommand?.token ||
                 item.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
               if (cont) token = cont;
@@ -204,8 +254,20 @@ export async function importExternalPlaylist(playlistUrl) {
           };
 
           let nextToken = extractFromItems(initialItems);
-          let pageCount = 0;
 
+          if (!nextToken) {
+            for (const sec of sectionContents) {
+              const cont =
+                sec?.continuationItemViewModel?.continuationCommand?.innertubeCommand?.continuationCommand?.token ||
+                sec?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
+              if (cont) {
+                nextToken = cont;
+                break;
+              }
+            }
+          }
+
+          let pageCount = 0;
           while (nextToken && pageCount < 10) {
             pageCount++;
             try {
@@ -223,10 +285,19 @@ export async function importExternalPlaylist(playlistUrl) {
               if (!contRes.ok) break;
               const contData = await contRes.json();
               const actions = contData?.onResponseReceivedActions || [];
-              const appendedItems =
-                actions[0]?.appendContinuationItemsAction?.continuationItems || [];
-              if (appendedItems.length === 0) break;
-              nextToken = extractFromItems(appendedItems);
+              const appended = actions[0]?.appendContinuationItemsAction?.continuationItems || [];
+              if (appended.length === 0) break;
+              let foundNext = null;
+              for (const appItem of appended) {
+                if (appItem.itemSectionRenderer?.contents) {
+                  const t = extractFromItems(appItem.itemSectionRenderer.contents);
+                  if (t) foundNext = t;
+                } else {
+                  const t = extractFromItems([appItem]);
+                  if (t) foundNext = t;
+                }
+              }
+              nextToken = foundNext;
             } catch {
               break;
             }
