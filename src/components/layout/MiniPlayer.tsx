@@ -6,6 +6,7 @@ import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useTrackOfflineStatus } from '../../services/offlineVault';
+import { usePipStore } from '../../stores/pipStore';
 import NowPlaying from '../player/NowPlaying';
 import QueuePanel from '../player/QueuePanel';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
@@ -239,6 +240,8 @@ export default function MiniPlayer() {
   const { trackIsOffline, isSavingOffline, toggleOfflineTrack } = useTrackOfflineStatus(
     currentTrack?.id || ''
   );
+  const isPiPOpen = usePipStore((s) => s.isOpen);
+  const togglePiP = usePipStore((s) => s.togglePiP);
 
   if (!currentTrack) return null;
 
@@ -767,6 +770,36 @@ export default function MiniPlayer() {
                 />
               </div>
             </div>
+
+            {/* Picture-in-Picture Floating Window Button */}
+            <motion.button
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.9 }}
+              className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
+                isPiPOpen
+                  ? 'glass-button-primary text-white shadow-sm'
+                  : 'glass-button text-white/75 hover:text-white'
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePiP();
+              }}
+              title={isPiPOpen ? 'Close Picture-in-Picture' : 'Always-on-top Floating Lyrics & Player (PiP)'}
+              aria-label="Toggle Picture-in-Picture"
+            >
+              <svg
+                className="w-4 h-4 block"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <rect x="12" y="11" width="8" height="7" rx="1" fill="currentColor" opacity="0.8" />
+              </svg>
+            </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.12 }}

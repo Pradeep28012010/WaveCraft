@@ -12,6 +12,7 @@ import LyricsView from '../lyrics/LyricsView';
 import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
 import WaveCardModal from './WaveCardModal';
 import AtmosphereDrawer from './AtmosphereDrawer';
+import { usePipStore } from '../../stores/pipStore';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
@@ -302,6 +303,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const { trackIsOffline, isSavingOffline, toggleOfflineTrack } = useTrackOfflineStatus(
     currentTrack?.id || ''
   );
+  const isPiPOpen = usePipStore((s) => s.isOpen);
+  const togglePiP = usePipStore((s) => s.togglePiP);
 
   const showVisualizer = useSettingsStore((s) => s.showVisualizer);
   const visualizerStyle = useSettingsStore((s) => s.visualizerStyle);
@@ -629,6 +632,32 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </span>
                   </button>
 
+                  {/* Always-on-top Picture-in-Picture Button */}
+                  <motion.button
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => togglePiP()}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer app-region-no-drag ${
+                      isPiPOpen
+                        ? 'glass-button-primary text-white shadow-lg'
+                        : 'glass-button text-white/80 hover:text-white'
+                    }`}
+                    title={isPiPOpen ? 'Close Picture-in-Picture' : 'Always-on-top Floating Lyrics (PiP)'}
+                    aria-label="Toggle Picture-in-Picture"
+                  >
+                    <svg
+                      className="w-4 h-4 flex-shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <rect x="12" y="11" width="8" height="7" rx="1" fill="currentColor" opacity="0.8" />
+                    </svg>
+                  </motion.button>
+
                   {/* Single Sleek ••• Tools Menu Button */}
                   <motion.button
                     whileTap={{ scale: 0.96 }}
@@ -658,6 +687,27 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
                         className="absolute right-0 top-12 w-64 rounded-[20px] glass-bloom-menu p-2 z-50 space-y-1 text-xs"
                       >
+                        {/* 0. Floating Lyrics & PiP */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowToolsMenu(false);
+                            togglePiP();
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm">🖼️</span>
+                            <span className="font-medium">Floating Lyrics (PiP)</span>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              isPiPOpen ? 'glass-button-primary text-white' : 'glass-button text-white/50'
+                            }`}
+                          >
+                            {isPiPOpen ? 'Active' : 'Off'}
+                          </span>
+                        </button>
                         {/* 0. Atmosphere Soundscapes */}
                         <button
                           type="button"

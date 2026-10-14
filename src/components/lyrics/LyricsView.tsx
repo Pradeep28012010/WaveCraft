@@ -9,6 +9,9 @@ import {
   type LyricsCandidate
 } from '../../services/lyrics';
 import { usePlayerStore } from '../../stores/playerStore';
+import { usePipStore } from '../../stores/pipStore';
+import { romanizeIndicText, containsNonLatinScript } from '../../services/transliterate';
+import { SyllableGlowLine } from './SyllableGlowLine';
 import { formatTime } from '../../utils/formatTime';
 import type { LyricLine } from '../../types';
 
@@ -140,15 +143,22 @@ const LyricRow = memo(
           }`}
         >
           <div className="flex items-center justify-between gap-4">
-            <p
-              className={`text-lg sm:text-2xl md:text-[26px] font-extrabold leading-snug tracking-tight ${
-                isCurrent
-                  ? 'text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]'
-                  : 'text-white/90'
-              }`}
-            >
-              {line.text}
-            </p>
+            <div className="min-w-0 flex-1">
+              {isCurrent ? (
+                <SyllableGlowLine
+                  line={line}
+                  nextLineTime={nextLineTime}
+                  userOffset={userOffset}
+                  isCurrent={true}
+                  onSelectWord={onSelectLine}
+                  fontSizeClass="text-lg sm:text-2xl md:text-[26px]"
+                />
+              ) : (
+                <p className="text-lg sm:text-2xl md:text-[26px] font-extrabold leading-snug tracking-tight text-white/90">
+                  {line.text}
+                </p>
+              )}
+            </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
               {/* One-Tap "Sync to Now" Alignment Button */}
@@ -340,19 +350,42 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
     };
   }, [artist, title, activeDuration]);
 
+  const scriptPreference = usePipStore((s) => s.scriptPreference);
+  const setScriptPreference = usePipStore((s) => s.setScriptPreference);
+  const isPiPOpen = usePipStore((s) => s.isOpen);
+  const togglePiP = usePipStore((s) => s.togglePiP);
+
+  const hasNonLatinLyrics = useMemo(() => {
+    return (
+      (result?.lines || []).some((l) => containsNonLatinScript(l.text)) ||
+      (result?.candidates || []).some((c) => c.scriptType !== 'Latin')
+    );
+  }, [result]);
+
   const lines = useMemo(() => {
     const rawLines = result?.lines || [];
     if (rawLines.length === 0) return [];
-    if (result?.synced) return rawLines;
 
-    const usableDuration = Math.max(45, activeDuration * 0.9);
-    const introOffset = Math.min(6, activeDuration * 0.04);
-    const step = usableDuration / rawLines.length;
-    return rawLines.map((line, idx) => ({
-      text: line.text,
-      time: introOffset + idx * step
-    }));
-  }, [result, activeDuration]);
+    let baseLines = rawLines;
+    if (!result?.synced) {
+      const usableDuration = Math.max(45, activeDuration * 0.9);
+      const introOffset = Math.min(6, activeDuration * 0.04);
+      const step = usableDuration / rawLines.length;
+      baseLines = rawLines.map((line, idx) => ({
+        text: line.text,
+        time: introOffset + idx * step
+      }));
+    }
+
+    if (scriptPreference === 'romanized') {
+      return baseLines.map((line) => ({
+        ...line,
+        text: containsNonLatinScript(line.text) ? romanizeIndicText(line.text) : line.text
+      }));
+    }
+
+    return baseLines;
+  }, [result, activeDuration, scriptPreference]);
 
   // Subscribe ONLY to the computed `activeIndex` integer incorporating real-time userOffset!
   const activeIndex = usePlayerStore(
@@ -533,6 +566,31 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
               Lyrics
             </h3>
           )}
+
+          {/* 1-Tap Translation & Script Toggle (Romanized vs Native Script) */}
+          {hasNonLatinLyrics && (
+            <button
+              type="button"
+              onClick={() => {
+                const nextPref = scriptPreference === 'romanized' ? 'native' : 'romanized';
+                setScriptPreference(nextPref);
+                if (result?.candidates && result.candidates.length > 1) {
+                  const match = result.candidates.find((c) =>
+                    nextPref === 'romanized' ? c.scriptType === 'Latin' : c.scriptType !== 'Latin'
+                  );
+                  if (match) handleSwitchCandidate(match);
+                }
+              }}
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-tight transition-all cursor-pointer flex items-center gap-1 ${
+                scriptPreference === 'romanized'
+                  ? 'glass-button-primary text-white shadow-sm'
+                  : 'glass-button-emerald text-emerald-200'
+              }`}
+              title="Toggle between Romanized phonetics and original native script"
+            >
+              <span>{scriptPreference === 'romanized' ? '🔤 Romanized' : '🌐 Native'}</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -548,6 +606,33 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
               {userOffset > 0 ? `+${userOffset.toFixed(1)}s` : `${userOffset.toFixed(1)}s`}
             </span>
           )}
+
+          {/* Picture-in-Picture Floating Window Toggle Button */}
+          <button
+            type="button"
+            onClick={() => togglePiP()}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+              isPiPOpen
+                ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(255,255,255,0.2)]'
+                : 'glass-button text-white/70 hover:text-white'
+            }`}
+            title={isPiPOpen ? 'Close Picture-in-Picture' : 'Always-on-top Floating Lyrics (PiP)'}
+            aria-label="Toggle Picture-in-Picture"
+          >
+            <svg
+              className="w-4 h-4 flex-shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <rect x="12" y="11" width="8" height="7" rx="1" fill="currentColor" opacity="0.8" />
+            </svg>
+          </button>
+
           <button
             type="button"
             onClick={() => {

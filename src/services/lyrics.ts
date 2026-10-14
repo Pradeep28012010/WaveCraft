@@ -172,6 +172,49 @@ export function parseLyrics(rawLyrics: string, totalDuration = 210): LyricLine[]
   return result;
 }
 
+export interface WordTiming {
+  word: string;
+  startRatio: number;
+  endRatio: number;
+  startTime: number;
+  endTime: number;
+}
+
+/**
+ * Computes word boundaries and timing segments for a line
+ */
+export function computeWordTimings(
+  text: string,
+  lineStartTime: number,
+  lineEndTime: number
+): WordTiming[] {
+  if (!text) return [];
+  const rawWords = text.trim().split(/\s+/).filter(Boolean);
+  if (rawWords.length === 0) return [];
+
+  const duration = Math.max(1.2, lineEndTime - lineStartTime);
+
+  // Compute proportional weights based on word length
+  const weights = rawWords.map((w) => Math.max(2, w.length));
+  const totalWeight = weights.reduce((acc, w) => acc + w, 0);
+
+  let accumulated = 0;
+  return rawWords.map((word, idx) => {
+    const w = weights[idx];
+    const startRatio = accumulated / totalWeight;
+    accumulated += w;
+    const endRatio = accumulated / totalWeight;
+
+    return {
+      word,
+      startRatio,
+      endRatio,
+      startTime: lineStartTime + startRatio * duration,
+      endTime: lineStartTime + endRatio * duration
+    };
+  });
+}
+
 export function extractCleanSongTitle(rawTitle: string): string {
   let t = (rawTitle || '')
     .replace(/&quot;/g, '"')

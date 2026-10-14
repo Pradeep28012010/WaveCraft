@@ -1,4 +1,5 @@
 import { Component, Suspense, type ErrorInfo, type ReactNode, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
@@ -12,12 +13,14 @@ import FeedbackModal from '../feedback/FeedbackModal';
 import UpdateModal from '../updater/UpdateModal';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { usePipStore } from '../../stores/pipStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import AnimatedBackground from '../ui/AnimatedBackground';
 import YouTubeEmbed from '../player/YouTubeEmbed';
 import { useColorExtract } from '../../hooks/useColorExtract';
 import GradualBlur from '../ui/GradualBlur';
 import GlobalDownloadIndicator from '../ui/GlobalDownloadIndicator';
+import { FloatingLyricsPiP } from '../player/FloatingLyricsPiP';
 
 class RouteErrorBoundary extends Component<
   { resetKey: string; children: ReactNode },
@@ -65,6 +68,10 @@ export default function MainLayout() {
   const mainRef = useRef<HTMLElement | null>(null);
   const hasCurrentTrack = usePlayerStore((s) => Boolean(s.currentTrack));
   const currentThumbnail = usePlayerStore((s) => s.currentTrack?.thumbnail);
+  const setIsNowPlayingOpen = usePlayerStore((s) => s.setIsNowPlayingOpen);
+  const isPiPOpen = usePipStore((s) => s.isOpen);
+  const pipMode = usePipStore((s) => s.mode);
+  const pipWindow = usePipStore((s) => s.pipWindow);
   const { palette, colors } = useColorExtract(currentThumbnail);
   const { isPhone } = useDevicePreset();
 
@@ -184,6 +191,30 @@ export default function MainLayout() {
       {hasCurrentTrack && <MiniPlayer />}
       <GlobalDownloadIndicator />
       <MobileBottomNav />
+
+      {/* Picture-in-Picture: Native Document PiP Window Portal OR In-App Floating Overlay */}
+      {isPiPOpen && pipMode === 'document' && pipWindow && pipWindow.document && (
+        createPortal(
+          <FloatingLyricsPiP
+            inDocumentPiP={true}
+            onExpandPlayer={() => {
+              usePipStore.getState().closePiP();
+              setIsNowPlayingOpen(true);
+            }}
+          />,
+          pipWindow.document.body
+        )
+      )}
+
+      {isPiPOpen && pipMode === 'floating' && (
+        <FloatingLyricsPiP
+          inDocumentPiP={false}
+          onExpandPlayer={() => {
+            usePipStore.getState().closePiP();
+            setIsNowPlayingOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }
