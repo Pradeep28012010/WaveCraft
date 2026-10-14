@@ -521,7 +521,9 @@ export default function SettingsPage() {
               value={settings.visualizerStyle || 'nebula'}
               onChange={(val) => settings.setVisualizerStyle(val as VisualizerStyle)}
               options={[
+                { value: 'cyber-mesh', label: '3D Cyber Wave Mesh' },
                 { value: 'nebula', label: '3D Cosmic Nebula' },
+                { value: 'analog-vu', label: 'Vintage Analog VU Meter' },
                 { value: 'starfield', label: '3D Starfield Warp' },
                 { value: 'particles', label: 'Bioluminescent Orbs' },
                 { value: 'blob', label: 'Liquid Blob' },

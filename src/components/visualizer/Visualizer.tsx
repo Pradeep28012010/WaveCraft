@@ -46,6 +46,20 @@ const Visualizer = memo(
     const starsRef = useRef<Star3D[]>([]);
     const particlesRef = useRef<Particle2D[]>([]);
 
+    // 3D Perspective Tilt and Audio Dynamic Physics
+    const tiltRef = useRef<{ x: number; y: number; targetX: number; targetY: number }>({
+      x: 0,
+      y: 0,
+      targetX: 0,
+      targetY: 0
+    });
+    const meshOffsetRef = useRef<number>(0);
+    const vuNeedleRef = useRef<{ left: number; right: number; tapeAngle: number }>({
+      left: 0,
+      right: 0,
+      tapeAngle: 0
+    });
+
     const initStarsAndParticles = (width: number, height: number) => {
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
       const starCount = isMobile ? 45 : 140;
@@ -101,6 +115,11 @@ const Visualizer = memo(
         const dt = Math.min(2.2, Math.max(0.25, elapsed / 16.667));
         const smoothFactor = 1 - Math.pow(1 - 0.26, dt);
 
+        // Smooth camera tilt damping
+        const tilt = tiltRef.current;
+        tilt.x += (tilt.targetX - tilt.x) * (0.08 * dt);
+        tilt.y += (tilt.targetY - tilt.y) * (0.08 * dt);
+
         initStarsAndParticles(width, height);
         ctx.clearRect(0, 0, width, height);
 
@@ -146,7 +165,12 @@ const Visualizer = memo(
         const c2 = colors[2] || '#06b6d4';
 
         let gradient: string | CanvasGradient = c0;
-        if (style === 'bars' || style === 'wave' || style === 'blob' || style === 'circular') {
+        if (
+          style === 'bars' ||
+          style === 'wave' ||
+          style === 'blob' ||
+          style === 'circular'
+        ) {
           const lin = ctx.createLinearGradient(0, 0, width, height);
           lin.addColorStop(0, c0);
           lin.addColorStop(0.5, c1);
@@ -154,9 +178,389 @@ const Visualizer = memo(
           gradient = lin;
         }
 
-        if (style === 'starfield') {
+        // ==========================================
+        // 1. 3D CYBER WAVE MESH
+        // ==========================================
+        if (style === 'cyber-mesh') {
           const cx = width / 2;
-          const cy = height / 2;
+          const horizonY = height * 0.46 + tilt.y * 25;
+          const fov = height * 0.72;
+          const camY = height * 0.36 + tilt.y * 35;
+
+          // Horizon Glow & Synthwave Sun
+          const sunR = Math.min(width, height) * (0.17 + bassEnergy * 0.06);
+          const sunX = cx + tilt.x * 30;
+          const sunY = horizonY - 12;
+
+          const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.2, sunX, sunY, sunR * 1.8);
+          sunGlow.addColorStop(0, c0);
+          sunGlow.addColorStop(0.5, c1);
+          sunGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = sunGlow;
+          ctx.beginPath();
+          ctx.arc(sunX, sunY, sunR * 1.8, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Sun Disk with retro scanline slats
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(sunX, sunY, sunR, Math.PI, 0); // Upper half above horizon
+          ctx.clip();
+          const sunDiskGrad = ctx.createLinearGradient(sunX, sunY - sunR, sunX, sunY);
+          sunDiskGrad.addColorStop(0, '#fef08a');
+          sunDiskGrad.addColorStop(0.4, c0);
+          sunDiskGrad.addColorStop(1, c1);
+          ctx.fillStyle = sunDiskGrad;
+          ctx.fillRect(sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
+
+          const slats = 6;
+          ctx.fillStyle = '#06060b';
+          for (let s = 1; s <= slats; s++) {
+            const slatH = s * (sunR * 0.028);
+            const slatY = sunY - (s / (slats + 1)) * sunR;
+            ctx.fillRect(sunX - sunR, slatY, sunR * 2, slatH);
+          }
+          ctx.restore();
+
+          // 3D Terrain Grid
+          const cols = 22;
+          const rows = 24;
+          const rowSpacing = 36;
+          meshOffsetRef.current =
+            (meshOffsetRef.current + (isActive ? 1.4 + bassEnergy * 3.0 : 0.35) * dt) % rowSpacing;
+
+          const gridPoints: Array<Array<{ sx: number; sy: number; alpha: number }>> = [];
+
+          for (let r = 0; r < rows; r++) {
+            const distZ = r * rowSpacing - meshOffsetRef.current;
+            if (distZ < 4) continue;
+            const proj = fov / (fov + distZ);
+            const rowAlpha = Math.max(0, Math.min(1, (1 - distZ / (rows * rowSpacing)) * 1.5));
+            const rowPoints: Array<{ sx: number; sy: number; alpha: number }> = [];
+
+            for (let c = -cols / 2; c <= cols / 2; c++) {
+              const normC = c / (cols / 2); // -1 to 1
+              const colSpacing = (width * 1.75) / cols;
+              const worldX = c * colSpacing + tilt.x * 65;
+
+              // Mountain ridge elevation: canyon in center, reactive mountains on sides
+              const valley = Math.pow(Math.abs(normC), 2.2);
+              const freqIdx = Math.min(31, Math.floor(Math.abs(normC) * 32));
+              const freqVal = data[freqIdx] || 0;
+              const ripple = Math.sin(distZ * 0.035 - now * 0.003 + c * 0.45) * (14 + bassEnergy * 34);
+              const worldY = -valley * (freqVal * 115 + 38) - ripple;
+
+              const sx = cx + worldX * proj;
+              const sy = horizonY + (camY + worldY) * proj;
+              rowPoints.push({ sx, sy, alpha: rowAlpha });
+            }
+            gridPoints.push(rowPoints);
+          }
+
+          // Draw latitudinal lines (horizontal ribbons)
+          for (let r = 0; r < gridPoints.length; r++) {
+            const pts = gridPoints[r];
+            if (pts.length < 2) continue;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].sx, pts[0].sy);
+            for (let i = 1; i < pts.length; i++) {
+              ctx.lineTo(pts[i].sx, pts[i].sy);
+            }
+            const rAlpha = pts[0].alpha;
+            ctx.strokeStyle = r % 2 === 0 ? c0 : c1;
+            ctx.globalAlpha = rAlpha * (0.45 + bassEnergy * 0.4);
+            ctx.lineWidth = Math.max(1, 2.4 * rAlpha);
+            ctx.stroke();
+          }
+
+          // Draw longitudinal lines (perspective lines converging towards horizon)
+          const numPtsInRow = gridPoints[0]?.length || 0;
+          for (let c = 0; c < numPtsInRow; c++) {
+            ctx.beginPath();
+            let started = false;
+            for (let r = 0; r < gridPoints.length; r++) {
+              const pt = gridPoints[r][c];
+              if (!pt) continue;
+              if (!started) {
+                ctx.moveTo(pt.sx, pt.sy);
+                started = true;
+              } else {
+                ctx.lineTo(pt.sx, pt.sy);
+              }
+            }
+            const normC = Math.abs((c - numPtsInRow / 2) / (numPtsInRow / 2));
+            ctx.strokeStyle = normC > 0.45 ? c0 : c2;
+            ctx.globalAlpha = 0.55 + bassEnergy * 0.35;
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1.0;
+        }
+
+        // ==========================================
+        // 2. VINTAGE ANALOG VU METER & TAPE DECK
+        // ==========================================
+        else if (style === 'analog-vu') {
+          const vu = vuNeedleRef.current;
+          const leftEnergy = Math.min(
+            1,
+            Math.max(0, (data[1] * 0.5 + data[2] * 0.3 + data[3] * 0.2) * 1.45)
+          );
+          const rightEnergy = Math.min(
+            1,
+            Math.max(0, (data[5] * 0.3 + data[8] * 0.4 + data[12] * 0.3) * 1.45)
+          );
+
+          const attack = 0.38 * dt;
+          const release = 0.09 * dt;
+          vu.left += (leftEnergy - vu.left) * (leftEnergy > vu.left ? attack : release);
+          vu.right += (rightEnergy - vu.right) * (rightEnergy > vu.right ? attack : release);
+
+          if (isActive) {
+            vu.tapeAngle += (0.045 + bassEnergy * 0.04) * dt;
+          }
+
+          const isCompact = width < 540;
+          const meterW = Math.min(width * (isCompact ? 0.44 : 0.36), 310);
+          const meterH = meterW * 0.62;
+          const meterSpacing = isCompact ? 14 : 28;
+          const totalW = meterW * 2 + meterSpacing;
+          const startX = (width - totalW) / 2;
+          const meterY = height / 2 - meterH / 2 + (isCompact ? 28 : 36);
+
+          // Background Cassette Tape Deck Window
+          const reelR = Math.min(width, height) * (isCompact ? 0.085 : 0.11);
+          const reelY = meterY - reelR - (isCompact ? 14 : 20);
+          const leftReelX = width / 2 - reelR * 1.7;
+          const rightReelX = width / 2 + reelR * 1.7;
+
+          const deckBoxW = rightReelX - leftReelX + reelR * 2.6;
+          const deckBoxH = reelR * 2.3;
+          ctx.fillStyle = 'rgba(12, 12, 18, 0.75)';
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(width / 2 - deckBoxW / 2, reelY - reelR * 1.15, deckBoxW, deckBoxH, 16);
+          ctx.fill();
+          ctx.stroke();
+
+          // Tape ribbon connecting spools
+          ctx.strokeStyle = 'rgba(38, 30, 26, 0.9)';
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.moveTo(leftReelX, reelY + reelR * 0.7);
+          ctx.lineTo(rightReelX, reelY + reelR * 0.7);
+          ctx.stroke();
+
+          const drawReel = (rx: number, ry: number, angle: number) => {
+            // Tape pack
+            ctx.fillStyle = '#261e1a';
+            ctx.beginPath();
+            ctx.arc(rx, ry, reelR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // White hub
+            ctx.fillStyle = '#e2e8f0';
+            ctx.beginPath();
+            ctx.arc(rx, ry, reelR * 0.44, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3 spokes
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = reelR * 0.12;
+            for (let sp = 0; sp < 3; sp++) {
+              const a = angle + (sp * Math.PI * 2) / 3;
+              ctx.beginPath();
+              ctx.moveTo(rx, ry);
+              ctx.lineTo(rx + Math.cos(a) * (reelR * 0.42), ry + Math.sin(a) * (reelR * 0.42));
+              ctx.stroke();
+            }
+
+            // Center spindle
+            ctx.fillStyle = '#090d16';
+            ctx.beginPath();
+            ctx.arc(rx, ry, reelR * 0.14, 0, Math.PI * 2);
+            ctx.fill();
+          };
+
+          drawReel(leftReelX, reelY, vu.tapeAngle);
+          drawReel(rightReelX, reelY, vu.tapeAngle * 0.95);
+
+          const drawVUMeter = (
+            mx: number,
+            my: number,
+            level: number,
+            channelLabel: string
+          ) => {
+            ctx.save();
+            ctx.fillStyle = '#14141e';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(mx, my, meterW, meterH, 14);
+            ctx.fill();
+            ctx.stroke();
+
+            // Corner Screws
+            ctx.fillStyle = '#475569';
+            const screwOff = 7;
+            for (const [sx, sy] of [
+              [mx + screwOff, my + screwOff],
+              [mx + meterW - screwOff, my + screwOff],
+              [mx + screwOff, my + meterH - screwOff],
+              [mx + meterW - screwOff, my + meterH - screwOff]
+            ]) {
+              ctx.beginPath();
+              ctx.arc(sx, sy, 2.2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+
+            // Warm cream dial face
+            const pad = 11;
+            const dialW = meterW - pad * 2;
+            const dialH = meterH - pad * 2;
+            const dialX = mx + pad;
+            const dialY = my + pad;
+
+            const dialGrad = ctx.createLinearGradient(dialX, dialY, dialX, dialY + dialH);
+            dialGrad.addColorStop(0, '#fef9c3');
+            dialGrad.addColorStop(0.75, '#fef08a');
+            dialGrad.addColorStop(1, '#fde047');
+            ctx.fillStyle = dialGrad;
+            ctx.beginPath();
+            ctx.roundRect(dialX, dialY, dialW, dialH, 8);
+            ctx.fill();
+
+            const pivotX = dialX + dialW / 2;
+            const pivotY = dialY + dialH * 1.08;
+            const arcR = dialH * 0.96;
+
+            const startA = -Math.PI * 0.68;
+            const endA = -Math.PI * 0.32;
+            const zeroA = startA + (endA - startA) * 0.72;
+
+            // Black scale arc (-20 to 0)
+            ctx.strokeStyle = '#18181b';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(pivotX, pivotY, arcR, startA, zeroA);
+            ctx.stroke();
+
+            // Red scale arc (0 to +3)
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.arc(pivotX, pivotY, arcR, zeroA, endA);
+            ctx.stroke();
+
+            ctx.font = 'bold 9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const ticks = [
+              { ratio: 0.0, label: '-20', isRed: false },
+              { ratio: 0.22, label: '-10', isRed: false },
+              { ratio: 0.38, label: '-7', isRed: false },
+              { ratio: 0.52, label: '-5', isRed: false },
+              { ratio: 0.62, label: '-3', isRed: false },
+              { ratio: 0.72, label: '0', isRed: true },
+              { ratio: 0.86, label: '+1', isRed: true },
+              { ratio: 1.0, label: '+3', isRed: true }
+            ];
+
+            for (const t of ticks) {
+              const a = startA + (endA - startA) * t.ratio;
+              const cosA = Math.cos(a);
+              const sinA = Math.sin(a);
+              const innerR = arcR - 4;
+              const outerR = arcR + (t.isRed || t.label === '0' ? 8 : 5);
+              const textR = arcR - 12;
+
+              ctx.strokeStyle = t.isRed ? '#dc2626' : '#18181b';
+              ctx.lineWidth = t.isRed ? 2 : 1.5;
+              ctx.beginPath();
+              ctx.moveTo(pivotX + cosA * innerR, pivotY + sinA * innerR);
+              ctx.lineTo(pivotX + cosA * outerR, pivotY + sinA * outerR);
+              ctx.stroke();
+
+              ctx.fillStyle = t.isRed ? '#dc2626' : '#27272a';
+              ctx.fillText(t.label, pivotX + cosA * textR, pivotY + sinA * textR);
+            }
+
+            // VU Label
+            ctx.fillStyle = '#18181b';
+            ctx.font = '900 12px sans-serif';
+            ctx.fillText('VU', pivotX, dialY + dialH * 0.42);
+            ctx.font = 'bold 7px sans-serif';
+            ctx.fillStyle = '#52525b';
+            ctx.fillText(`${channelLabel} • WAVECRAFT ANALOG`, pivotX, dialY + dialH * 0.54);
+
+            // Peak Warning LED
+            const isPeaking = level > 0.72;
+            const ledX = dialX + dialW - 14;
+            const ledY = dialY + 12;
+            ctx.beginPath();
+            ctx.arc(ledX, ledY, 4, 0, Math.PI * 2);
+            ctx.fillStyle = isPeaking ? '#ef4444' : '#7f1d1d';
+            ctx.fill();
+            if (isPeaking) {
+              ctx.shadowColor = '#ef4444';
+              ctx.shadowBlur = 10;
+              ctx.stroke();
+              ctx.shadowBlur = 0;
+            }
+
+            // Needle
+            const needleRatio = Math.max(0, Math.min(1.05, level));
+            const needleAngle = startA + (endA - startA) * needleRatio;
+            const needleLen = arcR + 4;
+
+            // Needle shadow
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.22)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pivotX + 2, pivotY + 2);
+            ctx.lineTo(
+              pivotX + Math.cos(needleAngle) * needleLen + 2,
+              pivotY + Math.sin(needleAngle) * needleLen + 2
+            );
+            ctx.stroke();
+
+            // Needle Body
+            ctx.strokeStyle = '#b91c1c';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(pivotX, pivotY);
+            ctx.lineTo(
+              pivotX + Math.cos(needleAngle) * needleLen,
+              pivotY + Math.sin(needleAngle) * needleLen
+            );
+            ctx.stroke();
+
+            // Pivot Hub
+            ctx.fillStyle = '#18181b';
+            ctx.beginPath();
+            ctx.arc(pivotX, pivotY, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#3f3f46';
+            ctx.beginPath();
+            ctx.arc(pivotX, pivotY, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+          };
+
+          drawVUMeter(startX, meterY, vu.left, 'CH 1 LEFT');
+          drawVUMeter(startX + meterW + meterSpacing, meterY, vu.right, 'CH 2 RIGHT');
+        }
+
+        // ==========================================
+        // 3. 3D STARFIELD
+        // ==========================================
+        else if (style === 'starfield') {
+          const cx = width / 2 + tilt.x * 40;
+          const cy = height / 2 + tilt.y * 40;
           const speed = (isActive ? 3.5 + bassEnergy * 24 : 0.6) * dt;
 
           const coreGrad = ctx.createRadialGradient(
@@ -167,8 +571,8 @@ const Visualizer = memo(
             cy,
             Math.min(width, height) * (0.28 + bassEnergy * 0.2)
           );
-          coreGrad.addColorStop(0, `rgba(250, 45, 72, ${0.28 + bassEnergy * 0.35})`);
-          coreGrad.addColorStop(0.5, `rgba(139, 92, 246, ${0.14 + bassEnergy * 0.2})`);
+          coreGrad.addColorStop(0, c0);
+          coreGrad.addColorStop(0.5, c1);
           coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
           ctx.fillStyle = coreGrad;
           ctx.fillRect(0, 0, width, height);
@@ -195,10 +599,8 @@ const Visualizer = memo(
             ctx.beginPath();
             ctx.moveTo(px, py);
             ctx.lineTo(sx, sy);
-            ctx.strokeStyle =
-              star.hueOffset > 30
-                ? `rgba(250, 45, 72, ${Math.min(1, depthRatio + 0.15)})`
-                : `rgba(167, 139, 250, ${Math.min(1, depthRatio + 0.2)})`;
+            ctx.strokeStyle = star.hueOffset > 30 ? c0 : c1;
+            ctx.globalAlpha = Math.min(1, depthRatio + 0.2);
             ctx.lineWidth = size;
             ctx.lineCap = 'round';
             ctx.stroke();
@@ -207,10 +609,16 @@ const Visualizer = memo(
             ctx.arc(sx, sy, size * 0.7, 0, Math.PI * 2);
             ctx.fillStyle = '#ffffff';
             ctx.fill();
+            ctx.globalAlpha = 1.0;
           }
-        } else if (style === 'nebula') {
-          const cx = width / 2;
-          const cy = height / 2;
+        }
+
+        // ==========================================
+        // 4. 3D COSMIC NEBULA
+        // ==========================================
+        else if (style === 'nebula') {
+          const cx = width / 2 + tilt.x * 35;
+          const cy = height / 2 + tilt.y * 35;
           const minDim = Math.min(width, height);
 
           for (let layer = 0; layer < 3; layer++) {
@@ -236,26 +644,25 @@ const Visualizer = memo(
 
             const layerGrad = ctx.createRadialGradient(cx, cy, baseR * 0.2, cx, cy, baseR * 1.6);
             if (layer === 0) {
-              layerGrad.addColorStop(0, 'rgba(250, 45, 72, 0.45)');
-              layerGrad.addColorStop(1, 'rgba(139, 92, 246, 0.05)');
+              layerGrad.addColorStop(0, c0);
+              layerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
             } else if (layer === 1) {
-              layerGrad.addColorStop(0, 'rgba(139, 92, 246, 0.35)');
-              layerGrad.addColorStop(1, 'rgba(6, 182, 212, 0.04)');
+              layerGrad.addColorStop(0, c1);
+              layerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
             } else {
-              layerGrad.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
-              layerGrad.addColorStop(1, 'rgba(250, 45, 72, 0.02)');
+              layerGrad.addColorStop(0, c2);
+              layerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
             }
 
+            ctx.globalAlpha = layer === 0 ? 0.42 : layer === 1 ? 0.32 : 0.24;
             ctx.fillStyle = layerGrad;
             ctx.fill();
-            ctx.strokeStyle =
-              layer === 0
-                ? `rgba(250, 45, 72, ${0.4 + bassEnergy * 0.4})`
-                : layer === 1
-                ? `rgba(168, 85, 247, ${0.35 + bassEnergy * 0.35})`
-                : `rgba(34, 211, 238, ${0.25 + bassEnergy * 0.3})`;
+
+            ctx.strokeStyle = layer === 0 ? c0 : layer === 1 ? c1 : c2;
+            ctx.globalAlpha = 0.35 + bassEnergy * 0.35;
             ctx.lineWidth = 2;
             ctx.stroke();
+            ctx.globalAlpha = 1.0;
           }
 
           for (let i = 0; i < 24; i++) {
@@ -267,10 +674,15 @@ const Visualizer = memo(
 
             ctx.beginPath();
             ctx.arc(ox, oy, dotR, 0, Math.PI * 2);
-            ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#f43f5e';
+            ctx.fillStyle = i % 2 === 0 ? '#ffffff' : c0;
             ctx.fill();
           }
-        } else if (style === 'particles') {
+        }
+
+        // ==========================================
+        // 5. PARTICLES / BIOLUMINESCENT ORBS
+        // ==========================================
+        else if (style === 'particles') {
           for (let i = 0; i < particlesRef.current.length; i++) {
             const p = particlesRef.current[i];
             const energy = data[i % 32] || 0;
@@ -286,8 +698,8 @@ const Visualizer = memo(
 
             const r = p.radius * (1 + energy * 2.2);
             const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 4);
-            glow.addColorStop(0, `rgba(250, 45, 72, ${p.alpha})`);
-            glow.addColorStop(0.5, `rgba(139, 92, 246, ${p.alpha * 0.5})`);
+            glow.addColorStop(0, c0);
+            glow.addColorStop(0.5, c1);
             glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
             ctx.fillStyle = glow;
@@ -300,7 +712,12 @@ const Visualizer = memo(
             ctx.fillStyle = '#fff';
             ctx.fill();
           }
-        } else if (style === 'bars') {
+        }
+
+        // ==========================================
+        // 6. SPECTRUM BARS
+        // ==========================================
+        else if (style === 'bars') {
           const barWidth = (width / 64) * 0.76;
           const spacing = (width / 64) * 0.24;
 
@@ -327,7 +744,12 @@ const Visualizer = memo(
             ctx.fill();
             ctx.globalAlpha = 1.0;
           }
-        } else if (style === 'wave') {
+        }
+
+        // ==========================================
+        // 7. HARMONIC WAVE
+        // ==========================================
+        else if (style === 'wave') {
           for (let w = 0; w < 3; w++) {
             ctx.beginPath();
             for (let i = 0; i < 64; i++) {
@@ -348,12 +770,16 @@ const Visualizer = memo(
             ctx.stroke();
           }
           ctx.globalAlpha = 1;
-        } else if (style === 'blob') {
+        }
+
+        // ==========================================
+        // 8. LIQUID BLOB
+        // ==========================================
+        else if (style === 'blob') {
           const centerX = width / 2;
           const centerY = height / 2;
           const baseRadius = Math.min(width, height) * 0.24;
 
-          // Fast radial halo glow (replaces CPU-bound ctx.shadowBlur for 120fps)
           const halo = ctx.createRadialGradient(
             centerX,
             centerY,
@@ -362,12 +788,14 @@ const Visualizer = memo(
             centerY,
             baseRadius * 1.9
           );
-          halo.addColorStop(0, 'rgba(250, 45, 72, 0.32)');
-          halo.addColorStop(1, 'rgba(250, 45, 72, 0)');
+          halo.addColorStop(0, c0);
+          halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
           ctx.fillStyle = halo;
+          ctx.globalAlpha = 0.32;
           ctx.beginPath();
           ctx.arc(centerX, centerY, baseRadius * 1.9, 0, Math.PI * 2);
           ctx.fill();
+          ctx.globalAlpha = 1.0;
 
           ctx.beginPath();
           for (let i = 0; i <= Math.PI * 2; i += 0.09) {
@@ -394,7 +822,12 @@ const Visualizer = memo(
           ctx.fillStyle = '#ffffff';
           ctx.fill();
           ctx.globalAlpha = 1.0;
-        } else if (style === 'circular') {
+        }
+
+        // ==========================================
+        // 9. RADIAL HALO CIRCULAR
+        // ==========================================
+        else if (style === 'circular') {
           const centerX = width / 2;
           const centerY = height / 2;
           const radius = Math.min(width, height) * (0.19 + bassEnergy * 0.04);
@@ -442,6 +875,24 @@ const Visualizer = memo(
         }
       };
 
+      const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+        let clientX = 0;
+        let clientY = 0;
+        if ('touches' in e && e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+        } else if ('clientX' in e) {
+          clientX = (e as MouseEvent).clientX;
+          clientY = (e as MouseEvent).clientY;
+        }
+        const w = window.innerWidth || 1000;
+        const h = window.innerHeight || 800;
+        const nx = (clientX / w) * 2 - 1; // -1 to 1
+        const ny = (clientY / h) * 2 - 1; // -1 to 1
+        tiltRef.current.targetX = Math.max(-1, Math.min(1, nx));
+        tiltRef.current.targetY = Math.max(-1, Math.min(1, ny));
+      };
+
       const handleVisibilityChange = () => {
         if (!document.hidden) {
           cancelAnimationFrame(requestRef.current);
@@ -454,12 +905,16 @@ const Visualizer = memo(
 
       handleResize();
       window.addEventListener('resize', handleResize);
+      window.addEventListener('mousemove', handlePointerMove, { passive: true });
+      window.addEventListener('touchmove', handlePointerMove, { passive: true });
       document.addEventListener('visibilitychange', handleVisibilityChange);
       lastTimeRef.current = performance.now();
       requestRef.current = requestAnimationFrame(draw);
 
       return () => {
         window.removeEventListener('resize', handleResize);
+        window.removeEventListener('mousemove', handlePointerMove);
+        window.removeEventListener('touchmove', handlePointerMove);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         cancelAnimationFrame(requestRef.current);
       };

@@ -92,7 +92,7 @@ export interface SettingsState {
   crossfadeDuration: number;
   audioQuality: 'auto' | 'high' | 'medium' | 'low';
   showVisualizer: boolean;
-  visualizerStyle: 'bars' | 'wave' | 'blob' | 'circular' | 'particles' | 'nebula' | 'starfield';
+  visualizerStyle: VisualizerStyle;
   equalizerPreset: string;
   equalizerBands: number[];
   autoplay: boolean;
@@ -254,7 +254,9 @@ export type VisualizerStyle =
   | 'circular'
   | 'particles'
   | 'nebula'
-  | 'starfield';
+  | 'starfield'
+  | 'cyber-mesh'
+  | 'analog-vu';
 
 export type AudioQuality = SettingsState['audioQuality'];
 export type PerformanceProfile = SettingsState['performanceProfile'];

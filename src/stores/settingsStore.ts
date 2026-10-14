@@ -12,7 +12,9 @@ export type VisualizerStyleOption =
   | 'circular'
   | 'particles'
   | 'nebula'
-  | 'starfield';
+  | 'starfield'
+  | 'cyber-mesh'
+  | 'analog-vu';
 
 interface SettingsStore extends SettingsState {
   crossfade: number;
