@@ -1,7 +1,9 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { Playlist } from '../../types';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useDownloadStore } from '../../stores/downloadStore';
+import { isPlaylistFullyOffline, getPlaylistOfflineCount } from '../../services/offlineVault';
 import GlassCard from '../ui/GlassCard';
 
 interface PlaylistCardProps {
@@ -38,6 +40,30 @@ const PlaylistCard = memo(function PlaylistCard({
   const folder = useLibraryStore((s) =>
     playlist.folderId ? s.folders.find((f) => f.id === playlist.folderId) : undefined
   );
+
+  const activeDownloadJob = useDownloadStore((s) => s.activeJob);
+  const startBatchDownload = useDownloadStore((s) => s.startBatchDownload);
+
+  const isCurrentDownloading = Boolean(
+    activeDownloadJob && activeDownloadJob.id === playlist.id && activeDownloadJob.isDownloading
+  );
+
+  const isFullyOffline = useMemo(
+    () => isPlaylistFullyOffline(playlist.tracks),
+    [playlist.tracks, activeDownloadJob]
+  );
+  const offlineCount = useMemo(
+    () => getPlaylistOfflineCount(playlist.tracks),
+    [playlist.tracks, activeDownloadJob]
+  );
+
+  const handleDownloadClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (playlist.tracks.length > 0 && !isCurrentDownloading) {
+      startBatchDownload(playlist.id, playlist.name, playlist.tracks);
+    }
+  };
 
   return (
     <Link to={`/playlist/${playlist.id}`} className="block group">
@@ -107,6 +133,49 @@ const PlaylistCard = memo(function PlaylistCard({
               </button>
             </div>
           )}
+
+          {/* 1-Tap Offline Vault Download Action / Status Pill */}
+          <button
+            type="button"
+            onClick={handleDownloadClick}
+            disabled={playlist.tracks.length === 0 || isCurrentDownloading}
+            title={
+              isFullyOffline
+                ? `Offline Ready (${offlineCount} tracks cached)`
+                : isCurrentDownloading
+                ? `Downloading ${activeDownloadJob?.completed}/${activeDownloadJob?.total}`
+                : `1-Tap Download "${playlist.name}" to Offline Audio Vault`
+            }
+            className={`absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full backdrop-blur-md border text-[10px] font-bold flex items-center gap-1.5 transition-all z-10 cursor-pointer ${
+              isCurrentDownloading
+                ? 'bg-cyan-500/85 border-cyan-300 text-white shadow-lg'
+                : isFullyOffline
+                ? 'bg-emerald-500/80 border-emerald-300 text-white shadow-lg'
+                : 'bg-black/60 border-white/20 text-white/90 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 hover:text-white hover:bg-black/80 hover:scale-105'
+            }`}
+          >
+            {isCurrentDownloading && activeDownloadJob ? (
+              <>
+                <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                <span className="font-mono">
+                  {Math.round(
+                    (activeDownloadJob.completed / Math.max(1, activeDownloadJob.total)) * 100
+                  )}
+                  %
+                </span>
+              </>
+            ) : isFullyOffline ? (
+              <>
+                <span className="text-emerald-200">✓</span>
+                <span>Offline</span>
+              </>
+            ) : (
+              <>
+                <span className="text-cyan-300">⬇</span>
+                <span>Save</span>
+              </>
+            )}
+          </button>
         </div>
 
         {/* Title and Folder Badge */}

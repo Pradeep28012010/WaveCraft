@@ -17,6 +17,7 @@ import AnimatedBackground from '../ui/AnimatedBackground';
 import YouTubeEmbed from '../player/YouTubeEmbed';
 import { useColorExtract } from '../../hooks/useColorExtract';
 import GradualBlur from '../ui/GradualBlur';
+import GlobalDownloadIndicator from '../ui/GlobalDownloadIndicator';
 
 class RouteErrorBoundary extends Component<
   { resetKey: string; children: ReactNode },
@@ -181,6 +182,7 @@ export default function MainLayout() {
       </div>
 
       {hasCurrentTrack && <MiniPlayer />}
+      <GlobalDownloadIndicator />
       <MobileBottomNav />
     </div>
   );

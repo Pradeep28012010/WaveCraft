@@ -11,12 +11,11 @@ import { getHighResPlaylistCover } from './PlaylistCard';
 import { formatTime } from '../../utils/formatTime';
 import { exportToM3U8, exportToJSON } from '../../utils/playlistExport';
 import {
-  savePlaylistOffline,
   isPlaylistFullyOffline,
-  getPlaylistOfflineCount,
-  type PlaylistDownloadProgress
+  getPlaylistOfflineCount
 } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { useDownloadStore } from '../../stores/downloadStore';
 
 export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
@@ -43,7 +42,8 @@ export default function PlaylistView() {
   const [showAttachSource, setShowAttachSource] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState<PlaylistDownloadProgress | null>(null);
+  const activeDownloadJob = useDownloadStore((s) => s.activeJob);
+  const startBatchDownload = useDownloadStore((s) => s.startBatchDownload);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
@@ -54,21 +54,23 @@ export default function PlaylistView() {
 
   const tracks = useMemo(() => (Array.isArray(playlist?.tracks) ? playlist.tracks : []), [playlist?.tracks]);
 
+  const isCurrentDownloading = Boolean(
+    activeDownloadJob && activeDownloadJob.id === playlist?.id && activeDownloadJob.isDownloading
+  );
+
   const isAllOffline = useMemo(
     () => (playlist ? isPlaylistFullyOffline(tracks) : false),
-    [playlist, tracks, downloadProgress]
+    [playlist, tracks, activeDownloadJob]
   );
   const offlineCount = useMemo(
     () => (playlist ? getPlaylistOfflineCount(tracks) : 0),
-    [playlist, tracks, downloadProgress]
+    [playlist, tracks, activeDownloadJob]
   );
 
   const handleDownloadAll = async () => {
-    if (!playlist || tracks.length === 0 || downloadProgress?.isDownloading) return;
+    if (!playlist || tracks.length === 0 || isCurrentDownloading) return;
     triggerAndroidHaptic('light');
-    await savePlaylistOffline(tracks, (prog) => {
-      setDownloadProgress({ ...prog });
-    });
+    await startBatchDownload(playlist.id, playlist.name, tracks);
   };
 
   const handleCopyTrackList = () => {
@@ -588,10 +590,10 @@ export default function PlaylistView() {
         <button
           type="button"
           onClick={handleDownloadAll}
-          disabled={tracks.length === 0 || downloadProgress?.isDownloading}
+          disabled={tracks.length === 0 || isCurrentDownloading}
           className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
-            downloadProgress?.isDownloading
-              ? 'glass-button-cyan text-cyan-200'
+            isCurrentDownloading
+              ? 'glass-button-cyan text-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.3)]'
               : isAllOffline
               ? 'glass-button-emerald text-emerald-200'
               : 'glass-button text-white/90 hover:text-white'
@@ -602,12 +604,12 @@ export default function PlaylistView() {
               : 'Download entire playlist with 1 click for zero-latency offline playback'
           }
         >
-          {downloadProgress?.isDownloading ? (
+          {isCurrentDownloading && activeDownloadJob ? (
             <>
               <div className="w-3.5 h-3.5 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
               <span>
-                Downloading {downloadProgress.completed}/{downloadProgress.total} (
-                {Math.round((downloadProgress.completed / Math.max(1, downloadProgress.total)) * 100)}%)
+                Downloading {activeDownloadJob.completed}/{activeDownloadJob.total} (
+                {Math.round((activeDownloadJob.completed / Math.max(1, activeDownloadJob.total)) * 100)}%)
               </span>
             </>
           ) : isAllOffline ? (

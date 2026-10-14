@@ -50,6 +50,10 @@ interface SettingsStore extends SettingsState {
   setAiApiKey: (key: string) => void;
   setAutoMixerFilterSweeps: (enabled: boolean) => void;
   toggleAutoMixerFilterSweeps: () => void;
+  setAutoCachePlayingTracks: (enabled: boolean) => void;
+  toggleAutoCachePlayingTracks: () => void;
+  setPrecacheNextTrack: (enabled: boolean) => void;
+  setMaxCacheSizeMb: (sizeMb: number) => void;
   resetSettings: () => void;
 }
 
@@ -79,7 +83,10 @@ const defaultSettings: SettingsState = {
   performanceProfile: isMobileDevice ? 'balanced' : 'ultra',
   aiApiProvider: 'none',
   aiApiKey: '',
-  autoMixerFilterSweeps: true
+  autoMixerFilterSweeps: true,
+  autoCachePlayingTracks: true,
+  precacheNextTrack: true,
+  maxCacheSizeMb: 1024
 };
 
 /**
@@ -115,7 +122,10 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
     performanceProfile: state.performanceProfile ?? 'ultra',
     aiApiProvider: state.aiApiProvider ?? 'none',
     aiApiKey: state.aiApiKey ?? '',
-    autoMixerFilterSweeps: state.autoMixerFilterSweeps ?? true
+    autoMixerFilterSweeps: state.autoMixerFilterSweeps ?? true,
+    autoCachePlayingTracks: state.autoCachePlayingTracks ?? true,
+    precacheNextTrack: state.precacheNextTrack ?? true,
+    maxCacheSizeMb: typeof state.maxCacheSizeMb === 'number' ? state.maxCacheSizeMb : 1024
   };
 }
 
@@ -342,6 +352,26 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     persistSettings(get());
   },
 
+  setAutoCachePlayingTracks: (enabled: boolean) => {
+    set({ autoCachePlayingTracks: enabled });
+    persistSettings(get());
+  },
+
+  toggleAutoCachePlayingTracks: () => {
+    set((state) => ({ autoCachePlayingTracks: !(state.autoCachePlayingTracks ?? true) }));
+    persistSettings(get());
+  },
+
+  setPrecacheNextTrack: (enabled: boolean) => {
+    set({ precacheNextTrack: enabled });
+    persistSettings(get());
+  },
+
+  setMaxCacheSizeMb: (sizeMb: number) => {
+    set({ maxCacheSizeMb: Math.max(0, sizeMb) });
+    persistSettings(get());
+  },
+
   resetSettings: () => {
     document.documentElement.style.setProperty('--color-accent', defaultSettings.accentColor);
     set({
@@ -354,7 +384,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       performanceProfile: 'ultra',
       aiApiProvider: 'none',
       aiApiKey: '',
-      autoMixerFilterSweeps: true
+      autoMixerFilterSweeps: true,
+      autoCachePlayingTracks: true,
+      precacheNextTrack: true,
+      maxCacheSizeMb: 1024
     });
     persistSettings(defaultSettings);
   }

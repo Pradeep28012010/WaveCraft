@@ -20,6 +20,8 @@ export interface Track {
   energy?: number;
   vibeTag?: string;
   isInstrumental?: boolean;
+  offlineSource?: 'manual' | 'auto-cache';
+  downloadedAt?: number;
 }
 
 export interface PlaylistFolder {
@@ -104,6 +106,9 @@ export interface SettingsState {
   aiApiProvider?: 'none' | 'gemini' | 'openai';
   aiApiKey?: string;
   autoMixerFilterSweeps?: boolean;
+  autoCachePlayingTracks?: boolean;
+  precacheNextTrack?: boolean;
+  maxCacheSizeMb?: number;
 }
 
 export interface SearchResult {

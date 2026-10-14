@@ -6,12 +6,11 @@ import TrackRow from '../ui/TrackRow';
 import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
 import {
-  savePlaylistOffline,
   isPlaylistFullyOffline,
-  getPlaylistOfflineCount,
-  type PlaylistDownloadProgress
+  getPlaylistOfflineCount
 } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { useDownloadStore } from '../../stores/downloadStore';
 
 export default function LikedSongs() {
   const likedSongs = useLibraryStore((state) => state.likedSongs);
@@ -41,23 +40,26 @@ export default function LikedSongs() {
     return result;
   }, [likedSongs, searchQuery, sortBy]);
 
-  const [downloadProgress, setDownloadProgress] = useState<PlaylistDownloadProgress | null>(null);
+  const activeDownloadJob = useDownloadStore((s) => s.activeJob);
+  const startBatchDownload = useDownloadStore((s) => s.startBatchDownload);
+
+  const isCurrentDownloading = Boolean(
+    activeDownloadJob && activeDownloadJob.id === 'liked_songs' && activeDownloadJob.isDownloading
+  );
 
   const isAllOffline = useMemo(
     () => isPlaylistFullyOffline(filteredAndSortedSongs),
-    [filteredAndSortedSongs, downloadProgress]
+    [filteredAndSortedSongs, activeDownloadJob]
   );
   const offlineCount = useMemo(
     () => getPlaylistOfflineCount(filteredAndSortedSongs),
-    [filteredAndSortedSongs, downloadProgress]
+    [filteredAndSortedSongs, activeDownloadJob]
   );
 
   const handleDownloadAll = async () => {
-    if (filteredAndSortedSongs.length === 0 || downloadProgress?.isDownloading) return;
+    if (filteredAndSortedSongs.length === 0 || isCurrentDownloading) return;
     triggerAndroidHaptic('light');
-    await savePlaylistOffline(filteredAndSortedSongs, (prog) => {
-      setDownloadProgress({ ...prog });
-    });
+    await startBatchDownload('liked_songs', 'Liked Songs', filteredAndSortedSongs);
   };
 
   const handlePlayAll = () => {
@@ -117,10 +119,10 @@ export default function LikedSongs() {
           <button
             type="button"
             onClick={handleDownloadAll}
-            disabled={filteredAndSortedSongs.length === 0 || downloadProgress?.isDownloading}
+            disabled={filteredAndSortedSongs.length === 0 || isCurrentDownloading}
             className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
-              downloadProgress?.isDownloading
-                ? 'glass-button-cyan text-cyan-200'
+              isCurrentDownloading
+                ? 'glass-button-cyan text-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.3)]'
                 : isAllOffline
                 ? 'glass-button-emerald text-emerald-200'
                 : 'glass-button text-white/90 hover:text-white'
@@ -131,12 +133,12 @@ export default function LikedSongs() {
                 : 'Download all liked songs with 1 click for zero-latency offline playback'
             }
           >
-            {downloadProgress?.isDownloading ? (
+            {isCurrentDownloading && activeDownloadJob ? (
               <>
                 <div className="w-3.5 h-3.5 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                 <span>
-                  Downloading {downloadProgress.completed}/{downloadProgress.total} (
-                  {Math.round((downloadProgress.completed / Math.max(1, downloadProgress.total)) * 100)}%)
+                  Downloading {activeDownloadJob.completed}/{activeDownloadJob.total} (
+                  {Math.round((activeDownloadJob.completed / Math.max(1, activeDownloadJob.total)) * 100)}%)
                 </span>
               </>
             ) : isAllOffline ? (
@@ -151,7 +153,7 @@ export default function LikedSongs() {
                 <svg className="w-4 h-4 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span>Download All ({filteredAndSortedSongs.length - offlineCount})</span>
+                <span>Download All ({Math.max(0, filteredAndSortedSongs.length - offlineCount)})</span>
               </>
             )}
           </button>

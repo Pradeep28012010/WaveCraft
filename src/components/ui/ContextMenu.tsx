@@ -13,6 +13,7 @@ import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { useDownloadStore } from '../../stores/downloadStore';
 import type { Playlist } from '../../types';
 
 class ContextMenuErrorBoundary extends Component<
@@ -1044,6 +1045,29 @@ function ContextMenuInner() {
                 {isOffline ? 'Remove from Offline Vault' : 'Download to Offline Vault'}
               </span>
             </button>
+
+            {/* 7b. Download Entire Set / Album / Playlist if multiple tracks present */}
+            {contextTracks && contextTracks.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  useDownloadStore.getState().startBatchDownload(
+                    `batch_${Date.now()}`,
+                    track?.album || track?.artist || 'Track Set',
+                    contextTracks
+                  );
+                  showToast(`Downloading ${contextTracks.length} tracks to Vault...`);
+                  closeMenu();
+                }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-white/10 active:bg-white/15 transition-colors cursor-pointer group text-cyan-300"
+              >
+                <span className="flex-shrink-0 text-sm">⬇</span>
+                <span className="font-semibold flex-1">
+                  Download All ({contextTracks.length} tracks)
+                </span>
+              </button>
+            )}
 
             {/* 8. View Synced Lyrics */}
             <button

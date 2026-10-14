@@ -5,7 +5,12 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore } from '../../stores/studioStore';
 import { searchTracks, findStrictTrackMatch } from '../../services/youtube';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
-import { getOfflineAudioObjectUrl, isTrackOffline } from '../../services/offlineVault';
+import {
+  getOfflineAudioObjectUrl,
+  isTrackOffline,
+  autoCacheTrack,
+  precacheTrack
+} from '../../services/offlineVault';
 import { cleanTrackQuery, resolveDirectAudio } from '../../services/streamResolver';
 import {
   setHtmlAudioElement,
@@ -62,6 +67,7 @@ export default function YouTubeEmbed() {
   const ytBufferingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rampTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoCachedTracksRef = useRef<Set<string>>(new Set());
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const queue = usePlayerStore((s) => s.queue);
@@ -275,6 +281,15 @@ export default function YouTubeEmbed() {
           usePlayerStore.getState().nextTrack();
         }, Math.min(3000, activeCrossfade * 750));
       }
+
+      // Smart Auto-Cache: Cache track for offline listening after 20s or 35% playback
+      if (cur >= 20 || (dur > 0 && cur / dur >= 0.35)) {
+        const curTrack = usePlayerStore.getState().currentTrack;
+        if (curTrack?.id && !autoCachedTracksRef.current.has(curTrack.id)) {
+          autoCachedTracksRef.current.add(curTrack.id);
+          autoCacheTrack(curTrack);
+        }
+      }
     };
 
     const onEnded = () => {
@@ -294,6 +309,11 @@ export default function YouTubeEmbed() {
           usePlayerStore.setState({ isPlaying: false, isLoading: false });
         });
         return;
+      }
+      const curTrack = usePlayerStore.getState().currentTrack;
+      if (curTrack?.id && !autoCachedTracksRef.current.has(curTrack.id)) {
+        autoCachedTracksRef.current.add(curTrack.id);
+        autoCacheTrack(curTrack);
       }
       // Delegate advancing queue and autoplay recommendations directly to playerStore
       nextTrack();
@@ -879,6 +899,13 @@ export default function YouTubeEmbed() {
       setIsLoading(true);
       setProgress(0, 0);
       resetAutoMixerFilters();
+
+      // Pre-cache upcoming song in queue for zero-gap playback
+      const { queue: currentQueue, queueIndex: currentIdx } = usePlayerStore.getState();
+      const nextSong = currentQueue[currentIdx + 1];
+      if (nextSong && !isTrackOffline(nextSong.id)) {
+        precacheTrack(nextSong);
+      }
     }
 
     // 1. Check Offline Audio Vault first for zero-latency local playback

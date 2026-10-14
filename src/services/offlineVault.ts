@@ -3,6 +3,7 @@ import type { Track } from '../types';
 import { resolveDirectAudio, cleanTrackQuery } from './streamResolver';
 import { apiUrl } from './apiConfig';
 import { createStore, get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from 'idb-keyval';
+import { useSettingsStore } from '../stores/settingsStore';
 
 const VAULT_CACHE_NAME = 'wavecraft-offline-audio-vault-v1';
 const VAULT_META_KEY = 'wavecraft_offline_tracks_meta_v1';
@@ -115,35 +116,65 @@ export function isTrackOffline(trackId?: string): boolean {
  * Downloads and caches a track's audio stream and artwork into IndexedDB & CacheStorage.
  * Strict verification: returns true ONLY if the audio binary was genuinely saved.
  */
-export async function saveTrackOffline(track: Track): Promise<boolean> {
+export async function saveTrackOffline(
+  track: Track,
+  source: 'manual' | 'auto-cache' = 'manual'
+): Promise<boolean> {
   if (!track || !track.id) return false;
+
+  if (source === 'auto-cache') {
+    const isAutoCacheEnabled = useSettingsStore.getState().autoCachePlayingTracks ?? true;
+    if (!isAutoCacheEnabled) return false;
+  }
 
   try {
     let resolvedTrack = { ...track };
+    const videoId =
+      resolvedTrack.youtubeId ||
+      (resolvedTrack.id && resolvedTrack.id.length === 11 && !resolvedTrack.id.includes('-')
+        ? resolvedTrack.id
+        : undefined);
 
     // 1. Proactively resolve direct audio stream if missing or temporary Spotify preview
     if (!resolvedTrack.audioUrl || resolvedTrack.audioUrl.includes('p.scdn.co')) {
-      try {
-        let directUrl = await resolveDirectAudio(
-          resolvedTrack.title,
-          resolvedTrack.artist,
-          resolvedTrack.duration,
-          resolvedTrack.youtubeId
-        );
-        if (!directUrl) {
-          const { cleanTitle, cleanArtist } = cleanTrackQuery(resolvedTrack.title, resolvedTrack.artist);
-          directUrl = await resolveDirectAudio(
-            cleanTitle,
-            cleanArtist,
+      // Prioritize direct YouTube video stream resolution when videoId is known
+      if (videoId) {
+        try {
+          const ytResolveUrl = apiUrl(`/api/music?action=resolve-stream&videoId=${encodeURIComponent(videoId)}`);
+          const res = await fetch(ytResolveUrl, { signal: AbortSignal.timeout(4000) });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.audioUrl) {
+              resolvedTrack.audioUrl = data.audioUrl;
+              resolvedTrack.quality = data.quality || '320kbps YouTube Studio';
+            }
+          }
+        } catch {}
+      }
+
+      if (!resolvedTrack.audioUrl) {
+        try {
+          let directUrl = await resolveDirectAudio(
+            resolvedTrack.title,
+            resolvedTrack.artist,
             resolvedTrack.duration,
             resolvedTrack.youtubeId
           );
-        }
-        if (directUrl) {
-          resolvedTrack.audioUrl = directUrl;
-          resolvedTrack.quality = '320kbps Studio AAC';
-        }
-      } catch {}
+          if (!directUrl) {
+            const { cleanTitle, cleanArtist } = cleanTrackQuery(resolvedTrack.title, resolvedTrack.artist);
+            directUrl = await resolveDirectAudio(
+              cleanTitle,
+              cleanArtist,
+              resolvedTrack.duration,
+              resolvedTrack.youtubeId
+            );
+          }
+          if (directUrl) {
+            resolvedTrack.audioUrl = directUrl;
+            resolvedTrack.quality = '320kbps Studio AAC';
+          }
+        } catch {}
+      }
     }
 
     if (!resolvedTrack.audioUrl) {
@@ -264,9 +295,22 @@ export async function saveTrackOffline(track: Track): Promise<boolean> {
       } catch {}
     }
 
-    // 6. Update metadata
+    // 6. Update metadata with source tagging & downloaded timestamp
+    const existing = getOfflineTracks().find((t) => t.id === resolvedTrack.id);
+    resolvedTrack.offlineSource = existing?.offlineSource === 'manual' ? 'manual' : source;
+    resolvedTrack.downloadedAt = existing?.downloadedAt || Date.now();
+
     const current = getOfflineTracks().filter((t) => t.id !== resolvedTrack.id);
     saveOfflineTracksMeta([resolvedTrack, ...current], resolvedTrack.id);
+
+    // If auto-cached, enforce cache limit
+    if (source === 'auto-cache') {
+      const maxMb = useSettingsStore.getState().maxCacheSizeMb ?? 1024;
+      if (maxMb > 0) {
+        enforceAutoCacheLimit(maxMb).catch(() => {});
+      }
+    }
+
     return true;
   } catch (err) {
     console.warn('Offline Vault save failed:', err);
@@ -330,6 +374,95 @@ export async function clearAllOfflineTracks(): Promise<void> {
   }
 
   saveOfflineTracksMeta([]);
+}
+
+/**
+ * Enforces LRU quota limit for auto-cached tracks only.
+ * User's manual downloads (playlists, liked songs) are NEVER pruned.
+ */
+export async function enforceAutoCacheLimit(maxMb: number): Promise<void> {
+  if (maxMb <= 0) return;
+  const maxBytes = maxMb * 1024 * 1024;
+  const allTracks = getOfflineTracks();
+  const autoCacheTracks = allTracks.filter((t) => t.offlineSource === 'auto-cache');
+
+  let currentBytes = autoCacheTracks.reduce(
+    (acc, t) => acc + (t.fileSizeBytes || 6.8 * 1024 * 1024),
+    0
+  );
+  if (currentBytes <= maxBytes) return;
+
+  // Sort oldest first
+  const sorted = [...autoCacheTracks].sort(
+    (a, b) => (a.downloadedAt || 0) - (b.downloadedAt || 0)
+  );
+
+  for (const track of sorted) {
+    if (currentBytes <= maxBytes) break;
+    await removeTrackOffline(track.id);
+    currentBytes -= track.fileSizeBytes || 6.8 * 1024 * 1024;
+  }
+}
+
+/**
+ * Purges ONLY auto-cached audio files, preserving all manually saved playlists and liked tracks.
+ */
+export async function clearAutoCacheOnly(): Promise<number> {
+  const allTracks = getOfflineTracks();
+  const autoCacheTracks = allTracks.filter((t) => t.offlineSource === 'auto-cache');
+  if (autoCacheTracks.length === 0) return 0;
+
+  for (const track of autoCacheTracks) {
+    if (activeObjectUrls.has(track.id)) {
+      try {
+        URL.revokeObjectURL(activeObjectUrls.get(track.id)!);
+      } catch {}
+      activeObjectUrls.delete(track.id);
+    }
+    try {
+      await idbDel(`audio_${track.id}`, vaultBlobStore);
+      await idbDel(`art_${track.id}`, vaultBlobStore);
+    } catch {}
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      try {
+        const cache = await caches.open(VAULT_CACHE_NAME);
+        await cache.delete(`https://wavecraft.local/offline-audio/${track.id}`);
+        await cache.delete(`https://wavecraft.local/offline-art/${track.id}`);
+      } catch {}
+    }
+  }
+
+  const remaining = allTracks.filter((t) => t.offlineSource !== 'auto-cache');
+  saveOfflineTracksMeta(remaining);
+  return autoCacheTracks.length;
+}
+
+/**
+ * Non-blocking auto-cache for the currently playing track.
+ */
+export function autoCacheTrack(track: Track): void {
+  if (!track || !track.id) return;
+  if (isTrackOffline(track.id) || activeSavingIds.has(track.id)) return;
+  const isEnabled = useSettingsStore.getState().autoCachePlayingTracks ?? true;
+  if (!isEnabled) return;
+
+  setTimeout(() => {
+    saveTrackOffline(track, 'auto-cache').catch(() => {});
+  }, 100);
+}
+
+/**
+ * Non-blocking pre-cache for the next upcoming track in the queue.
+ */
+export function precacheTrack(track: Track): void {
+  if (!track || !track.id) return;
+  if (isTrackOffline(track.id) || activeSavingIds.has(track.id)) return;
+  const isEnabled = useSettingsStore.getState().precacheNextTrack ?? true;
+  if (!isEnabled) return;
+
+  setTimeout(() => {
+    saveTrackOffline(track, 'auto-cache').catch(() => {});
+  }, 400);
 }
 
 /**
@@ -540,6 +673,74 @@ export async function getOfflineStorageEstimate(): Promise<{
   };
 }
 
+export interface DetailedStorageBreakdown {
+  totalUsedBytes: number;
+  manualBytes: number;
+  autoCacheBytes: number;
+  quotaBytes: number;
+  availableBytes: number;
+  manualFormatted: string;
+  autoCacheFormatted: string;
+  totalFormatted: string;
+  quotaFormatted: string;
+  availableFormatted: string;
+  percentUsed: number;
+  manualCount: number;
+  autoCacheCount: number;
+  totalCount: number;
+}
+
+export async function getOfflineDetailedStorageBreakdown(): Promise<DetailedStorageBreakdown> {
+  const allTracks = getOfflineTracks();
+  const manualTracks = allTracks.filter((t) => t.offlineSource !== 'auto-cache');
+  const autoCacheTracks = allTracks.filter((t) => t.offlineSource === 'auto-cache');
+
+  const manualBytes = manualTracks.reduce(
+    (acc, t) => acc + (t.fileSizeBytes || 6.8 * 1024 * 1024),
+    0
+  );
+  const autoCacheBytes = autoCacheTracks.reduce(
+    (acc, t) => acc + (t.fileSizeBytes || 6.8 * 1024 * 1024),
+    0
+  );
+  const totalUsedBytes = manualBytes + autoCacheBytes;
+
+  let quotaBytes = 0;
+  if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      quotaBytes = est.quota || 0;
+    } catch {}
+  }
+
+  const formatSize = (bytes: number) => {
+    if (bytes >= 1024 * 1024 * 1024) {
+      return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const availableBytes = quotaBytes > 0 ? Math.max(0, quotaBytes - totalUsedBytes) : 0;
+  const percentUsed = quotaBytes > 0 ? (totalUsedBytes / quotaBytes) * 100 : 0;
+
+  return {
+    totalUsedBytes,
+    manualBytes,
+    autoCacheBytes,
+    quotaBytes,
+    availableBytes,
+    manualFormatted: formatSize(manualBytes),
+    autoCacheFormatted: formatSize(autoCacheBytes),
+    totalFormatted: formatSize(totalUsedBytes),
+    quotaFormatted: quotaBytes > 0 ? formatSize(quotaBytes) : 'Unlimited',
+    availableFormatted: quotaBytes > 0 ? formatSize(availableBytes) : 'Unlimited',
+    percentUsed: Math.min(100, Math.max(0, percentUsed)),
+    manualCount: manualTracks.length,
+    autoCacheCount: autoCacheTracks.length,
+    totalCount: allTracks.length
+  };
+}
+
 /**
  * Lightweight O(1) hook for an individual TrackRow to subscribe ONLY to its own offline status.
  */
@@ -611,6 +812,10 @@ export function useOfflineVault() {
     toggleOfflineTrack,
     removeTrackOffline,
     clearAllOfflineTracks,
-    getOfflineStorageEstimate
+    clearAutoCacheOnly,
+    getOfflineStorageEstimate,
+    getOfflineDetailedStorageBreakdown,
+    autoCacheTrack,
+    precacheTrack
   };
 }
