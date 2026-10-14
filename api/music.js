@@ -395,18 +395,18 @@ export default async function handler(req, res) {
     }
 
     if (action === 'version') {
-      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.0.2',
-        versionCode: 7,
-        releaseDate: '2026-10-13',
+        version: '5.0.4',
+        versionCode: 9,
+        releaseDate: '2026-10-14',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
-        title: 'WaveCraft Pro v5.0.2 (Smooth Scrubber & Background Audio)',
+        title: 'WaveCraft Pro v5.0.4 (Instant Lockscreen Media Updates & Reliable Offline Vault)',
         releaseNotes: [
-          'Fix media player notification progress bar jitter and backward-jumping',
-          'Fix background audio suspension when screen is off or app is minimized',
-          'Enhanced stream matching with 320kbps direct CDN audio pipeline',
-          'One-tap seamless in-app updater directly inside the app'
+          'Instant Lockscreen Updates: Android notification & lock-screen media player repaints immediately 100% of the time on song changes',
+          'Restored Direct Audio & Offline Downloads: Full 320kbps streams restored for reliable offline vault saving and uninterrupted background playback',
+          'Auto-Prune Unplayable Tracks: Automatically discards dead tracks from queue so playback never freezes',
+          'Seekbar Reset: Corrected notification scrub bar position on new track start'
         ],
         forceUpdate: false
       });

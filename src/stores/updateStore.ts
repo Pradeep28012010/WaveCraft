@@ -119,18 +119,20 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
         let versionData: AppVersionInfo | null = null;
         const isNative = isAndroidNative();
 
+        const t = Date.now();
         // Endpoints to check: live remote Vercel API, remote version.json, github raw, or local
         const endpoints = isNative
           ? [
-              'https://wavecraft-alpha.vercel.app/api/music?action=version',
-              'https://wavecraft-alpha.vercel.app/version.json',
-              'https://raw.githubusercontent.com/Pradeep28012010/WaveCraft/main/public/version.json',
-              '/version.json'
+              `https://wavecraft-alpha.vercel.app/version.json?_t=${t}`,
+              `https://raw.githubusercontent.com/Pradeep28012010/WaveCraft/main/public/version.json?_t=${t}`,
+              `https://wavecraft-alpha.vercel.app/api/music?action=version&_t=${t}`,
+              `/version.json?_t=${t}`
             ]
           : [
-              '/api/music?action=version',
-              '/version.json',
-              'https://wavecraft-alpha.vercel.app/api/music?action=version'
+              `/version.json?_t=${t}`,
+              `https://wavecraft-alpha.vercel.app/version.json?_t=${t}`,
+              `/api/music?action=version&_t=${t}`,
+              `https://wavecraft-alpha.vercel.app/api/music?action=version&_t=${t}`
             ];
 
         for (const ep of endpoints) {
@@ -139,8 +141,9 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
             if (res.ok) {
               const data = await res.json();
               if (data && data.version) {
-                versionData = data;
-                break;
+                if (!versionData || safeCompareVersions(data.version, versionData.version)) {
+                  versionData = data;
+                }
               }
             }
           } catch {}
