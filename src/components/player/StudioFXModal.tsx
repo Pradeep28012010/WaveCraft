@@ -18,8 +18,9 @@ import {
   unlockAudioEngine,
   resumeAudioContextIfNeeded
 } from '../../services/audioEngine';
+import InteractiveEQ from './InteractiveEQ';
 
-type StudioTab = 'spatial' | 'mastering' | 'arena' | 'ambient' | 'timers';
+type StudioTab = 'eq' | 'spatial' | 'mastering' | 'arena' | 'ambient' | 'timers';
 
 const STUDIO_BACKDROP_TRANSITION = { duration: 0.38, ease: [0.16, 1, 0.3, 1] as const };
 const STUDIO_PANEL_VARIANTS = {
@@ -444,8 +445,9 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
         {/* ── Segmented Rack Navigation Tabs ── */}
         <div className="flex items-center gap-1.5 p-1 rounded-2xl liquid-glass border border-white/15 overflow-x-auto no-scrollbar">
           {[
+            { id: 'eq', label: '📊 10-Band EQ', badge: null },
+            { id: 'mastering', label: '🎚️ Mastering & Tube', badge: harmonicDrive > 0.05 ? 'TUBE ON' : null },
             { id: 'spatial', label: '🪐 3D Spatial Radar', badge: fxMode === '8d-orbit' ? 'ACTIVE' : null },
-            { id: 'mastering', label: '🎚️ Mastering Rack', badge: null },
             { id: 'arena', label: '🏟️ Concert Arena', badge: fxMode === 'arena-live' ? 'ACTIVE' : null },
             {
               id: 'ambient',
@@ -489,6 +491,9 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
         {/* ── Active Tab Stage ── */}
         <div className="p-4 sm:p-5 rounded-2xl border border-white/12 liquid-glass">
+          {/* TAB 0: 10-BAND INTERACTIVE EQUALIZER */}
+          {activeTab === 'eq' && <InteractiveEQ />}
+
           {/* TAB 1: 3D SPATIAL RADAR */}
           {activeTab === 'spatial' && (
             <div className="space-y-4">
@@ -661,6 +666,112 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 </button>
               </div>
 
+              {/* Analog Vacuum Tube Visualizer Display */}
+              <div className="relative rounded-2xl liquid-glass border border-white/12 p-3 sm:p-4 overflow-hidden bg-gradient-to-b from-[#140b07]/80 via-[#0d0705]/90 to-[#060403]">
+                {/* Tube Glow Backdrop */}
+                <div
+                  className="absolute inset-0 pointer-events-none transition-opacity duration-300 blur-2xl"
+                  style={{
+                    background: `radial-gradient(circle at 50% 50%, rgba(251, 146, 60, ${harmonicDrive * 0.45}) 0%, rgba(234, 88, 12, ${harmonicDrive * 0.2}) 50%, transparent 80%)`
+                  }}
+                />
+
+                <div className="relative z-10 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    {/* SVG 12AX7 Vacuum Tube Illustration */}
+                    <div className="relative w-12 h-16 sm:w-14 sm:h-20 flex-shrink-0 flex items-center justify-center">
+                      <svg viewBox="0 0 60 90" className="w-full h-full drop-shadow-md">
+                        {/* Glass Bulb Outline */}
+                        <path
+                          d="M 15 80 L 15 35 Q 15 15, 30 15 Q 45 15, 45 35 L 45 80 Z"
+                          fill="rgba(255, 255, 255, 0.04)"
+                          stroke="rgba(255, 255, 255, 0.3)"
+                          strokeWidth="1.5"
+                        />
+                        {/* Top evacuation tip */}
+                        <path d="M 28 15 Q 30 10, 32 15" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="1.5" fill="none" />
+                        {/* Internal Anode Plate Metal Structure */}
+                        <rect x="22" y="32" width="16" height="38" rx="2" fill="none" stroke="rgba(255, 255, 255, 0.18)" strokeWidth="1" />
+                        {/* Internal Grid Windings */}
+                        <line x1="24" y1="40" x2="36" y2="40" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
+                        <line x1="24" y1="48" x2="36" y2="48" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
+                        <line x1="24" y1="56" x2="36" y2="56" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
+                        <line x1="24" y1="64" x2="36" y2="64" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
+
+                        {/* Central Filament Heater Coil (Heats up with harmonicDrive) */}
+                        <path
+                          d="M 28 72 L 28 38 Q 30 35, 32 38 L 32 72"
+                          fill="none"
+                          stroke={harmonicDrive > 0.05 ? '#fb923c' : 'rgba(255, 255, 255, 0.25)'}
+                          strokeWidth={harmonicDrive > 0.05 ? 2.5 : 1.2}
+                          strokeLinecap="round"
+                          style={{
+                            filter: harmonicDrive > 0.05 ? `drop-shadow(0 0 ${4 + harmonicDrive * 8}px #f97316)` : undefined,
+                            transition: 'all 0.3s ease'
+                          }}
+                        />
+
+                        {/* Metallic Tube Pins at Base */}
+                        <line x1="18" y1="80" x2="18" y2="87" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                        <line x1="26" y1="80" x2="26" y2="88" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                        <line x1="34" y1="80" x2="34" y2="88" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                        <line x1="42" y1="80" x2="42" y2="87" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-amber-300 font-mono">12AX7 / ECC83</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200 font-bold uppercase tracking-wider">
+                          Triode Saturation
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-white/60 mt-0.5">
+                        {harmonicDrive < 0.05
+                          ? 'Zero Coloration • Bit-perfect linear bypass'
+                          : harmonicDrive < 0.35
+                            ? 'Warm Tape Glue • Gentle even harmonics & soft clipping'
+                            : harmonicDrive < 0.7
+                              ? 'Vintage Class-A Valve • Rich analog saturation'
+                              : 'Hot Valve Overdrive • High-energy tape compression'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-base font-black font-mono text-amber-300">
+                      {Math.round(harmonicDrive * 100)}%
+                    </div>
+                    <div className="text-[10px] text-white/40 uppercase font-semibold tracking-wider">
+                      Drive
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Tube Saturation Presets */}
+                <div className="flex items-center gap-1.5 pt-2.5 mt-2.5 border-t border-white/8">
+                  {[
+                    { label: 'Clean (0%)', val: 0 },
+                    { label: 'Warm Tape (25%)', val: 0.25 },
+                    { label: 'Vintage Tube (50%)', val: 0.5 },
+                    { label: 'Hot Valve (80%)', val: 0.8 }
+                  ].map((tp) => (
+                    <button
+                      key={tp.label}
+                      type="button"
+                      onClick={() => setHarmonicDrive(tp.val)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
+                        Math.abs(harmonicDrive - tp.val) < 0.05
+                          ? 'bg-amber-400 text-black border-amber-300'
+                          : 'liquid-glass border-white/10 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      {tp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Mastering Sliders Grid */}
               <div className="space-y-3 pt-1">
                 {/* 1. Sub-Bass */}
@@ -686,7 +797,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-white/70 font-semibold">
                     <span>Harmonic Drive (Analog Tube Warmth)</span>
-                    <span className="font-mono text-purple-300 font-bold">
+                    <span className="font-mono text-amber-300 font-bold">
                       {Math.round(harmonicDrive * 100)}%
                     </span>
                   </div>
@@ -697,7 +808,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                     step="0.05"
                     value={harmonicDrive}
                     onChange={(e) => setHarmonicDrive(parseFloat(e.target.value))}
-                    className="w-full accent-purple-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
+                    className="w-full accent-amber-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
                   />
                 </div>
 
@@ -742,7 +853,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 {/* 5. Convolution Reverb Mix */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-white/70 font-semibold">
-                    <span>Convolution Hall Echo</span>
+                    <span>Concert Hall Reverb Echo</span>
                     <span className="font-mono text-amber-300 font-bold">
                       {Math.round(reverbMix * 100)}%
                     </span>
@@ -756,6 +867,28 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                     onChange={(e) => setReverbMix(parseFloat(e.target.value))}
                     className="w-full accent-amber-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
                   />
+                  {/* Quick Reverb Presets */}
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {[
+                      { label: 'Dry Bypass (0%)', val: 0 },
+                      { label: 'Intimate Studio (12%)', val: 0.12 },
+                      { label: 'Concert Hall (35%)', val: 0.35 },
+                      { label: 'Cathedral Arena (60%)', val: 0.6 }
+                    ].map((rp) => (
+                      <button
+                        key={rp.label}
+                        type="button"
+                        onClick={() => setReverbMix(rp.val)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
+                          Math.abs(reverbMix - rp.val) < 0.04
+                            ? 'bg-amber-400 text-black border-amber-300'
+                            : 'liquid-glass border-white/10 text-white/60 hover:text-white'
+                        }`}
+                      >
+                        {rp.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
