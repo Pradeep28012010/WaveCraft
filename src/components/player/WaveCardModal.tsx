@@ -526,7 +526,7 @@ export default function WaveCardModal({
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center p-1 rounded-full liquid-glass border border-white/15">
+              <div className="flex items-center p-1 rounded-full liquid-glass border-0">
                 <button
                   type="button"
                   onClick={() => setAspectMode('story')}
@@ -565,7 +565,7 @@ export default function WaveCardModal({
               <div
                 className={`w-full ${
                   aspectMode === 'story' ? 'max-w-[290px] aspect-[9/16]' : 'max-w-[340px] aspect-[4/5]'
-                } rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden border border-white/20 shadow-2xl select-none transition-all duration-300`}
+                } rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden border-0 shadow-2xl select-none transition-all duration-300`}
                 style={{
                   background: `linear-gradient(145deg, ${activeTheme.bgStart} 0%, #090910 55%, ${activeTheme.bgEnd} 100%)`
                 }}
@@ -585,7 +585,7 @@ export default function WaveCardModal({
                   <img
                     src={track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL}
                     alt={track.title}
-                    className="w-16 h-16 rounded-2xl object-cover shadow-lg border border-white/15 flex-shrink-0"
+                    className="w-16 h-16 rounded-2xl object-cover shadow-lg border-0 flex-shrink-0"
                   />
                   <div className="min-w-0">
                     <span
@@ -615,7 +615,7 @@ export default function WaveCardModal({
                 </div>
 
                 {/* Bottom Waveform & Badge */}
-                <div className="relative z-10 pt-3 border-t border-white/10">
+                <div className="relative z-10 pt-3 border-0">
                   <div className="flex items-center gap-1 h-7 mb-2.5">
                     {Array.from({ length: 32 }).map((_, i) => {
                       const h = 25 + Math.abs(Math.sin(i * 0.5) * 65);
@@ -654,7 +654,7 @@ export default function WaveCardModal({
                       onClick={() => setThemeId(t.id)}
                       className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                         themeId === t.id
-                          ? 'glass-button-primary text-white shadow-lg border-white/30'
+                          ? 'glass-button-primary text-white shadow-lg border-0'
                           : 'glass-button text-white/70 hover:text-white'
                       }`}
                     >
@@ -678,7 +678,7 @@ export default function WaveCardModal({
                   value={selectedQuote}
                   onChange={(e) => setSelectedQuote(e.target.value)}
                   placeholder="Type a lyric or quote..."
-                  className="w-full glass-input rounded-2xl p-3.5 text-sm text-white placeholder-white/35 focus:outline-none focus:border-white/35 resize-none"
+                  className="w-full glass-input rounded-2xl p-3.5 text-sm text-white placeholder-white/35 focus:outline-none focus:ring-1 focus:ring-white/35 resize-none"
                 />
               </div>
 
@@ -720,8 +720,8 @@ export default function WaveCardModal({
                           }}
                           className={`w-full text-left px-3 py-1.5 rounded-xl text-xs transition-colors truncate cursor-pointer flex items-center justify-between gap-2 ${
                             isLineSelected
-                              ? 'bg-[var(--color-accent)]/25 border border-[var(--color-accent)]/50 text-white font-bold'
-                              : 'text-white/75 hover:text-white hover:bg-white/10 border border-transparent'
+                              ? 'bg-[var(--color-accent)]/25 border-0(--color-accent)]/50 text-white font-bold'
+                              : 'text-white/75 hover:text-white hover:bg-white/10 border-0'
                           }`}
                         >
                           <span className="truncate">“{line.text}”</span>

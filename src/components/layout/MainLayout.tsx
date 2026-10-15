@@ -42,7 +42,7 @@ class RouteErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 rounded-3xl liquid-glass border border-white/15 text-center my-8 space-y-3">
+        <div className="p-8 rounded-3xl liquid-glass border-0 text-center my-8 space-y-3">
           <h3 className="text-lg font-extrabold text-white">Refreshing Studio View...</h3>
           <p className="text-xs text-white/60">
             Click below to reload this view without interrupting your music.

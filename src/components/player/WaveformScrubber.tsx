@@ -405,7 +405,7 @@ export const WaveformScrubber = memo(({
                 ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
                 : 'none'
             }}
-            className="pointer-events-none absolute -top-1 px-3 py-1 rounded-full liquid-glass glass-heavy border border-white/30 text-[11px] font-black tabular-nums text-white shadow-[0_8px_24px_rgba(0,0,0,0.6)] will-change-transform z-30 flex items-center gap-1.5"
+            className="pointer-events-none absolute -top-1 px-3 py-1 rounded-full liquid-glass glass-heavy border-0 text-[11px] font-black tabular-nums text-white shadow-[0_8px_24px_rgba(0,0,0,0.6)] will-change-transform z-30 flex items-center gap-1.5"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
             <span>{formatTime(isDragging ? activeDisplayTime : (hoverTime || 0))}</span>
@@ -488,7 +488,7 @@ export const WaveformScrubber = memo(({
 
           {/* iOS Style Elastic Thumb Head with Specular Halo */}
           <div
-            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full border border-white/70 bg-white shadow-[0_0_16px_2px_var(--color-accent)] pointer-events-none z-10 transition-transform duration-150 ${
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full border-0 bg-white shadow-[0_0_16px_2px_var(--color-accent)] pointer-events-none z-10 transition-transform duration-150 ${
               isDragging ? 'w-4.5 h-4.5 scale-125' : 'w-3 h-3 scale-90 group-hover:scale-120'
             }`}
             style={{

@@ -34,7 +34,7 @@ const GlassButton = ({
     variantClass = 'glass-button-primary rounded-full';
   } else if (variant === 'ghost') {
     variantClass =
-      'glass-button bg-white/[0.05] hover:bg-white/[0.14] text-white/80 hover:text-white border border-white/12 hover:border-white/28 rounded-full';
+      'glass-button bg-white/[0.05] hover:bg-white/[0.14] text-white/80 hover:text-white border-0 shadow-sm rounded-full';
   } else if (variant === 'icon') {
     variantClass = 'glass-button rounded-full p-2';
   }
@@ -50,7 +50,7 @@ const GlassButton = ({
   }
 
   if (active && variant !== 'primary') {
-    variantClass += ' border-[var(--color-accent)]/60 glow-accent bg-[var(--color-accent)]/20 shadow-[0_0_16px_var(--color-accent)]';
+    variantClass += ' border-0 glow-accent bg-[var(--color-accent)]/20 shadow-[0_0_16px_var(--color-accent)]';
   }
 
   if (disabled) {

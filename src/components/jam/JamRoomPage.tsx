@@ -52,7 +52,7 @@ const JamStageProgress = memo(() => {
           const r = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
           seekTo(r * (duration || 210));
         }}
-        className="h-2 bg-white/15 rounded-full cursor-pointer overflow-hidden border border-white/10"
+        className="h-2 bg-white/15 rounded-full cursor-pointer overflow-hidden border-0"
       >
         <div
           className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-rose-500 rounded-full transition-all duration-150"
@@ -287,7 +287,7 @@ export default function JamRoomPage() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -45, scale: 0.8 }}
               transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-              className="px-4 py-2 rounded-full liquid-glass border border-white/25 shadow-[0_12px_32px_rgba(0,0,0,0.5)] flex items-center gap-2.5 text-sm"
+              className="px-4 py-2 rounded-full liquid-glass border-0 shadow-[0_12px_32px_rgba(0,0,0,0.5)] flex items-center gap-2.5 text-sm"
             >
               <span className="text-xl drop-shadow">{r.emoji}</span>
               <span className="text-xs font-extrabold text-white/90">{r.sender}</span>
@@ -300,13 +300,13 @@ export default function JamRoomPage() {
         /* ================= LOBBY: SPATIAL SHAREPLAY & LIVE JAM STUDIO ================= */
         <div className="space-y-6">
           {/* Cinematic SharePlay Radar Hero */}
-          <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 p-4 sm:p-10 shadow-2xl">
+          <div className="relative rounded-3xl overflow-hidden liquid-glass border-0 p-4 sm:p-10 shadow-2xl">
             <div className="absolute -top-28 -left-24 w-96 h-96 rounded-full bg-emerald-500/20 blur-[110px] pointer-events-none" />
             <div className="absolute -bottom-28 -right-24 w-96 h-96 rounded-full bg-[var(--color-accent)]/25 blur-[110px] pointer-events-none" />
 
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-7 space-y-4">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-[11px] font-extrabold uppercase tracking-widest text-emerald-300">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/15 border-0 text-[11px] font-extrabold uppercase tracking-widest text-emerald-300">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                   TRIPLE-TRANSPORT SHAREPLAY • &lt;15MS SYNC DRIFT
                 </div>
@@ -327,7 +327,7 @@ export default function JamRoomPage() {
                   <label className="block text-[11px] font-extrabold uppercase tracking-widest text-white/50 mb-2">
                     Your Studio Display Identity
                   </label>
-                  <div className="flex items-center gap-3 p-1.5 pl-2.5 rounded-full bg-black/45 border border-white/15 focus-within:border-emerald-400/60 transition-colors">
+                  <div className="flex items-center gap-3 p-1.5 pl-2.5 rounded-full bg-black/45 border-0 focus-within:ring-1 focus-within:ring-emerald-400 transition-colors">
                     <div
                       className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarGradient(
                         nameInput || 'DJ'
@@ -356,20 +356,20 @@ export default function JamRoomPage() {
               <div className="lg:col-span-5 flex items-center justify-center py-4">
                 <div className="relative w-52 h-52 sm:w-72 sm:h-72 flex items-center justify-center max-w-full">
                   {/* Concentric Radar Rings */}
-                  <div className="absolute inset-0 rounded-full border border-emerald-400/20 animate-[ping_3.5s_cubic-bezier(0,0,0.2,1)_infinite]" />
-                  <div className="absolute inset-4 rounded-full border border-cyan-400/25" />
-                  <div className="absolute inset-12 rounded-full border border-dashed border-white/20 animate-[spin_18s_linear_infinite]" />
-                  <div className="absolute inset-20 rounded-full border border-rose-500/30" />
+                  <div className="absolute inset-0 rounded-full border-0 animate-[ping_3.5s_cubic-bezier(0,0,0.2,1)_infinite]" />
+                  <div className="absolute inset-4 rounded-full border-0" />
+                  <div className="absolute inset-12 rounded-full border-0 border-white/20 animate-[spin_18s_linear_infinite]" />
+                  <div className="absolute inset-20 rounded-full border-0" />
 
                   {/* Orbiting Listener Nodes */}
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full liquid-glass border border-emerald-400/40 text-[9px] sm:text-[10px] font-extrabold text-emerald-300 shadow-lg flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full liquid-glass border-0 text-[9px] sm:text-[10px] font-extrabold text-emerald-300 shadow-lg flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                     <span>Cloud Relay</span>
                   </div>
-                  <div className="absolute bottom-4 left-2 sm:left-4 px-2 sm:px-2.5 py-1 rounded-full liquid-glass border border-cyan-400/40 text-[9px] sm:text-[10px] font-extrabold text-cyan-300 shadow-lg whitespace-nowrap flex-shrink-0">
+                  <div className="absolute bottom-4 left-2 sm:left-4 px-2 sm:px-2.5 py-1 rounded-full liquid-glass border-0 text-[9px] sm:text-[10px] font-extrabold text-cyan-300 shadow-lg whitespace-nowrap flex-shrink-0">
                     WebRTC P2P
                   </div>
-                  <div className="absolute bottom-4 right-2 sm:right-4 px-2 sm:px-2.5 py-1 rounded-full liquid-glass border border-rose-400/40 text-[9px] sm:text-[10px] font-extrabold text-rose-300 shadow-lg whitespace-nowrap flex-shrink-0">
+                  <div className="absolute bottom-4 right-2 sm:right-4 px-2 sm:px-2.5 py-1 rounded-full liquid-glass border-0 text-[9px] sm:text-[10px] font-extrabold text-rose-300 shadow-lg whitespace-nowrap flex-shrink-0">
                     320kbps HD
                   </div>
 
@@ -398,7 +398,7 @@ export default function JamRoomPage() {
             <GlassCard
               variant="liquid"
               padding="lg"
-              className="flex flex-col justify-between border border-white/15 relative overflow-hidden group"
+              className="flex flex-col justify-between border-0 relative overflow-hidden group"
             >
               <div className="absolute -top-20 -right-20 w-52 h-52 rounded-full bg-rose-500/15 blur-3xl pointer-events-none group-hover:bg-rose-500/25 transition-colors" />
 
@@ -411,7 +411,7 @@ export default function JamRoomPage() {
                       <line x1="12" y1="19" x2="12" y2="22" />
                     </svg>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-rose-500/15 border border-rose-400/30 text-[10px] font-extrabold uppercase tracking-wider text-rose-300 whitespace-nowrap flex-shrink-0">
+                  <span className="px-3 py-1 rounded-full bg-rose-500/15 border-0 text-[10px] font-extrabold uppercase tracking-wider text-rose-300 whitespace-nowrap flex-shrink-0">
                     HOST BROADCAST
                   </span>
                 </div>
@@ -425,7 +425,7 @@ export default function JamRoomPage() {
                   {['Instant Room Code', 'Shared Party Queue', 'Crowd Emoji Reactions'].map((tag) => (
                     <span
                       key={tag}
-                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] font-semibold text-white/70 whitespace-nowrap"
+                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border-0 text-[11px] font-semibold text-white/70 whitespace-nowrap"
                     >
                       {tag}
                     </span>
@@ -447,7 +447,7 @@ export default function JamRoomPage() {
             <GlassCard
               variant="liquid"
               padding="lg"
-              className="flex flex-col justify-between border border-white/15 relative overflow-hidden group"
+              className="flex flex-col justify-between border-0 relative overflow-hidden group"
             >
               <div className="absolute -top-20 -right-20 w-52 h-52 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none group-hover:bg-emerald-500/25 transition-colors" />
 
@@ -459,7 +459,7 @@ export default function JamRoomPage() {
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                     </svg>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 whitespace-nowrap flex-shrink-0">
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/15 border-0 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 whitespace-nowrap flex-shrink-0">
                     TUNE IN LIVE
                   </span>
                 </div>
@@ -473,7 +473,7 @@ export default function JamRoomPage() {
                   {['Cross-Device Phone & Laptop', 'Auto Drift Correction', 'Co-DJ Queueing'].map((tag) => (
                     <span
                       key={tag}
-                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] font-semibold text-white/70 whitespace-nowrap"
+                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border-0 text-[11px] font-semibold text-white/70 whitespace-nowrap"
                     >
                       {tag}
                     </span>
@@ -487,7 +487,7 @@ export default function JamRoomPage() {
                   value={joinInput}
                   onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
                   placeholder="Enter code (e.g. WAVE-7X9K)"
-                  className="flex-1 py-3 px-5 rounded-full bg-black/45 border border-white/20 text-white font-mono uppercase tracking-widest text-sm focus:outline-none focus:border-emerald-400"
+                  className="flex-1 py-3 px-5 rounded-full bg-black/45 border-0 text-white font-mono uppercase tracking-widest text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
                 <motion.button
                   whileHover={{ y: -2, scale: 1.02 }}
@@ -505,7 +505,7 @@ export default function JamRoomPage() {
         /* ================= ACTIVE LIVE JAM ROOM STUDIO ================= */
         <div className="space-y-6">
           {/* Master Broadcast Stage & Audio-Reactive Waveform Deck */}
-          <div className="relative rounded-3xl overflow-hidden liquid-glass border border-emerald-400/35 p-5 sm:p-7 shadow-2xl">
+          <div className="relative rounded-3xl overflow-hidden liquid-glass border-0 p-5 sm:p-7 shadow-2xl">
             {/* Live Audio-Reactive Spectrum Canvas Backdrop */}
             <canvas
               ref={stageCanvasRef}
@@ -515,7 +515,7 @@ export default function JamRoomPage() {
             <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-cyan-500/20 blur-[100px] pointer-events-none" />
 
             {/* Top Stage Telemetry & Invite Controls */}
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-white/10">
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-0">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <motion.button
@@ -523,22 +523,22 @@ export default function JamRoomPage() {
                     whileTap={{ scale: 0.96 }}
                     onClick={handleCopyCode}
                     title="Click to copy Room Code"
-                    className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/45 text-xs font-black font-mono tracking-wider text-emerald-300 cursor-pointer hover:bg-emerald-500/30 transition-colors"
+                    className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 border-0 text-xs font-black font-mono tracking-wider text-emerald-300 cursor-pointer hover:bg-emerald-500/30 transition-colors"
                   >
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                     <span>{copiedCode ? '✓ CODE COPIED!' : `ROOM: ${roomCode}`}</span>
                   </motion.button>
 
-                  <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10 text-xs font-bold text-white/90">
+                  <span className="px-3 py-1 rounded-full bg-white/10 border-0 text-xs font-bold text-white/90">
                     {isHost ? '👑 Hosting Broadcast' : `🎧 Synced to ${hostName}`}
                   </span>
 
-                  <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10 text-xs font-bold text-emerald-300">
+                  <span className="px-3 py-1 rounded-full bg-white/10 border-0 text-xs font-bold text-emerald-300">
                     {activeMembers.length} {activeMembers.length === 1 ? 'Listener' : 'Listeners'} Online
                   </span>
 
                   {isConnected && (
-                    <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-[10px] font-extrabold text-cyan-300 uppercase tracking-wider">
+                    <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 border-0 text-[10px] font-extrabold text-cyan-300 uppercase tracking-wider">
                       ⚡ Cloud + P2P Relay Locked
                     </span>
                   )}
@@ -575,7 +575,7 @@ export default function JamRoomPage() {
                   whileHover={{ y: -1.5, scale: 1.02 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={handleLeave}
-                  className="px-4 py-2.5 rounded-full bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/35 text-rose-200 font-extrabold text-xs transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-full bg-rose-500/20 hover:bg-rose-500/30 border-0 text-rose-200 font-extrabold text-xs transition-colors cursor-pointer"
                 >
                   Leave Lounge
                 </motion.button>
@@ -583,26 +583,26 @@ export default function JamRoomPage() {
             </div>
 
             {/* UltraSync™ Real-Time Acoustic Phase Lock, Transport & Hardware Calibration Bar */}
-            <div className="relative z-10 mt-4 p-3 rounded-2xl bg-black/50 border border-white/12 flex flex-wrap items-center justify-between gap-3">
+            <div className="relative z-10 mt-4 p-3 rounded-2xl bg-black/50 border-0 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 {/* Transport Status Badge */}
                 {telemetry.transport === 'webrtc-p2p' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black shadow-[0_0_12px_rgba(52,211,153,0.35)]">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border-0 text-emerald-300 text-xs font-black shadow-[0_0_12px_rgba(52,211,153,0.35)]">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
                     ⚡ WEBRTC P2P ({Math.max(1, Math.round(telemetry.rttMs))}ms)
                   </span>
                 ) : telemetry.transport === 'server-sse' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border-0 text-cyan-300 text-xs font-black">
                     <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
                     🌐 SERVER SSE ({Math.max(1, Math.round(telemetry.rttMs))}ms)
                   </span>
                 ) : telemetry.transport === 'broadcast' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/40 text-teal-300 text-xs font-black">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/20 border-0 text-teal-300 text-xs font-black">
                     <span className="w-2 h-2 rounded-full bg-teal-400" />
                     📻 LOCAL BROADCAST (0ms)
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-300 text-xs font-black">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border-0 text-purple-300 text-xs font-black">
                     <span className="w-2 h-2 rounded-full bg-purple-400" />
                     ☁️ CLOUD RELAY ({Math.max(1, Math.round(telemetry.rttMs))}ms)
                   </span>
@@ -610,17 +610,17 @@ export default function JamRoomPage() {
 
                 {/* Phase Lock State Pill */}
                 {telemetry.syncState === 'locked' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black shadow-[0_0_12px_rgba(52,211,153,0.35)]">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border-0 text-emerald-300 text-xs font-black shadow-[0_0_12px_rgba(52,211,153,0.35)]">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
                     PHASE LOCKED (±{Math.abs(telemetry.phaseDeltaMs)}ms)
                   </span>
                 ) : telemetry.syncState === 'fine-steer' || telemetry.syncState === 'fast-steer' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black shadow-[0_0_12px_rgba(6,182,212,0.35)]">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border-0 text-cyan-300 text-xs font-black shadow-[0_0_12px_rgba(6,182,212,0.35)]">
                     <span className="w-2 h-2 rounded-full bg-cyan-400 animate-spin border-2 border-cyan-400 border-t-transparent" />
                     MICRO-STEERING ({telemetry.phaseDeltaMs > 0 ? `+${telemetry.phaseDeltaMs}` : telemetry.phaseDeltaMs}ms)
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-300 text-xs font-black">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border-0 text-purple-300 text-xs font-black">
                     <span className="w-2 h-2 rounded-full bg-purple-400" />
                     {isHost ? '👑 BROADCASTING ANCHOR' : '⚡ PHASE-LOCKING'}
                   </span>
@@ -670,7 +670,7 @@ export default function JamRoomPage() {
                   <button
                     type="button"
                     onClick={() => jamSyncEngine.setUserLatencyOffsetMs(telemetry.userLatencyOffsetMs - 5)}
-                    className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 text-[10px] font-bold cursor-pointer"
+                    className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border-0 text-white/70 text-[10px] font-bold cursor-pointer"
                     title="Nudge audio -5ms earlier"
                   >
                     -5
@@ -681,7 +681,7 @@ export default function JamRoomPage() {
                   <button
                     type="button"
                     onClick={() => jamSyncEngine.setUserLatencyOffsetMs(telemetry.userLatencyOffsetMs + 5)}
-                    className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 text-[10px] font-bold cursor-pointer"
+                    className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border-0 text-white/70 text-[10px] font-bold cursor-pointer"
                     title="Nudge audio +5ms later"
                   >
                     +5
@@ -708,7 +708,7 @@ export default function JamRoomPage() {
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                         }}
-                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border border-white/40"
+                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-0"
                       />
                     </div>
                   </div>
@@ -716,7 +716,7 @@ export default function JamRoomPage() {
                   {/* Track Metadata & Live Synced Scrubber */}
                   <div className="flex-1 min-w-0 w-full">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-extrabold uppercase tracking-widest text-emerald-300">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border-0 text-[10px] font-extrabold uppercase tracking-widest text-emerald-300">
                         <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${isPlaying ? 'animate-ping' : ''}`} />
                         {isPlaying ? 'SYNCING LIVE • 320KBPS HD' : 'PAUSED IN ROOM'}
                       </span>
@@ -762,7 +762,7 @@ export default function JamRoomPage() {
 
               {/* Crowd Emoji Reaction Cannon Dock */}
               <div
-                className="flex items-center gap-1.5 p-2 rounded-full bg-black/45 border border-white/[0.04] self-start xl:self-center overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
+                className="flex items-center gap-1.5 p-2 rounded-full bg-black/45 border-0[0.04] self-start xl:self-center overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/45 px-2.5 hidden sm:inline">
@@ -789,7 +789,7 @@ export default function JamRoomPage() {
             {/* LEFT COLUMN: Connected Listeners Radar + Song Dropper */}
             <div className="lg:col-span-5 flex flex-col gap-6">
               {/* Connected Listeners Pod */}
-              <GlassCard variant="liquid" padding="md" className="border border-white/15">
+              <GlassCard variant="liquid" padding="md" className="border-0">
                 <div className="flex items-center justify-between mb-3.5">
                   <h3 className="text-xs font-black uppercase tracking-widest text-white/70">
                     Connected Listeners ({activeMembers.length})
@@ -806,7 +806,7 @@ export default function JamRoomPage() {
                     return (
                       <div
                         key={m.id}
-                        className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-2.5"
+                        className="p-2.5 rounded-2xl bg-white/[0.04] border-0 flex items-center justify-between gap-2.5"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div
@@ -835,7 +835,7 @@ export default function JamRoomPage() {
               </GlassCard>
 
               {/* Instant Song Search & Party Dropper */}
-              <GlassCard variant="liquid" padding="md" className="border border-white/15 flex-1">
+              <GlassCard variant="liquid" padding="md" className="border-0 flex-1">
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h3 className="text-base font-extrabold text-white">Drop a Song Into the Jam</h3>
@@ -869,7 +869,7 @@ export default function JamRoomPage() {
                     {songResults.map((track) => (
                       <div
                         key={track.id}
-                        className="flex items-center justify-between gap-2.5 p-2 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-colors"
+                        className="flex items-center justify-between gap-2.5 p-2 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border-0 transition-colors"
                       >
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <img
@@ -901,7 +901,7 @@ export default function JamRoomPage() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => addTrackToJam(track, false)}
                             title="Add to Shared Room Queue"
-                            className="px-3 py-1.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/35 text-emerald-300 text-[11px] font-extrabold cursor-pointer"
+                            className="px-3 py-1.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 border-0 text-emerald-300 text-[11px] font-extrabold cursor-pointer"
                           >
                             + Queue
                           </motion.button>
@@ -916,11 +916,11 @@ export default function JamRoomPage() {
             {/* RIGHT COLUMN: Collaborative Room Queue + Live Lounge Chat */}
             <div className="lg:col-span-7 flex flex-col gap-6">
               {/* Shared Room Queue */}
-              <GlassCard variant="liquid" padding="md" className="border border-white/15">
+              <GlassCard variant="liquid" padding="md" className="border-0">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2.5">
                     <h3 className="text-base font-extrabold text-white">Collaborative Party Queue</h3>
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border-0 text-[10px] font-extrabold text-emerald-300">
                       {queue.length} Tracks
                     </span>
                   </div>
@@ -949,7 +949,7 @@ export default function JamRoomPage() {
               </GlassCard>
 
               {/* Live Room Chat & Crowd Activity Feed */}
-              <GlassCard variant="liquid" padding="md" className="border border-white/15 flex flex-col">
+              <GlassCard variant="liquid" padding="md" className="border-0 flex flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-black uppercase tracking-widest text-white/70">
                     💬 Live Lounge Chat & Activity
@@ -971,8 +971,8 @@ export default function JamRoomPage() {
                         key={msg.id}
                         className={`px-3.5 py-2 rounded-2xl ${
                           msg.isSystem
-                            ? 'bg-emerald-500/10 border border-emerald-400/25 text-emerald-200 font-semibold text-[11px]'
-                            : 'bg-white/[0.05] border border-white/10 text-white/90 flex items-start gap-2.5'
+                            ? 'bg-emerald-500/10 border-0 text-emerald-200 font-semibold text-[11px]'
+                            : 'bg-white/[0.05] border-0 text-white/90 flex items-start gap-2.5'
                         }`}
                       >
                         {!msg.isSystem && (
@@ -1007,7 +1007,7 @@ export default function JamRoomPage() {
                       key={chip}
                       type="button"
                       onClick={() => sendMessage(chip)}
-                      className="px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/[0.04] text-[10px] font-bold text-white/75 hover:text-white whitespace-nowrap cursor-pointer transition-colors"
+                      className="px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border-0[0.04] text-[10px] font-bold text-white/75 hover:text-white whitespace-nowrap cursor-pointer transition-colors"
                     >
                       {chip}
                     </button>

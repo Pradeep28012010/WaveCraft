@@ -59,10 +59,10 @@ const QueueTrackRow = memo(function QueueTrackRow({
         e.stopPropagation();
         useContextMenuStore.getState().openTrackMenu({ clientX: e.clientX, clientY: e.clientY }, track, queue);
       }}
-      className={`group flex items-center gap-2.5 p-2 rounded-2xl border transition-colors duration-150 ${
+      className={`group flex items-center gap-2.5 p-2 rounded-2xl border-0 transition-colors duration-150 ${
         isBeingDragged
-          ? 'opacity-35 bg-white/5 border-white/20'
-          : 'bg-white/[0.035] hover:bg-white/[0.09] border-white/[0.06] hover:border-white/15'
+          ? 'opacity-35 bg-white/5'
+          : 'bg-white/[0.035] hover:bg-white/[0.09]'
       }`}
     >
       {/* Drag Grip Handle + Queue Order Number */}
@@ -90,7 +90,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
       <div
         data-no-drag="true"
         onClick={() => onJumpToTrack(track, actualIndex)}
-        className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer border border-white/10"
+        className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer border-0"
       >
         <img
           src={track.thumbnail || DEFAULT_THUMBNAIL}
@@ -351,8 +351,8 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
             transition={{ type: 'spring', damping: 30, stiffness: 320, mass: 0.65 }}
             className={`fixed z-[110] flex flex-col overflow-hidden text-white select-none ${
               isPhone
-                ? 'inset-x-0 bottom-0 max-h-[88vh] rounded-t-[32px] glass-heavy liquid-glass border-t border-x border-white/20 shadow-[0_-20px_60px_rgba(0,0,0,0.95)]'
-                : 'top-2.5 bottom-2.5 right-2.5 w-[calc(100vw-20px)] max-w-[435px] rounded-3xl glass-heavy liquid-glass border border-white/15 shadow-[0_30px_90px_rgba(0,0,0,0.88)]'
+                ? 'inset-x-0 bottom-0 max-h-[88vh] rounded-t-[32px] glass-heavy liquid-glass border-0 shadow-[0_-20px_60px_rgba(0,0,0,0.95)]'
+                : 'top-2.5 bottom-2.5 right-2.5 w-[calc(100vw-20px)] max-w-[435px] rounded-3xl glass-heavy liquid-glass border-0 shadow-[0_30px_90px_rgba(0,0,0,0.88)]'
             }`}
             style={{
               paddingBottom: isPhone ? 'max(env(safe-area-inset-bottom, 0px), 12px)' : undefined
@@ -385,14 +385,14 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
             </div>
 
             {/* Top Header & Segmented Control Dock */}
-            <div className="relative z-10 px-5 pt-5 pb-3.5 border-b border-white/[0.08] space-y-3.5 flex-shrink-0">
+            <div className="relative z-10 px-5 pt-5 pb-3.5 border-0 space-y-3.5 flex-shrink-0">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)] animate-pulse flex-shrink-0" />
                   <div>
                     <h2 className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
                       <span>Queue Studio</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/[0.08] border border-white/10 text-white/70">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/[0.08] border-0 text-white/70">
                         {upcomingItems.length} Up Next
                       </span>
                     </h2>
@@ -531,11 +531,11 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       const clientY = e.clientY;
                       useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, currentTrack, queue);
                     }}
-                    className="p-3.5 rounded-2xl liquid-glass border border-white/20 shadow-[0_12px_30px_rgba(0,0,0,0.45)] flex items-center gap-3.5"
+                    className="p-3.5 rounded-2xl liquid-glass border-0 shadow-[0_12px_30px_rgba(0,0,0,0.45)] flex items-center gap-3.5"
                   >
                     <div
                       onClick={togglePlay}
-                      className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group border border-white/15 shadow-md"
+                      className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group border-0 shadow-md"
                     >
                       <img
                         src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
@@ -630,7 +630,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                   </div>
 
                   {upcomingItems.length === 0 ? (
-                    <div className="py-12 px-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] text-center space-y-3">
+                    <div className="py-12 px-4 rounded-2xl bg-white/[0.03] border-0 text-center space-y-3">
                       <p className="text-xs text-white/55 font-medium">
                         No upcoming tracks in queue.
                       </p>
@@ -681,7 +681,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                   </div>
 
                   {historyItems.length === 0 ? (
-                    <div className="py-12 px-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] text-center">
+                    <div className="py-12 px-4 rounded-2xl bg-white/[0.03] border-0 text-center">
                       <p className="text-xs text-white/50 font-medium">
                         Tracks you finish playing in this session will appear here.
                       </p>
@@ -712,7 +712,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                               const clientY = e.clientY;
                               useContextMenuStore.getState().openTrackMenu({ clientX, clientY }, track, queue);
                             }}
-                            className="group flex items-center gap-3 p-2 rounded-2xl bg-white/[0.025] hover:bg-white/[0.08] border border-white/[0.05] hover:border-white/15 transition-colors cursor-pointer"
+                            className="group flex items-center gap-3 p-2 rounded-2xl bg-white/[0.025] hover:bg-white/[0.08] border-0 transition-colors cursor-pointer"
                           >
                             <img
                               src={track.thumbnail || DEFAULT_THUMBNAIL}

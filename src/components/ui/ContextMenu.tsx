@@ -344,7 +344,7 @@ function ContextMenuInner() {
   const renderPlaylistPicker = () => (
     <div className="flex flex-col gap-2">
       {/* Header bar */}
-      <div className="flex items-center justify-between pb-1 border-b border-white/10 px-1">
+      <div className="flex items-center justify-between pb-1 border-0 px-1">
         <button
           type="button"
           onClick={() => setMenuView('main')}
@@ -369,7 +369,7 @@ function ContextMenuInner() {
 
       {/* Inline Create New Playlist Input */}
       {isCreatingPlaylist && (
-        <div className="p-2 rounded-xl bg-white/[0.08] border border-white/15 flex flex-col gap-2">
+        <div className="p-2 rounded-xl bg-white/[0.08] border-0 flex flex-col gap-2">
           <input
             type="text"
             autoFocus
@@ -380,7 +380,7 @@ function ContextMenuInner() {
               if (e.key === 'Escape') setIsCreatingPlaylist(false);
             }}
             placeholder="New playlist name..."
-            className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/20 text-white text-xs outline-none focus:border-[var(--color-accent)] placeholder:text-white/40"
+            className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border-0 text-white text-xs outline-none focus:ring-1 focus:ring-[var(--color-accent)] placeholder:text-white/40"
           />
           <div className="flex justify-end gap-1.5">
             <button
@@ -409,7 +409,7 @@ function ContextMenuInner() {
             value={playlistFilter}
             onChange={(e) => setPlaylistFilter(e.target.value)}
             placeholder="Search playlists..."
-            className="w-full px-2.5 py-1.5 pl-7 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs outline-none focus:border-[var(--color-accent)] placeholder:text-white/40"
+            className="w-full px-2.5 py-1.5 pl-7 rounded-xl bg-white/[0.06] border-0 text-white text-xs outline-none focus:ring-1 focus:ring-[var(--color-accent)] placeholder:text-white/40"
           />
           <svg className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-white/40 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8" />
@@ -431,7 +431,7 @@ function ContextMenuInner() {
                 className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/[0.12] active:bg-white/[0.18] transition-all text-left cursor-pointer group"
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-white/10 border border-white/10 flex-shrink-0 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-white/10 border-0 flex-shrink-0 flex items-center justify-center">
                     {pl.coverUrl ? (
                       <img src={pl.coverUrl} alt={pl.name} className="w-full h-full object-cover" />
                     ) : (
@@ -453,7 +453,7 @@ function ContextMenuInner() {
                 </div>
 
                 {alreadyHasTrack ? (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full flex-shrink-0">
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/15 border-0 px-2 py-0.5 rounded-full flex-shrink-0">
                     <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
@@ -522,14 +522,14 @@ function ContextMenuInner() {
           style={{
             paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)'
           }}
-          className="relative z-10 w-full max-h-[85vh] overflow-y-auto no-scrollbar rounded-t-[32px] border-t border-white/20 glass-heavy liquid-glass shadow-[0_-20px_60px_rgba(0,0,0,0.95)] px-4 pt-3 flex flex-col text-white"
+          className="relative z-10 w-full max-h-[85vh] overflow-y-auto no-scrollbar rounded-t-[32px] border-0 glass-heavy liquid-glass shadow-[0_-20px_60px_rgba(0,0,0,0.95)] px-4 pt-3 flex flex-col text-white"
         >
           {/* Top Sheet Drag Pill */}
           <div className="w-12 h-1.5 rounded-full bg-white/25 mx-auto mb-3 flex-shrink-0" />
 
           {/* Action Confirmation Toast Feedback */}
           {toastMessage && (
-            <div className="px-4 py-2.5 mb-3 rounded-2xl bg-[var(--color-accent)]/25 border border-[var(--color-accent)]/45 text-xs font-extrabold text-white text-center animate-pulse shadow-lg">
+            <div className="px-4 py-2.5 mb-3 rounded-2xl bg-[var(--color-accent)]/25 border-0 text-xs font-extrabold text-white text-center animate-pulse shadow-lg">
               ✓ {toastMessage}
             </div>
           )}
@@ -545,11 +545,11 @@ function ContextMenuInner() {
               {type === 'track' && track && (
                 <>
                   {/* Track Mini Card Header */}
-                  <div className="flex items-center gap-3.5 p-3 mb-2 rounded-2xl bg-white/[0.08] border border-white/15">
+                  <div className="flex items-center gap-3.5 p-3 mb-2 rounded-2xl bg-white/[0.08] border-0">
                     <img
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                       alt={track.title}
-                      className="w-12 h-12 rounded-xl object-cover flex-shrink-0 shadow-md border border-white/10"
+                      className="w-12 h-12 rounded-xl object-cover flex-shrink-0 shadow-md border-0"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="font-extrabold text-sm text-white truncate leading-tight">
@@ -571,7 +571,7 @@ function ContextMenuInner() {
                       }}
                       className="flex items-center gap-3.5 px-3 py-3 rounded-xl hover:bg-white/10 active:bg-white/15 transition-colors text-left"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/30 flex items-center justify-center text-[var(--color-accent)]">
+                      <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)]/20 border-0 flex items-center justify-center text-[var(--color-accent)]">
                         {isThisTrackPlaying ? (
                           <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                             <rect x="6" y="4" width="4" height="16" rx="1" />
@@ -887,11 +887,11 @@ function ContextMenuInner() {
           left: `${safeX}px`,
           top: `${safeY}px`
         }}
-        className="w-[260px] max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar rounded-[22px] border border-white/20 glass-bloom-menu py-2 px-2 flex flex-col gap-0.5 text-xs text-white/90 shadow-[0_24px_50px_rgba(0,0,0,0.65)]"
+        className="w-[260px] max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar rounded-[22px] border-0 glass-bloom-menu py-2 px-2 flex flex-col gap-0.5 text-xs text-white/90 shadow-[0_24px_50px_rgba(0,0,0,0.65)]"
       >
         {/* Toast confirmation feedback */}
         {toastMessage && (
-          <div className="px-3 py-2 mb-1.5 rounded-xl bg-[var(--color-accent)]/25 border border-[var(--color-accent)]/40 text-[11px] font-bold text-white text-center animate-pulse">
+          <div className="px-3 py-2 mb-1.5 rounded-xl bg-[var(--color-accent)]/25 border-0 text-[11px] font-bold text-white text-center animate-pulse">
             ✓ {toastMessage}
           </div>
         )}
@@ -925,11 +925,11 @@ function ContextMenuInner() {
               {type === 'track' && track && (
                 <>
                   {/* Header: Track mini banner */}
-                  <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1 rounded-xl liquid-glass border border-white/12">
+                  <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1 rounded-xl liquid-glass border-0">
                     <img
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                       alt={track.title}
-                      className="w-8 h-8 rounded-lg object-cover flex-shrink-0 shadow-sm border border-white/10"
+                      className="w-8 h-8 rounded-lg object-cover flex-shrink-0 shadow-sm border-0"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="font-extrabold text-white text-xs truncate leading-tight">
@@ -1007,7 +1007,7 @@ function ContextMenuInner() {
                     onClick={handleTogglePreview}
                     className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-colors cursor-pointer group ${
                       isPreviewing
-                        ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30'
+                        ? 'bg-amber-500/20 text-amber-200 border-0'
                         : 'hover:bg-white/[0.12] active:bg-white/[0.18]'
                     }`}
                   >
@@ -1203,7 +1203,7 @@ function ContextMenuInner() {
               {type === 'page' && (
                 <>
                   {/* Header: WaveCraft Studio Banner */}
-                  <div className="flex items-center justify-between px-3 py-2 mb-1 rounded-xl bg-white/[0.06] border border-white/10">
+                  <div className="flex items-center justify-between px-3 py-2 mb-1 rounded-xl bg-white/[0.06] border-0">
                     <div className="flex items-center gap-2">
                       <span className="relative flex h-2 w-2">
                         <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-75 ${!isPlaying ? 'hidden' : ''}`} />

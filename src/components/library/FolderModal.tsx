@@ -79,18 +79,16 @@ export default function FolderModal({ isOpen, onClose, editFolder }: FolderModal
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-white p-1">
         {/* Preview Card */}
         <div
-          className="p-4 rounded-2xl border transition-all flex items-center gap-4 relative overflow-hidden liquid-glass"
+          className="p-4 rounded-2xl border-0 transition-all flex items-center gap-4 relative overflow-hidden liquid-glass shadow-lg"
           style={{
-            borderColor: `${color}60`,
             background: `linear-gradient(135deg, ${color}20, rgba(255, 255, 255, 0.03))`
           }}
         >
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-lg flex-shrink-0"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-lg flex-shrink-0 border-0"
             style={{
               backgroundColor: `${color}35`,
-              boxShadow: `0 0 20px ${color}40`,
-              border: `1px solid ${color}80`
+              boxShadow: `0 0 20px ${color}40`
             }}
           >
             {icon}
@@ -183,7 +181,7 @@ export default function FolderModal({ isOpen, onClose, editFolder }: FolderModal
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-3 mt-3 pt-3 border-t border-white/10">
+        <div className="flex justify-end gap-3 mt-3 pt-3 border-0">
           <GlassButton type="button" variant="ghost" onClick={onClose}>
             Cancel
           </GlassButton>

@@ -322,7 +322,7 @@ export default function HomePage() {
     <div className="relative w-full min-w-0 max-w-full overflow-x-hidden pb-44 sm:pb-24 pt-2 text-white min-h-screen">
       {/* Floating Micro-Toast Feedback */}
       {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl liquid-glass border border-white/20 text-white text-xs font-bold shadow-[0_12px_32px_rgba(0,0,0,0.6)] animate-in fade-in slide-in-from-top-3 duration-200">
+        <div className="fixed top-20 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl liquid-glass border-0 text-white text-xs font-bold shadow-[0_12px_32px_rgba(0,0,0,0.6)] animate-in fade-in slide-in-from-top-3 duration-200">
           <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
           <span>{toastMessage}</span>
         </div>
@@ -334,14 +334,14 @@ export default function HomePage() {
         <div className="w-full min-w-0">
           {/* Live Date & Session Badge */}
           <div className="flex items-center gap-2.5 mb-2 flex-wrap min-w-0">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-white/[0.08] border border-white/15 text-white/85 backdrop-blur-md shadow-sm flex-shrink-0">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-white/[0.08] border-0 text-white/85 backdrop-blur-md shadow-sm flex-shrink-0">
               <svg className="w-3.5 h-3.5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span>{todayFormatted}</span>
             </span>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/35 text-[var(--color-accent)] backdrop-blur-md max-w-[260px] sm:max-w-none">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-[var(--color-accent)]/15 border-0 text-[var(--color-accent)] backdrop-blur-md max-w-[260px] sm:max-w-none">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse flex-shrink-0" />
               <span className="truncate">{greetingInfo.vibeBadge}</span>
             </span>
@@ -396,7 +396,7 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               navigate('/liked');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/[0.04] text-xs font-bold text-white/80 hover:text-white hover:border-white/15 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border-0 text-xs font-bold text-white/80 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
           >
             <span className="text-rose-400">❤️</span>
             <span>Liked Songs</span>
@@ -410,7 +410,7 @@ export default function HomePage() {
               triggerAndroidHaptic('medium');
               navigate('/galaxy');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/15 to-indigo-500/15 border border-violet-400/20 text-xs font-bold text-violet-200 hover:text-white hover:border-violet-400/35 active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm flex-shrink-0"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/15 to-indigo-500/15 border-0 text-xs font-bold text-violet-200 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm flex-shrink-0"
           >
             <span>🪐</span>
             <span>3D Sonic Galaxy</span>
@@ -422,7 +422,7 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               setStudioModalOpen(true);
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/[0.04] text-xs font-bold text-white/80 hover:text-white hover:border-white/15 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border-0 text-xs font-bold text-white/80 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
           >
             <span className="text-amber-400">⚡</span>
             <span>Studio FX</span>
@@ -436,7 +436,7 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               navigate('/downloads');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/[0.04] text-xs font-bold text-white/80 hover:text-white hover:border-white/15 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border-0 text-xs font-bold text-white/80 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
           >
             <span className="text-emerald-400">📥</span>
             <span>Offline Vault</span>
@@ -447,7 +447,7 @@ export default function HomePage() {
       {/* ================= HERO SPOTLIGHT BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && spotlightTrack && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
-          <div className="relative rounded-3xl liquid-glass border border-white/[0.03] p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
+          <div className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
             {/* Ambient Blurred Artwork Backdrop */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
               <img
@@ -461,7 +461,7 @@ export default function HomePage() {
             <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 sm:gap-6 w-full min-w-0">
               {/* Left Column: Hero Art & Acoustic Info */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 min-w-0 flex-1 w-full">
-                <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl border border-white/25 group-hover:scale-105 transition-transform duration-500">
+                <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl border-0 group-hover:scale-105 transition-transform duration-500">
                   <img
                     src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
                     alt={spotlightTrack.title}
@@ -469,7 +469,7 @@ export default function HomePage() {
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                   />
                   {/* Floating Live Equalizer Bars */}
-                  <div className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-md flex items-end gap-1 h-4 border border-white/10 shadow-md">
+                  <div className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-md flex items-end gap-1 h-4 border-0 shadow-md">
                     <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.8s_ease-in-out_infinite] h-full" />
                     <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_1.1s_ease-in-out_infinite] h-2/3" />
                     <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.6s_ease-in-out_infinite] h-5/6" />
@@ -479,10 +479,10 @@ export default function HomePage() {
 
                 <div className="min-w-0 flex-1 w-full">
                   <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/45 text-[var(--color-accent)] flex-shrink-0">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--color-accent)]/20 border-0 text-[var(--color-accent)] flex-shrink-0">
                       ✨ FEATURED SPOTLIGHT
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/80 border border-white/15 flex-shrink-0">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/80 border-0 flex-shrink-0">
                       320KBPS STUDIO AAC
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/60 hidden sm:inline-flex flex-shrink-0">
@@ -662,7 +662,7 @@ export default function HomePage() {
 
                     {/* Active Live Equalizer Mini Badge in corner */}
                     {isThisPlaying && isPlaying ? (
-                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-md flex items-end gap-0.5 h-3.5 shadow-md border border-white/15 pointer-events-none">
+                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-md flex items-end gap-0.5 h-3.5 shadow-md border-0 pointer-events-none">
                         <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.7s_ease-in-out_infinite] h-full" />
                         <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_1.0s_ease-in-out_infinite] h-3/5" />
                         <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.5s_ease-in-out_infinite] h-4/5" />
@@ -702,7 +702,7 @@ export default function HomePage() {
       {/* ================= 3D SONIC GALAXY OBSERVATORY PORTAL BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
-          <div className="relative rounded-3xl liquid-glass border border-white/[0.04] p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
+          <div className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
             {/* Deep Galactic Gradient Background */}
             <div className="absolute inset-0 pointer-events-none -z-10">
               <div className="absolute inset-0 bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-blue-950/70" />
@@ -714,7 +714,7 @@ export default function HomePage() {
               {/* Left Column: Visual Details & Description */}
               <div className="max-w-2xl min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase bg-gradient-to-r from-violet-500/20 to-cyan-500/20 border border-violet-400/40 text-violet-200 backdrop-blur-md">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase bg-gradient-to-r from-violet-500/20 to-cyan-500/20 border-0 text-violet-200 backdrop-blur-md">
                     <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse shadow-[0_0_8px_#a78bfa]" />
                     OBSERVATORY 3.0 • INTERACTIVE 3D MUSIC MAP
                   </span>
@@ -733,16 +733,16 @@ export default function HomePage() {
 
                 {/* Feature Badges */}
                 <div className="flex items-center gap-2 mt-4 flex-wrap">
-                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border border-white/15 text-white/80 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border-0 text-white/80 flex items-center gap-1.5">
                     <span>🪐</span> 3 Celestial Formations
                   </span>
-                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border border-white/15 text-white/80 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border-0 text-white/80 flex items-center gap-1.5">
                     <span>🌀</span> Accretion Core & Jets
                   </span>
-                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border border-white/15 text-white/80 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border-0 text-white/80 flex items-center gap-1.5">
                     <span>🎯</span> 4D Taste Spider Radar
                   </span>
-                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border border-white/15 text-white/80 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border-0 text-white/80 flex items-center gap-1.5">
                     <span>🛸</span> Cinematic Tour
                   </span>
                 </div>
@@ -818,7 +818,7 @@ export default function HomePage() {
 
                   {/* Active Live Equalizer Mini Badge */}
                   {isPlayingThis && isPlaying ? (
-                    <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-md flex items-end gap-0.5 h-3.5 shadow-md border border-white/15 pointer-events-none">
+                    <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-md flex items-end gap-0.5 h-3.5 shadow-md border-0 pointer-events-none">
                       <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.7s_ease-in-out_infinite] h-full" />
                       <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_1.0s_ease-in-out_infinite] h-3/5" />
                       <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.5s_ease-in-out_infinite] h-4/5" />
@@ -893,7 +893,7 @@ export default function HomePage() {
               }}
               className="min-w-[130px] max-w-[130px] sm:min-w-[155px] sm:max-w-[155px] flex-shrink-0 snap-start flex flex-col items-center text-center group cursor-pointer"
             >
-              <div className="w-28 h-28 sm:w-34 sm:h-34 rounded-full overflow-hidden mb-2.5 relative bg-white/10 shadow-lg border border-white/[0.04] group-hover:shadow-[0_0_20px_rgba(250,45,72,0.3)] transition-all duration-300">
+              <div className="w-28 h-28 sm:w-34 sm:h-34 rounded-full overflow-hidden mb-2.5 relative bg-white/10 shadow-lg border-0 group-hover:shadow-[0_0_20px_rgba(250,45,72,0.3)] transition-all duration-300">
                 <img
                   src={artist.avatar}
                   alt={artist.name}

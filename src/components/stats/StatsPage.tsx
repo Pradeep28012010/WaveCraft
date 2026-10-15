@@ -30,22 +30,22 @@ const TIER_STYLES: Record<
 > = {
   Bronze: {
     label: 'BRONZE',
-    badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-400/30',
+    badgeClass: 'bg-amber-500/15 text-amber-300 ',
     barGradient: 'from-amber-500 to-orange-400'
   },
   Silver: {
     label: 'SILVER',
-    badgeClass: 'bg-cyan-500/15 text-cyan-200 border-cyan-400/30',
+    badgeClass: 'bg-cyan-500/15 text-cyan-200 ',
     barGradient: 'from-cyan-400 to-blue-500'
   },
   Gold: {
     label: 'GOLD',
-    badgeClass: 'bg-yellow-400/20 text-yellow-200 border-yellow-300/40',
+    badgeClass: 'bg-yellow-400/20 text-yellow-200 ',
     barGradient: 'from-yellow-400 via-amber-400 to-rose-500'
   },
   Mythic: {
     label: 'MYTHIC',
-    badgeClass: 'bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-400/40',
+    badgeClass: 'bg-fuchsia-500/20 text-fuchsia-200 ',
     barGradient: 'from-[var(--color-accent)] via-fuchsia-500 to-cyan-400'
   }
 };
@@ -528,7 +528,7 @@ export default function StatsPage() {
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl liquid-glass border border-white/20 p-6 sm:p-10 shadow-2xl"
+        className="relative overflow-hidden rounded-3xl liquid-glass border-0 p-6 sm:p-10 shadow-2xl"
       >
         <div
           className="absolute -right-20 -top-24 w-96 h-96 rounded-full blur-3xl opacity-40 pointer-events-none"
@@ -538,7 +538,7 @@ export default function StatsPage() {
         />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 text-[11px] font-extrabold uppercase tracking-widest text-[var(--color-accent)] mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-accent)]/20 border-0(--color-accent)]/40 text-[11px] font-extrabold uppercase tracking-widest text-[var(--color-accent)] mb-3">
               <span>🏆 WAVECRAFT WRAPPED • LISTENER PASSPORT</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
@@ -608,7 +608,7 @@ export default function StatsPage() {
           <div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-white flex items-center gap-2.5">
               <span>🏅 Listener Achievement Badges</span>
-              <span className="text-xs font-extrabold px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-white/80 whitespace-nowrap flex-shrink-0">
+              <span className="text-xs font-extrabold px-2.5 py-1 rounded-full bg-white/10 border-0 text-white/80 whitespace-nowrap flex-shrink-0">
                 {overallCompletionPct}% Mastery
               </span>
             </h2>
@@ -653,7 +653,7 @@ export default function StatsPage() {
         </div>
 
         {/* Overall Achievement Mastery Bar */}
-        <div className="p-4 rounded-2xl liquid-glass border border-white/15 flex flex-col gap-2">
+        <div className="p-4 rounded-2xl liquid-glass border-0 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2 text-xs font-bold">
             <span className="text-white/80 truncate">
               Overall Studio Achievement Progress ({unlockedCount} Unlocked • {inProgressCount} In Progress)
@@ -681,8 +681,8 @@ export default function StatsPage() {
                 whileHover={{ y: -3 }}
                 className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all overflow-hidden min-w-0 ${
                   badge.unlocked
-                    ? 'liquid-glass border-white/25 shadow-xl'
-                    : 'glass border-white/10 hover:border-white/20'
+                    ? 'liquid-glass border-0 shadow-xl'
+                    : 'glass border-0 '
                 }`}
               >
                 <div className="flex flex-col gap-2.5 min-w-0">
@@ -691,8 +691,8 @@ export default function StatsPage() {
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 border ${
                         badge.unlocked
-                          ? 'bg-gradient-to-br from-[var(--color-accent)]/30 via-purple-500/25 to-cyan-500/25 border-white/25 shadow-lg'
-                          : 'bg-white/[0.06] border-white/10 opacity-80'
+                          ? 'bg-gradient-to-br from-[var(--color-accent)]/30 via-purple-500/25 to-cyan-500/25 border-0 shadow-lg'
+                          : 'bg-white/[0.06] border-0 opacity-80'
                       }`}
                     >
                       {badge.icon}
@@ -706,8 +706,8 @@ export default function StatsPage() {
                       <span
                         className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
                           badge.unlocked
-                            ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/35'
-                            : 'bg-white/10 text-white/65 border border-white/10'
+                            ? 'bg-emerald-400/20 text-emerald-300 border '
+                            : 'bg-white/10 text-white/65 border-0'
                         }`}
                       >
                         {badge.unlocked ? '✓ UNLOCKED' : `${badge.progressPct}%`}
@@ -725,7 +725,7 @@ export default function StatsPage() {
                 </div>
 
                 {/* Live Progress Bar & Counter (Single-line guaranteed) */}
-                <div className="pt-2.5 border-t border-white/10 space-y-1.5 min-w-0">
+                <div className="pt-2.5 border-0 space-y-1.5 min-w-0">
                   <div className="flex items-center justify-between gap-2 text-[11px] font-bold min-w-0">
                     <span
                       className={`whitespace-nowrap truncate ${

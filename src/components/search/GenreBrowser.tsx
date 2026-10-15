@@ -59,7 +59,7 @@ export default function GenreBrowser({
 
         {/* Filter Pills */}
         <div
-          className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border border-white/[0.04] backdrop-blur-xl self-start sm:self-auto overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
+          className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border-0 backdrop-blur-xl self-start sm:self-auto overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {(
@@ -94,7 +94,7 @@ export default function GenreBrowser({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(0.24, idx * 0.025), duration: 0.25 }}
             onClick={() => handleGenreClick(genre.query || genre.name)}
-            className={`group relative overflow-hidden rounded-2xl h-36 sm:h-40 p-4 sm:p-5 text-left border border-white/20 liquid-glass shadow-xl cursor-pointer hover:scale-[1.025] hover:shadow-[0_20px_40px_rgba(0,0,0,0.65)] hover:border-white/35 active:scale-[0.97] transition-all duration-300 select-none ${genre.colorClass}`}
+            className={`group relative overflow-hidden rounded-2xl h-36 sm:h-40 p-4 sm:p-5 text-left border-0 liquid-glass shadow-xl cursor-pointer hover:scale-[1.025] hover:shadow-[0_20px_40px_rgba(0,0,0,0.65)]  active:scale-[0.97] transition-all duration-300 select-none ${genre.colorClass}`}
           >
             {/* Specular Edge & Gradient Sheen */}
             <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-80" />
@@ -109,10 +109,10 @@ export default function GenreBrowser({
             <div className="relative z-10 flex flex-col justify-between h-full">
               {/* Header: Station Pill + Mini Play Button */}
               <div className="flex items-center justify-between gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-[9px] font-black uppercase tracking-widest text-white/90 shadow-sm">
+                <span className="px-2.5 py-0.5 rounded-full bg-black/40 backdrop-blur-md border-0 text-[9px] font-black uppercase tracking-widest text-white/90 shadow-sm">
                   Station
                 </span>
-                <div className="w-8 h-8 rounded-full bg-white/25 backdrop-blur-md border border-white/35 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-200 shadow-lg">
+                <div className="w-8 h-8 rounded-full bg-white/25 backdrop-blur-md border-0 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-200 shadow-lg">
                   <svg className="w-3.5 h-3.5 ml-0.5 fill-current" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>

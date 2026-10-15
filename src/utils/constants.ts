@@ -31,12 +31,12 @@ export const GENRE_LIST = [
 ];
 
 export const MOOD_PLAYLISTS = [
-  { id: 'chill', name: 'Chill Vibes', sub: 'Unwind & relax in glass', query: 'chill vibes relax hits', searchQuery: 'chill vibes relax hits', gradient: ['#4facfe', '#00f2fe'], colorClass: 'bg-gradient-to-br from-sky-500/30 via-blue-600/20 to-indigo-900/40 border-sky-400/30', emoji: '😌' },
-  { id: 'workout', name: 'Beast Mode', sub: 'High energy gym anthems', query: 'workout gym motivation Phonk hits', searchQuery: 'workout gym motivation hits', gradient: ['#f093fb', '#f5576c'], colorClass: 'bg-gradient-to-br from-rose-500/30 via-orange-600/20 to-red-900/40 border-rose-400/30', emoji: '💪' },
-  { id: 'focus', name: 'Deep Focus', sub: 'Flow state & coding beats', query: 'lofi study focus instrumental beats', searchQuery: 'lofi study focus instrumental', gradient: ['#43e97b', '#38f9d7'], colorClass: 'bg-gradient-to-br from-emerald-500/30 via-teal-600/20 to-cyan-900/40 border-emerald-400/30', emoji: '🧠' },
-  { id: 'party', name: 'Night Drive', sub: 'Late night synth & bass', query: 'night drive synthwave weeknd after hours', searchQuery: 'night drive weeknd hits', gradient: ['#fa709a', '#fee140'], colorClass: 'bg-gradient-to-br from-purple-500/30 via-fuchsia-600/20 to-pink-900/40 border-purple-400/30', emoji: '🌃' },
-  { id: 'party-hits', name: 'Party Anthems', sub: 'Turn up the liquid bass', query: 'party dance club hits', searchQuery: 'party dance club hits', gradient: ['#f59e0b', '#ec4899'], colorClass: 'bg-gradient-to-br from-amber-500/30 via-pink-600/20 to-rose-900/40 border-amber-400/30', emoji: '🎉' },
-  { id: 'romantic', name: 'Golden Hour', sub: 'Warm acoustic & love songs', query: 'romantic acoustic love songs hits', searchQuery: 'romantic love songs hits', gradient: ['#fb7185', '#e11d48'], colorClass: 'bg-gradient-to-br from-pink-500/30 via-rose-500/20 to-amber-900/40 border-pink-400/30', emoji: '🌅' },
+  { id: 'chill', name: 'Chill Vibes', sub: 'Unwind & relax in glass', query: 'chill vibes relax hits', searchQuery: 'chill vibes relax hits', gradient: ['#4facfe', '#00f2fe'], colorClass: 'bg-gradient-to-br from-sky-500/30 via-blue-600/20 to-indigo-900/40 border-0', emoji: '😌' },
+  { id: 'workout', name: 'Beast Mode', sub: 'High energy gym anthems', query: 'workout gym motivation Phonk hits', searchQuery: 'workout gym motivation hits', gradient: ['#f093fb', '#f5576c'], colorClass: 'bg-gradient-to-br from-rose-500/30 via-orange-600/20 to-red-900/40 border-0', emoji: '💪' },
+  { id: 'focus', name: 'Deep Focus', sub: 'Flow state & coding beats', query: 'lofi study focus instrumental beats', searchQuery: 'lofi study focus instrumental', gradient: ['#43e97b', '#38f9d7'], colorClass: 'bg-gradient-to-br from-emerald-500/30 via-teal-600/20 to-cyan-900/40 border-0', emoji: '🧠' },
+  { id: 'party', name: 'Night Drive', sub: 'Late night synth & bass', query: 'night drive synthwave weeknd after hours', searchQuery: 'night drive weeknd hits', gradient: ['#fa709a', '#fee140'], colorClass: 'bg-gradient-to-br from-purple-500/30 via-fuchsia-600/20 to-pink-900/40 border-0', emoji: '🌃' },
+  { id: 'party-hits', name: 'Party Anthems', sub: 'Turn up the liquid bass', query: 'party dance club hits', searchQuery: 'party dance club hits', gradient: ['#f59e0b', '#ec4899'], colorClass: 'bg-gradient-to-br from-amber-500/30 via-pink-600/20 to-rose-900/40 border-0', emoji: '🎉' },
+  { id: 'romantic', name: 'Golden Hour', sub: 'Warm acoustic & love songs', query: 'romantic acoustic love songs hits', searchQuery: 'romantic love songs hits', gradient: ['#fb7185', '#e11d48'], colorClass: 'bg-gradient-to-br from-pink-500/30 via-rose-500/20 to-amber-900/40 border-0', emoji: '🌅' },
 ];
 
 export const KEYBOARD_SHORTCUTS: Record<string, string> = {

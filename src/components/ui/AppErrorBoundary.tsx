@@ -28,8 +28,8 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="fixed inset-0 bg-[#06060b] text-white flex items-center justify-center p-6 z-[999999]">
-          <div className="max-w-md w-full p-8 rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-2xl text-center shadow-2xl space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center mx-auto text-2xl">
+          <div className="max-w-md w-full p-8 rounded-3xl bg-white/[0.04] border-0 backdrop-blur-2xl text-center shadow-2xl space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-500/15 border-0 flex items-center justify-center mx-auto text-2xl shadow-md">
               🎵
             </div>
             <h1 className="text-xl font-black tracking-tight text-white">WaveCraft Recovered</h1>

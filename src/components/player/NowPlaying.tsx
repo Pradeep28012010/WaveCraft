@@ -174,7 +174,7 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
                 ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
                 : 'none'
             }}
-            className="pointer-events-none absolute -top-1 px-2.5 py-1 rounded-lg liquid-glass glass-heavy border border-white/25 text-[11px] font-extrabold tabular-nums text-white shadow-xl will-change-transform z-30 flex items-center gap-1"
+            className="pointer-events-none absolute -top-1 px-2.5 py-1 rounded-lg liquid-glass glass-heavy border-0 text-[11px] font-extrabold tabular-nums text-white shadow-xl will-change-transform z-30 flex items-center gap-1"
           >
             <span>{formatTime(isDragging ? activeDisplayTime : (hoverTime || 0))}</span>
           </div>
@@ -211,7 +211,7 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
 
           {/* iOS Style Elastic Thumb Head - positioned independently for true rubber-band stretch */}
           <div
-            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full border border-white/60 bg-white/95 shadow-[0_0_14px_2px_var(--color-accent)] backdrop-blur-sm pointer-events-none z-10 transition-transform duration-150 ${
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full border-0 bg-white/95 shadow-[0_0_14px_2px_var(--color-accent)] backdrop-blur-sm pointer-events-none z-10 transition-transform duration-150 ${
               isDragging ? 'w-4 h-4 scale-125' : 'w-3 h-3 scale-90 group-hover:scale-115'
             }`}
             style={{
@@ -560,7 +560,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                   {/* Cover vs Vinyl Turntable Switcher */}
                   {!zenMode && (
-                    <div className="hidden sm:flex items-center gap-1 p-1 rounded-full liquid-glass border border-white/15 app-region-no-drag">
+                    <div className="hidden sm:flex items-center gap-1 p-1 rounded-full liquid-glass border-0 app-region-no-drag">
                       <button
                         onClick={() => setDeckMode('cover')}
                         className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer app-region-no-drag ${
@@ -670,11 +670,11 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                         exit={{ opacity: 0, y: -6, scale: 0.95, filter: 'blur(8px)' }}
                         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                        className="absolute right-0 top-12 w-72 max-h-[82vh] overflow-y-auto no-scrollbar rounded-[22px] border border-white/20 glass-bloom-menu p-2 z-50 text-xs shadow-[0_24px_50px_rgba(0,0,0,0.7)] flex flex-col gap-1"
+                        className="absolute right-0 top-12 w-72 max-h-[82vh] overflow-y-auto no-scrollbar rounded-[22px] border-0 glass-bloom-menu p-2 z-50 text-xs shadow-[0_24px_50px_rgba(0,0,0,0.7)] flex flex-col gap-1"
                       >
                         {/* Feedback Toast */}
                         {toolsToast && (
-                          <div className="px-3 py-1.5 mb-1 rounded-xl bg-[var(--color-accent)]/25 border border-[var(--color-accent)]/40 text-[11px] font-bold text-white text-center animate-pulse">
+                          <div className="px-3 py-1.5 mb-1 rounded-xl bg-[var(--color-accent)]/25 border-0 text-[11px] font-bold text-white text-center animate-pulse">
                             ✓ {toolsToast}
                           </div>
                         )}
@@ -685,7 +685,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           /* ------------------------------------------------ */
                           <div className="flex flex-col gap-2 p-0.5">
                             {/* Top nav bar */}
-                            <div className="flex items-center justify-between pb-1.5 border-b border-white/10 px-1">
+                            <div className="flex items-center justify-between pb-1.5 border-0 px-1">
                               <button
                                 type="button"
                                 onClick={() => setToolsTab('tools')}
@@ -710,7 +710,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                             {/* Create new playlist input */}
                             {isCreatingInTools && (
-                              <div className="p-2 rounded-xl bg-white/[0.08] border border-white/15 flex flex-col gap-2">
+                              <div className="p-2 rounded-xl bg-white/[0.08] border-0 flex flex-col gap-2">
                                 <input
                                   type="text"
                                   autoFocus
@@ -727,7 +727,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                     if (e.key === 'Escape') setIsCreatingInTools(false);
                                   }}
                                   placeholder="Playlist name..."
-                                  className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/20 text-white text-xs outline-none focus:border-[var(--color-accent)] placeholder:text-white/40"
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border-0 text-white text-xs outline-none focus:ring-1 focus:ring-[var(--color-accent)] placeholder:text-white/40"
                                 />
                                 <div className="flex justify-end gap-1.5">
                                   <button
@@ -764,7 +764,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                   value={toolsPlaylistSearch}
                                   onChange={(e) => setToolsPlaylistSearch(e.target.value)}
                                   placeholder="Find playlist..."
-                                  className="w-full px-2.5 py-1.5 pl-7 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs outline-none focus:border-[var(--color-accent)] placeholder:text-white/40"
+                                  className="w-full px-2.5 py-1.5 pl-7 rounded-xl bg-white/[0.06] border-0 text-white text-xs outline-none focus:ring-1 focus:ring-[var(--color-accent)] placeholder:text-white/40"
                                 />
                                 <svg className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-white/40 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <circle cx="11" cy="11" r="8" />
@@ -793,7 +793,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                       className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/[0.12] active:bg-white/[0.18] transition-all text-left cursor-pointer group"
                                     >
                                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                        <div className="w-7 h-7 rounded-lg overflow-hidden bg-white/10 border border-white/10 flex-shrink-0 flex items-center justify-center">
+                                        <div className="w-7 h-7 rounded-lg overflow-hidden bg-white/10 border-0 flex-shrink-0 flex items-center justify-center">
                                           {pl.coverUrl ? (
                                             <img src={pl.coverUrl} alt={pl.name} className="w-full h-full object-cover" />
                                           ) : (
@@ -815,7 +815,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                       </div>
 
                                       {alreadyHasTrack ? (
-                                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full flex-shrink-0">
+                                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border-0 px-2 py-0.5 rounded-full flex-shrink-0">
                                           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                             <polyline points="20 6 9 17 4 12" />
                                           </svg>
@@ -842,11 +842,11 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           <>
                             {/* Track Header Card */}
                             {currentTrack && (
-                              <div className="flex items-center gap-2.5 p-2 mb-1 rounded-xl liquid-glass border border-white/12">
+                              <div className="flex items-center gap-2.5 p-2 mb-1 rounded-xl liquid-glass border-0">
                                 <img
                                   src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
                                   alt={currentTrack.title}
-                                  className="w-8 h-8 rounded-lg object-cover flex-shrink-0 shadow-sm border border-white/10"
+                                  className="w-8 h-8 rounded-lg object-cover flex-shrink-0 shadow-sm border-0"
                                 />
                                 <div className="min-w-0 flex-1">
                                   <p className="font-extrabold text-white text-xs truncate leading-tight">
@@ -1251,7 +1251,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
           {/* ZEN MODE FLOATING 3D VISUALIZER HUD */}
           {zenMode ? (
             <div className="relative z-10 flex-1 flex flex-col justify-between p-6 sm:p-10">
-              <div className="flex flex-wrap items-center justify-center gap-2 mx-auto p-1.5 rounded-full liquid-glass border border-white/15 shadow-2xl">
+              <div className="flex flex-wrap items-center justify-center gap-2 mx-auto p-1.5 rounded-full liquid-glass border-0 shadow-2xl">
                 {VISUALIZER_MODES.map((m) => (
                   <button
                     key={m.id}
@@ -1267,13 +1267,13 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                 ))}
               </div>
 
-              <div className="w-full max-w-2xl mx-auto rounded-3xl liquid-glass border border-white/15 p-5 shadow-2xl">
+              <div className="w-full max-w-2xl mx-auto rounded-3xl liquid-glass border-0 p-5 shadow-2xl">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <img
                       src={artSrc}
                       alt={currentTrack.title}
-                      className={`w-12 h-12 rounded-full object-cover border border-white/20 will-change-transform ${
+                      className={`w-12 h-12 rounded-full object-cover border-0 will-change-transform ${
                         isPlaying ? 'animate-spin' : ''
                       }`}
                       style={{ animationDuration: '8s' }}
@@ -1413,7 +1413,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                       {/* Outer Vinyl Platter */}
                       <div
-                        className="relative w-full h-full rounded-full border-4 border-white/10 flex items-center justify-center overflow-hidden"
+                        className="relative w-full h-full rounded-full border-0 flex items-center justify-center overflow-hidden"
                         style={{
                           background:
                             'repeating-radial-gradient(circle at center, #111116 0px, #111116 3px, #1d1d26 4px, #0d0d12 6px)',
@@ -1429,7 +1429,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           }}
                         />
 
-                        <div className="w-[46%] h-[46%] rounded-full overflow-hidden border-4 border-black/80 shadow-inner relative">
+                        <div className="w-[46%] h-[46%] rounded-full overflow-hidden border-0 shadow-inner relative">
                           <img
                             src={artSrc}
                             alt={currentTrack.title}
@@ -1438,7 +1438,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             }}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#09090e] border-2 border-white/60 shadow-md" />
+                          <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#09090e] border-0 shadow-md" />
                         </div>
                       </div>
 
@@ -1450,7 +1450,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           transformOrigin: '70% 14%'
                         }}
                       >
-                        <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-700 border border-white/40 shadow-lg flex items-center justify-center">
+                        <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-700 border-0 shadow-lg flex items-center justify-center">
                           <div className="w-3 h-3 rounded-full bg-zinc-900" />
                         </div>
                         <svg viewBox="0 0 80 180" className="w-full h-full drop-shadow-xl">
@@ -1491,7 +1491,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         initial={{ scale: 0.88, opacity: 0.7 }}
                         animate={{ scale: isPlaying ? 1 : 0.95, opacity: 1 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 26, mass: 0.7 }}
-                        className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border border-white/15 flex-shrink-0 cursor-pointer will-change-transform ${
+                        className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border-0 flex-shrink-0 cursor-pointer will-change-transform ${
                           showLyrics
                             ? 'w-[min(24vh,190px)] h-[min(24vh,190px)] sm:w-[min(28vh,230px)] sm:h-[min(28vh,230px)]'
                             : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
@@ -1522,7 +1522,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           {currentTrack.title}
                         </h2>
                         {trackIsOffline && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-400/20 whitespace-nowrap flex-shrink-0">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border-0 whitespace-nowrap flex-shrink-0">
                             Offline
                           </span>
                         )}
@@ -1688,7 +1688,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         )}
                       </svg>
                       {repeatMode === 'one' && (
-                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center shadow-sm border border-white/20">
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center shadow-sm border-0">
                           1
                         </span>
                       )}
@@ -1698,7 +1698,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   {/* Mobile Actions vs Desktop Volume & Feature Toggles */}
                   {isPhone ? (
                     <div
-                      className="w-full flex items-center justify-between gap-1.5 mt-5 pt-3 border-t border-white/10"
+                      className="w-full flex items-center justify-between gap-1.5 mt-5 pt-3 border-0"
                       style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}
                     >
                       {/* Studio FX Pill */}
@@ -1771,8 +1771,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       </button>
                     </div>
                   ) : (
-                    <div className="w-full flex items-center justify-between gap-2.5 mt-5 pt-3 border-t border-white/10">
-                      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full liquid-glass border border-white/10 flex-shrink-0">
+                    <div className="w-full flex items-center justify-between gap-2.5 mt-5 pt-3 border-0">
+                      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full liquid-glass border-0 flex-shrink-0">
                         <button
                           onClick={toggleMute}
                           title={isMuted || volume === 0 ? 'Unmute Audio' : 'Mute Audio'}

@@ -922,7 +922,7 @@ const Visualizer = memo(
 
     const containerClasses = fullScreen
       ? 'absolute inset-0 w-full h-full pointer-events-none'
-      : 'relative w-full h-full min-h-[200px] bg-white/5 dark:bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden gpu-layer';
+      : 'relative w-full h-full min-h-[200px] bg-white/5 dark:bg-black/20 backdrop-blur-md rounded-2xl border-0 shadow-lg overflow-hidden gpu-layer';
 
     return (
       <div className={containerClasses}>

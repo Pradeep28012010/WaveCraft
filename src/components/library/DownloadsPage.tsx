@@ -181,7 +181,7 @@ export default function DownloadsPage() {
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
               Offline Audio Vault
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[11px] font-black text-emerald-300 uppercase tracking-wider">
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border-0 text-[11px] font-black text-emerald-300 uppercase tracking-wider">
               100% Offline
             </span>
             <button
@@ -230,7 +230,7 @@ export default function DownloadsPage() {
               <button
                 type="button"
                 onClick={handleExportCatalog}
-                className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white/90 text-xs font-bold transition cursor-pointer"
+                className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border-0 text-white/90 text-xs font-bold transition cursor-pointer"
                 title="Export list of offline tracks to JSON"
               >
                 📋 Export
@@ -238,7 +238,7 @@ export default function DownloadsPage() {
               <button
                 type="button"
                 onClick={() => setShowClearConfirm(true)}
-                className="px-3 py-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold transition cursor-pointer"
+                className="px-3 py-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border-0 text-rose-300 text-xs font-bold transition cursor-pointer"
                 title="Free up device storage"
               >
                 Purge Storage
@@ -249,7 +249,7 @@ export default function DownloadsPage() {
       </div>
 
       {/* Storage & Breakdown Dashboard */}
-      <GlassCard variant="liquid" padding="lg" className="border border-white/10 mb-8 space-y-5">
+      <GlassCard variant="liquid" padding="lg" className="border-0 mb-8 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span className="text-xs font-bold text-white/50 uppercase tracking-wider">
@@ -282,7 +282,7 @@ export default function DownloadsPage() {
         </div>
 
         {/* High-Fidelity Stacked Storage Progress Bar */}
-        <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden flex p-0.5 border border-white/10">
+        <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden flex p-0.5 border-0">
           <div
             style={{ width: `${Math.max(2, manualRatio)}%` }}
             className="h-full bg-emerald-400 rounded-l-full transition-all duration-500"
@@ -296,7 +296,7 @@ export default function DownloadsPage() {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-white/10 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-0 text-xs">
           <div>
             <p className="text-white/40">Total Saved Tracks</p>
             <p className="text-base font-bold text-white">{offlineTracks.length} Songs</p>
@@ -321,9 +321,9 @@ export default function DownloadsPage() {
       </GlassCard>
 
       {/* Smart Auto-Cache & Caching Controls Banner */}
-      <div className="p-4 rounded-3xl bg-white/[0.04] border border-cyan-500/25 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-xl">
+      <div className="p-4 rounded-3xl bg-white/[0.04] border-0 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-xl flex-shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border-0 flex items-center justify-center text-xl flex-shrink-0">
             ⚡
           </div>
           <div>
@@ -346,7 +346,7 @@ export default function DownloadsPage() {
             <select
               value={maxCacheSizeMb}
               onChange={(e) => setMaxCacheSizeMb(Number(e.target.value))}
-              className="px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/15 text-white text-xs outline-none cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl bg-white/10 border-0 text-white text-xs outline-none cursor-pointer"
             >
               <option value={500} className="bg-[#0c0d18] text-white">500 MB</option>
               <option value={1024} className="bg-[#0c0d18] text-white">1 GB</option>
@@ -374,7 +374,7 @@ export default function DownloadsPage() {
             <button
               type="button"
               onClick={() => setShowClearCacheConfirm(true)}
-              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white transition cursor-pointer"
+              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border-0 text-xs font-bold text-white transition cursor-pointer"
               title="Clears temporary auto-cache while keeping all manually saved playlists and liked songs"
             >
               Clear Auto-Cache ({storageBreakdown.autoCacheFormatted})
@@ -387,7 +387,7 @@ export default function DownloadsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         {/* Category Tabs */}
         <div
-          className="flex items-center gap-1.5 bg-white/[0.05] p-1.5 rounded-2xl border border-white/[0.04] overflow-x-auto overflow-y-hidden no-scrollbar"
+          className="flex items-center gap-1.5 bg-white/[0.05] p-1.5 rounded-2xl border-0 overflow-x-auto overflow-y-hidden no-scrollbar"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           <button
@@ -406,7 +406,7 @@ export default function DownloadsPage() {
             onClick={() => setActiveTab('manual')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
               activeTab === 'manual'
-                ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/30 shadow-md'
+                ? 'bg-emerald-500/25 text-emerald-300 border-0 shadow-md'
                 : 'text-white/60 hover:text-white'
             }`}
           >
@@ -417,7 +417,7 @@ export default function DownloadsPage() {
             onClick={() => setActiveTab('auto-cache')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
               activeTab === 'auto-cache'
-                ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/30 shadow-md'
+                ? 'bg-cyan-500/25 text-cyan-300 border-0 shadow-md'
                 : 'text-white/60 hover:text-white'
             }`}
           >
@@ -433,7 +433,7 @@ export default function DownloadsPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/15 text-white text-xs outline-none cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl bg-white/10 border-0 text-white text-xs outline-none cursor-pointer"
             >
               <option value="recent" className="bg-[#0c0d18] text-white">Recently Saved</option>
               <option value="title" className="bg-[#0c0d18] text-white">Title (A-Z)</option>
@@ -449,7 +449,7 @@ export default function DownloadsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search offline tracks..."
-              className="w-full px-3.5 py-1.5 pl-8 rounded-xl bg-white/[0.06] border border-white/15 text-white placeholder-white/40 text-xs outline-none focus:border-emerald-500/50 transition backdrop-blur-xl"
+              className="w-full px-3.5 py-1.5 pl-8 rounded-xl bg-white/[0.06] border-0 text-white placeholder-white/40 text-xs outline-none focus:ring-1 focus:ring-emerald-500/50 transition backdrop-blur-xl"
             />
             <span className="absolute left-2.5 top-2 text-white/40 text-xs pointer-events-none">
               🔍
@@ -469,8 +469,8 @@ export default function DownloadsPage() {
 
       {/* Main Track List or Empty State */}
       {offlineTracks.length === 0 ? (
-        <GlassCard variant="liquid" padding="lg" className="text-center py-16 border border-white/10">
-          <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-5 text-4xl shadow-xl">
+        <GlassCard variant="liquid" padding="lg" className="text-center py-16 border-0">
+          <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 border-0 flex items-center justify-center mx-auto mb-5 text-4xl shadow-xl">
             ⚡
           </div>
           <h2 className="text-2xl font-black text-white mb-2">No Offline Tracks Yet</h2>
@@ -511,9 +511,9 @@ export default function DownloadsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="max-w-md w-full p-6 rounded-3xl bg-[#0b0b14] border border-white/15 text-white shadow-2xl space-y-4"
+              className="max-w-md w-full p-6 rounded-3xl bg-[#0b0b14] border-0 text-white shadow-2xl space-y-4"
             >
-              <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-xl mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border-0 flex items-center justify-center text-xl mx-auto">
                 🗑
               </div>
               <h3 className="text-lg font-extrabold text-center">Purge Offline Audio Vault?</h3>
@@ -551,9 +551,9 @@ export default function DownloadsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="max-w-md w-full p-6 rounded-3xl bg-[#0b0b14] border border-white/15 text-white shadow-2xl space-y-4"
+              className="max-w-md w-full p-6 rounded-3xl bg-[#0b0b14] border-0 text-white shadow-2xl space-y-4"
             >
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-xl mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border-0 flex items-center justify-center text-xl mx-auto">
                 🧹
               </div>
               <h3 className="text-lg font-extrabold text-center">Clear Smart Auto-Cache?</h3>

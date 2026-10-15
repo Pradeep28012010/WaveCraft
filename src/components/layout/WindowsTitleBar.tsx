@@ -86,7 +86,7 @@ export default function WindowsTitleBar() {
           <span className="text-xs font-black tracking-tight text-white/90">
             WaveCraft <span className="text-[var(--color-accent)]">Pro</span>
           </span>
-          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-white/[0.07] text-white/60 border border-white/10">
+          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-white/[0.07] text-white/60 border-0">
             Windows Studio
           </span>
         </div>
@@ -95,7 +95,7 @@ export default function WindowsTitleBar() {
       {/* Center: Realtime Track Ticker or Quick Search */}
       <div className="flex-1 flex justify-center max-w-md mx-2 min-w-0">
         {currentTrack ? (
-          <div className="app-region-no-drag flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] font-medium text-white/80 max-w-xs truncate shadow-sm">
+          <div className="app-region-no-drag flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.05] border-0 text-[11px] font-medium text-white/80 max-w-xs truncate shadow-sm">
             <span
               className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                 isPlaying ? 'bg-emerald-400 animate-pulse' : 'bg-white/40'
@@ -110,7 +110,7 @@ export default function WindowsTitleBar() {
           <button
             type="button"
             onClick={handleOpenSearch}
-            className="app-region-no-drag flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] text-white/55 hover:text-white/85 transition-colors cursor-pointer"
+            className="app-region-no-drag flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border-0 text-[11px] text-white/55 hover:text-white/85 transition-colors cursor-pointer"
             title="Click or press Ctrl+K to open Search"
           >
             <svg className="w-3 h-3 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -118,7 +118,7 @@ export default function WindowsTitleBar() {
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <span>Search tracks, artists, moods</span>
-            <kbd className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-white/10 text-white/60 border border-white/15">
+            <kbd className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-white/10 text-white/60 border-0">
               Ctrl+K
             </kbd>
           </button>

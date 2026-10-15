@@ -55,7 +55,7 @@ export default function TrendingSection({
         <div>
           <div className="flex items-center gap-2.5">
             <h2 className="text-2xl font-bold text-white tracking-tight">Trending Hits</h2>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full liquid-glass border border-[#1DB954]/40 text-[#1ed760] text-[11px] font-bold">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full liquid-glass border-0 text-[#1ed760] text-[11px] font-bold">
               <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                 <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.498 17.306c-.218.358-.684.472-1.042.254-2.855-1.745-6.45-2.14-10.684-1.173-.41.094-.82-.162-.914-.572-.094-.41.162-.82.572-.914 4.634-1.059 8.608-.609 11.814 1.363.358.218.472.684.254 1.042zm1.468-3.264c-.274.446-.86.588-1.306.314-3.268-2.008-8.249-2.59-12.115-1.416-.5.152-1.03-.134-1.182-.634-.152-.5.134-1.03.634-1.182 4.417-1.34 9.907-.687 13.655 1.612.446.274.588.86.314 1.306zm.126-3.41c-3.918-2.327-10.377-2.541-14.116-1.405-.6.183-1.237-.16-1.42-.76-.183-.6.16-1.237.76-1.42 4.298-1.305 11.433-1.055 15.937 1.62.54.32.715 1.026.395 1.566-.32.54-1.026.715-1.566.395z" />
               </svg>

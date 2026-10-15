@@ -148,7 +148,7 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
               ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
               : 'none'
           }}
-          className="pointer-events-none absolute -top-2 px-2 py-0.5 rounded-md bg-black/95 border border-white/20 text-[10px] font-bold tabular-nums text-white shadow-xl will-change-transform z-30"
+          className="pointer-events-none absolute -top-2 px-2 py-0.5 rounded-md bg-black/95 border-0 text-[10px] font-bold tabular-nums text-white shadow-xl will-change-transform z-30"
         >
           {formatTime(isDragging ? activeDisplayTime : (hoverTime || 0))}
         </div>
@@ -317,7 +317,7 @@ export default function MiniPlayer() {
               }}
               onTouchStart={handleMiniPlayerTouchStart}
               onTouchEnd={handleMiniPlayerTouchEnd}
-              className="h-15 liquid-glass bg-[#080812]/90 backdrop-blur-3xl rounded-[24px] flex items-center justify-between px-3 relative overflow-hidden shadow-[0_18px_48px_rgba(0,0,0,0.85)] border border-white/20 cursor-pointer active:scale-[0.99] transition-transform"
+              className="h-15 liquid-glass bg-[#080812]/90 backdrop-blur-3xl rounded-[24px] flex items-center justify-between px-3 relative overflow-hidden shadow-[0_18px_48px_rgba(0,0,0,0.85)] border-0 cursor-pointer active:scale-[0.99] transition-transform"
             >
               <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 
@@ -349,7 +349,7 @@ export default function MiniPlayer() {
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                   }}
-                  className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-white/15 shadow-md"
+                  className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border-0 shadow-md"
                 />
               </AnimatePresence>
               <AnimatePresence mode="wait">
@@ -454,7 +454,7 @@ export default function MiniPlayer() {
         }}
         className="px-4 pb-3 pt-1.5 relative z-30 gpu-layer"
       >
-        <div className="h-20 liquid-glass rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)] border border-white/20">
+        <div className="h-20 liquid-glass rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)] border-0">
           {/* Isolated 120fps Progress Scrubber */}
           <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 
@@ -482,7 +482,7 @@ export default function MiniPlayer() {
                 transition={{ type: 'spring', stiffness: 360, damping: 26 }}
                 whileHover={{ scale: 1.06, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group shadow-lg border border-white/15 will-change-transform"
+                className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group shadow-lg border-0 will-change-transform"
                 onClick={() => setIsNowPlayingOpen(true)}
               >
                 <img
@@ -676,7 +676,7 @@ export default function MiniPlayer() {
                   )}
                 </svg>
                 {repeatMode === 'one' && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-accent)] text-white text-[7px] font-black flex items-center justify-center shadow-sm border border-white/20">
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-accent)] text-white text-[7px] font-black flex items-center justify-center shadow-sm border-0">
                     1
                   </span>
                 )}

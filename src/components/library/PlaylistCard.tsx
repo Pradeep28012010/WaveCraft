@@ -69,8 +69,8 @@ const PlaylistCard = memo(function PlaylistCard({
     <Link to={`/playlist/${playlist.id}`} className="block group">
       <GlassCard
         className={`contain-card p-3.5 sm:p-4 h-full transition-all hover:bg-white/10 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20 relative ${
-          playlist.isLiveSync ? 'border border-emerald-400/30' : ''
-        } ${playlist.isPinned ? 'ring-1 ring-amber-400/30' : ''}`}
+          playlist.isPinned ? 'ring-1 ring-amber-400/30' : ''
+        }`}
       >
         <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5">
           {hdCoverUrl ? (
@@ -88,7 +88,7 @@ const PlaylistCard = memo(function PlaylistCard({
 
           {/* Live Auto-Sync Badge */}
           {playlist.isLiveSync && (
-            <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-emerald-400/45 flex items-center gap-1.5 shadow-lg z-10">
+            <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border-0 flex items-center gap-1.5 shadow-lg z-10">
               <span
                 className={`w-2 h-2 rounded-full bg-emerald-400 ${
                   isSyncing ? 'animate-spin' : 'animate-pulse'
@@ -109,10 +109,10 @@ const PlaylistCard = memo(function PlaylistCard({
               togglePin(playlist.id);
             }}
             title={playlist.isPinned ? 'Unpin playlist' : 'Pin to top of library'}
-            className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full backdrop-blur-md border flex items-center justify-center text-xs transition-all z-10 cursor-pointer ${
+            className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full backdrop-blur-md border-0 flex items-center justify-center text-xs transition-all z-10 cursor-pointer ${
               playlist.isPinned
-                ? 'bg-amber-500/80 border-amber-300 text-white shadow-lg'
-                : 'bg-black/40 border-white/20 text-white/70 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:text-white hover:bg-black/60'
+                ? 'bg-amber-500/80 text-white shadow-lg'
+                : 'bg-black/40 text-white/70 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:text-white hover:bg-black/60'
             }`}
           >
             📌
@@ -146,12 +146,12 @@ const PlaylistCard = memo(function PlaylistCard({
                 ? `Downloading ${activeDownloadJob?.completed}/${activeDownloadJob?.total}`
                 : `1-Tap Download "${playlist.name}" to Offline Audio Vault`
             }
-            className={`absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full backdrop-blur-md border text-[10px] font-bold flex items-center gap-1.5 transition-all z-10 cursor-pointer ${
+            className={`absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full backdrop-blur-md border-0 text-[10px] font-bold flex items-center gap-1.5 transition-all z-10 cursor-pointer ${
               isCurrentDownloading
-                ? 'bg-cyan-500/85 border-cyan-300 text-white shadow-lg'
+                ? 'bg-cyan-500/85 text-white shadow-lg'
                 : isFullyOffline
-                ? 'bg-emerald-500/80 border-emerald-300 text-white shadow-lg'
-                : 'bg-black/60 border-white/20 text-white/90 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 hover:text-white hover:bg-black/80 hover:scale-105'
+                ? 'bg-emerald-500/80 text-white shadow-lg'
+                : 'bg-black/60 text-white/90 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 hover:text-white hover:bg-black/80 hover:scale-105'
             }`}
           >
             {isCurrentDownloading && activeDownloadJob ? (
@@ -185,10 +185,9 @@ const PlaylistCard = memo(function PlaylistCard({
           </h3>
           {showFolderBadge && folder && (
             <span
-              className="px-1.5 py-0.5 rounded-md text-[10px] font-bold border truncate flex-shrink-0 flex items-center gap-1 max-w-[100px]"
+              className="px-1.5 py-0.5 rounded-md text-[10px] font-bold border-0 truncate flex-shrink-0 flex items-center gap-1 max-w-[100px]"
               style={{
                 backgroundColor: `${folder.color || '#6366f1'}20`,
-                borderColor: `${folder.color || '#6366f1'}40`,
                 color: folder.color || '#a5b4fc'
               }}
               title={`In folder: ${folder.name}`}
@@ -214,11 +213,11 @@ const PlaylistCard = memo(function PlaylistCard({
 
         {/* Smart Tag Chips */}
         {playlist.tags && playlist.tags.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1 mt-2.5 pt-2 border-t border-white/5">
+          <div className="flex flex-wrap items-center gap-1 mt-2.5 pt-2 border-0">
             {playlist.tags.slice(0, 2).map((t) => (
               <span
                 key={t}
-                className="px-2 py-0.5 rounded-full bg-white/[0.07] border border-white/10 text-[10px] font-medium text-white/75 truncate max-w-[110px]"
+                className="px-2 py-0.5 rounded-full bg-white/[0.07] border-0 text-[10px] font-medium text-white/75 truncate max-w-[110px]"
               >
                 #{t}
               </span>

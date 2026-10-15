@@ -123,7 +123,7 @@ export default function Sidebar() {
           name: 'Recently Played',
           path: '/recent',
           badge: recentlyPlayed.length > 0 ? recentlyPlayed.length : undefined,
-          badgeColor: 'bg-white/10 text-white/70 border-white/15',
+          badgeColor: 'bg-white/10 text-white/70 border-0',
           icon: () => (
             <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -141,7 +141,7 @@ export default function Sidebar() {
           name: 'Sonic Galaxy Map',
           path: '/galaxy',
           badge: '3D',
-          badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+          badgeColor: 'bg-cyan-500/20 text-cyan-300 border-0',
           icon: () => (
             <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="5" />
@@ -155,7 +155,7 @@ export default function Sidebar() {
           name: 'Live Jam Room',
           path: '/jam',
           badge: 'LIVE',
-          badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+          badgeColor: 'bg-rose-500/20 text-rose-300 border-0',
           icon: () => (
             <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -185,7 +185,7 @@ export default function Sidebar() {
           name: 'Liked Songs',
           path: '/liked',
           badge: likedSongs.length > 0 ? likedSongs.length : undefined,
-          badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/35',
+          badgeColor: 'bg-rose-500/20 text-rose-300 border-0',
           icon: () => (
             <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
@@ -196,7 +196,7 @@ export default function Sidebar() {
           name: 'Offline Vault',
           path: '/downloads',
           badge: offlineTracks.length > 0 ? offlineTracks.length : undefined,
-          badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35',
+          badgeColor: 'bg-emerald-500/20 text-emerald-300 border-0',
           icon: () => (
             <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -238,7 +238,7 @@ export default function Sidebar() {
                 name: 'Download Native App',
                 path: '/download',
                 badge: 'APK',
-                badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/35',
+                badgeColor: 'bg-emerald-500/20 text-emerald-300 border-0',
                 icon: () => (
                   <svg className="w-5 h-5 block text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -298,14 +298,14 @@ export default function Sidebar() {
                 }
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-84 max-w-[86vw] h-full liquid-glass bg-[#070714]/98 backdrop-blur-3xl border-r border-white/20 flex flex-col select-none shadow-[0_24px_80px_rgba(0,0,0,0.95)] z-[10000] relative"
+              className="w-84 max-w-[86vw] h-full liquid-glass bg-[#070714]/98 backdrop-blur-3xl border-0 flex flex-col select-none shadow-[0_24px_80px_rgba(0,0,0,0.95)] z-[10000] relative"
               style={{
                 paddingTop: 'max(env(safe-area-inset-top, 0px), 10px)',
                 paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)'
               }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 h-16 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center justify-between px-5 h-16 border-0 flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/30">
                     <svg className="w-5.5 h-5.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
@@ -317,7 +317,7 @@ export default function Sidebar() {
                       <span className="text-base font-black tracking-tight text-white leading-none">
                         WaveCraft
                       </span>
-                      <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 text-[8px] font-black tracking-widest text-[var(--color-accent)] uppercase border border-[var(--color-accent)]/30">
+                      <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 text-[8px] font-black tracking-widest text-[var(--color-accent)] uppercase border-0">
                         PRO
                       </span>
                     </div>
@@ -375,7 +375,7 @@ export default function Sidebar() {
                               <span className="text-xs font-semibold truncate">{item.name}</span>
                             </div>
                             {item.badge !== undefined && (
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${item.badgeColor || 'bg-white/10 text-white/70 border-white/20'}`}>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
                                 {item.badge}
                               </span>
                             )}
@@ -486,7 +486,7 @@ export default function Sidebar() {
                   <span className="text-base font-extrabold tracking-tight text-white leading-none">
                     WaveCraft
                   </span>
-                  <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 text-[8px] font-black tracking-widest text-[var(--color-accent)] uppercase border border-[var(--color-accent)]/30">
+                  <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 text-[8px] font-black tracking-widest text-[var(--color-accent)] uppercase border-0">
                     PRO
                   </span>
                 </div>
@@ -533,7 +533,7 @@ export default function Sidebar() {
                           layoutId="sidebar-active-pill-desktop"
                           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                           style={{ position: 'absolute', inset: 0 }}
-                          className="rounded-xl bg-gradient-to-r from-white/[0.14] via-white/[0.08] to-white/[0.03] backdrop-blur-xl border border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.4)] pointer-events-none z-0 overflow-hidden"
+                          className="rounded-xl bg-gradient-to-r from-white/[0.14] via-white/[0.08] to-white/[0.03] backdrop-blur-xl border-0 shadow-[0_8px_24px_rgba(0,0,0,0.4)] pointer-events-none z-0 overflow-hidden"
                         >
                           <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
                         </motion.div>
@@ -557,13 +557,13 @@ export default function Sidebar() {
                       </div>
 
                       {!collapsed && item.badge !== undefined && (
-                        <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border ${item.badgeColor || 'bg-white/10 text-white/70 border-white/20'}`}>
+                        <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
                           {item.badge}
                         </span>
                       )}
 
                       {collapsed && item.badge !== undefined && (
-                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--color-accent)] border border-black" />
+                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--color-accent)] border-0 shadow-sm" />
                       )}
                     </>
                   )}

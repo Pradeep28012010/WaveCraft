@@ -60,7 +60,7 @@ export default function SetupPage() {
         initial={{ opacity: 0, scale: 0.94, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="w-full max-w-[420px] rounded-3xl p-7 liquid-glass border border-white/20 shadow-2xl relative z-10 flex flex-col items-center text-center"
+        className="w-full max-w-[420px] rounded-3xl p-7 liquid-glass border-0 shadow-2xl relative z-10 flex flex-col items-center text-center"
       >
         {/* Top Window Control Buttons */}
         <div
@@ -88,7 +88,7 @@ export default function SetupPage() {
         {/* Glowing Logo Header */}
         <div className="relative w-20 h-20 mb-4 flex items-center justify-center">
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#fa2d48] to-[#7c3aed] blur-lg opacity-75 animate-pulse" />
-          <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-[#fa2d48] to-[#7c3aed] border border-white/25 flex items-center justify-center shadow-lg">
+          <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-[#fa2d48] to-[#7c3aed] border-0 flex items-center justify-center shadow-lg">
             <div className="flex items-end gap-1.5 h-7">
               <span className="w-1 bg-white rounded-full animate-[pulse_1.2s_ease-in-out_infinite_0.1s] h-4" />
               <span className="w-1 bg-white rounded-full animate-[pulse_1.2s_ease-in-out_infinite_0.3s] h-6" />
@@ -104,19 +104,19 @@ export default function SetupPage() {
 
         {/* 4 Feature Badges */}
         <div className="grid grid-cols-2 gap-2 w-full mb-6 text-left">
-          <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+          <div className="p-2.5 rounded-xl bg-white/[0.04] border-0">
             <div className="text-[11px] font-extrabold text-rose-400 mb-0.5">✨ WaveSync Lyrics</div>
             <div className="text-[10px] text-white/50 leading-tight">Synced live vocal flow</div>
           </div>
-          <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+          <div className="p-2.5 rounded-xl bg-white/[0.04] border-0">
             <div className="text-[11px] font-extrabold text-cyan-400 mb-0.5">🎧 3D Spatial Audio</div>
             <div className="text-[10px] text-white/50 leading-tight">360° binaural immersion</div>
           </div>
-          <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+          <div className="p-2.5 rounded-xl bg-white/[0.04] border-0">
             <div className="text-[11px] font-extrabold text-purple-400 mb-0.5">⚡ 10-Band EQ</div>
             <div className="text-[10px] text-white/50 leading-tight">Studio frequency DSP</div>
           </div>
-          <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+          <div className="p-2.5 rounded-xl bg-white/[0.04] border-0">
             <div className="text-[11px] font-extrabold text-emerald-400 mb-0.5">📥 Offline Vault</div>
             <div className="text-[10px] text-white/50 leading-tight">Zero-latency playback</div>
           </div>

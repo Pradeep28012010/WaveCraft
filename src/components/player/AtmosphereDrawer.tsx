@@ -172,7 +172,7 @@ const AtmosphereDrawer = memo(function AtmosphereDrawer({
                 onClose();
               }
             }}
-            className="relative z-10 w-full sm:max-w-2xl max-h-[88vh] sm:max-h-[82vh] flex flex-col rounded-t-[32px] sm:rounded-[32px] liquid-glass border border-white/20 bg-[#07070f]/95 shadow-[0_24px_70px_rgba(0,0,0,0.85)] overflow-hidden"
+            className="relative z-10 w-full sm:max-w-2xl max-h-[88vh] sm:max-h-[82vh] flex flex-col rounded-t-[32px] sm:rounded-[32px] liquid-glass border-0 bg-[#07070f]/95 shadow-[0_24px_70px_rgba(0,0,0,0.85)] overflow-hidden"
           >
             {/* Mobile Drag Handle */}
             <div className="flex sm:hidden justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
@@ -180,7 +180,7 @@ const AtmosphereDrawer = memo(function AtmosphereDrawer({
             </div>
 
             {/* Header */}
-            <div className="px-6 pt-4 pb-3 border-b border-white/[0.08] flex items-center justify-between flex-shrink-0">
+            <div className="px-6 pt-4 pb-3 border-0 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl glass-button-emerald flex items-center justify-center text-xl shadow-[0_0_16px_rgba(16,185,129,0.35)]">
                   🌧️
@@ -258,8 +258,8 @@ const AtmosphereDrawer = memo(function AtmosphereDrawer({
                         onClick={() => handleApplyPreset(preset)}
                         className={`p-3 rounded-2xl text-left transition-all cursor-pointer flex items-start gap-2.5 border ${
                           isSelected
-                            ? 'glass-button-emerald border-emerald-400/60 shadow-[0_0_16px_rgba(16,185,129,0.25)]'
-                            : 'liquid-glass border-white/10 hover:border-white/25 active:scale-[0.98]'
+                            ? 'glass-button-emerald border-0 shadow-[0_0_16px_rgba(16,185,129,0.25)]'
+                            : 'liquid-glass border-0  active:scale-[0.98]'
                         }`}
                       >
                         <span className="text-2xl flex-shrink-0">{preset.icon}</span>
@@ -278,7 +278,7 @@ const AtmosphereDrawer = memo(function AtmosphereDrawer({
               </div>
 
               {/* 2. Master Ambient Blend Slider */}
-              <div className="p-4 rounded-2xl liquid-glass border border-white/15 space-y-2">
+              <div className="p-4 rounded-2xl liquid-glass border-0 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm">🎚️</span>
@@ -324,8 +324,8 @@ const AtmosphereDrawer = memo(function AtmosphereDrawer({
                         key={layer.id}
                         className={`p-3.5 rounded-2xl border transition-all ${
                           isActive
-                            ? 'border-emerald-400/50 bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]'
-                            : 'border-white/10 liquid-glass'
+                            ? 'border-0 bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]'
+                            : 'border-0 liquid-glass'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-2">
@@ -374,7 +374,7 @@ const AtmosphereDrawer = memo(function AtmosphereDrawer({
               </div>
 
               {/* 4. Standalone / Zero Network Info Banner */}
-              <div className="p-3.5 rounded-2xl liquid-glass border border-white/10 flex items-start gap-3">
+              <div className="p-3.5 rounded-2xl liquid-glass border-0 flex items-start gap-3">
                 <span className="text-xl flex-shrink-0">✨</span>
                 <div className="text-[11px] text-white/60 space-y-1">
                   <div className="font-bold text-white/90">

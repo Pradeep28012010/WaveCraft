@@ -172,10 +172,10 @@ export default function FeedbackModal() {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 15 }}
         transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-        className="relative z-10 w-full max-w-xl rounded-3xl bg-[#090a12]/95 backdrop-blur-3xl border border-white/20 shadow-[0_24px_70px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col my-auto max-h-[92vh]"
+        className="relative z-10 w-full max-w-xl rounded-3xl bg-[#090a12]/95 backdrop-blur-3xl border-0 shadow-[0_24px_70px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col my-auto max-h-[92vh]"
       >
         {/* Header */}
-        <div className="p-5 sm:p-6 pb-4 border-b border-white/10 flex items-center justify-between">
+        <div className="p-5 sm:p-6 pb-4 border-0 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-purple-600 flex items-center justify-center text-white text-lg shadow-md flex-shrink-0">
               {type === 'bug' ? '🐛' : type === 'feature' ? '💡' : '💬'}
@@ -201,7 +201,7 @@ export default function FeedbackModal() {
         {/* Success View */}
         {isSuccess ? (
           <div className="p-8 sm:p-12 text-center space-y-4 my-auto">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(16,185,129,0.35)] animate-bounce">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-0 text-emerald-400 mx-auto flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(16,185,129,0.35)] animate-bounce">
               ✓
             </div>
             <h3 className="text-2xl font-black text-white">Thank You!</h3>
@@ -212,7 +212,7 @@ export default function FeedbackModal() {
         ) : (
           <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 overflow-y-auto no-scrollbar">
             {/* Feedback Type Tabs */}
-            <div className="grid grid-cols-3 gap-2 p-1 rounded-2xl bg-white/[0.05] border border-white/10">
+            <div className="grid grid-cols-3 gap-2 p-1 rounded-2xl bg-white/[0.05] border-0">
               {[
                 { id: 'bug' as FeedbackType, label: 'Report Bug', icon: '🐛' },
                 { id: 'feature' as FeedbackType, label: 'Suggest Idea', icon: '💡' },
@@ -251,8 +251,8 @@ export default function FeedbackModal() {
                     }}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                       category === cat
-                        ? 'bg-white/20 text-white border border-white/30 shadow-sm'
-                        : 'bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] border border-white/5'
+                        ? 'bg-white/20 text-white border-0 shadow-sm'
+                        : 'bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] border-0'
                     }`}
                   >
                     {cat}
@@ -301,7 +301,7 @@ export default function FeedbackModal() {
                     ? 'e.g., Add Spotify/Apple Music playlist sync'
                     : 'e.g., Love the 320kbps audio engine and liquid glass UI'
                 }
-                className="w-full h-11 rounded-xl bg-white/[0.06] border border-white/15 px-3.5 text-xs text-white placeholder-white/35 focus:outline-none focus:border-[var(--color-accent)] focus:bg-white/[0.09] transition-all"
+                className="w-full h-11 rounded-xl bg-white/[0.06] border-0 px-3.5 text-xs text-white placeholder-white/35 focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] focus:bg-white/[0.09] transition-all"
               />
             </div>
 
@@ -324,7 +324,7 @@ export default function FeedbackModal() {
                     ? 'How should this feature work? Why would it be helpful?'
                     : 'Share any thoughts, ideas, or feedback...'
                 }
-                className="w-full rounded-xl bg-white/[0.06] border border-white/15 p-3 text-xs text-white placeholder-white/35 focus:outline-none focus:border-[var(--color-accent)] focus:bg-white/[0.09] transition-all resize-none"
+                className="w-full rounded-xl bg-white/[0.06] border-0 p-3 text-xs text-white placeholder-white/35 focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] focus:bg-white/[0.09] transition-all resize-none"
               />
             </div>
 
@@ -338,12 +338,12 @@ export default function FeedbackModal() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com or @username"
-                className="w-full h-10 rounded-xl bg-white/[0.06] border border-white/15 px-3.5 text-xs text-white placeholder-white/35 focus:outline-none focus:border-white/30 transition-all"
+                className="w-full h-10 rounded-xl bg-white/[0.06] border-0 px-3.5 text-xs text-white placeholder-white/35 focus:outline-none focus:ring-1 focus:ring-white/30 transition-all"
               />
             </div>
 
             {/* Diagnostics Auto-Attach Box */}
-            <div className="rounded-xl bg-white/[0.03] border border-white/10 p-3 space-y-2">
+            <div className="rounded-xl bg-white/[0.03] border-0 p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 cursor-pointer text-xs text-white/80 font-medium">
                   <input
@@ -364,7 +364,7 @@ export default function FeedbackModal() {
               </div>
 
               {showDiagnosticsDetail && includeDiagnostics && (
-                <div className="text-[10px] font-mono text-white/50 bg-black/40 p-2.5 rounded-lg border border-white/5 space-y-0.5 max-h-28 overflow-y-auto">
+                <div className="text-[10px] font-mono text-white/50 bg-black/40 p-2.5 rounded-lg border-0 space-y-0.5 max-h-28 overflow-y-auto">
                   <p>• Platform: {diagnostics.platform}</p>
                   <p>• Version: {diagnostics.appVersion}</p>
                   <p>• Resolution: {diagnostics.viewport}</p>

@@ -330,7 +330,7 @@ function SonicSpiderRadar({
     `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y} L ${pts[2].x} ${pts[2].y} L ${pts[3].x} ${pts[3].y} Z`;
 
   return (
-    <div className="relative flex flex-col items-center justify-center p-2 rounded-2xl bg-black/40 border border-white/12">
+    <div className="relative flex flex-col items-center justify-center p-2 rounded-2xl bg-black/40 border-0">
       <svg width={size} height={size} className="overflow-visible">
         {/* Background Concentric Radar Grids */}
         {[0.25, 0.5, 0.75, 1.0].map((frac, idx) => {
@@ -405,7 +405,7 @@ function SonicSpiderRadar({
           Track DNA
         </span>
         <span className="flex items-center gap-1.5 text-emerald-300">
-          <span className="w-2.5 h-1 border border-emerald-400 border-dashed" />
+          <span className="w-2.5 h-1 border-0" />
           Your Taste Centroid
         </span>
       </div>
@@ -1663,9 +1663,9 @@ export default function SonicGalaxyPage() {
   return (
     <div className="pb-28 pt-1 text-white space-y-4 select-none">
       {/* ================= VisionOS Liquid Glass Astrolabe Command Deck ================= */}
-      <div className="rounded-3xl liquid-glass border border-white/20 p-5 sm:p-6 space-y-4 shadow-2xl">
+      <div className="rounded-3xl liquid-glass border-0 p-5 sm:p-6 space-y-4 shadow-2xl">
         {/* Tier 1: Main Header & Formation Switcher */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-0">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-[11px] font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
@@ -1692,7 +1692,7 @@ export default function SonicGalaxyPage() {
 
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2.5">
               <span>Sonic Galaxy</span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 text-white/70 font-semibold border border-white/15">
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 text-white/70 font-semibold border-0">
                 3D Spatial Map
               </span>
             </h1>
@@ -1702,7 +1702,7 @@ export default function SonicGalaxyPage() {
           </div>
 
           {/* 3-Way Formation Switcher */}
-          <div className="flex items-center p-1 rounded-2xl bg-white/[0.05] border border-white/15 backdrop-blur-xl shadow-inner self-start md:self-center">
+          <div className="flex items-center p-1 rounded-2xl bg-white/[0.05] border-0 backdrop-blur-xl shadow-inner self-start md:self-center">
             <button
               type="button"
               onClick={() => {
@@ -1801,7 +1801,7 @@ export default function SonicGalaxyPage() {
               value={warpQuery}
               onChange={(e) => setWarpQuery(e.target.value)}
               placeholder="Warp to artist, genre, or mood..."
-              className="w-full h-9 pl-8 pr-20 rounded-full glass-input text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+              className="w-full h-9 pl-8 pr-20 rounded-full glass-input text-xs text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
             />
             <button
               type="submit"
@@ -1846,7 +1846,7 @@ export default function SonicGalaxyPage() {
       {/* ================= Main 12-Column Layout ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Left: 120fps 3D Interactive Star Map Viewport (7 cols) */}
-        <div className="lg:col-span-7 relative rounded-3xl overflow-hidden border border-white/[0.04] bg-[#040208] shadow-[0_30px_100px_rgba(0,0,0,0.9)] h-[480px] sm:h-[620px] lg:h-[700px]">
+        <div className="lg:col-span-7 relative rounded-3xl overflow-hidden border-0 bg-[#040208] shadow-[0_30px_100px_rgba(0,0,0,0.9)] h-[480px] sm:h-[620px] lg:h-[700px]">
           <canvas ref={canvasRef} className="w-full h-full block touch-none" />
 
           {/* Top Viewport VisionOS Controls */}
@@ -1911,7 +1911,7 @@ export default function SonicGalaxyPage() {
               </button>
             </div>
 
-            <div className="hidden 2xl:flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass border border-white/15 text-[10px] font-bold text-white/75 flex-shrink-0">
+            <div className="hidden 2xl:flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass border-0 text-[10px] font-bold text-white/75 flex-shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
               <span>DRAG TO ROTATE • SCROLL / PINCH TO ZOOM</span>
             </div>
@@ -1930,7 +1930,7 @@ export default function SonicGalaxyPage() {
                     selectedStar.track
                   );
                 }}
-                className="p-2.5 rounded-2xl liquid-glass border border-white/25 shadow-2xl flex items-center gap-3 cursor-pointer"
+                className="p-2.5 rounded-2xl liquid-glass border-0 shadow-2xl flex items-center gap-3 cursor-pointer"
               >
                 <img
                   src={selectedStar.track.thumbnail || DEFAULT_THUMBNAIL}
@@ -1938,7 +1938,7 @@ export default function SonicGalaxyPage() {
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                   }}
-                  className={`w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-white/20 ${
+                  className={`w-10 h-10 rounded-xl object-cover flex-shrink-0 border-0 ${
                     currentTrack?.id === selectedStar.id && isPlaying
                       ? 'animate-[spin_6s_linear_infinite]'
                       : ''
@@ -2017,10 +2017,10 @@ export default function SonicGalaxyPage() {
         <GlassCard
           variant="liquid"
           padding="md"
-          className="lg:col-span-5 flex flex-col justify-between border border-white/20 h-[520px] sm:h-[620px] lg:h-[700px] overflow-hidden"
+          className="lg:col-span-5 flex flex-col justify-between border-0 h-[520px] sm:h-[620px] lg:h-[700px] overflow-hidden"
         >
           {/* Top Inspector Navigation Tabs */}
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-black/50 border border-white/15 mb-3 flex-shrink-0 w-full min-w-0 overflow-hidden">
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-black/50 border-0 mb-3 flex-shrink-0 w-full min-w-0 overflow-hidden">
             <button
               type="button"
               onClick={() => {
@@ -2078,7 +2078,7 @@ export default function SonicGalaxyPage() {
             {selectedStar ? (
               <>
                 {/* Hero Planet Card Header */}
-                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/15 flex flex-col gap-2.5">
+                <div className="p-3.5 rounded-2xl bg-white/[0.04] border-0 flex flex-col gap-2.5">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0">
                       <div
@@ -2091,7 +2091,7 @@ export default function SonicGalaxyPage() {
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                         }}
-                        className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover shadow-xl border border-white/25"
+                        className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover shadow-xl border-0"
                       />
                     </div>
 
@@ -2105,7 +2105,7 @@ export default function SonicGalaxyPage() {
                     </div>
 
                     {/* Real Taste Match Circular Badge */}
-                    <div className="flex flex-col items-center justify-center px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-400/35 flex-shrink-0">
+                    <div className="flex flex-col items-center justify-center px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border-0 flex-shrink-0">
                       <span className="text-base sm:text-lg font-black text-emerald-300 leading-none tabular-nums whitespace-nowrap">
                         {selectedStar.affinityScore}%
                       </span>
@@ -2116,7 +2116,7 @@ export default function SonicGalaxyPage() {
                   </div>
 
                   {/* Badges Row: Dedicated row with wrap so badges NEVER clip */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-white/8">
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-0">
                     <span
                       className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white whitespace-nowrap"
                       style={{
@@ -2146,7 +2146,7 @@ export default function SonicGalaxyPage() {
                       className="space-y-3.5"
                     >
                       {/* Real Taste Match Breakdown Card */}
-                      <div className="p-3.5 rounded-2xl bg-black/40 border border-white/12 space-y-2.5">
+                      <div className="p-3.5 rounded-2xl bg-black/40 border-0 space-y-2.5">
                         <div className="flex flex-wrap items-center justify-between gap-1.5">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 whitespace-nowrap">
                             🎯 Real Taste Match Breakdown
@@ -2155,11 +2155,11 @@ export default function SonicGalaxyPage() {
                             Cosine Vector Engine
                           </span>
                         </div>
-                        <p className="text-xs text-white/85 font-semibold leading-relaxed bg-white/[0.04] px-3 py-2 rounded-xl border border-white/10">
+                        <p className="text-xs text-white/85 font-semibold leading-relaxed bg-white/[0.04] px-3 py-2 rounded-xl border-0">
                           {selectedStar.matchBreakdown.reason}
                         </p>
                         <div className="grid grid-cols-3 gap-2 pt-1">
-                          <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center">
+                          <div className="p-2 rounded-xl bg-white/[0.04] border-0 text-center">
                             <div className="text-sm font-black text-cyan-300 tabular-nums whitespace-nowrap">
                               {selectedStar.matchBreakdown.sonicSimilarityPct}%
                             </div>
@@ -2167,7 +2167,7 @@ export default function SonicGalaxyPage() {
                               4D Sonic DNA
                             </div>
                           </div>
-                          <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center">
+                          <div className="p-2 rounded-xl bg-white/[0.04] border-0 text-center">
                             <div className="text-sm font-black text-purple-300 tabular-nums whitespace-nowrap">
                               {selectedStar.matchBreakdown.artistAffinityPct}%
                             </div>
@@ -2175,7 +2175,7 @@ export default function SonicGalaxyPage() {
                               Artist Affinity
                             </div>
                           </div>
-                          <div className="p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center">
+                          <div className="p-2 rounded-xl bg-white/[0.04] border-0 text-center">
                             <div className="text-sm font-black text-rose-300 tabular-nums whitespace-nowrap">
                               {selectedStar.matchBreakdown.vibeSynergyPct}%
                             </div>
@@ -2194,7 +2194,7 @@ export default function SonicGalaxyPage() {
                       />
 
                       {/* Planetary Sonic DNA 4-Channel Visualizer Bars */}
-                      <div className="p-3.5 rounded-2xl bg-black/40 border border-white/12 space-y-2.5">
+                      <div className="p-3.5 rounded-2xl bg-black/40 border-0 space-y-2.5">
                         <div className="flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase tracking-wider text-white/65">
                           <span className="whitespace-nowrap truncate">🧬 Acoustic Dimension Channels</span>
                           <span className="text-cyan-300 whitespace-nowrap flex-shrink-0">320kbps HD</span>
@@ -2279,7 +2279,7 @@ export default function SonicGalaxyPage() {
                             triggerAndroidHaptic('light');
                             setSelectedStar(neighbor);
                           }}
-                          className="p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/10 flex items-center justify-between gap-2.5 cursor-pointer transition-all"
+                          className="p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.1] border-0 flex items-center justify-between gap-2.5 cursor-pointer transition-all"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <img
@@ -2288,7 +2288,7 @@ export default function SonicGalaxyPage() {
                               onError={(e) => {
                                 (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                               }}
-                              className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-white/15"
+                              className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border-0"
                             />
                             <div className="min-w-0">
                               <p className="text-xs font-extrabold text-white truncate">
@@ -2303,7 +2303,7 @@ export default function SonicGalaxyPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 tabular-nums whitespace-nowrap flex-shrink-0">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border-0 text-[10px] font-extrabold text-emerald-300 tabular-nums whitespace-nowrap flex-shrink-0">
                               {pairMatch}% DNA
                             </span>
                             <button
@@ -2341,12 +2341,12 @@ export default function SonicGalaxyPage() {
                           value={rosterSearch}
                           onChange={(e) => setRosterSearch(e.target.value)}
                           placeholder="Search star roster..."
-                          className="flex-1 h-8 px-3 rounded-xl bg-white/[0.06] border border-white/15 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+                          className="flex-1 h-8 px-3 rounded-xl bg-white/[0.06] border-0 text-xs text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
                         />
                         <select
                           value={rosterSort}
                           onChange={(e) => setRosterSort(e.target.value as any)}
-                          className="h-8 px-2 rounded-xl bg-white/[0.06] border border-white/15 text-[11px] text-white font-bold focus:outline-none cursor-pointer"
+                          className="h-8 px-2 rounded-xl bg-white/[0.06] border-0 text-[11px] text-white font-bold focus:outline-none cursor-pointer"
                         >
                           <option value="match" className="bg-[#0b0816] text-white">Sort: Match %</option>
                           <option value="title" className="bg-[#0b0816] text-white">Sort: Title</option>
@@ -2425,7 +2425,7 @@ export default function SonicGalaxyPage() {
 
           {/* Sticky Bottom Action Dock inside Right Telemetry Inspector */}
           {selectedStar && (
-            <div className="pt-3 mt-2 border-t border-white/15 space-y-2 flex-shrink-0">
+            <div className="pt-3 mt-2 border-0 space-y-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => {

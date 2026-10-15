@@ -415,7 +415,7 @@ export default function SearchResults() {
                 <button
                   key={tag.label}
                   onClick={() => handleQuickSearch(tag.query)}
-                  className="px-3.5 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/[0.04] text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer flex-shrink-0 whitespace-nowrap active:scale-95"
+                  className="px-3.5 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border-0 text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer flex-shrink-0 whitespace-nowrap active:scale-95"
                 >
                   {tag.label}
                 </button>
@@ -444,7 +444,7 @@ export default function SearchResults() {
                 {history.map((term) => (
                   <div
                     key={term}
-                    className="flex items-center gap-2 pl-4 pr-2.5 py-2 rounded-full liquid-glass border border-white/15 hover:border-white/30 text-xs font-bold text-white/90 hover:text-white group cursor-pointer transition-all shadow-md active:scale-95"
+                    className="flex items-center gap-2 pl-4 pr-2.5 py-2 rounded-full liquid-glass border-0 text-xs font-bold text-white/90 hover:text-white group cursor-pointer transition-all shadow-md active:scale-95"
                     onClick={() => handleQuickSearch(term)}
                   >
                     <svg className="w-3.5 h-3.5 text-white/40 group-hover:text-white/80 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -511,7 +511,7 @@ export default function SearchResults() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
                     onClick={() => handleQuickSearch(term)}
-                    className="group relative flex items-center justify-between gap-4 p-3.5 sm:p-4 rounded-2xl liquid-glass border border-white/15 hover:border-white/35 hover:bg-white/[0.08] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 cursor-pointer shadow-lg"
+                    className="group relative flex items-center justify-between gap-4 p-3.5 sm:p-4 rounded-2xl liquid-glass border-0 hover:bg-white/[0.08] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 cursor-pointer shadow-lg"
                   >
                     {/* Left Rank & Info */}
                     <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
@@ -562,7 +562,7 @@ export default function SearchResults() {
         /* ============================================================== */
         <div className="space-y-8">
           {/* Header & Liquid-Glass Filter Pill Dock */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-0 pb-5">
             <div className="min-w-0 pr-2">
               <span className="text-[11px] font-black uppercase tracking-widest text-[var(--color-accent)] block mb-1">
                 {selectedAlbum ? 'Album Inspection' : 'Search Results'}
@@ -574,7 +574,7 @@ export default function SearchResults() {
 
             {/* Segmented Filter Pills */}
             <div
-              className="flex items-center gap-1.5 p-1.5 rounded-full bg-white/[0.05] border border-white/[0.04] backdrop-blur-2xl overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
+              className="flex items-center gap-1.5 p-1.5 rounded-full bg-white/[0.05] border-0 backdrop-blur-2xl overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {selectedAlbum ? (
@@ -613,7 +613,7 @@ export default function SearchResults() {
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                     }}
-                    className="w-40 h-40 sm:w-48 sm:h-48 rounded-2xl object-cover shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/20 flex-shrink-0"
+                    className="w-40 h-40 sm:w-48 sm:h-48 rounded-2xl object-cover shadow-[0_20px_50px_rgba(0,0,0,0.8)] border-0 flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <span className="text-[11px] font-black uppercase tracking-wider text-[var(--color-accent)]">
@@ -712,7 +712,7 @@ export default function SearchResults() {
             </div>
           ) : tracks.length === 0 && albums.length === 0 && artists.length === 0 && matchingPlaylists.length === 0 ? (
             /* Empty Results Card */
-            <div className="flex flex-col items-center justify-center py-20 px-4 text-center liquid-glass rounded-3xl border border-white/15">
+            <div className="flex flex-col items-center justify-center py-20 px-4 text-center liquid-glass rounded-3xl border-0">
               <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-3xl mb-4">
                 🔍
               </div>
@@ -760,14 +760,14 @@ export default function SearchResults() {
                           topTrack
                         );
                       }}
-                      className="group relative overflow-hidden rounded-3xl p-6 liquid-glass border border-white/[0.04] transition-all duration-300 shadow-[0_16px_40px_rgba(0,0,0,0.55)] cursor-pointer flex flex-col justify-between flex-1 min-h-[300px]"
+                      className="group relative overflow-hidden rounded-3xl p-6 liquid-glass border-0 transition-all duration-300 shadow-[0_16px_40px_rgba(0,0,0,0.55)] cursor-pointer flex flex-col justify-between flex-1 min-h-[300px]"
                     >
                       {/* Ambient Bloom Glow */}
                       <div className="absolute -top-12 -left-12 w-48 h-48 rounded-full bg-[var(--color-accent)]/20 blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
 
                       <div className="relative z-10 flex items-start gap-5">
                         {/* Artwork with Live Equalizer & Hover Play Overlay */}
-                        <div className="relative flex-shrink-0 w-32 h-32 sm:w-36 sm:h-36 rounded-2xl overflow-hidden shadow-[0_12px_28px_rgba(0,0,0,0.7)] border border-white/20 group-hover:scale-105 transition-transform duration-300">
+                        <div className="relative flex-shrink-0 w-32 h-32 sm:w-36 sm:h-36 rounded-2xl overflow-hidden shadow-[0_12px_28px_rgba(0,0,0,0.7)] border-0 group-hover:scale-105 transition-transform duration-300">
                           <img
                             src={topTrack.thumbnail || DEFAULT_THUMBNAIL}
                             alt={topTrack.title}
@@ -779,7 +779,7 @@ export default function SearchResults() {
 
                           {/* Live Equalizer indicator if currently playing */}
                           {isTopPlaying && (
-                            <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center gap-1 shadow-md">
+                            <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md border-0 flex items-center gap-1 shadow-md">
                               <span className="w-1.5 h-3 bg-[var(--color-accent)] rounded-full animate-pulse" />
                               <span className="text-[10px] font-black uppercase tracking-wider text-white">Playing</span>
                             </div>
@@ -807,7 +807,7 @@ export default function SearchResults() {
                             <span className="px-2.5 py-0.5 rounded-full bg-[var(--color-accent)] text-white text-[9px] font-black uppercase tracking-wider shadow-sm">
                               Top Match
                             </span>
-                            <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/80 text-[9px] font-bold uppercase tracking-wider border border-white/10">
+                            <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/80 text-[9px] font-bold uppercase tracking-wider border-0">
                               Lossless 320k
                             </span>
                           </div>
@@ -837,7 +837,7 @@ export default function SearchResults() {
                       </div>
 
                       {/* Integrated Action Tray on Card */}
-                      <div className="relative z-10 flex items-center justify-between gap-3 pt-5 mt-4 border-t border-white/[0.08]">
+                      <div className="relative z-10 flex items-center justify-between gap-3 pt-5 mt-4 border-0">
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -1025,9 +1025,9 @@ export default function SearchResults() {
                       <div
                         key={artist.id}
                         onClick={() => handleQuickSearch(artist.name)}
-                        className="group flex flex-col items-center text-center p-4 rounded-3xl liquid-glass border border-white/[0.04] hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none"
+                        className="group flex flex-col items-center text-center p-4 rounded-3xl liquid-glass border-0 hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none"
                       >
-                        <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden mb-3.5 relative shadow-[0_12px_28px_rgba(0,0,0,0.6)] border border-white/[0.08] group-hover:shadow-[0_0_20px_rgba(250,45,72,0.3)] transition-all">
+                        <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden mb-3.5 relative shadow-[0_12px_28px_rgba(0,0,0,0.6)] border-0 group-hover:shadow-[0_0_20px_rgba(250,45,72,0.3)] transition-all">
                           {artist.imageUrl || artist.thumbnail ? (
                             <img
                               src={artist.imageUrl || artist.thumbnail}
@@ -1042,7 +1042,7 @@ export default function SearchResults() {
 
                           {/* Hover Overlay */}
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-xs font-bold text-white bg-black/60 px-2.5 py-1 rounded-full border border-white/20">
+                            <span className="text-xs font-bold text-white bg-black/60 px-2.5 py-1 rounded-full border-0">
                               View →
                             </span>
                           </div>
@@ -1076,13 +1076,13 @@ export default function SearchResults() {
                       <div
                         key={album.id}
                         onClick={() => handleOpenAlbum(album, false)}
-                        className="group flex flex-col p-3.5 sm:p-4 rounded-3xl liquid-glass border border-white/[0.04] hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none"
+                        className="group flex flex-col p-3.5 sm:p-4 rounded-3xl liquid-glass border-0 hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none"
                       >
                         {/* Artwork with Vinyl Peek Out on Hover */}
                         <div className="relative aspect-square rounded-2xl overflow-hidden mb-3 bg-white/5 transition-all">
                           {/* 3D Vinyl peek out */}
-                          <div className="absolute right-1 top-2 bottom-2 w-20 rounded-full bg-zinc-950 border border-zinc-700 shadow-xl opacity-0 group-hover:opacity-100 group-hover:translate-x-3 transition-all duration-300 pointer-events-none flex items-center justify-center">
-                            <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 flex items-center justify-center">
+                          <div className="absolute right-1 top-2 bottom-2 w-20 rounded-full bg-zinc-950 border-0 shadow-xl opacity-0 group-hover:opacity-100 group-hover:translate-x-3 transition-all duration-300 pointer-events-none flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-zinc-800 border-0 flex items-center justify-center">
                               <div className="w-2.5 h-2.5 rounded-full bg-black" />
                             </div>
                           </div>
@@ -1147,7 +1147,7 @@ export default function SearchResults() {
                             handleQuickSearch(pl.query);
                           }
                         }}
-                        className={`group flex flex-col p-3.5 sm:p-4 rounded-3xl liquid-glass border border-white/[0.04] hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none ${
+                        className={`group flex flex-col p-3.5 sm:p-4 rounded-3xl liquid-glass border-0 hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none ${
                           pl.colorClass || ''
                         }`}
                       >

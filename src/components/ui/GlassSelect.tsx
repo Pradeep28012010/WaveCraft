@@ -97,7 +97,7 @@ export default function GlassSelect({
         ref={buttonRef}
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center justify-between gap-3 px-4 py-2 rounded-full liquid-glass text-xs sm:text-sm font-semibold text-white hover:border-white/35 transition-all cursor-pointer min-w-[155px] max-w-full"
+        className="flex items-center justify-between gap-3 px-4 py-2 rounded-full liquid-glass border-0 text-xs sm:text-sm font-semibold text-white transition-all cursor-pointer min-w-[155px] max-w-full shadow-sm"
       >
         <span className="truncate">{selectedOption?.label || value}</span>
         <svg
@@ -131,7 +131,7 @@ export default function GlassSelect({
                   width: pos.width,
                   zIndex: 9999
                 }}
-                className="rounded-2xl glass-heavy p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.92)] border border-white/25 max-h-72 overflow-y-auto no-scrollbar"
+                className="rounded-2xl glass-heavy p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.92)] border-0 max-h-72 overflow-y-auto no-scrollbar"
               >
                 {options.map((opt) => {
                   const active = opt.value === value;

@@ -232,10 +232,9 @@ export default function PlaylistView() {
         <span>/</span>
         {currentFolder ? (
           <span
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs font-bold"
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border-0 text-xs font-bold"
             style={{
               backgroundColor: `${currentFolder.color || '#6366f1'}20`,
-              borderColor: `${currentFolder.color || '#6366f1'}40`,
               color: currentFolder.color || '#a5b4fc'
             }}
           >
@@ -260,7 +259,7 @@ export default function PlaylistView() {
             </div>
           )}
           {playlist.isLiveSync && (
-            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/75 backdrop-blur-md border border-emerald-400/50 flex items-center gap-1.5 shadow-lg">
+            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/75 backdrop-blur-md border-0 flex items-center gap-1.5 shadow-lg">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <span className="text-[10px] font-extrabold text-emerald-300 tracking-wider whitespace-nowrap">
                 LIVE AUTO-SYNC
@@ -275,7 +274,7 @@ export default function PlaylistView() {
               {playlist.isLiveSync ? 'Live Syncing Playlist' : 'Playlist'}
             </span>
             {playlist.isPinned && (
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/35 text-[10px] font-bold text-amber-300 flex items-center gap-1 whitespace-nowrap">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border-0 text-[10px] font-bold text-amber-300 flex items-center gap-1 whitespace-nowrap">
                 <span>📌</span> Pinned
               </span>
             )}
@@ -292,7 +291,7 @@ export default function PlaylistView() {
               </button>
 
               {showFolderDropdown && (
-                <div className="absolute top-full left-0 mt-1.5 w-52 rounded-xl liquid-glass border border-white/20 p-1.5 shadow-2xl z-30">
+                <div className="absolute top-full left-0 mt-1.5 w-52 rounded-xl liquid-glass border-0 p-1.5 shadow-2xl z-30">
                   <div className="px-2 py-1 text-[10px] font-bold text-white/40 uppercase">
                     Select Folder
                   </div>
@@ -332,7 +331,7 @@ export default function PlaylistView() {
             </div>
 
             {playlist.sourcePlatform && (
-              <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-[10px] font-bold text-cyan-300 whitespace-nowrap">
+              <span className="px-2.5 py-0.5 rounded-full bg-white/10 border-0 text-[10px] font-bold text-cyan-300 whitespace-nowrap">
                 Source: {playlist.sourcePlatform}
               </span>
             )}
@@ -354,7 +353,7 @@ export default function PlaylistView() {
             {(playlist.tags || []).map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-medium"
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border-0 text-indigo-200 text-xs font-medium"
               >
                 #{t}
                 <button
@@ -393,7 +392,7 @@ export default function PlaylistView() {
                     }
                     setIsAddingTag(false);
                   }}
-                  className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-xs text-white placeholder:text-white/40 w-24 outline-none"
+                  className="px-2.5 py-0.5 rounded-full bg-white/10 border-0 text-xs text-white placeholder:text-white/40 w-24 outline-none"
                 />
               </form>
             ) : (
@@ -430,8 +429,8 @@ export default function PlaylistView() {
         <GlassCard
           variant="liquid"
           padding="md"
-          className={`mb-7 border ${
-            playlist.isLiveSync ? 'border-emerald-400/35 bg-emerald-500/[0.06]' : 'border-white/15'
+          className={`mb-7 border-0 ${
+            playlist.isLiveSync ? 'bg-emerald-500/[0.06]' : ''
           }`}
         >
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -447,11 +446,11 @@ export default function PlaylistView() {
                     ? 'Live Auto-Sync Connected'
                     : 'Static Imported Playlist (Live Sync Paused)'}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 whitespace-nowrap">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border-0 text-[10px] font-extrabold text-emerald-300 whitespace-nowrap">
                   {playlist.syncStrategy === 'mirror' ? '🪞 Exact Mirror Mode' : '➕ Auto-Append Mode'}
                 </span>
                 {(playlist.lastSyncDelta || 0) > 0 && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-[10px] font-extrabold text-cyan-200 whitespace-nowrap">
+                  <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 border-0 text-[10px] font-extrabold text-cyan-200 whitespace-nowrap">
                     +{playlist.lastSyncDelta} new from source
                   </span>
                 )}
@@ -518,7 +517,7 @@ export default function PlaylistView() {
           </div>
 
           {isSyncing && (
-            <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5">
+            <div className="mt-3 pt-3 border-0 space-y-1.5">
               <div className="flex justify-between text-[11px] font-bold text-emerald-200">
                 <span>{syncStatusText || 'Checking source playlist for changes...'}</span>
                 <span className="tabular-nums">{syncProgressPct}%</span>
@@ -546,7 +545,7 @@ export default function PlaylistView() {
           ) : (
             <form
               onSubmit={handleAttachLiveSource}
-              className="p-3.5 rounded-2xl liquid-glass border border-emerald-400/30 flex flex-col sm:flex-row items-center gap-2.5"
+              className="p-3.5 rounded-2xl liquid-glass border-0 flex flex-col sm:flex-row items-center gap-2.5"
             >
               <input
                 type="url"
@@ -667,7 +666,7 @@ export default function PlaylistView() {
                 animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                 exit={{ opacity: 0, y: -4, scale: 0.96, filter: 'blur(8px)' }}
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute right-0 top-12 z-30 w-60 rounded-[20px] glass-bloom-menu border border-white/20 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.7)] space-y-1 text-xs"
+                className="absolute right-0 top-12 z-30 w-60 rounded-[20px] glass-bloom-menu border-0 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.7)] space-y-1 text-xs"
                 onClick={() => setShowExportMenu(false)}
               >
                 <button
@@ -733,7 +732,7 @@ export default function PlaylistView() {
       {/* Tracks */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1.5">
         {tracks.length === 0 ? (
-          <div className="text-center py-12 text-white/50 border border-dashed border-white/20 rounded-xl">
+          <div className="text-center py-12 text-white/50 border-0 bg-white/[0.03] rounded-2xl">
             <p className="text-lg">This playlist is empty.</p>
             <p className="text-sm mt-1">Search for songs and add them here.</p>
             <GlassButton className="mt-4" onClick={() => navigate('/search')}>

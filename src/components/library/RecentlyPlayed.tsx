@@ -21,7 +21,7 @@ export default function RecentlyPlayed() {
 
   return (
     <div className="pb-44 sm:pb-24 pt-2 text-white min-h-screen">
-      <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
+      <div className="flex items-center justify-between mb-8 border-0 pb-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Recently Played</h1>
           <p className="text-xs text-white/50 mt-1">Your listening timeline</p>

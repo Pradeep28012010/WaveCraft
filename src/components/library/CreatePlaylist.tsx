@@ -143,13 +143,13 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-white select-none">
         {/* ── Apple-Grade Hero Artwork & Title Card ── */}
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-2xl liquid-glass bg-white/[0.03] border border-white/10">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-2xl liquid-glass bg-white/[0.03] border-0">
           {/* Cover Artwork Preview */}
           <div className="relative group flex-shrink-0">
             <div
               className={`w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-gradient-to-br ${
                 useCustomUrl && coverUrl ? 'bg-black' : selectedGradient
-              } border border-white/20 flex items-center justify-center overflow-hidden shadow-[0_12px_32px_rgba(0,0,0,0.5)] transition-all`}
+              } border-0 flex items-center justify-center overflow-hidden shadow-[0_12px_32px_rgba(0,0,0,0.5)] transition-all`}
             >
               {useCustomUrl && coverUrl ? (
                 <img
@@ -204,7 +204,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
                 placeholder="Give your playlist a title..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-sm text-white font-semibold placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
+                className="w-full h-11 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border-0 text-sm text-white font-semibold placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all shadow-inner"
                 required
                 autoFocus
               />
@@ -219,14 +219,14 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full p-2.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all resize-none shadow-inner"
+                className="w-full p-2.5 rounded-xl liquid-glass bg-white/[0.05] border-0 text-xs text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all resize-none shadow-inner"
               />
             </div>
           </div>
         </div>
 
         {/* ── Custom Cover Image URL Toggle ── */}
-        <div className="p-3 rounded-xl liquid-glass bg-white/[0.02] border border-white/8 space-y-2">
+        <div className="p-3 rounded-xl liquid-glass bg-white/[0.02] border-0 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-white/80">Use Custom Artwork Image URL</span>
             <button
@@ -260,7 +260,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
                   placeholder="https://example.com/cover.jpg"
                   value={coverUrl}
                   onChange={(e) => setCoverUrl(e.target.value)}
-                  className="w-full h-9.5 px-3 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all"
+                  className="w-full h-9.5 px-3 rounded-xl liquid-glass bg-white/[0.05] border-0 text-xs text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
                 />
               </motion.div>
             )}
@@ -279,7 +279,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
                 triggerAndroidHaptic('light');
                 setFolderId(e.target.value);
               }}
-              className="w-full h-10 px-3 rounded-xl liquid-glass bg-[#0d0f1b]/95 border border-white/15 text-xs text-white cursor-pointer focus:outline-none focus:border-cyan-400/60"
+              className="w-full h-10 px-3 rounded-xl liquid-glass bg-[#0d0f1b]/95 border-0 text-xs text-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400"
             >
               <option value="" className="bg-slate-900 text-white">
                 General Library (No Shelf)
@@ -306,7 +306,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleTagKeyDown}
-              className="flex-1 h-9.5 px-3 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60"
+              className="flex-1 h-9.5 px-3 rounded-xl liquid-glass bg-white/[0.05] border-0 text-xs text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-cyan-400"
             />
             <button
               type="button"
@@ -324,7 +324,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
               {tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass bg-indigo-500/15 border border-indigo-400/40 text-indigo-200 text-xs font-semibold shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass bg-indigo-500/15 border-0 text-indigo-200 text-xs font-semibold shadow-sm"
                 >
                   #{tag}
                   <button
@@ -356,12 +356,12 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
         </div>
 
         {/* ── Pin to Top iOS Switch ── */}
-        <div className="flex items-center justify-between p-3.5 rounded-2xl liquid-glass bg-white/[0.03] border border-white/10 cursor-pointer" onClick={() => {
+        <div className="flex items-center justify-between p-3.5 rounded-2xl liquid-glass bg-white/[0.03] border-0 cursor-pointer" onClick={() => {
           triggerAndroidHaptic('light');
           setIsPinned(!isPinned);
         }}>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-sm">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border-0 flex items-center justify-center text-sm">
               📌
             </div>
             <div>
@@ -388,7 +388,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
         </div>
 
         {/* ── Footer Actions ── */}
-        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10 mt-1">
+        <div className="flex items-center justify-end gap-2.5 pt-2 border-0 mt-1">
           <button
             type="button"
             onClick={onClose}

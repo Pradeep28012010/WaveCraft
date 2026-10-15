@@ -113,8 +113,8 @@ const LyricRow = memo(
           }}
           className={`group relative py-2.5 px-4 rounded-2xl cursor-pointer select-text origin-left will-change-transform ${depthBlurClass} ${
             isCurrent
-              ? 'bg-white/[0.09] border border-white/15 shadow-[0_12px_32px_rgba(0,0,0,0.35)]'
-              : 'hover:bg-white/[0.04] border border-transparent'
+              ? 'bg-white/[0.09] border-0 shadow-[0_12px_32px_rgba(0,0,0,0.35)]'
+              : 'hover:bg-white/[0.04] border-0'
           }`}
         >
           <div className="flex items-center justify-between gap-4">
@@ -145,7 +145,7 @@ const LyricRow = memo(
                     onAlignToNow(line.time);
                   }}
                   title="Snap timing: Click when you hear this line to sync all lyrics instantly"
-                  className="opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-full bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/30 text-[10px] font-bold text-amber-200 hover:text-white transition-all cursor-pointer flex items-center gap-1 flex-shrink-0 shadow-sm"
+                  className="opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-full bg-amber-500/20 hover:bg-amber-500/35 border-0 text-[10px] font-bold text-amber-200 hover:text-white transition-all cursor-pointer flex items-center gap-1 flex-shrink-0 shadow-sm"
                 >
                   <svg className="w-2.5 h-2.5 text-amber-300 fill-current" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2.5" />
@@ -178,7 +178,7 @@ const LyricRow = memo(
                 <span
                   className={`text-[11px] font-semibold tabular-nums px-2.5 py-0.5 rounded-full flex-shrink-0 transition-opacity duration-150 ${
                     isCurrent
-                      ? 'opacity-95 bg-white/12 text-white/90 border border-white/20 shadow-inner'
+                      ? 'opacity-95 bg-white/12 text-white/90 border-0 shadow-inner'
                       : 'opacity-0 group-hover:opacity-75 bg-white/[0.07] text-white/65'
                   }`}
                 >
@@ -519,9 +519,9 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
   }, []);
 
   return (
-    <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
+    <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border-0 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
       {/* Clean Lyrics Header */}
-      <div className="h-12 sm:h-14 px-4 sm:px-5 flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.03] backdrop-blur-xl flex-shrink-0 z-20">
+      <div className="h-12 sm:h-14 px-4 sm:px-5 flex items-center justify-between gap-3 border-0 bg-white/[0.03] backdrop-blur-xl flex-shrink-0 z-20">
         <div className="flex items-center gap-2.5 min-w-0">
           {headerTitle ? (
             <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-[var(--color-accent)] flex items-center gap-1.5">
@@ -567,7 +567,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                 setShowSearchDrawer(true);
                 setShowSyncDrawer(true);
               }}
-              className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-pointer hover:bg-amber-500/30 transition-colors"
+              className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border-0 cursor-pointer hover:bg-amber-500/30 transition-colors"
               title="Lyrics sync timing offset (Click to calibrate)"
             >
               {userOffset > 0 ? `+${userOffset.toFixed(1)}s` : `${userOffset.toFixed(1)}s`}
@@ -634,7 +634,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="overflow-hidden border-b border-white/10 bg-black/50 backdrop-blur-2xl px-5 py-3 flex flex-col gap-2.5 flex-shrink-0 z-15 text-xs shadow-2xl"
+            className="overflow-hidden border-0 bg-black/50 backdrop-blur-2xl px-5 py-3 flex flex-col gap-2.5 flex-shrink-0 z-15 text-xs shadow-2xl"
           >
             {/* Top Row: Current Timing status & Quick Nudges */}
             <div className="flex flex-wrap items-center justify-between gap-2.5">
@@ -645,8 +645,8 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                     userOffset === 0
                       ? 'bg-white/10 text-white/70'
                       : userOffset > 0
-                      ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40'
-                      : 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
+                      ? 'bg-amber-500/25 text-amber-300 border-0'
+                      : 'bg-cyan-500/25 text-cyan-300 border-0'
                   }`}
                 >
                   {userOffset === 0
@@ -746,7 +746,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
 
             {/* Bottom Row: Version & Script Switcher (Devanagari vs Romanized vs Album cut) */}
             {result?.candidates && result.candidates.length > 1 && (
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-0">
                 <span className="text-[10px] uppercase font-bold text-white/45 tracking-wider">
                   Versions:
                 </span>
@@ -762,7 +762,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-tight transition-all cursor-pointer flex items-center gap-1.5 ${
                           isCandActive
                             ? 'glass-button-primary text-white border-white/40 shadow-sm'
-                            : 'bg-white/[0.05] hover:bg-white/[0.12] text-white/70 hover:text-white border border-white/5'
+                            : 'bg-white/[0.05] hover:bg-white/[0.12] text-white/70 hover:text-white border-0'
                         }`}
                         title={`${cand.trackName} by ${cand.artistName} (${cand.duration ? `${cand.duration}s` : 'Unknown duration'})`}
                       >
@@ -802,7 +802,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="overflow-hidden border-b border-white/10 bg-black/60 backdrop-blur-2xl px-5 py-3 flex flex-col gap-2.5 flex-shrink-0 z-15 text-xs shadow-2xl"
+            className="overflow-hidden border-0 bg-black/60 backdrop-blur-2xl px-5 py-3 flex flex-col gap-2.5 flex-shrink-0 z-15 text-xs shadow-2xl"
           >
             <form
               onSubmit={(e) => {
@@ -817,7 +817,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                   value={manualQuery}
                   onChange={(e) => setManualQuery(e.target.value)}
                   placeholder={`Search lyrics (e.g. "${title || 'Song'} ${artist || ''}")`}
-                  className="w-full h-8 pl-8 pr-3 rounded-xl bg-white/[0.08] border border-white/15 text-xs text-white placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)]"
+                  className="w-full h-8 pl-8 pr-3 rounded-xl bg-white/[0.08] border-0 text-xs text-white placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)]"
                 />
                 <svg className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-white/45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8" />
@@ -858,13 +858,13 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
             )}
 
             {showPasteModal && (
-              <div className="flex flex-col gap-2 pt-1 border-t border-white/10">
+              <div className="flex flex-col gap-2 pt-1 border-0">
                 <textarea
                   rows={4}
                   value={pastedPlainLyrics}
                   onChange={(e) => setPastedPlainLyrics(e.target.value)}
                   placeholder="Paste plain lyrics text here..."
-                  className="w-full p-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white/90 placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)] font-mono"
+                  className="w-full p-2.5 rounded-xl bg-black/40 border-0 text-xs text-white/90 placeholder-white/40 focus:outline-none focus:border-[var(--color-accent)] font-mono"
                 />
                 <div className="flex justify-end gap-2">
                   <button
@@ -949,7 +949,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center px-6 text-white/50 max-w-sm mx-auto">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-xl mb-3 shadow-md">
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border-0 flex items-center justify-center text-xl mb-3 shadow-md">
               🎵
             </div>
             <p className="text-base font-bold text-white/85">{title}</p>

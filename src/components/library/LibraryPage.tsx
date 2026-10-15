@@ -168,7 +168,7 @@ export default function LibraryPage() {
           <button
             type="button"
             onClick={handleOpenCreateFolder}
-            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-indigo-300 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap border border-indigo-400/30 flex-shrink-0"
+            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-indigo-300 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-0 flex-shrink-0"
           >
             <span>📁 + Folder</span>
           </button>
@@ -223,7 +223,7 @@ export default function LibraryPage() {
             variant="liquid"
             padding="sm"
             hover
-            className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 h-full overflow-hidden p-3 sm:p-4 border border-emerald-400/20 hover:border-emerald-400/50 transition-colors"
+            className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 h-full overflow-hidden p-3 sm:p-4 border-0  transition-colors"
           >
             <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
               <span className="text-lg sm:text-2xl">⚡</span>
@@ -240,7 +240,7 @@ export default function LibraryPage() {
 
       {/* Toast Notification Banner */}
       {savedBanner && (
-        <div className="mb-6 p-3 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center justify-between">
+        <div className="mb-6 p-3 rounded-2xl bg-emerald-500/20 border-0 text-emerald-300 text-xs font-bold flex items-center justify-between">
           <span>✨ {savedBanner}</span>
           <button onClick={() => setSavedBanner('')} className="text-white/60 hover:text-white cursor-pointer">✕</button>
         </div>
@@ -307,7 +307,7 @@ export default function LibraryPage() {
         <div className="mb-10">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/[0.08] border border-white/15 text-[10px] font-extrabold uppercase tracking-widest text-rose-300 mb-1">
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/[0.08] border-0 text-[10px] font-extrabold uppercase tracking-widest text-rose-300 mb-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
                 INTELLIGENT AUTO-CURATION
               </div>
@@ -326,14 +326,14 @@ export default function LibraryPage() {
                 key={smart.id}
                 variant="liquid"
                 padding="md"
-                className="relative overflow-hidden flex flex-col justify-between group hover:border-white/30 transition-all border border-white/12"
+                className="relative overflow-hidden flex flex-col justify-between group  transition-all border-0"
               >
                 <div>
                   <div
                     className={`w-full h-28 rounded-2xl bg-gradient-to-br ${smart.gradient} p-3.5 flex flex-col justify-between shadow-lg relative overflow-hidden`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded-full bg-black/45 border border-white/20 text-[9px] font-black uppercase tracking-wider text-white">
+                      <span className="px-2 py-0.5 rounded-full bg-black/45 border-0 text-[9px] font-black uppercase tracking-wider text-white">
                         {smart.badge}
                       </span>
                       <span className="text-xl drop-shadow">{smart.icon}</span>
@@ -357,7 +357,7 @@ export default function LibraryPage() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-white/10">
+                <div className="flex items-center gap-2 mt-4 pt-3 border-0">
                   <GlassButton
                     variant="primary"
                     size="sm"
@@ -387,7 +387,7 @@ export default function LibraryPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
               <span>📌</span> Pinned Playlists
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border-0">
                 {pinnedPlaylists.length}
               </span>
             </h2>
@@ -425,9 +425,8 @@ export default function LibraryPage() {
           <div key={folder.id} className="mb-10">
             {/* Folder Header Shelf */}
             <div
-              className="p-3.5 sm:p-4 rounded-2xl border transition-all flex items-center justify-between mb-4 backdrop-blur-md"
+              className="p-3.5 sm:p-4 rounded-2xl border-0 transition-all flex items-center justify-between mb-4 backdrop-blur-md"
               style={{
-                borderColor: `${folderColor}45`,
                 background: `linear-gradient(90deg, ${folderColor}18, rgba(255, 255, 255, 0.02))`
               }}
             >
@@ -456,10 +455,9 @@ export default function LibraryPage() {
                       {folder.name}
                     </h2>
                     <span
-                      className="px-2 py-0.5 rounded-full text-[11px] font-bold border flex-shrink-0"
+                      className="px-2 py-0.5 rounded-full text-[11px] font-bold border-0 flex-shrink-0"
                       style={{
                         backgroundColor: `${folderColor}25`,
-                        borderColor: `${folderColor}50`,
                         color: folderColor
                       }}
                     >
@@ -508,7 +506,7 @@ export default function LibraryPage() {
             {!isCollapsed && (
               <>
                 {folderPlaylists.length === 0 ? (
-                  <div className="p-8 rounded-2xl border border-dashed border-white/10 text-center text-white/40 text-xs">
+                  <div className="p-8 rounded-2xl border-0 bg-white/[0.03] text-center text-white/40 text-xs">
                     No playlists in this folder yet. Click &quot;+ New Playlist&quot; or edit an existing playlist to assign it here.
                   </div>
                 ) : (
@@ -557,7 +555,7 @@ export default function LibraryPage() {
               variant="liquid"
               padding="md"
               hover
-              className="h-full flex flex-col items-center justify-center border border-white/15 hover:border-white/30 transition-colors min-h-[230px]"
+              className="h-full flex flex-col items-center justify-center border-0 min-h-[230px]"
             >
               <div className="w-14 h-14 rounded-full glass-button flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -578,9 +576,9 @@ export default function LibraryPage() {
               variant="liquid"
               padding="md"
               hover
-              className="h-full flex flex-col items-center justify-center border border-emerald-400/35 hover:border-emerald-400/60 transition-colors min-h-[230px] relative overflow-hidden"
+              className="h-full flex flex-col items-center justify-center border-0 min-h-[230px] relative overflow-hidden"
             >
-              <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/35 text-[9px] font-extrabold text-emerald-300 flex items-center gap-1 whitespace-nowrap">
+              <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-500/20 border-0 text-[9px] font-extrabold text-emerald-300 flex items-center gap-1 whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                 AUTO-SYNC
               </span>
@@ -605,7 +603,7 @@ export default function LibraryPage() {
               variant="liquid"
               padding="md"
               hover
-              className="h-full flex flex-col items-center justify-center border border-cyan-400/25 hover:border-cyan-400/45 transition-colors min-h-[230px]"
+              className="h-full flex flex-col items-center justify-center border-0 min-h-[230px]"
             >
               <div className="w-14 h-14 rounded-full glass-button-cyan flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

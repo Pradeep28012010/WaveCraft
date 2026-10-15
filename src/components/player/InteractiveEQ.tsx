@@ -180,7 +180,7 @@ export default function InteractiveEQ() {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-bold text-white tracking-tight">Interactive 10-Band EQ</h3>
-            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-[10px] font-black uppercase tracking-wider">
+            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border-0 text-cyan-300 text-[10px] font-black uppercase tracking-wider">
               ±12 dB Pro Spline
             </span>
           </div>
@@ -194,12 +194,12 @@ export default function InteractiveEQ() {
             <button
               type="button"
               onClick={resetAllToFlat}
-              className="px-2.5 py-1 rounded-xl glass-button border border-white/20 text-xs font-bold text-white/80 hover:text-white transition cursor-pointer active:scale-95"
+              className="px-2.5 py-1 rounded-xl glass-button border-0 text-xs font-bold text-white/80 hover:text-white transition cursor-pointer active:scale-95"
             >
               ↺ Flat
             </button>
           )}
-          <div className="px-2.5 py-1 rounded-xl bg-white/5 border border-white/12 text-xs font-bold text-cyan-300">
+          <div className="px-2.5 py-1 rounded-xl bg-white/5 border-0 text-xs font-bold text-cyan-300">
             {equalizerPreset}
           </div>
         </div>
@@ -230,7 +230,7 @@ export default function InteractiveEQ() {
       </div>
 
       {/* ── Interactive Spline Curve Display Card ── */}
-      <div className="relative rounded-2xl liquid-glass border border-white/15 overflow-hidden p-3 sm:p-4 bg-gradient-to-b from-[#080b14]/90 via-[#070913]/95 to-[#04060c]">
+      <div className="relative rounded-2xl liquid-glass border-0 overflow-hidden p-3 sm:p-4 bg-gradient-to-b from-[#080b14]/90 via-[#070913]/95 to-[#04060c]">
         {/* Real-Time Spectrum Glow Bars behind the curve */}
         <div className="absolute inset-0 pointer-events-none flex items-end justify-between px-10 sm:px-14 pb-8 opacity-25">
           {spectrumLevels.map((lvl, i) => (
@@ -428,7 +428,7 @@ export default function InteractiveEQ() {
       </div>
 
       {/* ── 10-Band Precision Vertical Fader Deck ── */}
-      <div className="rounded-2xl liquid-glass border border-white/12 p-3 sm:p-4">
+      <div className="rounded-2xl liquid-glass border-0 p-3 sm:p-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
             Precision Octave Faders
@@ -445,7 +445,7 @@ export default function InteractiveEQ() {
             return (
               <div
                 key={freq}
-                className="flex flex-col items-center p-2 rounded-xl bg-white/[0.03] border border-white/6 hover:border-cyan-400/30 transition group"
+                className="flex flex-col items-center p-2 rounded-xl bg-white/[0.03] border-0  transition group"
               >
                 {/* dB Readout */}
                 <div

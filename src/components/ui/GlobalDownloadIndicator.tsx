@@ -41,12 +41,12 @@ export default function GlobalDownloadIndicator() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ duration: 0.2 }}
-            className="pointer-events-auto mb-3 w-[340px] sm:w-[380px] max-w-full rounded-3xl bg-[#0b0c16]/95 border border-white/15 p-4 shadow-2xl backdrop-blur-2xl text-white overflow-hidden"
+            className="pointer-events-auto mb-3 w-[340px] sm:w-[380px] max-w-full rounded-3xl bg-[#0b0c16]/95 border-0 p-4 shadow-2xl backdrop-blur-2xl text-white overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+            <div className="flex items-center justify-between pb-3 border-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-300 text-sm font-black flex-shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border-0 flex items-center justify-center text-cyan-300 text-sm font-black flex-shrink-0">
                   {isFinished ? '✓' : '⚡'}
                 </div>
                 <div className="min-w-0">
@@ -87,7 +87,7 @@ export default function GlobalDownloadIndicator() {
                     key={t.id || idx}
                     className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl text-xs transition ${
                       isCurrent
-                        ? 'bg-cyan-500/15 border border-cyan-400/30 text-cyan-200'
+                        ? 'bg-cyan-500/15 border-0 text-cyan-200'
                         : isSaved
                         ? 'bg-white/[0.03] text-white/70'
                         : 'text-white/40'
@@ -115,7 +115,7 @@ export default function GlobalDownloadIndicator() {
             </div>
 
             {/* Bottom Actions */}
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+            <div className="pt-2 border-0 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -167,7 +167,7 @@ export default function GlobalDownloadIndicator() {
         initial={{ opacity: 0, y: 20, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.9 }}
-        className="pointer-events-auto flex items-center gap-3 px-3 py-2 rounded-2xl bg-[#0e0f1a]/90 hover:bg-[#121422]/95 border border-cyan-500/30 shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_16px_rgba(6,182,212,0.15)] backdrop-blur-xl transition-all cursor-pointer group"
+        className="pointer-events-auto flex items-center gap-3 px-3 py-2 rounded-2xl bg-[#0e0f1a]/90 hover:bg-[#121422]/95 border-0 shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_16px_rgba(6,182,212,0.15)] backdrop-blur-xl transition-all cursor-pointer group"
         onClick={() => {
           setExpanded((prev) => !prev);
           toggleDrawer();

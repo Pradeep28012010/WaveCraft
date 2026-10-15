@@ -75,10 +75,10 @@ function InsetSettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 px-3 sm:px-4 border-b border-white/[0.06] last:border-0 gap-3 sm:gap-4 hover:bg-white/[0.02] transition-colors rounded-xl">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 px-3 sm:px-4 border-0 gap-3 sm:gap-4 hover:bg-white/[0.02] transition-colors rounded-xl">
       <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
         {icon && (
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center border flex-shrink-0 mt-0.5 sm:mt-0 ${iconBg}`}>
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 sm:mt-0 ${iconBg}`}>
             {icon}
           </div>
         )}
@@ -276,7 +276,7 @@ export default function SettingsPage() {
         <div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center gap-3">
             <span>Settings & Station</span>
-            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 text-[var(--color-accent)]">
+            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-[var(--color-accent)]/20 border-0 text-[var(--color-accent)]">
               Pro Studio
             </span>
           </h1>
@@ -292,7 +292,7 @@ export default function SettingsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search all settings (e.g., crossfade, eq, cache, lyrics, haptics, quality)..."
-            className="w-full px-4 py-3 pl-11 pr-10 rounded-2xl bg-white/[0.06] hover:bg-white/[0.09] focus:bg-white/[0.12] border border-white/[0.06] focus:border-[var(--color-accent)] text-white text-xs sm:text-sm outline-none transition-all placeholder:text-white/40 shadow-inner"
+            className="w-full px-4 py-3 pl-11 pr-10 rounded-2xl bg-white/[0.06] hover:bg-white/[0.09] focus:bg-white/[0.12] border-0 focus:ring-1 focus:ring-[var(--color-accent)] text-white text-xs sm:text-sm outline-none transition-all placeholder:text-white/40 shadow-inner"
           />
           <svg className="w-4 h-4 absolute left-4 top-3.5 text-white/40 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <circle cx="11" cy="11" r="8" />
@@ -355,7 +355,7 @@ export default function SettingsPage() {
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <span>🎛️ 10-Band Real-Time Studio Equalizer</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border-0">
                   32Hz - 16kHz
                 </span>
               </h2>
@@ -421,7 +421,7 @@ export default function SettingsPage() {
                     <div
                       onMouseDown={(e) => handleVerticalDrag(idx, e)}
                       onTouchStart={(e) => handleVerticalDrag(idx, e)}
-                      className="relative w-6 sm:w-8 flex-1 bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 rounded-full cursor-ns-resize flex justify-center overflow-hidden touch-none"
+                      className="relative w-6 sm:w-8 flex-1 bg-white/[0.06] hover:bg-white/[0.1] border-0 rounded-full cursor-ns-resize flex justify-center overflow-hidden touch-none"
                     >
                       <div className="absolute left-0 right-0 top-1/2 h-px bg-white/20 pointer-events-none" />
                       <div
@@ -429,7 +429,7 @@ export default function SettingsPage() {
                         style={{ height: `${pct}%` }}
                       />
                       <div
-                        className="absolute w-5 h-5 rounded-full bg-white shadow-[0_2px_10px_rgba(0,0,0,0.6)] border-2 border-[var(--color-accent)] pointer-events-none transition-all duration-75"
+                        className="absolute w-5 h-5 rounded-full bg-white shadow-[0_2px_10px_rgba(0,0,0,0.6)] border-0 pointer-events-none transition-all duration-75"
                         style={{ bottom: `calc(${pct}% - 10px)` }}
                       />
                     </div>
@@ -954,7 +954,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={handleClearHistory}
-                  className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 border-0 text-rose-300 hover:bg-rose-500/25 text-xs font-bold transition-all active:scale-95 cursor-pointer"
                 >
                   Clear History
                 </button>
@@ -985,7 +985,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <span>⚡ Offline Audio Vault</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-black text-emerald-300">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border-0 text-[10px] font-black text-emerald-300">
                       {offlineTracks.length} Saved
                     </span>
                   </h3>
@@ -1029,7 +1029,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <span>📦 Auto-Cache Quota</span>
-                    <span className="px-2 py-0.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-[10px] font-black text-blue-300">
+                    <span className="px-2 py-0.5 rounded-full bg-blue-500/20 border-0 text-[10px] font-black text-blue-300">
                       {settings.maxCacheSizeMb ?? 1024} MB Limit
                     </span>
                   </h3>
@@ -1118,7 +1118,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <span>💬 Help & Bug Diagnostics</span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-[10px] font-black text-amber-300">
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border-0 text-[10px] font-black text-amber-300">
                       Community
                     </span>
                   </h3>
@@ -1132,14 +1132,14 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => openFeedback('bug')}
-                  className="flex-1 min-w-[120px] py-2 px-3 rounded-xl bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 text-xs font-bold text-amber-300 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  className="flex-1 min-w-[120px] py-2 px-3 rounded-xl bg-amber-500/15 border-0 hover:bg-amber-500/25 text-xs font-bold text-amber-300 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
                 >
                   <span>🐛 Report Bug</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => openFeedback('feature')}
-                  className="flex-1 min-w-[120px] py-2 px-3 rounded-xl bg-purple-500/15 border border-purple-500/30 hover:bg-purple-500/25 text-xs font-bold text-purple-300 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  className="flex-1 min-w-[120px] py-2 px-3 rounded-xl bg-purple-500/15 border-0 hover:bg-purple-500/25 text-xs font-bold text-purple-300 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
                 >
                   <span>💡 Suggest Idea</span>
                 </button>
@@ -1152,12 +1152,12 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <span>🚀 App Version & Updates</span>
-                    <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/30 text-[10px] font-black text-purple-300">
+                    <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border-0 text-[10px] font-black text-purple-300">
                       v{currentVersion}
                     </span>
                   </h3>
                   {hasUpdate && (
-                    <span className="px-2 py-0.5 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 text-[10px] font-black text-[var(--color-accent)] animate-pulse">
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--color-accent)]/20 border-0 text-[10px] font-black text-[var(--color-accent)] animate-pulse">
                       Update Ready
                     </span>
                   )}
@@ -1217,7 +1217,7 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </div>
-              <p className="text-[11px] text-white/40 leading-relaxed border-t border-white/10 pt-2.5">
+              <p className="text-[11px] text-white/40 leading-relaxed border-0 pt-2.5">
                 WaveCraft is an independent, non-commercial personal audio web player. All media streams and artwork are indexed dynamically from publicly accessible endpoints and remain the property of their respective copyright holders. WaveCraft is not affiliated with or endorsed by any third-party streaming service.
               </p>
             </div>

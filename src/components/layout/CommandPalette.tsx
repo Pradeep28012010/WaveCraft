@@ -305,7 +305,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         className="relative z-10 w-full max-w-2xl rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 overflow-hidden text-white"
       >
         {/* Search Input Header */}
-        <div className="flex items-center gap-3.5 px-5 py-4 border-b border-white/12 bg-black/30">
+        <div className="flex items-center gap-3.5 px-5 py-4 border-0 bg-black/30">
           <svg
             className="w-5 h-5 text-[var(--color-accent)] flex-shrink-0"
             viewBox="0 0 24 24"
@@ -357,7 +357,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
                         setCommandPaletteOpen(false);
                       }}
                       className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl cursor-pointer transition-colors ${
-                        active ? 'bg-white/15 border border-white/20' : 'hover:bg-white/10 border border-transparent'
+                        active ? 'bg-white/15 border-0' : 'hover:bg-white/10 border-0'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -405,11 +405,11 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
                         setCommandPaletteOpen(false);
                       }}
                       className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl cursor-pointer transition-colors ${
-                        active ? 'bg-white/15 border border-white/20' : 'hover:bg-white/10 border border-transparent'
+                        active ? 'bg-white/15 border-0' : 'hover:bg-white/10 border-0'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-white/[0.07] border border-white/10 flex items-center justify-center text-base flex-shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-white/[0.07] border-0 flex items-center justify-center text-base flex-shrink-0">
                           {action.icon}
                         </div>
                         <div className="min-w-0">
@@ -447,7 +447,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer Hints */}
-        <div className="px-5 py-2.5 border-t border-white/10 bg-black/35 flex items-center justify-between text-[11px] text-white/45">
+        <div className="px-5 py-2.5 border-0 bg-black/35 flex items-center justify-between text-[11px] text-white/45">
           <div className="flex items-center gap-3">
             <span>↑↓ Navigate</span>
             <span>↵ Execute / Play</span>

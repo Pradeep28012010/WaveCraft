@@ -489,12 +489,12 @@ export default function ImportPlaylistModal({
     >
       <div className="flex flex-col gap-4 text-white select-none">
         {/* ── Apple-Grade Connection Pipeline Glass Banner ── */}
-        <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.03] border border-white/10 flex items-center justify-between gap-3 overflow-hidden relative shadow-sm">
+        <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.03] border-0 flex items-center justify-between gap-3 overflow-hidden relative shadow-sm">
           <div className="flex items-center gap-3 min-w-0">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 transition-all ${
               detectedPlatform
                 ? `${detectedPlatform.bgColor} border ${detectedPlatform.borderColor} shadow-md`
-                : 'bg-white/10 border border-white/15'
+                : 'bg-white/10 border-0'
             }`}>
               {detectedPlatform ? detectedPlatform.icon : '🌐'}
             </div>
@@ -508,7 +508,7 @@ export default function ImportPlaylistModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full liquid-glass bg-black/40 border border-white/10 flex-shrink-0 shadow-inner">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full liquid-glass bg-black/40 border-0 flex-shrink-0 shadow-inner">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
             <span className="text-[10px] font-black uppercase tracking-wider text-cyan-300">
               Lossless 320k Matcher
@@ -517,7 +517,7 @@ export default function ImportPlaylistModal({
           </div>
 
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-purple-600 border border-white/20 flex items-center justify-center text-white flex-shrink-0 shadow-lg">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-purple-600 border-0 flex items-center justify-center text-white flex-shrink-0 shadow-lg">
               <span className="text-sm font-black">W</span>
             </div>
             <div className="min-w-0 hidden sm:block">
@@ -532,7 +532,7 @@ export default function ImportPlaylistModal({
         </div>
 
         {/* ── Apple-Style Sliding Segmented Control ── */}
-        <div className="flex items-center p-1 rounded-xl liquid-glass bg-white/[0.04] border border-white/10 relative gap-1">
+        <div className="flex items-center p-1 rounded-xl liquid-glass bg-white/[0.04] border-0 relative gap-1">
           {MODES.map((m) => {
             const isActive = mode === m.id;
             return (
@@ -579,14 +579,14 @@ export default function ImportPlaylistModal({
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="px-3.5 py-2.5 rounded-xl liquid-glass bg-emerald-500/10 border border-emerald-400/25 flex flex-col gap-0.5"
+              className="px-3.5 py-2.5 rounded-xl liquid-glass bg-emerald-500/10 border-0 flex flex-col gap-0.5"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                   Live Playlist Auto-Sync Engine
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[9px] font-black text-emerald-200 uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border-0 text-[9px] font-black text-emerald-200 uppercase tracking-wider">
                   BACKGROUND ENGINE
                 </span>
               </div>
@@ -600,7 +600,7 @@ export default function ImportPlaylistModal({
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="px-3.5 py-2 rounded-xl liquid-glass bg-cyan-500/10 border border-cyan-400/25 flex items-center justify-between text-xs text-cyan-200"
+              className="px-3.5 py-2 rounded-xl liquid-glass bg-cyan-500/10 border-0 flex items-center justify-between text-xs text-cyan-200"
             >
               <span className="font-bold flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
@@ -616,7 +616,7 @@ export default function ImportPlaylistModal({
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="px-3.5 py-2 rounded-xl liquid-glass bg-purple-500/10 border border-purple-400/25 flex items-center justify-between text-xs text-purple-200"
+              className="px-3.5 py-2 rounded-xl liquid-glass bg-purple-500/10 border-0 flex items-center justify-between text-xs text-purple-200"
             >
               <span className="font-bold flex items-center gap-1.5">
                 <span>📋 Batch Tracklist Importer</span>
@@ -631,7 +631,7 @@ export default function ImportPlaylistModal({
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="px-3.5 py-2 rounded-xl liquid-glass bg-amber-500/10 border border-amber-400/25 flex items-center justify-between text-xs text-amber-200"
+              className="px-3.5 py-2 rounded-xl liquid-glass bg-amber-500/10 border-0 flex items-center justify-between text-xs text-amber-200"
             >
               <span className="font-bold flex items-center gap-1.5">
                 <span>📁 M3U8 & JSON File Importer</span>
@@ -665,7 +665,7 @@ export default function ImportPlaylistModal({
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 placeholder="https://open.spotify.com/playlist/... or https://youtube.com/playlist?list=..."
-                className="w-full h-11 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
+                className="w-full h-11 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border-0 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all shadow-inner"
               />
             </div>
 
@@ -679,13 +679,13 @@ export default function ImportPlaylistModal({
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder="Leave blank to use original title"
-                className="w-full h-10 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
+                className="w-full h-10 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border-0 text-xs text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all shadow-inner"
               />
             </div>
 
             {/* LIVE AUTO-SYNC CONFIGURATION CARD */}
             {mode === 'live' && (
-              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.02] border border-white/10 space-y-3">
+              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.02] border-0 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
                     <span>⚡ Sync Engine Rules</span>
@@ -807,7 +807,7 @@ export default function ImportPlaylistModal({
             </div>
 
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/35 text-xs text-red-200 flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-red-500/15 border-0 text-xs text-red-200 flex items-center gap-2">
                 <span className="text-base flex-shrink-0">⚠️</span>
                 <span>{errorMsg}</span>
               </div>
@@ -815,7 +815,7 @@ export default function ImportPlaylistModal({
 
             {/* IMPORT PROGRESS HUD */}
             {isImporting && (
-              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.04] border border-white/20 space-y-2">
+              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.04] border-0 space-y-2">
                 <div className="flex justify-between items-center text-xs font-bold text-white">
                   <span className="truncate pr-2 flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin border-2 border-cyan-400 border-t-transparent" />
@@ -830,7 +830,7 @@ export default function ImportPlaylistModal({
                     🎵 Matching: <span className="text-white font-semibold">{currentTrackLabel}</span>
                   </p>
                 )}
-                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
+                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border-0">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 transition-all duration-300 shadow-[0_0_12px_rgba(34,211,238,0.75)]"
                     style={{ width: `${progressPct}%` }}
@@ -853,7 +853,7 @@ export default function ImportPlaylistModal({
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10 mt-1">
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-0 mt-1">
               <button
                 type="button"
                 onClick={onClose}
@@ -893,7 +893,7 @@ export default function ImportPlaylistModal({
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder="My Curated Vibe"
-                className="w-full h-10 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
+                className="w-full h-10 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border-0 text-xs text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all shadow-inner"
               />
             </div>
 
@@ -916,7 +916,7 @@ export default function ImportPlaylistModal({
                     Paste Demo List
                   </button>
                   {parsedLineCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/30 text-[10px] font-extrabold text-purple-200">
+                    <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border-0 text-[10px] font-extrabold text-purple-200">
                       {parsedLineCount} {parsedLineCount === 1 ? 'track' : 'tracks'}
                     </span>
                   )}
@@ -929,12 +929,12 @@ export default function ImportPlaylistModal({
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
                 placeholder={`Starboy - The Weeknd\nBlinding Lights - The Weeknd\nCruel Summer - Taylor Swift\nBeliever - Imagine Dragons`}
-                className="w-full p-3 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 resize-none font-mono focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
+                className="w-full p-3 rounded-xl liquid-glass bg-white/[0.05] border-0 text-xs text-white placeholder:text-white/35 resize-none font-mono focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all shadow-inner"
               />
             </div>
 
             {isImporting && (
-              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.04] border border-white/20 space-y-2">
+              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.04] border-0 space-y-2">
                 <div className="flex justify-between items-center text-xs font-bold text-white">
                   <span className="truncate pr-2">{statusText}</span>
                   <span className="px-2 py-0.5 rounded-full bg-white/15 text-[10px] font-black tabular-nums flex-shrink-0">
@@ -946,7 +946,7 @@ export default function ImportPlaylistModal({
                     🎵 Matching: <span className="text-white font-semibold">{currentTrackLabel}</span>
                   </p>
                 )}
-                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
+                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border-0">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] via-fuchsia-500 to-cyan-400 transition-all duration-300 shadow-[0_0_12px_rgba(250,45,72,0.7)]"
                     style={{ width: `${progressPct}%` }}
@@ -955,7 +955,7 @@ export default function ImportPlaylistModal({
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10 mt-1">
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-0 mt-1">
               <button
                 type="button"
                 onClick={onClose}
@@ -988,7 +988,7 @@ export default function ImportPlaylistModal({
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder={parsedFile?.name || 'File Playlist Name'}
-                className="w-full h-10 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
+                className="w-full h-10 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border-0 text-xs text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all shadow-inner"
               />
             </div>
 
@@ -1040,13 +1040,13 @@ export default function ImportPlaylistModal({
             </div>
 
             {fileError && (
-              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-400/30 text-rose-300 text-xs font-semibold">
+              <div className="p-3 rounded-xl bg-rose-500/15 border-0 text-rose-300 text-xs font-semibold">
                 ⚠️ {fileError}
               </div>
             )}
 
             {parsedFile && parsedFile.tracks.length > 0 && (
-              <div className="p-3 rounded-xl liquid-glass bg-white/[0.03] border border-white/10 space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">
+              <div className="p-3 rounded-xl liquid-glass bg-white/[0.03] border-0 space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 block">
                   Preview ({parsedFile.tracks.length} Tracks)
                 </span>
@@ -1067,7 +1067,7 @@ export default function ImportPlaylistModal({
 
             {/* Progress Bar when importing */}
             {isImporting && (
-              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.04] border border-white/15 space-y-2 mt-1">
+              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.04] border-0 space-y-2 mt-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-extrabold text-amber-300 animate-pulse">
                     {statusText || 'Importing tracks...'}
@@ -1081,7 +1081,7 @@ export default function ImportPlaylistModal({
                     🎵 Matching: <span className="text-white font-semibold">{currentTrackLabel}</span>
                   </p>
                 )}
-                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
+                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border-0">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-500 transition-all duration-300 shadow-[0_0_12px_rgba(245,158,11,0.7)]"
                     style={{ width: `${progressPct}%` }}
@@ -1090,7 +1090,7 @@ export default function ImportPlaylistModal({
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10 mt-1">
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-0 mt-1">
               <button
                 type="button"
                 onClick={onClose}

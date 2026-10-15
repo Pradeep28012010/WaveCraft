@@ -52,10 +52,10 @@ export default memo(function UpdateModal() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 16 }}
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="relative w-full max-w-md max-h-[90vh] flex flex-col rounded-3xl bg-[#090a12]/95 border border-white/20 shadow-[0_32px_96px_rgba(0,0,0,0.9)] overflow-hidden z-10"
+          className="relative w-full max-w-md max-h-[90vh] flex flex-col rounded-3xl bg-[#090a12]/95 border-0 shadow-[0_32px_96px_rgba(0,0,0,0.9)] overflow-hidden z-10"
         >
           {/* Top specular glow header */}
-          <div className="relative px-6 pt-6 pb-4 border-b border-white/10 flex items-center justify-between">
+          <div className="relative px-6 pt-6 pb-4 border-0 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/20">
                 <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
@@ -97,7 +97,7 @@ export default memo(function UpdateModal() {
             {/* Status: Up to date */}
             {status === 'up-to-date' && (
               <div className="py-6 flex flex-col items-center justify-center gap-3 text-center">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 text-2xl shadow-[0_0_24px_rgba(52,211,153,0.3)]">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/20 border-0 flex items-center justify-center text-emerald-400 text-2xl shadow-[0_0_24px_rgba(52,211,153,0.3)]">
                   ✓
                 </div>
                 <div>
@@ -112,7 +112,7 @@ export default memo(function UpdateModal() {
             {/* Status: Available */}
             {status === 'available' && (
               <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-[var(--color-accent)]/15 to-purple-600/15 border border-[var(--color-accent)]/30">
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-[var(--color-accent)]/15 to-purple-600/15 border-0(--color-accent)]/30">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">
                       New Release Ready
@@ -132,7 +132,7 @@ export default memo(function UpdateModal() {
                 {latestVersionInfo?.releaseNotes && latestVersionInfo.releaseNotes.length > 0 && (
                   <div className="space-y-2">
                     <span className="text-xs font-bold text-white/70">What's New:</span>
-                    <div className="space-y-1.5 p-3 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-white/80">
+                    <div className="space-y-1.5 p-3 rounded-2xl bg-white/[0.04] border-0 text-xs text-white/80">
                       {latestVersionInfo.releaseNotes.map((note, idx) => (
                         <div key={idx} className="flex items-start gap-2">
                           <span className="text-[var(--color-accent)] font-bold">•</span>
@@ -154,7 +154,7 @@ export default memo(function UpdateModal() {
                 </div>
 
                 {/* Progress Track */}
-                <div className="h-3 w-full bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/15">
+                <div className="h-3 w-full bg-white/10 rounded-full overflow-hidden p-0.5 border-0">
                   <motion.div
                     className="h-full bg-gradient-to-r from-[var(--color-accent)] via-purple-500 to-emerald-400 rounded-full shadow-[0_0_12px_rgba(250,45,72,0.6)]"
                     initial={{ width: 0 }}
@@ -172,7 +172,7 @@ export default memo(function UpdateModal() {
             {/* Status: Installing */}
             {status === 'installing' && (
               <div className="py-6 flex flex-col items-center justify-center gap-3 text-center">
-                <div className="w-12 h-12 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 flex items-center justify-center text-[var(--color-accent)] text-2xl animate-pulse">
+                <div className="w-12 h-12 rounded-full bg-[var(--color-accent)]/20 border-0(--color-accent)]/40 flex items-center justify-center text-[var(--color-accent)] text-2xl animate-pulse">
                   ⚡
                 </div>
                 <div>
@@ -186,7 +186,7 @@ export default memo(function UpdateModal() {
 
             {/* Status: Permission Needed */}
             {status === 'permission_needed' && (
-              <div className="space-y-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+              <div className="space-y-4 p-4 rounded-2xl bg-amber-500/10 border-0">
                 <div className="flex items-center gap-2 text-amber-300 font-bold text-xs uppercase tracking-wider">
                   <span>⚠️ Android Permission Needed</span>
                 </div>
@@ -214,7 +214,7 @@ export default memo(function UpdateModal() {
 
             {/* Status: Error */}
             {status === 'error' && (
-              <div className="space-y-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-center">
+              <div className="space-y-3 p-4 rounded-2xl bg-rose-500/10 border-0 text-center">
                 <span className="text-2xl">⚠️</span>
                 <h4 className="text-sm font-bold text-rose-300">Update Check Failed</h4>
                 <p className="text-xs text-white/70">{errorMessage || 'Unable to download or check update.'}</p>
@@ -230,7 +230,7 @@ export default memo(function UpdateModal() {
           </div>
 
           {/* Modal Footer Controls */}
-          <div className="px-6 py-4 border-t border-white/10 bg-white/[0.02] flex items-center justify-end gap-3">
+          <div className="px-6 py-4 border-0 bg-white/[0.02] flex items-center justify-end gap-3">
             {status === 'available' && (
               <>
                 <button

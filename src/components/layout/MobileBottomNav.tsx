@@ -66,7 +66,7 @@ export default function MobileBottomNav() {
       }}
       className="fixed bottom-0 inset-x-0 z-40 px-3 pt-1 pointer-events-none select-none flex justify-center"
     >
-      <div className="w-full max-w-md pointer-events-auto h-15 rounded-[24px] liquid-glass bg-[#080812]/85 backdrop-blur-3xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.85)] px-1.5 flex items-center justify-around">
+      <div className="w-full max-w-md pointer-events-auto h-15 rounded-[24px] liquid-glass bg-[#080812]/85 backdrop-blur-3xl border-0 shadow-[0_20px_50px_rgba(0,0,0,0.85)] px-1.5 flex items-center justify-around">
         {tabs.map((tab) => (
           <NavLink
             key={tab.path}
@@ -88,7 +88,7 @@ export default function MobileBottomNav() {
                   <motion.div
                     layoutId="mobile-bottom-nav-pill"
                     transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                    className="absolute inset-x-1.5 inset-y-1 rounded-2xl bg-gradient-to-b from-white/[0.18] to-white/[0.06] border border-white/25 shadow-[0_4px_16px_rgba(250,45,72,0.2)] pointer-events-none"
+                    className="absolute inset-x-1.5 inset-y-1 rounded-2xl bg-gradient-to-b from-white/[0.18] to-white/[0.06] border-0 shadow-[0_4px_16px_rgba(250,45,72,0.2)] pointer-events-none"
                   />
                 )}
                 <div

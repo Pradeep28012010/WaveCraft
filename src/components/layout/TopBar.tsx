@@ -338,7 +338,7 @@ export default function TopBar() {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="font-black text-lg tracking-tight text-white">WaveCraft</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/40 text-[9px] font-black tracking-wider text-[var(--color-accent)] uppercase">
+              <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 border-0 text-[9px] font-black tracking-wider text-[var(--color-accent)] uppercase">
                 PRO
               </span>
             </div>
@@ -352,7 +352,7 @@ export default function TopBar() {
                 navigate(-1);
               }}
               aria-label="Go Back"
-              className="w-9 h-9 rounded-full liquid-glass border border-white/15 flex items-center justify-center text-white/90 hover:text-white shadow-md flex-shrink-0 active:scale-90 transition-transform cursor-pointer"
+              className="w-9 h-9 rounded-full liquid-glass border-0 flex items-center justify-center text-white/90 hover:text-white shadow-md flex-shrink-0 active:scale-90 transition-transform cursor-pointer"
             >
               <svg className="w-4.5 h-4.5 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6" />
@@ -424,7 +424,7 @@ export default function TopBar() {
 
               {showSuggestions && (
                 searchQuery.trim().length > 0 && suggestions.length > 0 ? (
-                  <div className="absolute left-0 right-0 top-11.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border border-white/20 z-50">
+                  <div className="absolute left-0 right-0 top-11.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 z-50">
                     <button
                       onMouseDown={() => {
                         triggerAndroidHaptic('light');
@@ -457,8 +457,8 @@ export default function TopBar() {
                     ))}
                   </div>
                 ) : !searchQuery.trim() && history.length > 0 ? (
-                  <div className="absolute left-0 right-0 top-11.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border border-white/20 z-50">
-                    <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-white/45 font-bold border-b border-white/10 mb-1">
+                  <div className="absolute left-0 right-0 top-11.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 z-50">
+                    <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-white/45 font-bold mb-1">
                       <span>RECENT SEARCHES</span>
                       <button
                         type="button"
@@ -509,7 +509,7 @@ export default function TopBar() {
                 navigate(-1);
               }}
               aria-label="Go Back"
-              className="w-9 h-9 rounded-full liquid-glass border border-white/15 flex items-center justify-center text-white/90 hover:text-white shadow-md flex-shrink-0 active:scale-90 transition-transform cursor-pointer"
+              className="w-9 h-9 rounded-full liquid-glass border-0 flex items-center justify-center text-white/90 hover:text-white shadow-md flex-shrink-0 active:scale-90 transition-transform cursor-pointer"
             >
               <svg className="w-4.5 h-4.5 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6" />
@@ -729,7 +729,7 @@ export default function TopBar() {
           {/* Search Suggestions & History Dropdown */}
           {showSuggestions && (
             searchQuery.trim().length > 0 && suggestions.length > 0 ? (
-              <div className="absolute left-0 right-0 top-13.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border border-white/20 z-50">
+              <div className="absolute left-0 right-0 top-13.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 z-50">
                 {suggestions.map((sug, i) => (
                   <button
                     key={i}
@@ -752,8 +752,8 @@ export default function TopBar() {
                 ))}
               </div>
             ) : !searchQuery.trim() && history.length > 0 ? (
-              <div className="absolute left-0 right-0 top-13.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border border-white/20 z-50">
-                <div className="flex items-center justify-between px-3 py-1.5 text-xs text-white/45 font-bold border-b border-white/10 mb-1">
+              <div className="absolute left-0 right-0 top-13.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 z-50">
+                <div className="flex items-center justify-between px-3 py-1.5 text-xs text-white/45 font-bold mb-1">
                   <span>RECENT SEARCHES</span>
                   <button
                     type="button"
@@ -921,11 +921,11 @@ export default function TopBar() {
                 Install WaveCraft as a standalone Desktop or Mobile app for full hardware media-key support (AirPods / Keyboard Play-Pause) and lock-screen controls:
               </p>
               <div className="space-y-2.5 text-xs text-white/85">
-                <div className="p-3 rounded-2xl bg-white/[0.06] border border-white/10">
+                <div className="p-3 rounded-2xl bg-white/[0.06] border-0">
                   <strong className="text-white block mb-0.5">💻 Chrome / Edge / Brave (Desktop):</strong>
                   Click the <strong>Install icon (⊕)</strong> on the right side of your browser address bar, or open the browser menu (⋮) → <strong>Install WaveCraft</strong>.
                 </div>
-                <div className="p-3 rounded-2xl bg-white/[0.06] border border-white/10">
+                <div className="p-3 rounded-2xl bg-white/[0.06] border-0">
                   <strong className="text-white block mb-0.5">📱 iOS Safari / Android Chrome:</strong>
                   Tap <strong>Share</strong> (or ⋮ menu) and select <strong>Add to Home Screen</strong>.
                 </div>

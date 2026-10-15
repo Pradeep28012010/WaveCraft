@@ -226,7 +226,7 @@ function LandingNav({ show }: { show: boolean }) {
       transition={{ delay: 0.1, duration: 0.6, ease: EASE_OUT_EXPO }}
       className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-12 py-4 transition-all duration-500 ${
         scrolled
-          ? 'bg-[#050508]/80 backdrop-blur-2xl border-b border-white/[0.06] shadow-xl shadow-black/20'
+          ? 'bg-[#050508]/80 backdrop-blur-2xl border-0 shadow-xl shadow-black/20'
           : ''
       }`}
     >
@@ -317,7 +317,7 @@ function HeroSection({ loaded }: { loaded: boolean }) {
           initial={{ y: 20, opacity: 0 }}
           animate={loaded ? { y: 0, opacity: 1 } : undefined}
           transition={{ delay: 0.15, duration: 0.6, ease: EASE_OUT_EXPO }}
-          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.07] border border-white/[0.12] backdrop-blur-xl mb-8"
+          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.07] border-0 backdrop-blur-xl mb-8"
         >
           <span className="w-2 h-2 rounded-full bg-[#fa2d48] animate-pulse" />
           <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/70">
@@ -377,7 +377,7 @@ function HeroSection({ loaded }: { loaded: boolean }) {
 
           <button
             onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-            className="px-7 py-3.5 rounded-full border border-white/15 bg-white/[0.06] backdrop-blur-xl text-white font-semibold text-sm hover:bg-white/[0.12] hover:border-white/25 transition-all duration-300 cursor-pointer"
+            className="px-7 py-3.5 rounded-full border-0 bg-white/[0.06] backdrop-blur-xl text-white font-semibold text-sm hover:bg-white/[0.12]  transition-all duration-300 cursor-pointer"
           >
             Explore Features
           </button>
@@ -423,7 +423,7 @@ function HeroSection({ loaded }: { loaded: boolean }) {
           <motion.div
             animate={{ y: [0, 8, 0] }}
             transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-            className="w-5 h-8 rounded-full border border-white/20 flex items-start justify-center pt-1.5"
+            className="w-5 h-8 rounded-full border-0 flex items-start justify-center pt-1.5"
           >
             <div className="w-1 h-1.5 rounded-full bg-white/50" />
           </motion.div>
@@ -440,12 +440,12 @@ function HeroSection({ loaded }: { loaded: boolean }) {
 function TechBadges() {
   const doubled = [...TECH_BADGES, ...TECH_BADGES];
   return (
-    <section className="py-10 overflow-hidden border-y border-white/[0.05]">
+    <section className="py-10 overflow-hidden border-0">
       <div className="landing-marquee flex">
         {doubled.map((badge, i) => (
           <div
             key={i}
-            className="flex-shrink-0 px-5 py-2 mx-3 rounded-full border border-white/[0.08] bg-white/[0.03] text-[11px] text-white/50 font-semibold tracking-[0.15em] uppercase whitespace-nowrap"
+            className="flex-shrink-0 px-5 py-2 mx-3 rounded-full border-0 bg-white/[0.03] text-[11px] text-white/50 font-semibold tracking-[0.15em] uppercase whitespace-nowrap"
           >
             {badge}
           </div>
@@ -514,7 +514,7 @@ function FeatureShowcase() {
                 style={stepStyles[idx]}
                 className="absolute inset-0 flex flex-col justify-center"
               >
-                <div className="mb-4 inline-flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 backdrop-blur-md">
+                <div className="mb-4 inline-flex items-center gap-2 self-start rounded-full border-0 bg-white/[0.05] px-3 py-1 backdrop-blur-md">
                   <span
                     className="h-1.5 w-1.5 rounded-full animate-pulse"
                     style={{ backgroundColor: feat.accent }}
@@ -554,7 +554,7 @@ function FeatureShowcase() {
               {/* Ring 1 */}
               <motion.div
                 style={{ rotate: ring1Rot }}
-                className="absolute inset-2 rounded-full border border-white/[0.08]"
+                className="absolute inset-2 rounded-full border-0"
               >
                 <div
                   className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full shadow-lg transition-colors duration-700"
@@ -565,7 +565,7 @@ function FeatureShowcase() {
               {/* Ring 2 */}
               <motion.div
                 style={{ rotate: ring2Rot }}
-                className="absolute inset-10 rounded-full border border-dashed border-white/[0.06]"
+                className="absolute inset-10 rounded-full border-0 border-white/[0.06]"
               >
                 <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white/30" />
               </motion.div>
@@ -573,14 +573,14 @@ function FeatureShowcase() {
               {/* Ring 3 */}
               <motion.div
                 style={{ rotate: ring3Rot }}
-                className="absolute inset-[4.5rem] rounded-full border border-white/[0.05]"
+                className="absolute inset-[4.5rem] rounded-full border-0"
               >
                 <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white/20" />
               </motion.div>
 
               {/* Center Glass Panel */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-28 h-28 rounded-3xl liquid-glass border border-white/15 flex flex-col items-center justify-center shadow-2xl shadow-black/40 gap-2">
+                <div className="w-28 h-28 rounded-3xl liquid-glass border-0 flex flex-col items-center justify-center shadow-2xl shadow-black/40 gap-2">
                   <div
                     className="w-8 h-8 rounded-full transition-colors duration-700"
                     style={{
@@ -652,7 +652,7 @@ function AppShowcase() {
             <motion.div
               key={i}
               whileHover={{ y: -10, scale: 1.02, transition: { duration: 0.25, ease: EASE_OUT_EXPO } }}
-              className={`relative h-[420px] w-[300px] lg:w-[340px] shrink-0 rounded-3xl border border-white/[0.08] bg-gradient-to-br ${item.gradient} backdrop-blur-xl flex flex-col justify-end p-8 overflow-hidden shadow-2xl shadow-black/30 cursor-pointer group`}
+              className={`relative h-[420px] w-[300px] lg:w-[340px] shrink-0 rounded-3xl border-0 bg-gradient-to-br ${item.gradient} backdrop-blur-xl flex flex-col justify-end p-8 overflow-hidden shadow-2xl shadow-black/30 cursor-pointer group`}
             >
               {/* Top decorative line */}
               <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
@@ -664,7 +664,7 @@ function AppShowcase() {
               <p className="text-sm text-white/50 mt-2 leading-relaxed">{item.desc}</p>
 
               {/* Hover glow */}
-              <div className="absolute inset-0 rounded-3xl border border-white/0 group-hover:border-white/15 transition-all duration-500 pointer-events-none" />
+              <div className="absolute inset-0 rounded-3xl border-0 group- transition-all duration-500 pointer-events-none" />
             </motion.div>
           ))}
         </motion.div>
@@ -705,7 +705,7 @@ function StatsSection() {
               initial={{ y: 40, opacity: 0 }}
               animate={inView ? { y: 0, opacity: 1 } : undefined}
               transition={{ delay: 0.1 + i * 0.1, duration: 0.6, ease: EASE_OUT_EXPO }}
-              className="relative rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 lg:p-8 text-center overflow-hidden group hover:border-white/15 transition-colors duration-300"
+              className="relative rounded-2xl border-0 bg-white/[0.03] p-6 lg:p-8 text-center overflow-hidden group  transition-colors duration-300"
             >
               <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
               <div className="text-4xl lg:text-5xl font-extrabold text-white mb-2">
@@ -755,7 +755,7 @@ function FeatureGrid() {
               animate={inView ? { y: 0, opacity: 1 } : undefined}
               transition={{ delay: 0.05 + i * 0.08, duration: 0.6, ease: EASE_OUT_EXPO }}
               whileHover={{ y: -4, scale: 1.01, transition: { duration: 0.2 } }}
-              className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-6 lg:p-7 cursor-pointer group hover:border-white/15 hover:bg-white/[0.04] transition-all duration-300"
+              className="rounded-2xl border-0 bg-white/[0.025] p-6 lg:p-7 cursor-pointer group  hover:bg-white/[0.04] transition-all duration-300"
             >
               <span className="text-3xl block mb-4 group-hover:scale-110 transition-transform duration-300">
                 {feat.icon}
@@ -819,7 +819,7 @@ function FooterCTA() {
       </motion.div>
 
       {/* Bottom bar */}
-      <div className="relative z-10 mt-20 pt-8 border-t border-white/[0.06] max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/30">
+      <div className="relative z-10 mt-20 pt-8 border-0 max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/30">
         <div className="flex items-center gap-2">
           <svg className="w-5 h-5" viewBox="0 0 100 100" fill="none">
             <rect x="5" y="5" width="90" height="90" rx="22" fill="url(#ft-g)" />

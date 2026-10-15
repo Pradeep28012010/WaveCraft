@@ -299,7 +299,7 @@ const TrackRow = memo(({
             damping: 36,
             mass: 0.48
           }}
-          className="absolute inset-0 rounded-2xl liquid-glass border border-white/20 pointer-events-none z-0 shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
+          className="absolute inset-0 rounded-2xl liquid-glass border-0 pointer-events-none z-0 shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
         />
       )}
 
@@ -399,7 +399,7 @@ const TrackRow = memo(({
               {track.title}
             </span>
             {trackIsOffline && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 whitespace-nowrap flex-shrink-0">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border-0 whitespace-nowrap flex-shrink-0">
                 ⚡ OFFLINE
               </span>
             )}
