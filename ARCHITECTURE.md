@@ -77,7 +77,36 @@ Located in `api/music.js`, this edge handler serves search, trending charts, new
 
 ---
 
-## 5. Automated Testing
+## 5. Interactive 10-Band Spline EQ & Vacuum Tube Simulation
+
+Located in `src/components/studio/SplineEqualizer.tsx` and `src/services/audioEngine.ts`:
+
+- **Catmull-Rom Cubic Spline**: User-dragged frequency nodes (`32Hz`, `64Hz`, `125Hz`, `250Hz`, `500Hz`, `1kHz`, `2kHz`, `4kHz`, `8kHz`, `16kHz`) are interpolated into a continuous parametric curve rendered directly via SVG `<path>`.
+- **Dynamic Biquad Filter Mapping**: Each node coordinates `(x, y)` map linearly to dB gain `[-12dB, +12dB]` in real-time, instantly adjusting the underlying `BiquadFilterNode` chain.
+- **Thermionic Triode Vacuum Tube Emulation**: Live FFT frequency bands drive simulated heater filament luminescence, grid bias modulation, and saturation warmth.
+
+---
+
+## 6. Syllable-Level Live Lyrics & Picture-in-Picture
+
+Located in `src/components/player/FloatingPiPPlayer.tsx` and `src/components/lyrics/LyricsView.tsx`:
+
+- **Syllable Glow Sweep**: Weighted duration intervals split lines into phonetic segments, applying CSS gradient sweeps synced with sub-second audio timestamps.
+- **Regional Script Detection & Transliteration**: Automatic detection for South Asian scripts (Telugu, Devanagari) converting non-Latin characters to phonetic Romanized text for sing-along accessibility.
+- **Always-on-Top Floating PiP**: Canvas-based real-time audio visualizer with track metadata and synchronized lyrics rendered into an HTML5 Picture-in-Picture window.
+
+---
+
+## 7. Storage Vault & LRU Quota Pruning
+
+Located in `src/services/offlineVault.ts`:
+
+- **1-Tap Batch Downloader**: Concurrent queue with exponential backoff download streaming, saving audio binaries as encrypted `Blob` objects.
+- **Smart LRU Eviction**: When storage approaches quota, the storage engine prunes oldest auto-cached tracks while strictly protecting user-saved manual downloads.
+
+---
+
+## 8. Automated Testing
 
 Tests are executed with Node.js's native test runner (`node:test` + `node:assert`):
 
@@ -85,7 +114,12 @@ Tests are executed with Node.js's native test runner (`node:test` + `node:assert
 npm test
 ```
 
-Covers:
+130 automated tests across 37 test suites:
+- 10-Band Spline EQ Catmull-Rom Bezier math & coordinate mapping (`test/audioDsp.test.js`)
+- Syllable glow sweep timing & script transliteration (`test/pipLyrics.test.js`)
+- 1-Tap offline batch downloader, storage breakdown & LRU quota pruning (`test/offlineVault.test.js`)
+- Indian music metadata parsing & multi-artist extraction (`test/indianMetadata.test.js`)
+- Playlist importer URL normalization & YouTube mix resolution (`test/playlistImport.test.js`)
 - AI Smart DJ prompt parsing & energy curve sequencing (`test/aiDjEngine.test.js`)
 - Spatial 3D acoustics & binaural panning boundaries (`test/spatialMath.test.js`)
 - Audiophile 10-band EQ presets & loudness math (`test/audioEngine.test.js`)

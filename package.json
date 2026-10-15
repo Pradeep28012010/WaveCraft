@@ -1,7 +1,38 @@
 {
   "name": "wavecraft",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.4.0",
+  "description": "Next-generation spatial glass music streaming platform with Web Audio DSP, AI Vibe DJ, Syllable-Synced Live Lyrics, 1-Tap Offline Vault, and Native Android & Windows desktop support.",
+  "author": "Pradeep",
+  "license": "MIT",
+  "homepage": "https://wavecraft-alpha.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pradeep28012010/WaveCraft.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Pradeep28012010/WaveCraft/issues"
+  },
+  "keywords": [
+    "music",
+    "music-streaming",
+    "react18",
+    "typescript",
+    "tailwind-v4",
+    "web-audio-api",
+    "dsp",
+    "equalizer",
+    "audiophile",
+    "ai-dj",
+    "lyrics",
+    "pwa",
+    "capacitor",
+    "electron",
+    "offline-first",
+    "jam-room",
+    "vinyl-player",
+    "spatial-audio"
+  ],
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
