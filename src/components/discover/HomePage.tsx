@@ -236,31 +236,27 @@ export default function HomePage() {
       return {
         greeting: 'Late Night Vibes',
         vibeBadge: '🌙 Nocturnal Session • 60–80 BPM Chill Flow',
-        tagline: 'Deep ambient resonance & relaxed acoustic textures',
-        auraGradient: 'radial-gradient(circle at 15% 20%, rgba(139, 92, 246, 0.16), transparent 60%)'
+        tagline: 'Deep ambient resonance & relaxed acoustic textures'
       };
     }
     if (hour < 12) {
       return {
         greeting: 'Good Morning',
         vibeBadge: '☀️ Morning Kickstart • 105–125 BPM Energize',
-        tagline: 'Bright acoustic melodies and uplifting rhythms to fuel your day',
-        auraGradient: 'radial-gradient(circle at 15% 20%, rgba(245, 158, 11, 0.16), transparent 60%)'
+        tagline: 'Bright acoustic melodies and uplifting rhythms to fuel your day'
       };
     }
     if (hour < 18) {
       return {
         greeting: 'Good Afternoon',
         vibeBadge: '⚡ Daylight Focus • 95–115 BPM Flow State',
-        tagline: 'Steady grooves, smooth momentum, and studio sound',
-        auraGradient: 'radial-gradient(circle at 15% 20%, rgba(6, 182, 212, 0.16), transparent 60%)'
+        tagline: 'Steady grooves, smooth momentum, and studio sound'
       };
     }
     return {
       greeting: 'Good Evening',
       vibeBadge: '🌆 Sunset Golden Hour • 80–100 BPM Warmth',
-      tagline: 'Velvet acoustics and unwinding beats for your evening',
-      auraGradient: 'radial-gradient(circle at 15% 20%, rgba(244, 63, 94, 0.16), transparent 60%)'
+      tagline: 'Velvet acoustics and unwinding beats for your evening'
     };
   };
 
@@ -331,11 +327,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Atmospheric Ambient Glow behind Header */}
-      <div
-        className="absolute top-0 left-0 right-0 h-96 pointer-events-none -z-10 transition-all duration-1000"
-        style={{ background: greetingInfo.auraGradient }}
-      />
 
       {/* ================= EDITORIAL ATMOSPHERIC HEADER ================= */}
       <div className="mb-8 px-1 pt-1 flex flex-col gap-4 w-full min-w-0 max-w-full">
