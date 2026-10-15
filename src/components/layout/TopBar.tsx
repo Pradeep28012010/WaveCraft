@@ -307,8 +307,6 @@ export default function TopBar() {
     if (path === '/downloads') return 'Offline Vault';
     if (path === '/settings') return 'Settings & Audio EQ';
     if (path === '/recent') return 'Recently Played';
-    if (path === '/vibe') return 'AI Vibe DJ Studio';
-    if (path === '/dj') return 'DJ Booth Mixer';
     if (path === '/galaxy') return 'Sonic Galaxy Map';
     if (path === '/stats') return 'Listening Stats';
     if (path === '/jam') return 'Live Jam Room';
@@ -732,20 +730,6 @@ export default function TopBar() {
           {showSuggestions && (
             searchQuery.trim().length > 0 && suggestions.length > 0 ? (
               <div className="absolute left-0 right-0 top-13.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border border-white/20 z-50">
-                <button
-                  onMouseDown={() => {
-                    triggerAndroidHaptic('light');
-                    navigate(`/vibe?prompt=${encodeURIComponent(searchQuery.trim())}&auto=1`);
-                    setShowSuggestions(false);
-                  }}
-                  className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left text-xs font-bold text-white glass-button-primary mb-1.5 cursor-pointer transition-colors"
-                >
-                  <span className="flex items-center gap-2 truncate">
-                    <span>✨</span>
-                    <span className="truncate">Curate AI DJ Mix for “{searchQuery.trim()}”</span>
-                  </span>
-                  <span className="text-[10px] uppercase font-black flex-shrink-0">Launch Mix →</span>
-                </button>
                 {suggestions.map((sug, i) => (
                   <button
                     key={i}

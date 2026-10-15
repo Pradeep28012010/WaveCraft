@@ -2,7 +2,7 @@
   "id": "/",
   "name": "WaveCraft — Liquid Glass Music Studio",
   "short_name": "WaveCraft",
-  "description": "High-res 320kbps music streaming studio with AI Vibe DJ, 10-band Equalizer, 3D Visualizers, Synced Lyrics, and Live Jam Rooms.",
+  "description": "High-res 320kbps music streaming studio with 10-band Equalizer, 3D Visualizers, Synced Lyrics, and Live Jam Rooms.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -27,10 +27,10 @@
   ],
   "shortcuts": [
     {
-      "name": "AI Vibe DJ",
-      "short_name": "Vibe DJ",
-      "description": "Generate an instant AI radio mix for any mood",
-      "url": "/vibe"
+      "name": "Search Music",
+      "short_name": "Search",
+      "description": "Find songs, artists, and playlists",
+      "url": "/search"
     },
     {
       "name": "Live Jam Room",

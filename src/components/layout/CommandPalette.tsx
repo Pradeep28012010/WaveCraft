@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudioStore } from '../../stores/studioStore';
 import { usePlayerStore } from '../../stores/playerStore';
-import { useFeedbackStore } from '../../stores/feedbackStore';
 import { searchTracks } from '../../services/youtube';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
@@ -184,33 +183,6 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         run: () => setStudioModalOpen(true)
       },
       {
-        id: 'summon-ai-dj',
-        category: 'AI Smart DJ',
-        title: 'Summon AI DJ Studio',
-        subtitle: 'Curate bespoke flow-sequenced playlists from natural-language prompts',
-        badge: 'AI DJ',
-        icon: '✨',
-        run: () => navigate('/vibe')
-      },
-      {
-        id: 'nav-vibe',
-        category: 'Navigation',
-        title: 'Go to AI Vibe DJ',
-        subtitle: 'Describe any mood to generate an instant playable mix',
-        badge: 'AI DJ',
-        icon: '🪄',
-        run: () => navigate('/vibe')
-      },
-      {
-        id: 'nav-dj',
-        category: 'Navigation',
-        title: 'Open Dual-Deck Live DJ Booth & Automix',
-        subtitle: 'Mix two 320kbps songs live with 3-band isolator EQ, FX pads & Bass-Swap Automix',
-        badge: 'DJ MIX',
-        icon: '🎧',
-        run: () => navigate('/dj')
-      },
-      {
         id: 'nav-galaxy',
         category: 'Navigation',
         title: 'Explore Sonic Galaxy Taste Constellation Map',
@@ -261,33 +233,6 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         subtitle: 'Jump to the next preloaded song',
         icon: '⏭️',
         run: () => nextTrack()
-      },
-      {
-        id: 'report-bug',
-        category: 'Help & Feedback',
-        title: 'Report a Bug',
-        subtitle: 'Encountered an issue? Report it with automatic device diagnostics',
-        badge: 'SUPPORT',
-        icon: '🐛',
-        run: () => useFeedbackStore.getState().openFeedback('bug')
-      },
-      {
-        id: 'suggest-feature',
-        category: 'Help & Feedback',
-        title: 'Suggest a Feature or Idea',
-        subtitle: 'Share your ideas to improve WaveCraft audio or interface',
-        badge: 'IDEA',
-        icon: '💡',
-        run: () => useFeedbackStore.getState().openFeedback('feature')
-      },
-      {
-        id: 'send-feedback',
-        category: 'Help & Feedback',
-        title: 'Send Feedback & Review',
-        subtitle: 'Rate your experience and share thoughts with the team',
-        badge: 'FEEDBACK',
-        icon: '⭐',
-        run: () => useFeedbackStore.getState().openFeedback('general')
       }
     ],
     [
@@ -306,34 +251,14 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
 
   const filteredActions = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const isAiSyntax = /^\s*ai\s*[:\s]/i.test(query) || /^\s*ai$/i.test(query);
-    const rawAiPrompt = query.replace(/^\s*ai\s*[:\s]*/i, '').trim();
-
-    if (isAiSyntax) {
-      const aiSpecialAction: CommandAction = {
-        id: 'ai-prompt-action',
-        category: 'AI Smart DJ',
-        title: rawAiPrompt ? `Summon AI DJ: "${rawAiPrompt}"` : 'Summon AI DJ Studio',
-        subtitle: rawAiPrompt
-          ? 'Launch AI DJ Studio & curate an uncompressed 320kbps set from this vibe'
-          : 'Type "ai [your mood]" to immediately curate an intelligent mix',
-        badge: 'SUMMON',
-        icon: '✨',
-        run: () => {
-          navigate(rawAiPrompt ? `/vibe?prompt=${encodeURIComponent(rawAiPrompt)}&auto=1` : '/vibe');
-        }
-      };
-      return [aiSpecialAction, ...actions.filter((a) => a.id === 'summon-ai-dj')];
-    }
-
     if (!q) return actions;
     return actions.filter(
       (a) =>
         a.title.toLowerCase().includes(q) ||
-        a.subtitle.toLowerCase().includes(q) ||
+        a.subtitle?.toLowerCase().includes(q) ||
         a.category.toLowerCase().includes(q)
     );
-  }, [actions, query, navigate]);
+  }, [actions, query]);
 
   const totalItems = trackResults.length + filteredActions.length;
 

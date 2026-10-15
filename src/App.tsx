@@ -17,9 +17,7 @@ const RecentlyPlayed = lazyWithRetry(() => import('./components/library/Recently
 const PlaylistView = lazyWithRetry(() => import('./components/library/PlaylistView'));
 const StatsPage = lazyWithRetry(() => import('./components/stats/StatsPage'));
 const SettingsPage = lazyWithRetry(() => import('./components/settings/SettingsPage'));
-const VibeDJPage = lazyWithRetry(() => import('./components/vibe/VibeDJPage'));
 const JamRoomPage = lazyWithRetry(() => import('./components/jam/JamRoomPage'));
-const DJConsolePage = lazyWithRetry(() => import('./components/dj/DJConsolePage'));
 const SonicGalaxyPage = lazyWithRetry(() => import('./components/galaxy/SonicGalaxyPage'));
 const LandingPage = lazyWithRetry(() => import('./components/landing/LandingPage'));
 const DownloadsPage = lazyWithRetry(() => import('./components/library/DownloadsPage'));
@@ -73,8 +71,6 @@ function AppContent() {
       {/* Main App Routes — wrapped in layout with sidebar, topbar, player */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<HomePage />} />
-        <Route path="/vibe" element={<VibeDJPage />} />
-        <Route path="/dj" element={<DJConsolePage />} />
         <Route path="/galaxy" element={<SonicGalaxyPage />} />
         <Route path="/jam" element={<JamRoomPage />} />
         <Route path="/search" element={<SearchResults />} />

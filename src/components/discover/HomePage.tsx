@@ -77,15 +77,6 @@ const HorizontalScroll = ({
   );
 };
 
-const VIBE_STUDIO_PRESETS = [
-  { prompt: 'Cyberpunk Midnight Drive with heavy bass synthwave', label: '🌙 Midnight Drive', color: 'from-pink-500/20 to-purple-600/30 border-pink-400/30' },
-  { prompt: 'Cozy rainy cafe lo-fi beats with soft piano', label: '☕ Rainy Cafe Lo-Fi', color: 'from-amber-500/20 to-orange-600/30 border-amber-400/30' },
-  { prompt: 'High-energy workout phonk and hard bass gym motivation', label: '⚡ Gym Phonk', color: 'from-red-500/20 to-rose-600/30 border-red-400/30' },
-  { prompt: 'Deep focus ambient flow state zero distraction electronics', label: '🧘 Deep Focus', color: 'from-cyan-500/20 to-blue-600/30 border-cyan-400/30' },
-  { prompt: 'Golden hour sunset indie acoustic chill songs', label: '🌅 Golden Hour', color: 'from-yellow-500/20 to-amber-600/30 border-yellow-400/30' },
-  { prompt: 'Bollywood trending energetic party dance tracks', label: '🔥 Desi Party Hits', color: 'from-emerald-500/20 to-teal-600/30 border-emerald-400/30' }
-];
-
 export default function HomePage() {
   const navigate = useNavigate();
   const playTrack = usePlayerStore((state) => state.playTrack);
@@ -408,18 +399,6 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    triggerAndroidHaptic('light');
-                    navigate(`/vibe?prompt=${encodeURIComponent(`${spotlightTrack.title} ${spotlightTrack.artist}`)}&auto=1`);
-                  }}
-                  className="px-4 py-3 rounded-full glass-button text-xs font-bold text-white/90 hover:text-white flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
-                  title="Curate an AI DJ set inspired by this track"
-                >
-                  <span>✨ AI DJ Remix</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
                     triggerAndroidHaptic('medium');
                     toggleLike(spotlightTrack);
                   }}
@@ -439,44 +418,6 @@ export default function HomePage() {
           </div>
         </section>
       )}
-
-      {/* ================= AI VIBE STUDIO STRIP ================= */}
-      {(activeFilter === 'all' || activeFilter === 'music') && (
-        <section className="mb-7 px-1">
-          <div className="p-3.5 sm:p-4 rounded-2xl liquid-glass border border-white/14 flex flex-col gap-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-white/90 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
-                <span>AI Vibe Studio • What mood are you craving?</span>
-              </span>
-              <button
-                onClick={() => navigate('/vibe')}
-                className="text-[11px] font-bold text-cyan-300 hover:text-white cursor-pointer"
-              >
-                Open Studio →
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 overflow-x-auto sm:overflow-x-visible no-scrollbar py-2 px-1 -my-1.5 -mx-1">
-              {VIBE_STUDIO_PRESETS.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    triggerAndroidHaptic('light');
-                    navigate(`/vibe?prompt=${encodeURIComponent(preset.prompt)}&auto=1`);
-                  }}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold text-white/90 hover:text-white bg-gradient-to-r ${preset.color} border transition-all whitespace-nowrap cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ================= UPGRADED QUICK-ACCESS 6 TILES ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && quickMixTracks.length > 0 && (
         <section className="mb-8 px-1">
           <div className="flex items-center justify-between mb-2.5">

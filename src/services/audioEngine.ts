@@ -1129,7 +1129,7 @@ export const getAudioFrequencyData = (out: Uint8Array): boolean => {
 };
 
 /**
- * Call synchronously inside a click handler before async operations (like AI Vibe DJ)
+ * Call synchronously inside a click handler before async operations (like network search)
  * so the browser unlocks audio playback for subsequent async playTrack() calls.
  */
 export const unlockAudioEngine = (): void => {

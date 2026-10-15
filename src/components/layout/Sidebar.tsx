@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
-import { useFeedbackStore } from '../../stores/feedbackStore';
 import { useOfflineVault } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
@@ -136,32 +135,8 @@ export default function Sidebar() {
     },
     {
       id: 'studio',
-      title: 'Studio & AI',
+      title: 'Live & Space',
       items: [
-        {
-          name: 'AI Vibe DJ',
-          path: '/vibe',
-          badge: '✨ AI',
-          badgeColor: 'bg-gradient-to-r from-purple-500/25 to-pink-500/25 text-pink-300 border-purple-500/35',
-          icon: () => (
-            <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" />
-            </svg>
-          )
-        },
-        {
-          name: 'Dual-Deck DJ Booth',
-          path: '/dj',
-          badge: 'PRO',
-          badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-          icon: () => (
-            <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 14v-3a9 9 0 0 1 18 0v3" />
-              <path d="M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
-              <path d="M3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-            </svg>
-          )
-        },
         {
           name: 'Sonic Galaxy Map',
           path: '/galaxy',
@@ -465,19 +440,6 @@ export default function Sidebar() {
                     ))}
                   </div>
                 </div>
-
-                {/* Feedback Button */}
-                <button
-                  onClick={() => {
-                    triggerAndroidHaptic('light');
-                    setMobileDrawerOpen(false);
-                    useFeedbackStore.getState().openFeedback();
-                  }}
-                  className="w-full flex items-center gap-3 px-3.5 h-10 rounded-xl text-amber-300/90 hover:text-amber-200 bg-amber-500/10 border border-amber-500/25 text-xs font-bold transition-all cursor-pointer mt-3 active:scale-98"
-                >
-                  <span className="text-base">🐛</span>
-                  <span>Feedback & Bug Report</span>
-                </button>
               </nav>
             </motion.aside>
           </motion.div>
@@ -684,22 +646,8 @@ export default function Sidebar() {
           </div>
         </nav>
 
-        {/* Footer Actions: Feedback & Collapse Controls */}
+        {/* Footer Actions: Collapse Controls */}
         <div className="p-2.5 pt-1 space-y-1.5 border-t border-white/[0.06] flex-shrink-0">
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              useFeedbackStore.getState().openFeedback();
-            }}
-            className={`flex items-center justify-center gap-2 w-full h-9 rounded-xl text-amber-300/90 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-xs font-bold transition-all cursor-pointer active:scale-95 ${
-              collapsed ? 'px-0' : 'px-3'
-            }`}
-            title="Report a bug or suggest an idea"
-          >
-            <span>🐛</span>
-            {!collapsed && <span>Feedback & Bugs</span>}
-          </button>
-
           <button
             onClick={handleToggleCollapse}
             aria-label={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}

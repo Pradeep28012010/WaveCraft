@@ -18,7 +18,6 @@ export interface Track {
   bpm?: number;
   mood?: string;
   energy?: number;
-  vibeTag?: string;
   isInstrumental?: boolean;
   offlineSource?: 'manual' | 'auto-cache';
   downloadedAt?: number;
@@ -103,8 +102,6 @@ export interface SettingsState {
   loudnessNormalization: boolean;
   offlineModeOnly: boolean;
   performanceProfile: 'ultra' | 'balanced' | 'performance';
-  aiApiProvider?: 'none' | 'gemini' | 'openai';
-  aiApiKey?: string;
   autoMixerFilterSweeps?: boolean;
   autoCachePlayingTracks?: boolean;
   precacheNextTrack?: boolean;
@@ -224,34 +221,6 @@ declare global {
   }
 }
 
-export type VibeEnergyCurve = 'wave' | 'peak' | 'steady';
-
-export interface AcousticInsights {
-  bpm: number;
-  mood: string;
-  energy: number; // 1-10
-  vibeTag: string;
-  genre: string;
-}
-
-export interface AiDjMix {
-  title: string;
-  subtitle: string;
-  prompt: string;
-  storyNotes?: string;
-  energyCurve: VibeEnergyCurve;
-  eqPreset: string;
-  fxMode: string;
-  visualizerStyle: string;
-  accentColor: string;
-  energyLabel: string;
-  queries: string[];
-  tracks: Track[];
-  coverArt?: string;
-  providerUsed: 'semantic' | 'gemini' | 'openai';
-  generatedAt: number;
-}
-
 export type VisualizerStyle =
   | 'bars'
   | 'wave'
@@ -266,6 +235,5 @@ export type VisualizerStyle =
 export type AudioQuality = SettingsState['audioQuality'];
 export type PerformanceProfile = SettingsState['performanceProfile'];
 export type AmbientGlowIntensity = SettingsState['ambientGlowIntensity'];
-export type AiApiProvider = NonNullable<SettingsState['aiApiProvider']>;
 
 

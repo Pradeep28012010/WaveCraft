@@ -105,8 +105,8 @@ export default function SetupPage() {
         {/* 4 Feature Badges */}
         <div className="grid grid-cols-2 gap-2 w-full mb-6 text-left">
           <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-            <div className="text-[11px] font-extrabold text-rose-400 mb-0.5">✨ AI Vibe DJ</div>
-            <div className="text-[10px] text-white/50 leading-tight">Prompt-driven mix flow</div>
+            <div className="text-[11px] font-extrabold text-rose-400 mb-0.5">✨ WaveSync Lyrics</div>
+            <div className="text-[10px] text-white/50 leading-tight">Synced live vocal flow</div>
           </div>
           <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
             <div className="text-[11px] font-extrabold text-cyan-400 mb-0.5">🎧 3D Spatial Audio</div>

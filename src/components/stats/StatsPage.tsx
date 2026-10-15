@@ -792,7 +792,7 @@ export default function StatsPage() {
               </div>
             ) : (
               <div className="p-8 text-center text-sm text-white/50">
-                Play any song from Listen Now or AI Vibe DJ to populate your Top Rotation!
+                Play any song from Listen Now or Search to populate your Top Rotation!
               </div>
             )}
           </GlassCard>

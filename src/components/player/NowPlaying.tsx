@@ -6,7 +6,6 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
-import { useFeedbackStore } from '../../stores/feedbackStore';
 import QueuePanel from './QueuePanel';
 import LyricsView from '../lyrics/LyricsView';
 import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
@@ -21,8 +20,6 @@ import { useTrackOfflineStatus } from '../../services/offlineVault';
 import { useColorExtract } from '../../hooks/useColorExtract';
 import { useSleepTimer } from '../../hooks/useSleepTimer';
 import WindowsTitleBar from '../layout/WindowsTitleBar';
-import { useNavigate } from 'react-router-dom';
-import { estimateTrackAcoustics } from '../../services/aiDjEngine';
 import WaveformScrubber from './WaveformScrubber';
 import HeartBurstButton from '../ui/HeartBurstButton';
 
@@ -329,8 +326,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
     setEndAtTrack
   } = useSleepTimer();
 
-  const navigate = useNavigate();
-  const [showAiInsightsDetail, setShowAiInsightsDetail] = useState(false);
   const [isAtmosphereOpen, setIsAtmosphereOpen] = useState(false);
   const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
   const isAmbientActive = useMemo(
@@ -365,7 +360,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
   if (!currentTrack) return null;
 
-  const trackAcoustics = estimateTrackAcoustics(currentTrack);
   const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
   const artSrc = currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL;
   const { palette } = useColorExtract(artSrc);
@@ -894,22 +888,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             {playbackSpeed}x
                           </span>
                         </button>
-
-                        {/* 8. Report Playback Issue / Feedback */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowToolsMenu(false);
-                            useFeedbackStore.getState().openFeedback('bug', 'Audio Playback / Stuttering');
-                          }}
-                          className="w-full flex items-center justify-between p-2 rounded-xl text-amber-300/90 hover:text-amber-200 hover:bg-amber-500/10 active:scale-[0.98] transition-all cursor-pointer border-t border-white/10 pt-2 mt-1"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-sm">🐛</span>
-                            <span className="font-medium">Report Playback Issue</span>
-                          </div>
-                          <span className="text-[10px] text-amber-400/70">Help</span>
-                        </button>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -1200,72 +1178,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       <p className="text-sm sm:text-base text-white/60 mt-0.5 font-medium truncate">
                         {currentTrack.artist}
                       </p>
-
-                      {/* Interactive AI DJ Insights Mood Tag */}
-                      <div className="mt-2 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            triggerAndroidHaptic('light');
-                            setShowAiInsightsDetail((prev) => !prev);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass glass-button border border-white/20 text-[11px] font-semibold text-white/90 transition-all cursor-pointer shadow-sm active:scale-95"
-                          title="AI DJ Insights • Click to inspect acoustic metadata"
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shadow-[0_0_8px_var(--color-accent)]" />
-                          <span className="text-white/90 font-medium">{trackAcoustics.vibeTag}</span>
-                        </button>
-                      </div>
-
-                      {/* Interactive AI DJ Insights Popover */}
-                      <AnimatePresence>
-                        {showAiInsightsDetail && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                            className="mt-2.5 p-4 rounded-2xl glass-heavy liquid-glass border border-white/20 shadow-2xl text-left space-y-2.5 max-w-sm"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black uppercase tracking-wider text-[var(--color-accent)] flex items-center gap-1.5">
-                                <span>✨</span> Acoustic Vibe Signature
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setShowAiInsightsDetail(false)}
-                                className="w-6 h-6 rounded-full glass-button text-white/60 hover:text-white flex items-center justify-center text-xs cursor-pointer"
-                              >
-                                ×
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-[11px] text-white/70">
-                              <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
-                                <span className="block text-[10px] text-white/40 uppercase font-bold">Tempo</span>
-                                <span className="text-xs font-mono font-bold text-white">{trackAcoustics.bpm} BPM</span>
-                              </div>
-                              <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
-                                <span className="block text-[10px] text-white/40 uppercase font-bold">Energy Rating</span>
-                                <span className="text-xs font-bold text-amber-300">{trackAcoustics.energy} / 10 Intensity</span>
-                              </div>
-                              <div className="p-2.5 rounded-xl liquid-glass border border-white/12 col-span-2">
-                                <span className="block text-[10px] text-white/40 uppercase font-bold">Mood & Genre</span>
-                                <span className="text-xs font-semibold text-white/90">{trackAcoustics.mood} • {trackAcoustics.vibeTag}</span>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowAiInsightsDetail(false);
-                                onClose();
-                                navigate(`/vibe?prompt=${encodeURIComponent(trackAcoustics.vibeTag)}&auto=1`);
-                              }}
-                              className="w-full py-2 px-3 rounded-xl glass-button-primary text-[11px] font-extrabold text-white flex items-center justify-center gap-1.5 cursor-pointer mt-1"
-                            >
-                              <span>✨ Launch Vibe DJ with this Mood</span>
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">

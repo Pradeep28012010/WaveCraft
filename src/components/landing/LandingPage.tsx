@@ -52,9 +52,9 @@ const FEATURES = [
 ];
 
 const SHOWCASE = [
-  { icon: '✨', title: 'AI Vibe DJ', desc: 'Describe your mood and let AI curate the perfect radio mix in real-time.', gradient: 'from-rose-500/20 to-pink-500/20' },
+  { icon: '💎', title: 'Offline Vault', desc: 'Save your favorite tracks to high-speed IndexedDB cache for instant offline playback anywhere.', gradient: 'from-rose-500/20 to-pink-500/20' },
   { icon: '🎸', title: 'Live Jam Rooms', desc: 'Listen together in sync — chat, react, and share the moment live.', gradient: 'from-emerald-500/20 to-teal-500/20' },
-  { icon: '🎛️', title: 'DJ Console', desc: 'Dual-deck turntable with crossfader, BPM sync, loop pads & live mixing.', gradient: 'from-purple-500/20 to-indigo-500/20' },
+  { icon: '🎛️', title: 'Studio Master FX', desc: '10-Band EQ, Nightcore pitch shifter, Slowed+Reverb, and 3D binaural spatial immersion.', gradient: 'from-purple-500/20 to-indigo-500/20' },
   { icon: '🌌', title: 'Sonic Galaxy', desc: 'A 3D interactive star-map where every star is a song. Explore your taste.', gradient: 'from-cyan-500/20 to-blue-500/20' },
   { icon: '🎤', title: 'Synced Lyrics', desc: 'Time-synced lyrics that scroll seamlessly with every beat of the music.', gradient: 'from-amber-500/20 to-orange-500/20' },
   { icon: '🎴', title: 'Wave Cards', desc: 'Generate and share stunning aesthetic cards of your now-playing tracks.', gradient: 'from-fuchsia-500/20 to-purple-500/20' },
@@ -78,7 +78,7 @@ const GRID_FEATURES = [
 
 const TECH_BADGES = [
   '320kbps Studio', '3D Spatial Audio', '10-Band EQ', 'Zero Ads Forever',
-  'PWA Ready', 'Synced Lyrics', 'AI Vibe DJ', 'Live Jam Rooms',
+  'PWA Ready', 'Synced Lyrics', 'Spatial Stage', 'Live Jam Rooms',
   'Nightcore & Reverb', 'Canvas Visualizers', 'Offline Vault', 'Open Source',
 ];
 

@@ -46,8 +46,6 @@ interface SettingsStore extends SettingsState {
   setOfflineModeOnly: (enabled: boolean) => void;
   toggleOfflineModeOnly: () => void;
   setPerformanceProfile: (profile: 'ultra' | 'balanced' | 'performance') => void;
-  setAiApiProvider: (provider: 'none' | 'gemini' | 'openai') => void;
-  setAiApiKey: (key: string) => void;
   setAutoMixerFilterSweeps: (enabled: boolean) => void;
   toggleAutoMixerFilterSweeps: () => void;
   setAutoCachePlayingTracks: (enabled: boolean) => void;
@@ -81,8 +79,6 @@ const defaultSettings: SettingsState = {
   loudnessNormalization: true,
   offlineModeOnly: false,
   performanceProfile: isMobileDevice ? 'balanced' : 'ultra',
-  aiApiProvider: 'none',
-  aiApiKey: '',
   autoMixerFilterSweeps: true,
   autoCachePlayingTracks: true,
   precacheNextTrack: true,
@@ -120,8 +116,6 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
     loudnessNormalization: state.loudnessNormalization ?? true,
     offlineModeOnly: state.offlineModeOnly ?? false,
     performanceProfile: state.performanceProfile ?? 'ultra',
-    aiApiProvider: state.aiApiProvider ?? 'none',
-    aiApiKey: state.aiApiKey ?? '',
     autoMixerFilterSweeps: state.autoMixerFilterSweeps ?? true,
     autoCachePlayingTracks: state.autoCachePlayingTracks ?? true,
     precacheNextTrack: state.precacheNextTrack ?? true,
@@ -332,16 +326,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     persistSettings(get());
   },
 
-  setAiApiProvider: (provider) => {
-    set({ aiApiProvider: provider });
-    persistSettings(get());
-  },
-
-  setAiApiKey: (key) => {
-    set({ aiApiKey: key });
-    persistSettings(get());
-  },
-
   setAutoMixerFilterSweeps: (enabled) => {
     set({ autoMixerFilterSweeps: enabled });
     persistSettings(get());
@@ -382,8 +366,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       loudnessNormalization: true,
       offlineModeOnly: false,
       performanceProfile: 'ultra',
-      aiApiProvider: 'none',
-      aiApiKey: '',
       autoMixerFilterSweeps: true,
       autoCachePlayingTracks: true,
       precacheNextTrack: true,
