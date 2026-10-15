@@ -30,6 +30,30 @@ describe('Floating Picture-in-Picture & Syllable-Synced Live Lyrics', () => {
       assert.ok(res.toLowerCase().includes('tum'), `Expected "tum" in result, got: ${res}`);
     });
 
+    it('transliterates Malayalam script to Romanized phonetics', () => {
+      // Malayalam: മറുപടി പറയുവാൻ മടിയുണ്ടല്ലൊ
+      const res = romanizeIndicText('മറുപടി പറയുവാൻ മടിയുണ്ടല്ലൊ');
+      assert.ok(res.includes('Marupati'), `Expected "Marupati" in result, got: ${res}`);
+    });
+
+    it('transliterates Kannada, Bengali, and Gurmukhi scripts to Romanized phonetics', () => {
+      // Kannada: ಪ್ರೇಮ (prema)
+      const kn = romanizeIndicText('ಕನ್ನಡ');
+      assert.ok(kn.toLowerCase().includes('kannada'), `Expected "kannada" in result, got: ${kn}`);
+
+      // Bengali: আমার (aamar)
+      const bn = romanizeIndicText('গান');
+      assert.ok(bn.toLowerCase().includes('gaan') || bn.toLowerCase().includes('gan'), `Expected "gaan" in result, got: ${bn}`);
+
+      // Gurmukhi: ਪੰਜਾਬ (punjab)
+      const pa = romanizeIndicText('ਗੀਤ');
+      assert.ok(pa.toLowerCase().includes('geet'), `Expected "geet" in result, got: ${pa}`);
+
+      // Gujarati: ગીત (geet)
+      const gu = romanizeIndicText('ગીત');
+      assert.ok(gu.toLowerCase().includes('geet'), `Expected "geet" in result, got: ${gu}`);
+    });
+
     it('passes through pure Latin text with proper capitalization', () => {
       const input = 'Never Gonna Give You Up';
       assert.strictEqual(romanizeIndicText(input), input);

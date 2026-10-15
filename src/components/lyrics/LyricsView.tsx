@@ -26,31 +26,7 @@ interface LyricsViewProps {
 
 const formatTimestamp = (seconds: number) => (seconds < 0 || isNaN(seconds) ? '' : formatTime(seconds));
 
-/**
- * Isolated 120fps GPU-composited Karaoke Progress Bar (`transform: scaleX`)
- * Subscribes to `currentTime` independently so the 80-line lyrics list NEVER re-renders between lines!
- */
-const ActiveLineProgress = memo(
-  ({ startTime, endTime, userOffset }: { startTime: number; endTime: number; userOffset: number }) => {
-    const currentTime = usePlayerStore((s) => s.currentTime);
-    const syncTime = currentTime + userOffset + 0.25;
-    const duration = Math.max(1.2, endTime - startTime);
-    const progress = Math.min(1, Math.max(0, (syncTime - startTime) / duration));
 
-    return (
-      <div className="mt-2.5 h-1 w-full bg-white/12 rounded-full relative">
-        <div
-          className="h-full bg-gradient-to-r from-[var(--color-accent)] via-rose-400 to-white rounded-full transition-[width] duration-150 ease-linear"
-          style={{
-            width: `${(progress * 100).toFixed(2)}%`,
-            boxShadow: '0 0 10px 1px var(--color-accent)'
-          }}
-        />
-      </div>
-    );
-  }
-);
-ActiveLineProgress.displayName = 'ActiveLineProgress';
 
 interface LyricRowProps {
   line: LyricLine;
@@ -213,13 +189,7 @@ const LyricRow = memo(
             </div>
           </div>
 
-          {isCurrent && (
-            <ActiveLineProgress
-              startTime={line.time}
-              endTime={nextLineTime}
-              userOffset={userOffset}
-            />
-          )}
+
         </motion.div>
 
         {isLongBridge && (

@@ -1,6 +1,14 @@
 /**
  * High-performance, offline phonetic transliteration engine
- * Supports Indic scripts (Devanagari/Hindi, Telugu, Tamil, Kannada, Malayalam, Bengali, Gujarati, Gurmukhi/Punjabi)
+ * Supports Indic scripts:
+ * - Devanagari / Hindi, Marathi, Nepali [0x0900 - 0x097F]
+ * - Bengali / Assamese [0x0980 - 0x09FF]
+ * - Gurmukhi / Punjabi [0x0A00 - 0x0A7F]
+ * - Gujarati [0x0A80 - 0x0AFF]
+ * - Tamil [0x0B80 - 0x0BFF]
+ * - Telugu [0x0C00 - 0x0C7F]
+ * - Kannada [0x0C80 - 0x0CFF]
+ * - Malayalam [0x0D00 - 0x0D7F]
  * Converts native script lyrics into smooth, readable Romanized Latin phonetics.
  */
 
@@ -21,7 +29,7 @@ const DEVANAGARI_CONSONANTS: Record<string, string> = {
 };
 
 const DEVANAGARI_MATRAS: Record<string, string> = {
-  'ा': 'aa', 'ि': 'i', 'ी': 'ee', 'ु': 'u', 'ू': 'oo', 'ृ': 'ri',
+  'ा': 'aa', 'ി': 'i', 'ी': 'ee', 'ु': 'u', 'ू': 'oo', 'ृ': 'ri',
   'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au', 'ं': 'n', 'ँ': 'n', 'ः': 'h'
 };
 
@@ -64,10 +72,127 @@ const TAMIL_MATRAS: Record<string, string> = {
   'ெ': 'e', 'ே': 'ae', 'ை': 'ai', 'ொ': 'o', 'ோ': 'o', 'ௌ': 'au', 'ஃ': 'k'
 };
 
-const VIRAMAS = new Set(['\u094D', '\u0C4D', '\u0BCD', '\u0CDD', '\u0D4D', '\u0A4D', '\u09CD', '\u0ACD']);
+// Malayalam Unicode mapping [0x0D00 - 0x0D7F]
+const MALAYALAM_VOWELS: Record<string, string> = {
+  'അ': 'a', 'ആ': 'aa', 'ഇ': 'i', 'ഈ': 'ee', 'ഉ': 'u', 'ഊ': 'oo', 'ഋ': 'ru',
+  'എ': 'e', 'ഏ': 'ae', 'ഐ': 'ai', 'ഒ': 'o', 'ഓ': 'o', 'ഔ': 'au', 'അം': 'am'
+};
+
+const MALAYALAM_CONSONANTS: Record<string, string> = {
+  'ക': 'ka', 'ഖ': 'kha', 'ഗ': 'ga', 'ഘ': 'gha', 'ങ': 'nga',
+  'ച': 'cha', 'ഛ': 'chha', 'ജ': 'ja', 'ഝ': 'jha', 'ഞ': 'nya',
+  'ട': 'ta', 'ഠ': 'tha', 'ഡ': 'da', 'ഢ': 'dha', 'ണ': 'na',
+  'ത': 'tha', 'ഥ': 'thha', 'ദ': 'da', 'ധ': 'dha', 'ന': 'na',
+  'പ': 'pa', 'ഫ': 'pha', 'ബ': 'ba', 'ഭ': 'bha', 'മ': 'ma',
+  'യ': 'ya', 'ര': 'ra', 'ല': 'la', 'വ': 'va', 'ശ': 'sha',
+  'ഷ': 'sha', 'സ': 'sa', 'ഹ': 'ha', 'ള': 'la', 'ഴ': 'zha', 'റ': 'ra',
+  // Malayalam Chillus (pure consonants with no inherent 'a')
+  'ൽ': 'l', 'ൾ': 'l', 'ൺ': 'n', 'ൻ': 'n', 'ർ': 'r', 'ൿ': 'k'
+};
+
+const MALAYALAM_MATRAS: Record<string, string> = {
+  'ാ': 'aa', 'ി': 'i', 'ീ': 'ee', 'ു': 'u', 'ൂ': 'oo', 'ൃ': 'ru',
+  'െ': 'e', 'േ': 'ae', 'ൈ': 'ai', 'ൊ': 'o', 'ോ': 'o', 'ൌ': 'au', 'ൗ': 'au',
+  'ം': 'm', 'ഃ': 'h'
+};
+
+// Kannada Unicode mapping [0x0C80 - 0x0CFF]
+const KANNADA_VOWELS: Record<string, string> = {
+  'ಅ': 'a', 'ಆ': 'aa', 'ಇ': 'i', 'ಈ': 'ee', 'ಉ': 'u', 'ಊ': 'oo', 'ಋ': 'ru',
+  'ಎ': 'e', 'ಏ': 'ae', 'ಐ': 'ai', 'ಒ': 'o', 'ಓ': 'o', 'ಔ': 'au', 'ಅಂ': 'am'
+};
+
+const KANNADA_CONSONANTS: Record<string, string> = {
+  'ಕ': 'ka', 'ಖ': 'kha', 'ಗ': 'ga', 'ಘ': 'gha', 'ಙ': 'nga',
+  'ಚ': 'cha', 'ಛ': 'chha', 'ಜ': 'ja', 'ಝ': 'jha', 'ಞ': 'nya',
+  'ಟ': 'ta', 'ಠ': 'tha', 'ಡ': 'da', 'ಢ': 'dha', 'ಣ': 'na',
+  'ತ': 'ta', 'ಥ': 'tha', 'ದ': 'da', 'ಧ': 'dha', 'ನ': 'na',
+  'ಪ': 'pa', 'ಫ': 'pha', 'ಬ': 'ba', 'ಭ': 'bha', 'ಮ': 'ma',
+  'ಯ': 'ya', 'ರ': 'ra', 'ಲ': 'la', 'ವ': 'va', 'ಶ': 'sha',
+  'ಷ': 'sha', 'ಸ': 'sa', 'ಹ': 'ha', 'ಳ': 'la', 'ಱ': 'ra'
+};
+
+const KANNADA_MATRAS: Record<string, string> = {
+  'ಾ': 'aa', 'ಿ': 'i', 'ೀ': 'ee', 'ು': 'u', 'ೂ': 'oo', 'ೃ': 'ru',
+  'ೆ': 'e', 'ೇ': 'ae', 'ೈ': 'ai', 'ೊ': 'o', 'ೋ': 'o', 'ೌ': 'au', 'ಂ': 'm', 'ಃ': 'h'
+};
+
+// Bengali Unicode mapping [0x0980 - 0x09FF]
+const BENGALI_VOWELS: Record<string, string> = {
+  'অ': 'o', 'আ': 'aa', 'ই': 'i', 'ঈ': 'ee', 'উ': 'u', 'ঊ': 'oo', 'ঋ': 'ri',
+  'এ': 'e', 'ঐ': 'oi', 'ও': 'o', 'ঔ': 'ou'
+};
+
+const BENGALI_CONSONANTS: Record<string, string> = {
+  'ক': 'ko', 'খ': 'kho', 'গ': 'go', 'ঘ': 'gho', 'ঙ': 'ngo',
+  'চ': 'cho', 'ছ': 'chho', 'জ': 'jo', 'ঝ': 'jho', 'ঞ': 'nyo',
+  'ট': 'to', 'ঠ': 'tho', 'ড': 'do', 'ঢ': 'dho', 'ণ': 'no',
+  'ত': 'to', 'থ': 'tho', 'দ': 'do', 'ধ': 'dho', 'ন': 'no',
+  'প': 'po', 'ফ': 'pho', 'ব': 'bo', 'ভ': 'bho', 'ম': 'mo',
+  'য': 'jo', 'র': 'ro', 'ল': 'lo', 'শ': 'sho', 'ষ': 'sho',
+  'স': 'so', 'হ': 'ho', 'ড়': 'ro', 'ঢ়': 'rho', 'য়': 'yo', 'ৎ': 't'
+};
+
+const BENGALI_MATRAS: Record<string, string> = {
+  'া': 'aa', 'ি': 'i', 'ী': 'ee', 'ু': 'u', 'ূ': 'oo', 'ৃ': 'ri',
+  'ে': 'e', 'ৈ': 'oi', 'ো': 'o', 'ৌ': 'ou', 'ং': 'ng', 'ঃ': 'h', 'ঁ': 'n'
+};
+
+// Gurmukhi / Punjabi Unicode mapping [0x0A00 - 0x0A7F]
+const GURMUKHI_VOWELS: Record<string, string> = {
+  'ਅ': 'a', 'ਆ': 'aa', 'ਇ': 'i', 'ਈ': 'ee', 'ਉ': 'u', 'ਊ': 'oo',
+  'ਏ': 'e', 'ਐ': 'ai', 'ਓ': 'o', 'ਔ': 'au'
+};
+
+const GURMUKHI_CONSONANTS: Record<string, string> = {
+  'ਕ': 'ka', 'ਖ': 'kha', 'ਗ': 'ga', 'ਘ': 'gha', 'ਙ': 'nga',
+  'ਚ': 'cha', 'ਛ': 'chha', 'ਜ': 'ja', 'ਝ': 'jha', 'ਞ': 'nya',
+  'ਟ': 'ta', 'ਠ': 'tha', 'ਡ': 'da', 'ਢ': 'dha', 'ਣ': 'na',
+  'ਤ': 'ta', 'ਥ': 'tha', 'ਦ': 'da', 'ਧ': 'dha', 'ਨ': 'na',
+  'ਪ': 'pa', 'ਫ': 'pha', 'ਬ': 'ba', 'ਭ': 'bha', 'ਮ': 'ma',
+  'ਯ': 'ya', 'ਰ': 'ra', 'ਲ': 'la', 'ਵ': 'va', 'ੜ': 'ra',
+  'ਸ': 'sa', 'ਹ': 'ha', 'ਖ਼': 'kha', 'ਗ਼': 'ga', 'ਜ਼': 'za', 'ਫ਼': 'fa'
+};
+
+const GURMUKHI_MATRAS: Record<string, string> = {
+  'ਾ': 'aa', 'ਿ': 'i', 'ੀ': 'ee', 'ੁ': 'u', 'ੂ': 'oo',
+  'ੇ': 'e', 'ੈ': 'ai', 'ੋ': 'o', 'ੌ': 'au', 'ਂ': 'n', 'ੰ': 'n', 'ੱ': ''
+};
+
+// Gujarati Unicode mapping [0x0A80 - 0x0AFF]
+const GUJARATI_VOWELS: Record<string, string> = {
+  'અ': 'a', 'આ': 'aa', 'ઇ': 'i', 'ઈ': 'ee', 'ઉ': 'u', 'ઊ': 'oo', 'ઋ': 'ru',
+  'એ': 'e', 'ઐ': 'ai', 'ઓ': 'o', 'ઔ': 'au'
+};
+
+const GUJARATI_CONSONANTS: Record<string, string> = {
+  'ક': 'ka', 'ખ': 'kha', 'ગ': 'ga', 'ઘ': 'gha', 'ઙ': 'nga',
+  'ચ': 'cha', 'છ': 'chha', 'જ': 'ja', 'ઝ': 'jha', 'ઞ': 'nya',
+  'ટ': 'ta', 'ઠ': 'tha', 'ડ': 'da', 'ઢ': 'dha', 'ણ': 'na',
+  'ત': 'ta', 'થ': 'tha', 'દ': 'da', 'ધ': 'dha', 'ન': 'na',
+  'પ': 'pa', 'ફ': 'pha', 'બ': 'ba', 'ભ': 'bha', 'મ': 'ma',
+  'ય': 'ya', 'ર': 'ra', 'લ': 'la', 'વ': 'va', 'શ': 'sha',
+  'ષ': 'sha', 'સ': 'sa', 'હ': 'ha', 'ળ': 'la'
+};
+
+const GUJARATI_MATRAS: Record<string, string> = {
+  'ા': 'aa', 'િ': 'i', 'ી': 'ee', 'ુ': 'u', 'ૂ': 'oo', 'ૃ': 'ru',
+  'ે': 'e', 'ૈ': 'ai', 'ો': 'o', 'ૌ': 'au', 'ં': 'm', 'ઃ': 'h'
+};
+
+const VIRAMAS = new Set([
+  '\u094D', // Devanagari
+  '\u09CD', // Bengali
+  '\u0A4D', // Gurmukhi
+  '\u0ACD', // Gujarati
+  '\u0BCD', // Tamil
+  '\u0C4D', // Telugu
+  '\u0CCD', // Kannada
+  '\u0D4D'  // Malayalam
+]);
 
 /**
- * Transliterates an Indic character sequence (Devanagari, Telugu, Tamil) into Romanized phonetic text
+ * Transliterates an Indic character sequence (Devanagari, Telugu, Tamil, Malayalam, Kannada, Bengali, Punjabi) into Romanized phonetic text
  */
 export function romanizeIndicText(text: string): string {
   if (!text) return '';
@@ -91,24 +216,58 @@ export function romanizeIndicText(text: string): string {
         const base = DEVANAGARI_CONSONANTS[ch];
         const next = i + 1 < len ? text[i + 1] : '';
         if (next && VIRAMAS.has(next)) {
-          // Halant / virama cancels the inherent 'a'
           out += base.slice(0, -1);
           i += 2;
           continue;
         }
         if (next && DEVANAGARI_MATRAS[next]) {
-          // Replace inherent 'a' with the matra sound
           out += base.slice(0, -1) + DEVANAGARI_MATRAS[next];
           i += 2;
           continue;
         }
-        // Inherent 'a'
         out += base;
         i++;
         continue;
       }
       if (DEVANAGARI_MATRAS[ch]) {
         out += DEVANAGARI_MATRAS[ch];
+        i++;
+        continue;
+      }
+    }
+
+    // Malayalam range [0x0D00, 0x0D7F]
+    if (code >= 0x0D00 && code <= 0x0D7F) {
+      if (MALAYALAM_VOWELS[ch]) {
+        out += MALAYALAM_VOWELS[ch];
+        i++;
+        continue;
+      }
+      if (MALAYALAM_CONSONANTS[ch]) {
+        const base = MALAYALAM_CONSONANTS[ch];
+        // Chillu consonants don't have an inherent 'a'
+        if (['ൽ', 'ൾ', 'ൺ', 'ൻ', 'ർ', 'ൿ'].includes(ch)) {
+          out += base;
+          i++;
+          continue;
+        }
+        const next = i + 1 < len ? text[i + 1] : '';
+        if (next && VIRAMAS.has(next)) {
+          out += base.slice(0, -1);
+          i += 2;
+          continue;
+        }
+        if (next && MALAYALAM_MATRAS[next]) {
+          out += base.slice(0, -1) + MALAYALAM_MATRAS[next];
+          i += 2;
+          continue;
+        }
+        out += base;
+        i++;
+        continue;
+      }
+      if (MALAYALAM_MATRAS[ch]) {
+        out += MALAYALAM_MATRAS[ch];
         i++;
         continue;
       }
@@ -145,6 +304,37 @@ export function romanizeIndicText(text: string): string {
       }
     }
 
+    // Kannada range [0x0C80, 0x0CFF]
+    if (code >= 0x0C80 && code <= 0x0CFF) {
+      if (KANNADA_VOWELS[ch]) {
+        out += KANNADA_VOWELS[ch];
+        i++;
+        continue;
+      }
+      if (KANNADA_CONSONANTS[ch]) {
+        const base = KANNADA_CONSONANTS[ch];
+        const next = i + 1 < len ? text[i + 1] : '';
+        if (next && VIRAMAS.has(next)) {
+          out += base.slice(0, -1);
+          i += 2;
+          continue;
+        }
+        if (next && KANNADA_MATRAS[next]) {
+          out += base.slice(0, -1) + KANNADA_MATRAS[next];
+          i += 2;
+          continue;
+        }
+        out += base;
+        i++;
+        continue;
+      }
+      if (KANNADA_MATRAS[ch]) {
+        out += KANNADA_MATRAS[ch];
+        i++;
+        continue;
+      }
+    }
+
     // Tamil range [0x0B80, 0x0BFF]
     if (code >= 0x0B80 && code <= 0x0BFF) {
       if (TAMIL_VOWELS[ch]) {
@@ -171,6 +361,99 @@ export function romanizeIndicText(text: string): string {
       }
       if (TAMIL_MATRAS[ch]) {
         out += TAMIL_MATRAS[ch];
+        i++;
+        continue;
+      }
+    }
+
+    // Bengali range [0x0980, 0x09FF]
+    if (code >= 0x0980 && code <= 0x09FF) {
+      if (BENGALI_VOWELS[ch]) {
+        out += BENGALI_VOWELS[ch];
+        i++;
+        continue;
+      }
+      if (BENGALI_CONSONANTS[ch]) {
+        const base = BENGALI_CONSONANTS[ch];
+        const next = i + 1 < len ? text[i + 1] : '';
+        if (next && VIRAMAS.has(next)) {
+          out += base.slice(0, -1);
+          i += 2;
+          continue;
+        }
+        if (next && BENGALI_MATRAS[next]) {
+          out += base.slice(0, -1) + BENGALI_MATRAS[next];
+          i += 2;
+          continue;
+        }
+        out += base;
+        i++;
+        continue;
+      }
+      if (BENGALI_MATRAS[ch]) {
+        out += BENGALI_MATRAS[ch];
+        i++;
+        continue;
+      }
+    }
+
+    // Gurmukhi / Punjabi range [0x0A00, 0x0A7F]
+    if (code >= 0x0A00 && code <= 0x0A7F) {
+      if (GURMUKHI_VOWELS[ch]) {
+        out += GURMUKHI_VOWELS[ch];
+        i++;
+        continue;
+      }
+      if (GURMUKHI_CONSONANTS[ch]) {
+        const base = GURMUKHI_CONSONANTS[ch];
+        const next = i + 1 < len ? text[i + 1] : '';
+        if (next && VIRAMAS.has(next)) {
+          out += base.slice(0, -1);
+          i += 2;
+          continue;
+        }
+        if (next && GURMUKHI_MATRAS[next]) {
+          out += base.slice(0, -1) + GURMUKHI_MATRAS[next];
+          i += 2;
+          continue;
+        }
+        out += base;
+        i++;
+        continue;
+      }
+      if (GURMUKHI_MATRAS[ch]) {
+        out += GURMUKHI_MATRAS[ch];
+        i++;
+        continue;
+      }
+    }
+
+    // Gujarati range [0x0A80, 0x0AFF]
+    if (code >= 0x0A80 && code <= 0x0AFF) {
+      if (GUJARATI_VOWELS[ch]) {
+        out += GUJARATI_VOWELS[ch];
+        i++;
+        continue;
+      }
+      if (GUJARATI_CONSONANTS[ch]) {
+        const base = GUJARATI_CONSONANTS[ch];
+        const next = i + 1 < len ? text[i + 1] : '';
+        if (next && VIRAMAS.has(next)) {
+          out += base.slice(0, -1);
+          i += 2;
+          continue;
+        }
+        if (next && GUJARATI_MATRAS[next]) {
+          out += base.slice(0, -1) + GUJARATI_MATRAS[next];
+          i += 2;
+          continue;
+        }
+        out += base;
+        i++;
+        continue;
+      }
+      if (GUJARATI_MATRAS[ch]) {
+        out += GUJARATI_MATRAS[ch];
         i++;
         continue;
       }
@@ -236,4 +519,3 @@ export function computeWordTimings(
     };
   });
 }
-
