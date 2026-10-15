@@ -1814,7 +1814,10 @@ export default function SonicGalaxyPage() {
         </div>
 
         {/* Tier 3: Universe Jump Presets Bar */}
-        <div className="pt-3 border-t border-white/10 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div
+          className="pt-3 border-t border-white/10 flex items-center gap-2 overflow-x-auto no-scrollbar"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           <span className="text-[11px] font-extrabold text-white/45 whitespace-nowrap flex items-center gap-1 flex-shrink-0">
             <span>🌌</span>
             <span>Jump Universe:</span>
@@ -1848,7 +1851,10 @@ export default function SonicGalaxyPage() {
 
           {/* Top Viewport VisionOS Controls */}
           <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2 pointer-events-none">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pointer-events-auto max-w-full">
+            <div
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pointer-events-auto max-w-full"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
               <button
                 onClick={() => {
                   triggerAndroidHaptic('light');

@@ -73,6 +73,7 @@ const HorizontalScroll = ({
       <div
         ref={scrollRef}
         className="flex gap-3.5 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pt-2 pb-5 px-1"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {children}
       </div>
@@ -359,7 +360,10 @@ export default function HomePage() {
         </div>
 
         {/* Unified Discovery & Navigation Control Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full max-w-full">
+        <div
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full max-w-full"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {([
             { id: 'all', label: 'All', icon: '✨' },
             { id: 'music', label: 'Music', icon: '🎵' },

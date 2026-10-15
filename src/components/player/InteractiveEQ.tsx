@@ -206,7 +206,10 @@ export default function InteractiveEQ() {
       </div>
 
       {/* Audiophile Preset Pills Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+      <div
+        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
         {Object.keys(EQ_PRESETS).map((presetName) => {
           const isSelected = equalizerPreset === presetName;
           return (

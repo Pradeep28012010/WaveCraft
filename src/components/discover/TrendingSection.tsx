@@ -120,6 +120,7 @@ export default function TrendingSection({
       <div
         ref={scrollRef}
         className="flex gap-5 overflow-x-auto no-scrollbar pt-2 pb-6 px-1"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {isLoading && tracks.length === 0
           ? Array(8)

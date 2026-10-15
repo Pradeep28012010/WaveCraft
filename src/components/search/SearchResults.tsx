@@ -404,7 +404,10 @@ export default function SearchResults() {
             </div>
 
             {/* Quick Inspiration Tags Strip */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            <div
+              className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
               <span className="text-[10px] font-black uppercase tracking-wider text-white/40 flex-shrink-0">
                 Quick Vibes:
               </span>
@@ -570,7 +573,10 @@ export default function SearchResults() {
             </div>
 
             {/* Segmented Filter Pills */}
-            <div className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-2xl overflow-x-auto no-scrollbar max-w-full">
+            <div
+              className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-2xl overflow-x-auto no-scrollbar max-w-full"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
               {selectedAlbum ? (
                 <button
                   onClick={() => setSelectedAlbum(null)}

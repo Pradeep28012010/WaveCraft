@@ -131,7 +131,10 @@ export default function LibraryPage() {
             All your liked songs, folders, smart tags, offline vault, and live auto-syncing mixes
           </p>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
+        <div
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {livePlaylistsCount > 0 && (
             <button
               type="button"
@@ -260,7 +263,10 @@ export default function LibraryPage() {
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto pt-2 pb-2.5 px-1 -my-1 -mx-1 scrollbar-none no-scrollbar">
+          <div
+            className="flex items-center gap-2 overflow-x-auto pt-2 pb-2.5 px-1 -my-1 -mx-1 scrollbar-none no-scrollbar"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             <button
               type="button"
               onClick={() => setSelectedTagFilter('all')}

@@ -58,7 +58,10 @@ export default function GenreBrowser({
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-xl self-start sm:self-auto overflow-x-auto no-scrollbar max-w-full">
+        <div
+          className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-xl self-start sm:self-auto overflow-x-auto no-scrollbar max-w-full"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {(
             [
               { id: 'all', label: 'All (16)' },

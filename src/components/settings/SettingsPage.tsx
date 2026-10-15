@@ -310,7 +310,10 @@ export default function SettingsPage() {
         </div>
 
         {/* Quick Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+        <div
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {[
             { id: 'all', label: 'All Settings' },
             { id: 'eq', label: '10-Band EQ & DSP' },
@@ -398,7 +401,10 @@ export default function SettingsPage() {
           </div>
 
           {/* Equalizer Visual Fader Rack */}
-          <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-4 overflow-x-auto no-scrollbar shadow-lg">
+          <div
+            className="rounded-[22px] border border-white/15 glass-bloom-menu p-4 overflow-x-auto no-scrollbar shadow-lg"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             <div className="flex justify-between gap-1 sm:gap-3 min-w-[340px] sm:min-w-[540px] h-52 items-center pt-2 pb-1 px-1">
               {(settings.equalizerBands || Array(10).fill(0)).map((val, idx) => {
                 const pct = ((val + 12) / 24) * 100;
