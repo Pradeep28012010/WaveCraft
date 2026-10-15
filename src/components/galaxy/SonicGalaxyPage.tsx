@@ -1662,146 +1662,103 @@ export default function SonicGalaxyPage() {
   return (
     <div className="pb-28 pt-1 text-white space-y-4 select-none">
       {/* ================= VisionOS Liquid Glass Astrolabe Command Deck ================= */}
-      <div className="rounded-3xl liquid-glass border border-white/20 p-4 sm:p-5 space-y-4 shadow-2xl">
-        {/* Top Row: Observatory Live Telemetry, Formations & Warp Search */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/40 text-[10px] font-extrabold uppercase tracking-widest text-purple-200 whitespace-nowrap flex-shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
-                OBSERVATORY LIVE • 120 FPS
+      <div className="rounded-3xl liquid-glass border border-white/20 p-5 sm:p-6 space-y-4 shadow-2xl">
+        {/* Tier 1: Main Header & Formation Switcher */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-[11px] font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
+              <span className="uppercase tracking-widest text-emerald-300 font-extrabold">
+                Observatory Live
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 whitespace-nowrap flex-shrink-0">
-                {stars.length} {stars.length === 1 ? 'Star' : 'Stars'} • {avgTasteMatch}% Match
+              <span className="text-white/25">•</span>
+              <span className="text-white/70">
+                {stars.length} {stars.length === 1 ? 'Star' : 'Stars'}
               </span>
-              {likedSongs.length > 0 ? (
-                <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-400/40 text-[10px] font-extrabold text-rose-300 whitespace-nowrap flex-shrink-0">
-                  ❤️ {likedSongs.length} Liked {likedSongs.length === 1 ? 'Song' : 'Songs'} in Orbit
-                </span>
-              ) : (
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-[10px] font-extrabold text-amber-300 whitespace-nowrap flex-shrink-0">
-                  ✨ Preview Constellation • Tap ❤️ to add songs
-                </span>
+              <span className="text-white/25">•</span>
+              <span className="text-cyan-300 font-extrabold">
+                {avgTasteMatch}% Resonance
+              </span>
+              {likedSongs.length > 0 && (
+                <>
+                  <span className="text-white/25">•</span>
+                  <span className="text-rose-300 font-extrabold">
+                    ❤️ {likedSongs.length} Liked Orbit
+                  </span>
+                </>
               )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-purple-200 to-cyan-300 bg-clip-text text-transparent">
-              Sonic Galaxy • 3D Musical Universe
+
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2.5">
+              <span>Sonic Galaxy</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 text-white/70 font-semibold border border-white/15">
+                3D Spatial Map
+              </span>
             </h1>
-            <p className="text-xs text-white/55">
-              {likedSongs.length > 0
-                ? 'Your personal 3D universe dynamically mapped from your Liked Songs with 4D Cosine DNA'
-                : 'Preview universe • Like songs anywhere in WaveCraft to build your personalized 3D galaxy'}
+            <p className="text-xs text-white/50">
+              Visualizing your library's 4D Sonic DNA across space, tempo, and harmonic affinity
             </p>
           </div>
 
-          {/* Right Controls: 3 Formations & Wormhole Warp Search */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* 3-Way Formation Switcher */}
-            <div className="flex items-center p-1 rounded-2xl bg-black/40 border border-white/15">
-              <button
-                type="button"
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setGalaxyLayout('quadrants');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                  galaxyLayout === 'quadrants'
-                    ? 'glass-button-purple text-white shadow-md'
-                    : 'text-white/65 hover:text-white'
-                }`}
-              >
-                🪐 Constellations
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setGalaxyLayout('rings');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                  galaxyLayout === 'rings'
-                    ? 'glass-button-cyan text-white shadow-md'
-                    : 'text-white/65 hover:text-white'
-                }`}
-              >
-                🎯 Taste Radar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setGalaxyLayout('spiral');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                  galaxyLayout === 'spiral'
-                    ? 'glass-button-primary text-white shadow-md'
-                    : 'text-white/65 hover:text-white'
-                }`}
-              >
-                🌀 Spiral Galaxy
-              </button>
-            </div>
-
-            {/* Wormhole Hyperjump Search Form */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (warpQuery.trim()) {
-                  triggerWormholeWarp(warpQuery.trim());
-                }
+          {/* 3-Way Formation Switcher */}
+          <div className="flex items-center p-1 rounded-2xl bg-white/[0.05] border border-white/15 backdrop-blur-xl shadow-inner self-start md:self-center">
+            <button
+              type="button"
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setGalaxyLayout('quadrants');
               }}
-              className="flex items-center gap-2 flex-1 sm:flex-initial"
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                galaxyLayout === 'quadrants'
+                  ? 'glass-button-purple text-white shadow-md'
+                  : 'text-white/60 hover:text-white'
+              }`}
             >
-              <input
-                type="text"
-                value={warpQuery}
-                onChange={(e) => setWarpQuery(e.target.value)}
-                placeholder="Warp to artist, genre, or vibe..."
-                className="w-full sm:w-56 h-10 px-3.5 rounded-full glass-input text-xs text-white placeholder-white/40"
-              />
-              <button
-                type="submit"
-                disabled={isWarping}
-                className="px-4 h-10 rounded-full glass-button-primary text-white font-extrabold text-xs uppercase tracking-wider cursor-pointer flex-shrink-0"
-              >
-                {isWarping ? 'Warping...' : '🚀 Warp'}
-              </button>
-            </form>
+              🪐 Constellations
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setGalaxyLayout('rings');
+              }}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                galaxyLayout === 'rings'
+                  ? 'glass-button-cyan text-white shadow-md'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              🎯 Taste Radar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setGalaxyLayout('spiral');
+              }}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                galaxyLayout === 'spiral'
+                  ? 'glass-button-primary text-white shadow-md'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              🌀 Spiral Galaxy
+            </button>
           </div>
         </div>
 
-        {/* Bottom Row: Universe Source Presets & Quadrant Filter Chips */}
-        <div className="pt-3 border-t border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Universe Presets */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-            {WORMHOLE_PRESETS.map((preset) => {
-              const isActive = activeWormholeLabel === preset.label;
-              return (
-                <button
-                  key={preset.label}
-                  onClick={() => triggerWormholeWarp(preset.query, preset.label)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${
-                    isActive
-                      ? 'glass-button-purple text-white shadow-sm'
-                      : 'glass-button text-white/70 hover:text-white'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Quadrant Filter Pills with Live Count */}
-          <div className="flex flex-wrap items-center gap-1.5">
+        {/* Tier 2: Quadrant Filters & Integrated Search Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+          {/* Quadrant Constellation Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => {
                 triggerAndroidHaptic('light');
                 setActiveClusterFilter(null);
               }}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
                 activeClusterFilter === null
-                  ? 'glass-button-primary text-white'
+                  ? 'glass-button-primary text-white shadow-sm'
                   : 'glass-button text-white/70 hover:text-white'
               }`}
             >
@@ -1814,17 +1771,70 @@ export default function SonicGalaxyPage() {
                   triggerAndroidHaptic('light');
                   setActiveClusterFilter(activeClusterFilter === idx ? null : idx);
                 }}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
                   activeClusterFilter === idx
-                    ? 'glass-button text-white ring-2 ring-white/40'
+                    ? 'glass-button text-white ring-2 ring-white/40 shadow-sm'
                     : 'glass-button text-white/70 hover:text-white'
                 }`}
               >
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
                 <span>{c.shortName}</span>
-                <span className="text-[10px] text-white/50">({clusterCounts[idx]})</span>
+                <span className="text-[10px] text-white/50 font-mono">({clusterCounts[idx]})</span>
               </button>
             ))}
+          </div>
+
+          {/* Integrated Sleek Search / Warp Bar */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (warpQuery.trim()) {
+                triggerWormholeWarp(warpQuery.trim());
+              }
+            }}
+            className="relative flex items-center w-full lg:w-72 flex-shrink-0"
+          >
+            <span className="absolute left-3 text-white/40 text-xs pointer-events-none">🔍</span>
+            <input
+              type="text"
+              value={warpQuery}
+              onChange={(e) => setWarpQuery(e.target.value)}
+              placeholder="Warp to artist, genre, or mood..."
+              className="w-full h-9 pl-8 pr-20 rounded-full glass-input text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+            />
+            <button
+              type="submit"
+              disabled={isWarping}
+              className="absolute right-1 top-1 bottom-1 px-3 rounded-full glass-button-primary text-white font-extrabold text-[11px] cursor-pointer transition-all flex items-center gap-1 shadow-sm"
+            >
+              {isWarping ? '...' : '🚀 Warp'}
+            </button>
+          </form>
+        </div>
+
+        {/* Tier 3: Universe Jump Presets Bar */}
+        <div className="pt-3 border-t border-white/10 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <span className="text-[11px] font-extrabold text-white/45 whitespace-nowrap flex items-center gap-1 flex-shrink-0">
+            <span>🌌</span>
+            <span>Jump Universe:</span>
+          </span>
+          <div className="flex items-center gap-1.5 flex-nowrap">
+            {WORMHOLE_PRESETS.map((preset) => {
+              const isActive = activeWormholeLabel === preset.label;
+              return (
+                <button
+                  key={preset.label}
+                  onClick={() => triggerWormholeWarp(preset.query, preset.label)}
+                  className={`px-3 py-1 rounded-full text-[11px] font-extrabold whitespace-nowrap transition-all cursor-pointer ${
+                    isActive
+                      ? 'glass-button-purple text-white shadow-sm'
+                      : 'glass-button text-white/70 hover:text-white'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
