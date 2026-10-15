@@ -311,10 +311,10 @@ const TrackRow = memo(({
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
         onContextMenu={handleContextMenu}
-        className={`relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none border transition-all duration-200 z-10 ${
+        className={`relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none transition-all duration-200 z-10 ${
           isCurrentTrack
-            ? 'liquid-glass border-[var(--color-accent)]/45 bg-[var(--color-accent)]/[0.12] shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
-            : 'liquid-glass border-white/10 hover:border-white/25 hover:bg-white/[0.08] active:scale-[0.99]'
+            ? 'liquid-glass bg-[var(--color-accent)]/[0.12] shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
+            : 'liquid-glass hover:bg-white/[0.08] active:scale-[0.99]'
         }`}
       >
         {/* Left: Index / Equalizer / Play on Hover */}

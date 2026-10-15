@@ -405,7 +405,7 @@ export default function SearchResults() {
 
             {/* Quick Inspiration Tags Strip */}
             <div
-              className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1"
+              className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-2.5 px-1"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               <span className="text-[10px] font-black uppercase tracking-wider text-white/40 flex-shrink-0">
@@ -415,7 +415,7 @@ export default function SearchResults() {
                 <button
                   key={tag.label}
                   onClick={() => handleQuickSearch(tag.query)}
-                  className="px-3.5 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 hover:border-white/25 text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer flex-shrink-0 whitespace-nowrap active:scale-95"
+                  className="px-3.5 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/[0.04] text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer flex-shrink-0 whitespace-nowrap active:scale-95"
                 >
                   {tag.label}
                 </button>
@@ -574,7 +574,7 @@ export default function SearchResults() {
 
             {/* Segmented Filter Pills */}
             <div
-              className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-2xl overflow-x-auto no-scrollbar max-w-full"
+              className="flex items-center gap-1.5 p-1.5 rounded-full bg-white/[0.05] border border-white/[0.04] backdrop-blur-2xl overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {selectedAlbum ? (
@@ -605,8 +605,8 @@ export default function SearchResults() {
           {/* SELECTED ALBUM DETAIL VIEW */}
           {selectedAlbum ? (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <GlassCard variant="liquid" padding="lg" className="border border-white/15">
-                <div className="flex flex-col md:flex-row items-start md:items-end gap-6 pb-6 border-b border-white/10">
+              <GlassCard variant="liquid" padding="lg">
+                <div className="flex flex-col md:flex-row items-start md:items-end gap-6 pb-6">
                   <img
                     src={selectedAlbum.coverUrl || selectedAlbum.thumbnail || DEFAULT_THUMBNAIL}
                     alt={selectedAlbum.title || selectedAlbum.name}
@@ -760,11 +760,10 @@ export default function SearchResults() {
                           topTrack
                         );
                       }}
-                      className="group relative overflow-hidden rounded-3xl p-6 liquid-glass border border-white/20 hover:border-white/35 transition-all duration-300 shadow-[0_16px_40px_rgba(0,0,0,0.55)] cursor-pointer flex flex-col justify-between flex-1 min-h-[300px]"
+                      className="group relative overflow-hidden rounded-3xl p-6 liquid-glass border border-white/[0.04] transition-all duration-300 shadow-[0_16px_40px_rgba(0,0,0,0.55)] cursor-pointer flex flex-col justify-between flex-1 min-h-[300px]"
                     >
                       {/* Ambient Bloom Glow */}
                       <div className="absolute -top-12 -left-12 w-48 h-48 rounded-full bg-[var(--color-accent)]/20 blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
-                      <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-80" />
 
                       <div className="relative z-10 flex items-start gap-5">
                         {/* Artwork with Live Equalizer & Hover Play Overlay */}
@@ -1026,9 +1025,9 @@ export default function SearchResults() {
                       <div
                         key={artist.id}
                         onClick={() => handleQuickSearch(artist.name)}
-                        className="group flex flex-col items-center text-center p-4 rounded-3xl liquid-glass border border-white/15 hover:border-white/35 hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none"
+                        className="group flex flex-col items-center text-center p-4 rounded-3xl liquid-glass border border-white/[0.04] hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none"
                       >
-                        <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden mb-3.5 relative shadow-[0_12px_28px_rgba(0,0,0,0.6)] border-2 border-white/20 group-hover:border-[var(--color-accent)] transition-colors">
+                        <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden mb-3.5 relative shadow-[0_12px_28px_rgba(0,0,0,0.6)] border border-white/[0.08] group-hover:shadow-[0_0_20px_rgba(250,45,72,0.3)] transition-all">
                           {artist.imageUrl || artist.thumbnail ? (
                             <img
                               src={artist.imageUrl || artist.thumbnail}
@@ -1077,10 +1076,10 @@ export default function SearchResults() {
                       <div
                         key={album.id}
                         onClick={() => handleOpenAlbum(album, false)}
-                        className="group flex flex-col p-3.5 sm:p-4 rounded-3xl liquid-glass border border-white/15 hover:border-white/35 hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none"
+                        className="group flex flex-col p-3.5 sm:p-4 rounded-3xl liquid-glass border border-white/[0.04] hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none"
                       >
                         {/* Artwork with Vinyl Peek Out on Hover */}
-                        <div className="relative aspect-square rounded-2xl overflow-hidden mb-3 bg-white/5 border border-white/10 group-hover:border-white/25 transition-all">
+                        <div className="relative aspect-square rounded-2xl overflow-hidden mb-3 bg-white/5 transition-all">
                           {/* 3D Vinyl peek out */}
                           <div className="absolute right-1 top-2 bottom-2 w-20 rounded-full bg-zinc-950 border border-zinc-700 shadow-xl opacity-0 group-hover:opacity-100 group-hover:translate-x-3 transition-all duration-300 pointer-events-none flex items-center justify-center">
                             <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 flex items-center justify-center">
@@ -1148,11 +1147,11 @@ export default function SearchResults() {
                             handleQuickSearch(pl.query);
                           }
                         }}
-                        className={`group flex flex-col p-3.5 sm:p-4 rounded-3xl liquid-glass border border-white/15 hover:border-white/35 hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none ${
+                        className={`group flex flex-col p-3.5 sm:p-4 rounded-3xl liquid-glass border border-white/[0.04] hover:scale-[1.03] transition-all duration-300 cursor-pointer shadow-xl select-none ${
                           pl.colorClass || ''
                         }`}
                       >
-                        <div className="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-white/5 flex items-center justify-center border border-white/10">
+                        <div className="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-white/5 flex items-center justify-center">
                           {pl.type === 'curated' ? (
                             <span className="text-5xl drop-shadow-lg group-hover:scale-115 transition-transform duration-300">
                               {pl.emoji || '🎵'}

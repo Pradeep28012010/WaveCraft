@@ -361,7 +361,7 @@ export default function HomePage() {
 
         {/* Unified Discovery & Navigation Control Bar */}
         <div
-          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full max-w-full"
+          className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-2.5 px-1 w-full max-w-full"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {([
@@ -380,7 +380,7 @@ export default function HomePage() {
                 }}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
                   isSelected
-                    ? 'glass-button-primary text-white shadow-lg scale-102'
+                    ? 'glass-button-primary text-white shadow-md scale-102'
                     : 'glass-button text-white/70 hover:text-white'
                 }`}
               >
@@ -396,7 +396,7 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               navigate('/liked');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/80 hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/[0.04] text-xs font-bold text-white/80 hover:text-white hover:border-white/15 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
           >
             <span className="text-rose-400">❤️</span>
             <span>Liked Songs</span>
@@ -410,7 +410,7 @@ export default function HomePage() {
               triggerAndroidHaptic('medium');
               navigate('/galaxy');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/20 to-indigo-500/20 border border-violet-400/40 text-xs font-bold text-violet-200 hover:text-white hover:border-violet-400/60 active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm flex-shrink-0"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/15 to-indigo-500/15 border border-violet-400/20 text-xs font-bold text-violet-200 hover:text-white hover:border-violet-400/35 active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm flex-shrink-0"
           >
             <span>🪐</span>
             <span>3D Sonic Galaxy</span>
@@ -422,7 +422,7 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               setStudioModalOpen(true);
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/80 hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/[0.04] text-xs font-bold text-white/80 hover:text-white hover:border-white/15 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
           >
             <span className="text-amber-400">⚡</span>
             <span>Studio FX</span>
@@ -436,7 +436,7 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               navigate('/downloads');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/80 hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/[0.04] text-xs font-bold text-white/80 hover:text-white hover:border-white/15 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
           >
             <span className="text-emerald-400">📥</span>
             <span>Offline Vault</span>
@@ -447,7 +447,7 @@ export default function HomePage() {
       {/* ================= HERO SPOTLIGHT BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && spotlightTrack && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
-          <div className="relative rounded-3xl liquid-glass border border-white/20 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
+          <div className="relative rounded-3xl liquid-glass border border-white/[0.03] p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
             {/* Ambient Blurred Artwork Backdrop */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
               <img
@@ -517,7 +517,7 @@ export default function HomePage() {
               </div>
 
               {/* Action Dock: Sits below on tablet/narrow laptop with full width, and side-by-side on wide desktop */}
-              <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap w-full xl:w-auto pt-3 xl:pt-0 border-t border-white/[0.08] xl:border-t-0">
+              <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap w-full xl:w-auto pt-3 xl:pt-0">
                 {/* Play Mix Now */}
                 <button
                   type="button"
@@ -645,10 +645,10 @@ export default function HomePage() {
                       quickMixTracks
                     );
                   }}
-                  className={`group relative flex items-center gap-2.5 sm:gap-3.5 p-2 rounded-2xl liquid-glass border transition-all cursor-pointer shadow-md overflow-hidden active:scale-[0.98] ${
+                  className={`group relative flex items-center gap-2.5 sm:gap-3.5 p-2 rounded-2xl liquid-glass transition-all cursor-pointer shadow-md overflow-hidden active:scale-[0.98] ${
                     isThisPlaying
-                      ? 'border-[var(--color-accent)]/50 bg-white/[0.14] shadow-[0_8px_28px_rgba(0,0,0,0.45),0_0_20px_rgba(250,45,72,0.2)]'
-                      : 'border-white/10 hover:border-white/25 hover:bg-white/[0.10]'
+                      ? 'bg-white/[0.14] shadow-[0_8px_28px_rgba(0,0,0,0.45),0_0_24px_rgba(250,45,72,0.18)]'
+                      : 'hover:bg-white/[0.10]'
                   }`}
                 >
                   <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
@@ -702,7 +702,7 @@ export default function HomePage() {
       {/* ================= 3D SONIC GALAXY OBSERVATORY PORTAL BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
-          <div className="relative rounded-3xl liquid-glass border border-white/20 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
+          <div className="relative rounded-3xl liquid-glass border border-white/[0.04] p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
             {/* Deep Galactic Gradient Background */}
             <div className="absolute inset-0 pointer-events-none -z-10">
               <div className="absolute inset-0 bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-blue-950/70" />
@@ -805,8 +805,8 @@ export default function HomePage() {
                   );
                 }}
               >
-                <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 border ${
-                  isPlayingThis ? 'border-[var(--color-accent)]/60 shadow-[0_8px_25px_rgba(250,45,72,0.3)]' : 'border-white/10'
+                <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 ${
+                  isPlayingThis ? 'shadow-[0_8px_25px_rgba(250,45,72,0.25)]' : ''
                 }`}>
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
@@ -893,7 +893,7 @@ export default function HomePage() {
               }}
               className="min-w-[130px] max-w-[130px] sm:min-w-[155px] sm:max-w-[155px] flex-shrink-0 snap-start flex flex-col items-center text-center group cursor-pointer"
             >
-              <div className="w-28 h-28 sm:w-34 sm:h-34 rounded-full overflow-hidden mb-2.5 relative bg-white/10 shadow-lg border border-white/15 group-hover:border-[var(--color-accent)] transition-all duration-300">
+              <div className="w-28 h-28 sm:w-34 sm:h-34 rounded-full overflow-hidden mb-2.5 relative bg-white/10 shadow-lg border border-white/[0.04] group-hover:shadow-[0_0_20px_rgba(250,45,72,0.3)] transition-all duration-300">
                 <img
                   src={artist.avatar}
                   alt={artist.name}

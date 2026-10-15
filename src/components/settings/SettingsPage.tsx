@@ -292,7 +292,7 @@ export default function SettingsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search all settings (e.g., crossfade, eq, cache, lyrics, haptics, quality)..."
-            className="w-full px-4 py-3 pl-11 pr-10 rounded-2xl bg-white/[0.06] hover:bg-white/[0.09] focus:bg-white/[0.12] border border-white/15 focus:border-[var(--color-accent)] text-white text-xs sm:text-sm outline-none transition-all placeholder:text-white/40 shadow-inner"
+            className="w-full px-4 py-3 pl-11 pr-10 rounded-2xl bg-white/[0.06] hover:bg-white/[0.09] focus:bg-white/[0.12] border border-white/[0.06] focus:border-[var(--color-accent)] text-white text-xs sm:text-sm outline-none transition-all placeholder:text-white/40 shadow-inner"
           />
           <svg className="w-4 h-4 absolute left-4 top-3.5 text-white/40 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <circle cx="11" cy="11" r="8" />
@@ -311,7 +311,7 @@ export default function SettingsPage() {
 
         {/* Quick Category Filter Pills */}
         <div
-          className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1"
+          className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-2.5 px-1"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {[
@@ -335,8 +335,8 @@ export default function SettingsPage() {
                 }}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-[var(--color-accent)] text-white shadow-md shadow-[var(--color-accent)]/30'
-                    : 'glass text-white/60 hover:text-white hover:bg-white/10'
+                    ? 'bg-[var(--color-accent)] text-white shadow-sm'
+                    : 'glass text-white/70 hover:text-white'
                 }`}
               >
                 {cat.label}
@@ -402,7 +402,7 @@ export default function SettingsPage() {
 
           {/* Equalizer Visual Fader Rack */}
           <div
-            className="rounded-[22px] border border-white/15 glass-bloom-menu p-4 overflow-x-auto no-scrollbar shadow-lg"
+            className="rounded-[22px] glass-bloom-menu p-4 overflow-x-auto no-scrollbar shadow-lg"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             <div className="flex justify-between gap-1 sm:gap-3 min-w-[340px] sm:min-w-[540px] h-52 items-center pt-2 pb-1 px-1">
@@ -442,7 +442,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Extra Acoustic DSP Punch & Spatial Controls */}
-          <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
+          <div className="rounded-[22px] glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
             <InsetSettingRow
               icon={<span className="text-sm">💥</span>}
               iconBg="bg-rose-500/20 text-rose-300 border-rose-500/30"
@@ -502,7 +502,7 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
+          <div className="rounded-[22px] glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
             <InsetSettingRow
               icon={<span className="text-sm">⚡</span>}
               iconBg="bg-blue-500/20 text-blue-300 border-blue-500/30"
@@ -639,7 +639,7 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
+          <div className="rounded-[22px] glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
             <InsetSettingRow
               icon={<span className="text-sm">🌈</span>}
               iconBg="bg-pink-500/20 text-pink-300 border-pink-500/30"
@@ -821,7 +821,7 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
+          <div className="rounded-[22px] glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
             <InsetSettingRow
               icon={<span className="text-sm">📜</span>}
               iconBg="bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
@@ -907,7 +907,7 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
+          <div className="rounded-[22px] glass-bloom-menu p-3 sm:p-4 flex flex-col gap-1 shadow-md">
             <InsetSettingRow
               icon={<span className="text-sm">📳</span>}
               iconBg="bg-amber-500/20 text-amber-300 border-amber-500/30"
@@ -980,7 +980,7 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Offline Vault Manager */}
-            <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-4 flex flex-col justify-between shadow-md">
+            <div className="rounded-[22px] glass-bloom-menu p-4 flex flex-col justify-between shadow-md">
               <div>
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -1024,7 +1024,7 @@ export default function SettingsPage() {
             </div>
 
             {/* Cache Quota Manager */}
-            <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-4 flex flex-col justify-between shadow-md">
+            <div className="rounded-[22px] glass-bloom-menu p-4 flex flex-col justify-between shadow-md">
               <div>
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -1070,7 +1070,7 @@ export default function SettingsPage() {
             </div>
 
             {/* Library Backup & Reset */}
-            <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-4 flex flex-col justify-between shadow-md md:col-span-2">
+            <div className="rounded-[22px] glass-bloom-menu p-4 flex flex-col justify-between shadow-md md:col-span-2">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <span>📥 Portable Backup & Factory Reset</span>
@@ -1113,7 +1113,7 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Feedback & Bug Reporting */}
-            <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-4 flex flex-col justify-between shadow-md">
+            <div className="rounded-[22px] glass-bloom-menu p-4 flex flex-col justify-between shadow-md">
               <div>
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -1147,7 +1147,7 @@ export default function SettingsPage() {
             </div>
 
             {/* In-App Auto-Updates */}
-            <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-4 flex flex-col justify-between shadow-md">
+            <div className="rounded-[22px] glass-bloom-menu p-4 flex flex-col justify-between shadow-md">
               <div>
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -1205,7 +1205,7 @@ export default function SettingsPage() {
             </div>
 
             {/* About WaveCraft Spatial Edition */}
-            <div className="rounded-[22px] border border-white/15 glass-bloom-menu p-4 flex flex-col justify-between gap-3 shadow-md md:col-span-2">
+            <div className="rounded-[22px] glass-bloom-menu p-4 flex flex-col justify-between gap-3 shadow-md md:col-span-2">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-purple-600 flex items-center justify-center text-white font-extrabold text-xl shadow-lg flex-shrink-0">
                   W

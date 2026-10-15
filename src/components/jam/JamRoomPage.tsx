@@ -762,7 +762,7 @@ export default function JamRoomPage() {
 
               {/* Crowd Emoji Reaction Cannon Dock */}
               <div
-                className="flex items-center gap-1.5 p-2 rounded-full bg-black/45 border border-white/15 self-start xl:self-center overflow-x-auto no-scrollbar max-w-full"
+                className="flex items-center gap-1.5 p-2 rounded-full bg-black/45 border border-white/[0.04] self-start xl:self-center overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/45 px-2.5 hidden sm:inline">
@@ -999,7 +999,7 @@ export default function JamRoomPage() {
 
                 {/* 1-Tap Quick Vibe Chips */}
                 <div
-                  className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2.5"
+                  className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden no-scrollbar py-2 px-0.5"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                   {QUICK_CHAT_CHIPS.map((chip) => (
@@ -1007,7 +1007,7 @@ export default function JamRoomPage() {
                       key={chip}
                       type="button"
                       onClick={() => sendMessage(chip)}
-                      className="px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 text-[10px] font-bold text-white/75 hover:text-white whitespace-nowrap cursor-pointer transition-colors"
+                      className="px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/[0.04] text-[10px] font-bold text-white/75 hover:text-white whitespace-nowrap cursor-pointer transition-colors"
                     >
                       {chip}
                     </button>

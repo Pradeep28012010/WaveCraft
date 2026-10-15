@@ -387,7 +387,7 @@ export default function DownloadsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         {/* Category Tabs */}
         <div
-          className="flex items-center gap-1.5 bg-white/[0.05] p-1 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar"
+          className="flex items-center gap-1.5 bg-white/[0.05] p-1.5 rounded-2xl border border-white/[0.04] overflow-x-auto overflow-y-hidden no-scrollbar"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           <button

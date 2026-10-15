@@ -207,7 +207,7 @@ export default function InteractiveEQ() {
 
       {/* Audiophile Preset Pills Bar */}
       <div
-        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1"
+        className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden no-scrollbar py-2 px-1"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {Object.keys(EQ_PRESETS).map((presetName) => {
@@ -217,10 +217,10 @@ export default function InteractiveEQ() {
               key={presetName}
               type="button"
               onClick={() => setEqualizerPreset(presetName)}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition flex-shrink-0 cursor-pointer border ${
+              className={`px-3 py-1 rounded-full text-xs font-bold transition flex-shrink-0 cursor-pointer ${
                 isSelected
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-cyan-300 shadow-md shadow-cyan-500/25'
-                  : 'liquid-glass border-white/12 text-white/70 hover:text-white hover:border-white/25'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/25'
+                  : 'liquid-glass text-white/70 hover:text-white'
               }`}
             >
               {presetName}

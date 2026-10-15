@@ -119,7 +119,7 @@ export default function TrendingSection({
       {/* Track Cards Horizontal Scroll */}
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto no-scrollbar pt-2 pb-6 px-1"
+        className="flex gap-5 overflow-x-auto overflow-y-hidden no-scrollbar pt-2 pb-6 px-1"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {isLoading && tracks.length === 0
@@ -155,7 +155,7 @@ export default function TrendingSection({
                   }}
                 >
                   <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative liquid-glass shadow-md group-hover:shadow-2xl transition-all duration-300 ${
-                    isActive ? 'border border-[var(--color-accent)]/60 shadow-[0_8px_25px_rgba(250,45,72,0.3)]' : 'border border-white/10'
+                    isActive ? 'shadow-[0_8px_25px_rgba(250,45,72,0.3)]' : ''
                   }`}>
                     <img
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}

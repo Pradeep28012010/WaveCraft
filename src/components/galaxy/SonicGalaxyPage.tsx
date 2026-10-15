@@ -1815,7 +1815,7 @@ export default function SonicGalaxyPage() {
 
         {/* Tier 3: Universe Jump Presets Bar */}
         <div
-          className="pt-3 border-t border-white/10 flex items-center gap-2 overflow-x-auto no-scrollbar"
+          className="pt-3 flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1.5 px-0.5"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           <span className="text-[11px] font-extrabold text-white/45 whitespace-nowrap flex items-center gap-1 flex-shrink-0">
@@ -1846,13 +1846,13 @@ export default function SonicGalaxyPage() {
       {/* ================= Main 12-Column Layout ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Left: 120fps 3D Interactive Star Map Viewport (7 cols) */}
-        <div className="lg:col-span-7 relative rounded-3xl overflow-hidden border border-white/20 bg-[#040208] shadow-[0_30px_100px_rgba(0,0,0,0.9)] h-[480px] sm:h-[620px] lg:h-[700px]">
+        <div className="lg:col-span-7 relative rounded-3xl overflow-hidden border border-white/[0.04] bg-[#040208] shadow-[0_30px_100px_rgba(0,0,0,0.9)] h-[480px] sm:h-[620px] lg:h-[700px]">
           <canvas ref={canvasRef} className="w-full h-full block touch-none" />
 
           {/* Top Viewport VisionOS Controls */}
           <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2 pointer-events-none">
             <div
-              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pointer-events-auto max-w-full"
+              className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden no-scrollbar py-1.5 px-0.5 pointer-events-auto max-w-full"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               <button
