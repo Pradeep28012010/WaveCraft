@@ -106,6 +106,23 @@ export interface SettingsState {
   autoCachePlayingTracks?: boolean;
   precacheNextTrack?: boolean;
   maxCacheSizeMb?: number;
+  // Enhanced acoustics & player options
+  bassBoostStrength?: number;
+  spatialStereoWidth?: number;
+  gaplessPlayback?: boolean;
+  streamFallbackEngine?: boolean;
+  highResArtwork?: boolean;
+  // Lyrics preferences
+  lyricsAutoScroll?: boolean;
+  lyricsFontSize?: 'compact' | 'normal' | 'large' | 'massive';
+  lyricsShowRomanization?: boolean;
+  lyricsGlowSweep?: boolean;
+  // Sensory & controls
+  hapticFeedback?: boolean;
+  keepSearchHistory?: boolean;
+  doubleClickToPlay?: boolean;
+  showTrackNumbers?: boolean;
+  compactMiniPlayer?: boolean;
 }
 
 export interface SearchResult {

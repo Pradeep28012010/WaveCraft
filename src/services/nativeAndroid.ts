@@ -5,6 +5,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { usePlayerStore } from '../stores/playerStore';
 import { useStudioStore } from '../stores/studioStore';
 import { useContextMenuStore } from '../stores/contextMenuStore';
+import { useSettingsStore } from '../stores/settingsStore';
 
 /**
  * Returns true if the application is running inside the native Android APK wrapper.
@@ -18,6 +19,7 @@ export const isAndroidNative = (): boolean => {
  */
 export const triggerAndroidHaptic = async (type: 'light' | 'medium' | 'heavy' = 'light') => {
   if (!Capacitor.isNativePlatform()) return;
+  if (useSettingsStore.getState().hapticFeedback === false) return;
   try {
     const style =
       type === 'heavy'

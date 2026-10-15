@@ -22,6 +22,13 @@ export function saveSearchTerm(term: string): string[] {
   const clean = term.trim();
   if (!clean || clean.length < 2) return getSearchHistory();
   try {
+    const rawSettings = localStorage.getItem('wavecraft_settings_v1');
+    if (rawSettings) {
+      try {
+        const parsed = JSON.parse(rawSettings);
+        if (parsed.keepSearchHistory === false) return getSearchHistory();
+      } catch {}
+    }
     const current = getSearchHistory();
     const cleanLower = clean.toLowerCase();
     // Filter out identical terms and partial prefixes of this longer term

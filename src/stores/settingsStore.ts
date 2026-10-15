@@ -52,6 +52,20 @@ interface SettingsStore extends SettingsState {
   toggleAutoCachePlayingTracks: () => void;
   setPrecacheNextTrack: (enabled: boolean) => void;
   setMaxCacheSizeMb: (sizeMb: number) => void;
+  setBassBoostStrength: (val: number) => void;
+  setSpatialStereoWidth: (val: number) => void;
+  setGaplessPlayback: (enabled: boolean) => void;
+  setStreamFallbackEngine: (enabled: boolean) => void;
+  setHighResArtwork: (enabled: boolean) => void;
+  setLyricsAutoScroll: (enabled: boolean) => void;
+  setLyricsFontSize: (size: 'compact' | 'normal' | 'large' | 'massive') => void;
+  setLyricsShowRomanization: (enabled: boolean) => void;
+  setLyricsGlowSweep: (enabled: boolean) => void;
+  setHapticFeedback: (enabled: boolean) => void;
+  setKeepSearchHistory: (enabled: boolean) => void;
+  setDoubleClickToPlay: (enabled: boolean) => void;
+  setShowTrackNumbers: (enabled: boolean) => void;
+  setCompactMiniPlayer: (enabled: boolean) => void;
   resetSettings: () => void;
 }
 
@@ -82,7 +96,21 @@ const defaultSettings: SettingsState = {
   autoMixerFilterSweeps: true,
   autoCachePlayingTracks: true,
   precacheNextTrack: true,
-  maxCacheSizeMb: 1024
+  maxCacheSizeMb: 1024,
+  bassBoostStrength: 0,
+  spatialStereoWidth: 100,
+  gaplessPlayback: true,
+  streamFallbackEngine: true,
+  highResArtwork: true,
+  lyricsAutoScroll: true,
+  lyricsFontSize: 'normal',
+  lyricsShowRomanization: true,
+  lyricsGlowSweep: true,
+  hapticFeedback: true,
+  keepSearchHistory: true,
+  doubleClickToPlay: false,
+  showTrackNumbers: true,
+  compactMiniPlayer: false
 };
 
 /**
@@ -119,9 +147,24 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
     autoMixerFilterSweeps: state.autoMixerFilterSweeps ?? true,
     autoCachePlayingTracks: state.autoCachePlayingTracks ?? true,
     precacheNextTrack: state.precacheNextTrack ?? true,
-    maxCacheSizeMb: typeof state.maxCacheSizeMb === 'number' ? state.maxCacheSizeMb : 1024
+    maxCacheSizeMb: typeof state.maxCacheSizeMb === 'number' ? state.maxCacheSizeMb : 1024,
+    bassBoostStrength: typeof state.bassBoostStrength === 'number' ? state.bassBoostStrength : 0,
+    spatialStereoWidth: typeof state.spatialStereoWidth === 'number' ? state.spatialStereoWidth : 100,
+    gaplessPlayback: state.gaplessPlayback ?? true,
+    streamFallbackEngine: state.streamFallbackEngine ?? true,
+    highResArtwork: state.highResArtwork ?? true,
+    lyricsAutoScroll: state.lyricsAutoScroll ?? true,
+    lyricsFontSize: state.lyricsFontSize ?? 'normal',
+    lyricsShowRomanization: state.lyricsShowRomanization ?? true,
+    lyricsGlowSweep: state.lyricsGlowSweep ?? true,
+    hapticFeedback: state.hapticFeedback ?? true,
+    keepSearchHistory: state.keepSearchHistory ?? true,
+    doubleClickToPlay: state.doubleClickToPlay ?? false,
+    showTrackNumbers: state.showTrackNumbers ?? true,
+    compactMiniPlayer: state.compactMiniPlayer ?? false
   };
 }
+
 
 function readInitialSettingsSync(): SettingsState {
   try {
@@ -356,6 +399,76 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     persistSettings(get());
   },
 
+  setBassBoostStrength: (val: number) => {
+    set({ bassBoostStrength: Math.max(0, Math.min(100, val)) });
+    persistSettings(get());
+  },
+
+  setSpatialStereoWidth: (val: number) => {
+    set({ spatialStereoWidth: Math.max(100, Math.min(200, val)) });
+    persistSettings(get());
+  },
+
+  setGaplessPlayback: (enabled: boolean) => {
+    set({ gaplessPlayback: enabled });
+    persistSettings(get());
+  },
+
+  setStreamFallbackEngine: (enabled: boolean) => {
+    set({ streamFallbackEngine: enabled });
+    persistSettings(get());
+  },
+
+  setHighResArtwork: (enabled: boolean) => {
+    set({ highResArtwork: enabled });
+    persistSettings(get());
+  },
+
+  setLyricsAutoScroll: (enabled: boolean) => {
+    set({ lyricsAutoScroll: enabled });
+    persistSettings(get());
+  },
+
+  setLyricsFontSize: (size: 'compact' | 'normal' | 'large' | 'massive') => {
+    set({ lyricsFontSize: size });
+    persistSettings(get());
+  },
+
+  setLyricsShowRomanization: (enabled: boolean) => {
+    set({ lyricsShowRomanization: enabled });
+    persistSettings(get());
+  },
+
+  setLyricsGlowSweep: (enabled: boolean) => {
+    set({ lyricsGlowSweep: enabled });
+    persistSettings(get());
+  },
+
+  setHapticFeedback: (enabled: boolean) => {
+    set({ hapticFeedback: enabled });
+    persistSettings(get());
+  },
+
+  setKeepSearchHistory: (enabled: boolean) => {
+    set({ keepSearchHistory: enabled });
+    persistSettings(get());
+  },
+
+  setDoubleClickToPlay: (enabled: boolean) => {
+    set({ doubleClickToPlay: enabled });
+    persistSettings(get());
+  },
+
+  setShowTrackNumbers: (enabled: boolean) => {
+    set({ showTrackNumbers: enabled });
+    persistSettings(get());
+  },
+
+  setCompactMiniPlayer: (enabled: boolean) => {
+    set({ compactMiniPlayer: enabled });
+    persistSettings(get());
+  },
+
   resetSettings: () => {
     document.documentElement.style.setProperty('--color-accent', defaultSettings.accentColor);
     set({
@@ -369,7 +482,21 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       autoMixerFilterSweeps: true,
       autoCachePlayingTracks: true,
       precacheNextTrack: true,
-      maxCacheSizeMb: 1024
+      maxCacheSizeMb: 1024,
+      bassBoostStrength: 0,
+      spatialStereoWidth: 100,
+      gaplessPlayback: true,
+      streamFallbackEngine: true,
+      highResArtwork: true,
+      lyricsAutoScroll: true,
+      lyricsFontSize: 'normal',
+      lyricsShowRomanization: true,
+      lyricsGlowSweep: true,
+      hapticFeedback: true,
+      keepSearchHistory: true,
+      doubleClickToPlay: false,
+      showTrackNumbers: true,
+      compactMiniPlayer: false
     });
     persistSettings(defaultSettings);
   }
