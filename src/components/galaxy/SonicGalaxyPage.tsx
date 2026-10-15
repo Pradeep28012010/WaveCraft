@@ -8,6 +8,7 @@ import { unlockAudioEngine, getAudioFrequencyData } from '../player/YouTubeEmbed
 import GlassCard from '../ui/GlassCard';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import type { Track } from '../../types';
 
 interface SonicDNA {
@@ -41,10 +42,12 @@ interface StarNode3D {
   baseRadius: number;
   orbitSpeed: number;
   phase: number;
-  affinityScore: number; // Real computed 55 - 99%
+  affinityScore: number; // 55 - 99%
   dna: SonicDNA;
   matchBreakdown: TasteMatchBreakdown;
   sourceLabel: 'Liked Core' | 'Recent Orbit' | 'AI Taste Predicted' | 'Wormhole Discovery';
+  hasPlanetaryRing: boolean;
+  parsecDistance: number; // Astronomical distance metric (1.2 to 28.5 pc)
 }
 
 interface ProjectedStar {
@@ -63,6 +66,7 @@ interface BackgroundParticle {
   size: number;
   color: string;
   twinklePhase: number;
+  speedZ: number;
 }
 
 interface Shockwave {
@@ -74,6 +78,16 @@ interface Shockwave {
   alpha: number;
 }
 
+interface PolarJetParticle {
+  y: number;
+  xOffset: number;
+  zOffset: number;
+  speed: number;
+  size: number;
+  alpha: number;
+  color: string;
+}
+
 const CLUSTERS = [
   {
     name: 'Supernova Pulse',
@@ -81,8 +95,9 @@ const CLUSTERS = [
     subtitle: 'High-Energy & Bass Anthems',
     color: '#f43f5e',
     secondary: '#fb7185',
+    accentRgb: '244, 63, 94',
     cx: -0.46,
-    cy: -0.24,
+    cy: -0.22,
     cz: 0.16,
     centroidDna: { energy: 88, bass: 86, vocal: 68, euphoria: 82 }
   },
@@ -92,8 +107,9 @@ const CLUSTERS = [
     subtitle: 'Late-Night Melody & Soul',
     color: '#a855f7',
     secondary: '#c084fc',
+    accentRgb: '168, 85, 247',
     cx: 0.46,
-    cy: -0.22,
+    cy: -0.20,
     cz: -0.16,
     centroidDna: { energy: 58, bass: 64, vocal: 90, euphoria: 78 }
   },
@@ -103,8 +119,9 @@ const CLUSTERS = [
     subtitle: 'Electronic & Cinema Odyssey',
     color: '#06b6d4',
     secondary: '#22d3ee',
+    accentRgb: '6, 182, 212',
     cx: -0.42,
-    cy: 0.26,
+    cy: 0.24,
     cz: -0.2,
     centroidDna: { energy: 84, bass: 82, vocal: 62, euphoria: 91 }
   },
@@ -114,8 +131,9 @@ const CLUSTERS = [
     subtitle: 'Timeless & Acoustic Euphoria',
     color: '#f59e0b',
     secondary: '#fbbf24',
+    accentRgb: '245, 158, 11',
     cx: 0.44,
-    cy: 0.26,
+    cy: 0.24,
     cz: 0.2,
     centroidDna: { energy: 64, bass: 56, vocal: 88, euphoria: 86 }
   }
@@ -144,22 +162,18 @@ function clamp(val: number, min: number, max: number): number {
 }
 
 /**
- * 100% Real Deterministic Sonic DNA & Cluster Classifier
- * Analyzes track metadata (title, artist, album, genre, duration) to compute
- * real 4-channel Sonic DNA and assign the track to its true musical quadrant.
+ * 100% Deterministic 4-Channel Sonic DNA & Cluster Classifier
  */
 function analyzeTrackSonicDNA(track: Track): { dna: SonicDNA; clusterIndex: number } {
   const text = `${track.title || ''} ${track.artist || ''} ${track.album || ''} ${track.genre || ''}`.toLowerCase();
   const h = hashString(`${track.id}:${track.title}:${track.artist}`);
   const dur = track.duration || 210;
 
-  // Base acoustic fingerprint derived from track duration & deterministic audio signature
   let energy = 68 + ((h % 19) - 9);
   let bass = 66 + (((h >> 4) % 19) - 9);
   let vocal = 72 + (((h >> 8) % 17) - 8);
   let euphoria = 70 + (((h >> 12) % 19) - 9);
 
-  // High-Energy / Bass / Trap / Workout / Mass Beat signals
   if (
     /\b(bass|trap|phonk|hype|party|club|dance|beat|remix|workout|power|kuthu|mass|badass|beast|fire|sicko|fein|starboy|blinding)\b/i.test(
       text
@@ -170,7 +184,6 @@ function analyzeTrackSonicDNA(track: Track): { dna: SonicDNA; clusterIndex: numb
     euphoria += 8;
   }
 
-  // Electronic / Synthwave / Cyberpunk / Cinematic signals
   if (
     /\b(synth|cyber|electronic|edm|techno|house|trance|future|neon|walker|daft|kavinsky|hans|ost|score|theme|horizon|cosmos)\b/i.test(
       text
@@ -182,7 +195,6 @@ function analyzeTrackSonicDNA(track: Track): { dna: SonicDNA; clusterIndex: numb
     vocal -= 8;
   }
 
-  // Velvet / Melody / Romantic / Soul / Lo-Fi / Late-Night signals
   if (
     /\b(love|soul|melody|romantic|heart|velvet|night|midnight|lofi|lo-fi|slowed|reverb|chill|arijit|shreya|sid|weeknd|lana|kesariya|tum)\b/i.test(
       text
@@ -194,7 +206,6 @@ function analyzeTrackSonicDNA(track: Track): { dna: SonicDNA; clusterIndex: numb
     bass += 4;
   }
 
-  // Acoustic / Timeless / Unplugged / Classical / Indie signals
   if (
     /\b(acoustic|unplugged|live|piano|guitar|strings|classic|timeless|gold|rahman|ilaiyaraaja|indie|folk|ballad|sun|moon)\b/i.test(
       text
@@ -205,7 +216,6 @@ function analyzeTrackSonicDNA(track: Track): { dna: SonicDNA; clusterIndex: numb
     bass -= 10;
   }
 
-  // Shorter punchy tracks (< 3 mins) tend to have higher tempo energy; longer tracks (> 4.5 mins) have higher euphoria/progression
   if (dur > 0 && dur < 175) {
     energy += 7;
     bass += 5;
@@ -221,7 +231,6 @@ function analyzeTrackSonicDNA(track: Track): { dna: SonicDNA; clusterIndex: numb
     euphoria: clamp(euphoria, 48, 99)
   };
 
-  // Assign to the cluster whose centroid DNA has the highest cosine/Euclidean proximity
   let bestCluster = 0;
   let bestDist = Infinity;
   CLUSTERS.forEach((c, idx) => {
@@ -240,9 +249,6 @@ function analyzeTrackSonicDNA(track: Track): { dna: SonicDNA; clusterIndex: numb
   return { dna, clusterIndex: bestCluster };
 }
 
-/**
- * Computes 4D Cosine Similarity (0 to 100%) between two SonicDNA vectors.
- */
 function computeDnaCosineSimilarity(a: SonicDNA, b: SonicDNA): number {
   const dot =
     a.energy * b.energy +
@@ -253,14 +259,13 @@ function computeDnaCosineSimilarity(a: SonicDNA, b: SonicDNA): number {
   const magB = Math.hypot(b.energy, b.bass, b.vocal, b.euphoria);
   if (magA === 0 || magB === 0) return 85;
   const cos = dot / (magA * magB);
-  // Map [0.88, 1.0] cosine range to [65, 99] perceptual match %
   const normalized = Math.max(0, Math.min(1, (cos - 0.88) / 0.12));
   return clamp(65 + normalized * 34, 60, 99);
 }
 
-// Cache loaded HTMLImageElements so canvas can draw circular album artwork inside 3D stars at 120fps
+// Memory-bounded image cache for high-FPS circular album art textures
 const imageCache = new Map<string, HTMLImageElement>();
-const MAX_IMAGE_CACHE_ENTRIES = 120;
+const MAX_IMAGE_CACHE_ENTRIES = 140;
 
 function getCachedAlbumImage(url?: string): HTMLImageElement | null {
   if (!url) return null;
@@ -268,7 +273,6 @@ function getCachedAlbumImage(url?: string): HTMLImageElement | null {
   if (existing) {
     return existing.complete && existing.naturalWidth > 0 ? existing : null;
   }
-  // Enforce max capacity to prevent unbounded memory growth during long sessions
   if (imageCache.size >= MAX_IMAGE_CACHE_ENTRIES) {
     const oldestKey = imageCache.keys().next().value;
     if (oldestKey) imageCache.delete(oldestKey);
@@ -278,6 +282,135 @@ function getCachedAlbumImage(url?: string): HTMLImageElement | null {
   img.src = url;
   imageCache.set(url, img);
   return null;
+}
+
+/**
+ * Interactive 4D Sonic Spider/Radar SVG Chart
+ * Compares track DNA polygon against user library centroid
+ */
+function SonicSpiderRadar({
+  trackDna,
+  userDna,
+  clusterColor
+}: {
+  trackDna: SonicDNA;
+  userDna: SonicDNA;
+  clusterColor: string;
+}) {
+  const size = 180;
+  const cx = size / 2;
+  const cy = size / 2;
+  const maxR = 64;
+
+  // 4 Axes: Top=Energy, Right=Bass, Bottom=Vocal, Left=Euphoria
+  const getCoords = (metric: number, axisIdx: number) => {
+    const angle = (axisIdx * Math.PI) / 2 - Math.PI / 2;
+    const r = (metric / 100) * maxR;
+    return {
+      x: cx + Math.cos(angle) * r,
+      y: cy + Math.sin(angle) * r
+    };
+  };
+
+  const trackPts = [
+    getCoords(trackDna.energy, 0),
+    getCoords(trackDna.bass, 1),
+    getCoords(trackDna.vocal, 2),
+    getCoords(trackDna.euphoria, 3)
+  ];
+
+  const userPts = [
+    getCoords(userDna.energy, 0),
+    getCoords(userDna.bass, 1),
+    getCoords(userDna.vocal, 2),
+    getCoords(userDna.euphoria, 3)
+  ];
+
+  const toPath = (pts: { x: number; y: number }[]) =>
+    `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y} L ${pts[2].x} ${pts[2].y} L ${pts[3].x} ${pts[3].y} Z`;
+
+  return (
+    <div className="relative flex flex-col items-center justify-center p-2 rounded-2xl bg-black/40 border border-white/12">
+      <svg width={size} height={size} className="overflow-visible">
+        {/* Background Concentric Radar Grids */}
+        {[0.25, 0.5, 0.75, 1.0].map((frac, idx) => {
+          const r = frac * maxR;
+          return (
+            <polygon
+              key={idx}
+              points={`${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}`}
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.12)"
+              strokeWidth={idx === 3 ? 1.4 : 0.8}
+              strokeDasharray={idx < 3 ? '3 3' : undefined}
+            />
+          );
+        })}
+
+        {/* Crosshair Axes */}
+        <line x1={cx} y1={cy - maxR} x2={cx} y2={cy + maxR} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
+        <line x1={cx - maxR} y1={cy} x2={cx + maxR} y2={cy} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
+
+        {/* User Taste Polygon (Dashed White/Emerald) */}
+        <path
+          d={toPath(userPts)}
+          fill="rgba(16, 185, 129, 0.12)"
+          stroke="#10b981"
+          strokeWidth="1.5"
+          strokeDasharray="4 3"
+        />
+
+        {/* Track DNA Polygon (Solid Vibrant Glow) */}
+        <path
+          d={toPath(trackPts)}
+          fill={`${clusterColor}33`}
+          stroke={clusterColor}
+          strokeWidth="2.2"
+          className="transition-all duration-300"
+        />
+
+        {/* Track Vertices */}
+        {trackPts.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r="3.5"
+            fill={clusterColor}
+            stroke="#ffffff"
+            strokeWidth="1.5"
+            className="shadow-lg"
+          />
+        ))}
+
+        {/* Axis Labels */}
+        <text x={cx} y={cy - maxR - 8} fill="#f43f5e" fontSize="9" fontWeight="800" textAnchor="middle">
+          ⚡ ENERGY ({trackDna.energy}%)
+        </text>
+        <text x={cx + maxR + 8} y={cy + 3} fill="#a855f7" fontSize="9" fontWeight="800" textAnchor="start">
+          🔊 BASS ({trackDna.bass}%)
+        </text>
+        <text x={cx} y={cy + maxR + 14} fill="#06b6d4" fontSize="9" fontWeight="800" textAnchor="middle">
+          🎤 VOCAL ({trackDna.vocal}%)
+        </text>
+        <text x={cx - maxR - 8} y={cy + 3} fill="#f59e0b" fontSize="9" fontWeight="800" textAnchor="end">
+          ✨ EUPHORIA ({trackDna.euphoria}%)
+        </text>
+      </svg>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-2 text-[10px] font-bold">
+        <span className="flex items-center gap-1.5 text-white/90">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: clusterColor }} />
+          Track DNA
+        </span>
+        <span className="flex items-center gap-1.5 text-emerald-300">
+          <span className="w-2.5 h-1 border border-emerald-400 border-dashed" />
+          Your Taste Centroid
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export default function SonicGalaxyPage() {
@@ -302,32 +435,41 @@ export default function SonicGalaxyPage() {
   const [selectedStar, setSelectedStar] = useState<StarNode3D | null>(null);
   const [hoveredStarId, setHoveredStarId] = useState<string | null>(null);
   const [activeClusterFilter, setActiveClusterFilter] = useState<number | null>(null);
-  const [galaxyLayout, setGalaxyLayout] = useState<'quadrants' | 'rings'>('quadrants');
+  const [galaxyLayout, setGalaxyLayout] = useState<'quadrants' | 'rings' | 'spiral'>('quadrants');
   const [inspectorTab, setInspectorTab] = useState<'dna' | 'neighbors' | 'roster'>('dna');
+  const [rosterSearch, setRosterSearch] = useState('');
+  const [rosterSort, setRosterSort] = useState<'match' | 'title' | 'artist'>('match');
   const [zoom, setZoom] = useState(1.05);
   const [autoOrbit, setAutoOrbit] = useState(true);
+  const [isCinematicTour, setIsCinematicTour] = useState(false);
+  const [showCoordinateGrid, setShowCoordinateGrid] = useState(true);
 
-  // 3D Camera Rotation & Warp Refs for 120fps Canvas Loop
+  // 3D Camera Rotation, Pinch-to-Zoom & Warp Refs
   const cameraRef = useRef({
     yaw: 0.25,
     pitch: 0.22,
+    targetYaw: 0.25,
+    targetPitch: 0.22,
     velYaw: 0,
     velPitch: 0,
     isDragging: false,
     dragStartX: 0,
     dragStartY: 0,
     pointerMoved: false,
-    warpBoost: 0
+    warpBoost: 0,
+    initialPinchDist: 0,
+    initialPinchZoom: 1.05
   });
   const shockwavesRef = useRef<Shockwave[]>([]);
+  const polarJetsRef = useRef<PolarJetParticle[]>([]);
 
-  // Load preview stars only when the user has no liked songs yet
+  // Load preview stars only when the user has zero liked songs
   useEffect(() => {
     if (likedSongs.length > 0) return;
     let active = true;
     searchTracks('Top Global Pop Hits 2025')
       .then((res) => {
-        if (active) setPredictedTracks(res.slice(0, 10));
+        if (active) setPredictedTracks(res.slice(0, 12));
       })
       .catch(() => {});
     return () => {
@@ -335,8 +477,9 @@ export default function SonicGalaxyPage() {
     };
   }, [likedSongs.length]);
 
-  // Trigger a Hyperjump Warp into a custom artist/vibe or preset
+  // Trigger a Hyperjump Warp into an artist/vibe or return to universe
   const triggerWormholeWarp = async (query: string, label?: string) => {
+    triggerAndroidHaptic('medium');
     setIsWarping(true);
     cameraRef.current.warpBoost = 1.0;
 
@@ -351,14 +494,14 @@ export default function SonicGalaxyPage() {
     try {
       const results = await searchTracks(query.trim());
       if (results.length > 0) {
-        setWormholeTracks(results.slice(0, 24));
+        setWormholeTracks(results.slice(0, 28));
       }
     } finally {
       setTimeout(() => setIsWarping(false), 750);
     }
   };
 
-  // Build Real User Taste Profile (Artist Affinity Map + Personal Sonic DNA Centroid)
+  // Build Real User Taste Profile (Artist Affinity Map + Centroid 4D DNA)
   const userTasteProfile = useMemo(() => {
     const artistCounts = new Map<string, number>();
     const likedIds = new Set<string>();
@@ -406,7 +549,6 @@ export default function SonicGalaxyPage() {
       dnaSamples.push(analyzeTrackSonicDNA(currentTrack).dna);
     }
 
-    // Compute user's average Sonic DNA centroid
     const userDna: SonicDNA =
       dnaSamples.length > 0
         ? {
@@ -420,7 +562,7 @@ export default function SonicGalaxyPage() {
     return { artistCounts, likedIds, recentIds, userDna, hasHistory: dnaSamples.length > 0 };
   }, [likedSongs, recentlyPlayed, playHistory, playlists, currentTrack?.id]);
 
-  // Build 3D StarNodes: strictly the user's TRULY LIKED songs (no queue/played clutter)
+  // Build 3D StarNodes based on chosen formation: Quadrants, Radar Rings, or Spiral Galaxy
   const stars: StarNode3D[] = useMemo(() => {
     const map = new Map<string, { track: Track; source: StarNode3D['sourceLabel'] }>();
 
@@ -429,13 +571,11 @@ export default function SonicGalaxyPage() {
         if (t?.id) map.set(t.id, { track: t, source: 'Wormhole Discovery' });
       }
     } else if (likedSongs.length > 0) {
-      // Sonic Galaxy represents the universe of songs the user TRULY LIKED
       for (const t of likedSongs) {
         if (t?.id) map.set(t.id, { track: t, source: 'Liked Core' });
       }
     } else {
-      // Preview mode for brand new users who haven't liked any songs yet
-      for (const p of predictedTracks.slice(0, 10)) {
+      for (const p of predictedTracks.slice(0, 12)) {
         if (p?.id && !map.has(p.id)) {
           map.set(p.id, { track: p, source: 'AI Taste Predicted' });
         }
@@ -452,7 +592,6 @@ export default function SonicGalaxyPage() {
       const cluster = CLUSTERS[clusterIndex];
       const rankInCluster = clusterBuckets[clusterIndex]++;
 
-      // Compute Real Multi-Factor Taste Match %
       const sonicSimilarityPct = computeDnaCosineSimilarity(dna, userTasteProfile.userDna);
 
       const trackArtists = (track.artist || '')
@@ -475,7 +614,6 @@ export default function SonicGalaxyPage() {
 
       const vibeSynergyPct = computeDnaCosineSimilarity(dna, cluster.centroidDna);
 
-      // Weighted overall Taste Match %
       let affinityScore = Math.round(
         sonicSimilarityPct * 0.48 +
           artistAffinityPct * 0.32 +
@@ -484,36 +622,47 @@ export default function SonicGalaxyPage() {
       );
       affinityScore = clamp(affinityScore, 58, 99);
 
-      // Build human-readable, verifiable explanation
       let reason = '';
       if (isLiked) {
-        reason = `Saved in your Liked Songs • ${sonicSimilarityPct}% 4D Cosine DNA match`;
+        reason = `Saved in Liked Songs • ${sonicSimilarityPct}% 4D Cosine DNA resonance`;
       } else if (isRecent) {
-        reason = `In your Recent Rotation • ${sonicSimilarityPct}% Sonic DNA alignment`;
+        reason = `In Recent Rotation • ${sonicSimilarityPct}% Sonic DNA alignment`;
       } else if (artistPlayCount >= 2) {
-        reason = `Artist appears ${artistPlayCount}× in your library • ${sonicSimilarityPct}% DNA match`;
+        reason = `Artist appears ${artistPlayCount}× in library • ${sonicSimilarityPct}% DNA match`;
       } else if (artistPlayCount === 1) {
-        reason = `Familiar artist in your rotation • ${vibeSynergyPct}% ${cluster.shortName} synergy`;
+        reason = `Familiar artist • ${vibeSynergyPct}% ${cluster.shortName} quadrant synergy`;
       } else {
-        reason = `Discovery Track • ${sonicSimilarityPct}% Cosine DNA match to your taste profile`;
+        reason = `Discovery Star • ${sonicSimilarityPct}% Cosine DNA match to your taste`;
       }
 
       const h = hashString(track.id + track.title);
 
-      // Well-organized 3D position based on selected galaxyLayout
+      // Distinct 3D positions based on galaxyLayout formation
       let x = 0;
       let y = 0;
       let z = 0;
 
       if (galaxyLayout === 'rings') {
-        // Concentric Taste Radar Rings: higher Taste Match % orbits closer to the center!
-        const normalizedDist = Math.max(0.14, ((100 - affinityScore) / 42) * 0.78);
+        // Concentric Radar Rings: higher match orbits closer to the nucleus
+        const normalizedDist = Math.max(0.16, ((100 - affinityScore) / 42) * 0.78);
         const angle = idx * 2.39996 + clusterIndex * (Math.PI / 2);
         x = Math.cos(angle) * normalizedDist;
         z = Math.sin(angle) * normalizedDist;
-        y = (((h % 100) / 100) - 0.5) * 0.24;
+        y = (((h % 100) / 100) - 0.5) * 0.22;
+      } else if (galaxyLayout === 'spiral') {
+        // Majestic Logarithmic 4-Arm Spiral Galaxy
+        const armOffset = clusterIndex * (Math.PI / 2);
+        const spiralProgress = (rankInCluster + 1) / Math.max(4, entries.length / 4);
+        const armAngle = armOffset + spiralProgress * Math.PI * 2.4;
+        const radius = 0.14 + Math.sqrt(spiralProgress) * 0.72;
+        const spreadJitter = (((h % 100) / 100) - 0.5) * 0.08;
+        x = Math.cos(armAngle) * (radius + spreadJitter);
+        z = Math.sin(armAngle) * (radius + spreadJitter);
+        // Galactic disk thickness tapers outward
+        const diskThickness = 0.16 * (1 - radius * 0.65) + 0.03;
+        y = (((h >> 4) % 100) / 100 - 0.5) * diskThickness;
       } else {
-        // Organized Quadrant Constellations: golden-angle spiral around each quadrant center
+        // Quadrant Constellations: golden-angle spiral around each quadrant centroid
         const goldenAngle = rankInCluster * 2.39996 + clusterIndex * 1.1;
         const ringStep = 0.09 + Math.sqrt(rankInCluster + 1) * 0.068;
         const spreadZ = (((h >> 4) % 100) / 100 - 0.5) * 0.36;
@@ -521,6 +670,10 @@ export default function SonicGalaxyPage() {
         y = cluster.cy + Math.sin(goldenAngle) * Math.min(0.28, ringStep);
         z = cluster.cz + spreadZ;
       }
+
+      // High-affinity stars (> 90%) or core favorites earn planetary rings
+      const hasPlanetaryRing = affinityScore >= 91 || isLiked;
+      const parsecDistance = +(1.2 + ((100 - affinityScore) / 42) * 27.3).toFixed(1);
 
       return {
         id: track.id,
@@ -532,8 +685,8 @@ export default function SonicGalaxyPage() {
         x,
         y,
         z,
-        baseRadius: isLiked ? 15 : isRecent ? 13.5 : 11.8,
-        orbitSpeed: 0.11 + (h % 8) * 0.015,
+        baseRadius: isLiked ? 15.5 : isRecent ? 13.8 : 12.2,
+        orbitSpeed: 0.1 + (h % 8) * 0.015,
         phase: (h % 628) / 100,
         affinityScore,
         dna,
@@ -546,20 +699,20 @@ export default function SonicGalaxyPage() {
           isRecent,
           reason
         },
-        sourceLabel: source
+        sourceLabel: source,
+        hasPlanetaryRing,
+        parsecDistance
       };
     });
 
     return rawNodes.sort((a, b) => b.affinityScore - a.affinityScore);
   }, [wormholeTracks, likedSongs, predictedTracks, userTasteProfile, galaxyLayout]);
 
-  // Average taste match across visible stars
   const avgTasteMatch = useMemo(() => {
-    if (stars.length === 0) return 90;
+    if (stars.length === 0) return 92;
     return Math.round(stars.reduce((s, n) => s + n.affinityScore, 0) / stars.length);
   }, [stars]);
 
-  // Cluster counts for top filter pills
   const clusterCounts = useMemo(() => {
     const counts = [0, 0, 0, 0];
     for (const s of stars) {
@@ -568,7 +721,6 @@ export default function SonicGalaxyPage() {
     return counts;
   }, [stars]);
 
-  // Keep selectedStar synced with currently playing song or highest-match star
   useEffect(() => {
     if (stars.length === 0) return;
     if (currentTrack) {
@@ -586,7 +738,7 @@ export default function SonicGalaxyPage() {
     }
   }, [stars, currentTrack?.id]);
 
-  // Compute top 5 nearest harmonic neighbors using real 4D Cosine DNA similarity + spatial proximity
+  // Top 5 nearest harmonic neighbors with astronomical parsec distances
   const harmonicNeighbors = useMemo(() => {
     if (!selectedStar) return [];
     return stars
@@ -600,21 +752,26 @@ export default function SonicGalaxyPage() {
             ? 6
             : 0;
         const pairMatch = clamp(dnaSim + sameClusterBonus + sameArtistBonus, 60, 99);
-        return { star: s, pairMatch };
+        const spatialDist = +(
+          Math.hypot(s.x - selectedStar.x, s.y - selectedStar.y, s.z - selectedStar.z) * 18.5
+        ).toFixed(1);
+        return { star: s, pairMatch, spatialDist };
       })
       .sort((a, b) => b.pairMatch - a.pairMatch)
       .slice(0, 5);
   }, [selectedStar, stars]);
 
-  // Live state refs so the 120fps canvas loop NEVER restarts or resets when hovering/selecting/zooming
+  // Synchronized state refs for 120fps canvas rendering loop
   const starsRef = useRef<StarNode3D[]>(stars);
   const selectedStarRef = useRef<StarNode3D | null>(selectedStar);
   const hoveredStarIdRef = useRef<string | null>(hoveredStarId);
   const activeClusterFilterRef = useRef<number | null>(activeClusterFilter);
-  const galaxyLayoutRef = useRef<'quadrants' | 'rings'>(galaxyLayout);
+  const galaxyLayoutRef = useRef<'quadrants' | 'rings' | 'spiral'>(galaxyLayout);
   const zoomRef = useRef<number>(zoom);
   const autoOrbitRef = useRef<boolean>(autoOrbit);
   const currentTrackIdRef = useRef<string | undefined>(currentTrack?.id);
+  const isCinematicTourRef = useRef<boolean>(isCinematicTour);
+  const showCoordinateGridRef = useRef<boolean>(showCoordinateGrid);
 
   starsRef.current = stars;
   selectedStarRef.current = selectedStar;
@@ -624,8 +781,32 @@ export default function SonicGalaxyPage() {
   zoomRef.current = zoom;
   autoOrbitRef.current = autoOrbit;
   currentTrackIdRef.current = currentTrack?.id;
+  isCinematicTourRef.current = isCinematicTour;
+  showCoordinateGridRef.current = showCoordinateGrid;
 
-  // 120fps 3D Audio-Reactive Canvas Universe Renderer
+  // Cinematic Tour autonomous step effect
+  useEffect(() => {
+    if (!isCinematicTour || stars.length === 0) return;
+    const interval = setInterval(() => {
+      setSelectedStar((prev) => {
+        const curIdx = stars.findIndex((s) => s.id === prev?.id);
+        const nextIdx = (curIdx + 1) % stars.length;
+        const nextStar = stars[nextIdx];
+        if (nextStar) {
+          // Smoothly bias camera toward next star
+          const angle = Math.atan2(nextStar.z, nextStar.x);
+          cameraRef.current.targetYaw = angle;
+          cameraRef.current.targetPitch = nextStar.y * 0.8;
+          unlockAudioEngine();
+          playTrackWithSmartQueue(nextStar.track);
+        }
+        return nextStar;
+      });
+    }, 7000);
+    return () => clearInterval(interval);
+  }, [isCinematicTour, stars]);
+
+  // 120fps 3D Audio-Reactive Canvas Universe Loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -643,17 +824,30 @@ export default function SonicGalaxyPage() {
     let pointerY = -9999;
     const freqBins = new Uint8Array(64);
 
-    const bgParticles: BackgroundParticle[] = Array.from({ length: 130 }, (_, i) => {
-      const palette = ['#ffffff', '#f43f5e', '#a855f7', '#06b6d4', '#f59e0b'];
+    // Initial background deep-space particles
+    const bgParticles: BackgroundParticle[] = Array.from({ length: 160 }, (_, i) => {
+      const palette = ['#ffffff', '#f43f5e', '#a855f7', '#06b6d4', '#f59e0b', '#38bdf8'];
       return {
-        x: (Math.random() - 0.5) * 2.6,
-        y: (Math.random() - 0.5) * 2.0,
-        z: Math.random() * 2.0 - 1.0,
-        size: 0.7 + Math.random() * 1.7,
+        x: (Math.random() - 0.5) * 3.0,
+        y: (Math.random() - 0.5) * 2.4,
+        z: Math.random() * 2.4 - 1.2,
+        size: 0.6 + Math.random() * 1.9,
         color: palette[i % palette.length],
-        twinklePhase: Math.random() * Math.PI * 2
+        twinklePhase: Math.random() * Math.PI * 2,
+        speedZ: 0.02 + Math.random() * 0.04
       };
     });
+
+    // Relativistic polar jet particles for galactic black hole core
+    polarJetsRef.current = Array.from({ length: 36 }, (_, i) => ({
+      y: (i % 2 === 0 ? 1 : -1) * (0.05 + Math.random() * 0.45),
+      xOffset: (Math.random() - 0.5) * 0.03,
+      zOffset: (Math.random() - 0.5) * 0.03,
+      speed: 0.15 + Math.random() * 0.35,
+      size: 0.8 + Math.random() * 1.6,
+      alpha: 0.2 + Math.random() * 0.7,
+      color: i % 2 === 0 ? '#38bdf8' : '#c084fc'
+    }));
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -665,6 +859,7 @@ export default function SonicGalaxyPage() {
     resize();
     window.addEventListener('resize', resize);
 
+    // Pointer & Gesture Listeners (with mobile pinch-to-zoom)
     const onPointerDown = (e: PointerEvent) => {
       cameraRef.current.isDragging = true;
       cameraRef.current.pointerMoved = false;
@@ -742,11 +937,12 @@ export default function SonicGalaxyPage() {
         const dx = mx - p.sx;
         const dy = my - p.sy;
         if (dx * dx + dy * dy <= (p.drawR + 14) * (p.drawR + 14)) {
+          triggerAndroidHaptic('light');
           shockwavesRef.current.push({
             x: p.sx,
             y: p.sy,
             radius: p.drawR,
-            maxRadius: p.drawR * 5.5,
+            maxRadius: p.drawR * 5.8,
             color: p.node.color,
             alpha: 0.95
           });
@@ -766,7 +962,7 @@ export default function SonicGalaxyPage() {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY < 0 ? 0.08 : -0.08;
-      setZoom((z) => Math.max(0.7, Math.min(1.85, +(z + delta).toFixed(2))));
+      setZoom((z) => Math.max(0.65, Math.min(1.95, +(z + delta).toFixed(2))));
     };
 
     canvas.addEventListener('pointerdown', onPointerDown);
@@ -775,6 +971,7 @@ export default function SonicGalaxyPage() {
     window.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('wheel', onWheel, { passive: false });
 
+    // 3D Perspective Projection Math
     const project3D = (
       x: number,
       y: number,
@@ -795,8 +992,8 @@ export default function SonicGalaxyPage() {
       const ry = y * cosP - rz1 * sinP;
       const rz = y * sinP + rz1 * cosP;
 
-      const fov = 1.9;
-      const perspective = fov / Math.max(0.45, fov + rz);
+      const fov = 1.95;
+      const perspective = fov / Math.max(0.42, fov + rz);
       return {
         sx: cx + rx * baseScale * perspective,
         sy: cy + ry * baseScale * perspective,
@@ -829,9 +1026,12 @@ export default function SonicGalaxyPage() {
       const clusterFilter = activeClusterFilterRef.current;
       const layoutMode = galaxyLayoutRef.current;
       const playingTrackId = currentTrackIdRef.current;
+      const isTour = isCinematicTourRef.current;
+      const showGrid = showCoordinateGridRef.current;
 
       let bassEnergy = 0;
       let midEnergy = 0;
+      let trebleEnergy = 0;
       const hasLiveAudio = getAudioFrequencyData(freqBins);
       if (hasLiveAudio) {
         let bSum = 0;
@@ -841,15 +1041,24 @@ export default function SonicGalaxyPage() {
         let mSum = 0;
         for (let i = 10; i < 32; i++) mSum += freqBins[i];
         midEnergy = mSum / (22 * 255);
+
+        let tSum = 0;
+        for (let i = 32; i < 60; i++) tSum += freqBins[i];
+        trebleEnergy = tSum / (28 * 255);
       } else if (usePlayerStore.getState().isPlaying) {
         bassEnergy = 0.28 + Math.pow(Math.sin(time * 3.8) * 0.5 + 0.5, 2) * 0.35;
         midEnergy = 0.22 + Math.sin(time * 5.2) * 0.15;
+        trebleEnergy = 0.18 + Math.cos(time * 4.4) * 0.14;
       }
 
+      // Camera Orbit & Glide Mechanics
       if (!cameraRef.current.isDragging) {
-        if (autoOrbitRef.current) {
+        if (isTour) {
+          cameraRef.current.yaw += (cameraRef.current.targetYaw - cameraRef.current.yaw) * dt * 1.5;
+          cameraRef.current.pitch += (cameraRef.current.targetPitch - cameraRef.current.pitch) * dt * 1.5;
+        } else if (autoOrbitRef.current) {
           const hoverBrake = currentHoveredId ? 0.1 : 1.0;
-          cameraRef.current.yaw += dt * (0.08 + bassEnergy * 0.05) * hoverBrake;
+          cameraRef.current.yaw += dt * (0.075 + bassEnergy * 0.05) * hoverBrake;
         } else {
           cameraRef.current.yaw += cameraRef.current.velYaw;
           cameraRef.current.pitch = Math.max(
@@ -865,62 +1074,132 @@ export default function SonicGalaxyPage() {
         cameraRef.current.warpBoost *= 0.91;
       }
 
-      // Deep Cosmic Background Gradient
+      // Deep Cinema-Grade Cosmic Gradient Background
       const bgGrad = ctx.createRadialGradient(
         cx,
         cy,
-        10,
+        8,
         cx,
         cy,
-        Math.max(width, height) * 0.75
+        Math.max(width, height) * 0.78
       );
-      bgGrad.addColorStop(0, '#120822');
-      bgGrad.addColorStop(0.5, '#070510');
-      bgGrad.addColorStop(1, '#020205');
+      bgGrad.addColorStop(0, '#10061e');
+      bgGrad.addColorStop(0.35, '#070411');
+      bgGrad.addColorStop(0.75, '#030206');
+      bgGrad.addColorStop(1, '#000002');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // 1. Draw 3D Concentric Celestial Orbit Rings (with Taste Match % ring labels in 'rings' mode)
-      ctx.save();
-      const ringSpecs = [
-        { r: 0.28, label: '95%+ CORE MATCH' },
-        { r: 0.54, label: '85%+ HARMONIC ORBIT' },
-        { r: 0.82, label: 'DISCOVERY RIM' }
-      ];
-      ringSpecs.forEach((ring, idx) => {
-        ctx.beginPath();
-        const segments = 72;
-        for (let i = 0; i <= segments; i++) {
-          const ang = (i / segments) * Math.PI * 2;
-          const px = Math.cos(ang) * ring.r;
-          const pz = Math.sin(ang) * ring.r;
-          const proj = project3D(px, 0, pz, cx, cy, baseScale);
-          if (i === 0) ctx.moveTo(proj.sx, proj.sy);
-          else ctx.lineTo(proj.sx, proj.sy);
-        }
-        ctx.strokeStyle =
-          layoutMode === 'rings'
-            ? `rgba(56, 189, 248, ${0.14 - idx * 0.03 + bassEnergy * 0.05})`
-            : `rgba(255, 255, 255, ${0.05 + idx * 0.015 + bassEnergy * 0.04})`;
-        ctx.lineWidth = layoutMode === 'rings' ? 1.3 : 1;
-        ctx.stroke();
+      // 1. Draw 3D Astrolabe Celestial Coordinate Grid (Elevation & Azimuth)
+      if (showGrid) {
+        ctx.save();
+        const gridRings = [0.28, 0.54, 0.82];
+        gridRings.forEach((r, idx) => {
+          ctx.beginPath();
+          const segments = 64;
+          for (let i = 0; i <= segments; i++) {
+            const ang = (i / segments) * Math.PI * 2;
+            const px = Math.cos(ang) * r;
+            const pz = Math.sin(ang) * r;
+            const proj = project3D(px, 0, pz, cx, cy, baseScale);
+            if (i === 0) ctx.moveTo(proj.sx, proj.sy);
+            else ctx.lineTo(proj.sx, proj.sy);
+          }
+          ctx.strokeStyle =
+            layoutMode === 'rings'
+              ? `rgba(56, 189, 248, ${0.15 - idx * 0.03 + bassEnergy * 0.06})`
+              : `rgba(255, 255, 255, ${0.05 + idx * 0.015 + bassEnergy * 0.04})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
 
-        if (layoutMode === 'rings') {
-          const labelProj = project3D(0, 0, -ring.r, cx, cy, baseScale);
-          ctx.fillStyle = 'rgba(148, 163, 184, 0.55)';
-          ctx.font = '700 9px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(ring.label, labelProj.sx, labelProj.sy - 4);
+          // Degree Markers
+          if (idx === 1) {
+            const angles = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
+            const labels = ['00h • 0°', '06h • 90°', '12h • 180°', '18h • 270°'];
+            angles.forEach((ang, aIdx) => {
+              const proj = project3D(Math.cos(ang) * r, 0, Math.sin(ang) * r, cx, cy, baseScale);
+              ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
+              ctx.font = '700 8px Inter, monospace';
+              ctx.textAlign = 'center';
+              ctx.fillText(labels[aIdx], proj.sx, proj.sy - 3);
+            });
+          }
+        });
+        ctx.restore();
+      }
+
+      // 2. Draw Galactic Accretion Core & Supermassive Black Hole at (0, 0, 0)
+      const coreProj = project3D(0, 0, 0, cx, cy, baseScale);
+      const coreRadius = (16 + bassEnergy * 14) * coreProj.scale;
+
+      ctx.save();
+      // Accretion Disk Swirling Halo
+      const diskGrad = ctx.createRadialGradient(
+        coreProj.sx,
+        coreProj.sy,
+        coreRadius * 0.4,
+        coreProj.sx,
+        coreProj.sy,
+        coreRadius * 3.8
+      );
+      diskGrad.addColorStop(0, '#c084fcdd');
+      diskGrad.addColorStop(0.25, '#38bdf888');
+      diskGrad.addColorStop(0.55, '#f43f5e33');
+      diskGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = diskGrad;
+      ctx.beginPath();
+      ctx.arc(coreProj.sx, coreProj.sy, coreRadius * 3.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Relativistic Swirling Photon Ring
+      ctx.strokeStyle = '#e0e7ff';
+      ctx.lineWidth = 2.2 + bassEnergy * 2.0;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.ellipse(
+        coreProj.sx,
+        coreProj.sy,
+        coreRadius * 1.45,
+        coreRadius * 0.55,
+        cameraRef.current.pitch * 0.6 + time * 0.3,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Event Horizon (Deep Black Sphere)
+      ctx.fillStyle = '#010103';
+      ctx.beginPath();
+      ctx.arc(coreProj.sx, coreProj.sy, coreRadius * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#818cf8';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Dual Polar Jets
+      for (const jet of polarJetsRef.current) {
+        jet.y += jet.speed * dt * (jet.y > 0 ? 1 : -1);
+        if (Math.abs(jet.y) > 0.65) {
+          jet.y = (jet.y > 0 ? 1 : -1) * (0.04 + Math.random() * 0.08);
         }
-      });
+        const jProj = project3D(jet.xOffset, jet.y, jet.zOffset, cx, cy, baseScale);
+        ctx.fillStyle = jet.color;
+        ctx.globalAlpha = jet.alpha * (1 - Math.abs(jet.y) / 0.65);
+        ctx.beginPath();
+        ctx.arc(jProj.sx, jProj.sy, jet.size * jProj.scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
       ctx.restore();
 
-      // 2. Draw 3D Deep-Space Starfield & Hyperjump Warp Streaks
+      // 3. Draw 3D Deep-Space Starfield & Hyperjump Warp Streaks
       const warp = cameraRef.current.warpBoost;
       for (const pt of bgParticles) {
         const proj = project3D(pt.x, pt.y, pt.z, cx, cy, baseScale * 1.15);
         const twinkle = 0.35 + 0.65 * Math.sin(time * 2.4 + pt.twinklePhase);
-        const r = pt.size * proj.scale * (1 + bassEnergy * 0.45);
+        const r = pt.size * proj.scale * (1 + trebleEnergy * 0.45);
 
         if (warp > 0.05) {
           const dirX = proj.sx - cx;
@@ -930,7 +1209,7 @@ export default function SonicGalaxyPage() {
           ctx.lineWidth = Math.max(1, r);
           ctx.beginPath();
           ctx.moveTo(proj.sx, proj.sy);
-          ctx.lineTo(proj.sx + dirX * warp * 0.38, proj.sy + dirY * warp * 0.38);
+          ctx.lineTo(proj.sx + dirX * warp * 0.42, proj.sy + dirY * warp * 0.42);
           ctx.stroke();
         } else {
           ctx.fillStyle = pt.color;
@@ -942,7 +1221,7 @@ export default function SonicGalaxyPage() {
       }
       ctx.globalAlpha = 1;
 
-      // 3. Draw Volumetric 3D Nebula Clouds & Titles in Quadrants Mode
+      // 4. Volumetric Nebula Clouds in Quadrants Mode
       if (layoutMode === 'quadrants') {
         CLUSTERS.forEach((cluster, idx) => {
           if (clusterFilter !== null && clusterFilter !== idx) return;
@@ -950,8 +1229,8 @@ export default function SonicGalaxyPage() {
           const nebulaR = (150 + bassEnergy * 42) * proj.scale * smoothZoom;
 
           const grad = ctx.createRadialGradient(proj.sx, proj.sy, 4, proj.sx, proj.sy, nebulaR);
-          grad.addColorStop(0, `${cluster.color}36`);
-          grad.addColorStop(0.45, `${cluster.secondary}15`);
+          grad.addColorStop(0, `${cluster.color}38`);
+          grad.addColorStop(0.45, `${cluster.secondary}14`);
           grad.addColorStop(1, 'transparent');
 
           ctx.fillStyle = grad;
@@ -962,15 +1241,11 @@ export default function SonicGalaxyPage() {
           ctx.fillStyle = `${cluster.secondary}d9`;
           ctx.font = '800 10px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(
-            `✦ ${cluster.name.toUpperCase()}`,
-            proj.sx,
-            proj.sy - nebulaR * 0.56
-          );
+          ctx.fillText(`✦ ${cluster.name.toUpperCase()}`, proj.sx, proj.sy - nebulaR * 0.58);
         });
       }
 
-      // 4. Project all visible 3D StarNodes
+      // 5. Project all visible 3D StarNodes
       projectedMap.clear();
       const visibleNodes = currentStars.filter(
         (s) => clusterFilter === null || s.clusterIndex === clusterFilter
@@ -1014,7 +1289,7 @@ export default function SonicGalaxyPage() {
         (a, b) => b.depthZ - a.depthZ
       );
 
-      // 5. Draw Ambient Cluster Constellation Web + Active Harmonic Energy Filaments
+      // 6. Draw Ambient Constellation Filaments & Harmonic Connectors
       const focusId = currentHoveredId || currentSelected?.id;
       const focusProj = focusId ? projectedMap.get(focusId) : null;
 
@@ -1025,7 +1300,7 @@ export default function SonicGalaxyPage() {
           const dist = Math.hypot(a.sx - b.sx, a.sy - b.sy);
 
           if (a.node.clusterIndex === b.node.clusterIndex && dist < 125 * smoothZoom) {
-            const alpha = Math.max(0.04, 0.2 * (1 - dist / (125 * smoothZoom)));
+            const alpha = Math.max(0.04, 0.22 * (1 - dist / (125 * smoothZoom)));
             ctx.strokeStyle = `${a.node.color}${Math.round(alpha * 255)
               .toString(16)
               .padStart(2, '0')}`;
@@ -1038,7 +1313,7 @@ export default function SonicGalaxyPage() {
         }
       }
 
-      // Draw animated Harmonic Filaments from the selected/hovered star to its top neighbors with REAL DNA similarity %
+      // Draw Animated Harmonic Laser Connectors from Selected Star
       if (focusProj) {
         const neighbors = backToFront
           .filter((p) => p.node.id !== focusProj.node.id)
@@ -1057,7 +1332,7 @@ export default function SonicGalaxyPage() {
           grad.addColorStop(1, p.node.color);
 
           ctx.strokeStyle = grad;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2.2;
           ctx.setLineDash([6, 6]);
           ctx.lineDashOffset = -time * 38;
           ctx.beginPath();
@@ -1065,24 +1340,29 @@ export default function SonicGalaxyPage() {
           ctx.lineTo(p.sx, p.sy);
           ctx.stroke();
 
+          // Midpoint Pill Badge with Live 4D DNA %
           const mx = (focusProj.sx + p.sx) / 2;
           const my = (focusProj.sy + p.sy) / 2;
-          ctx.fillStyle = 'rgba(8, 8, 16, 0.88)';
+          ctx.fillStyle = 'rgba(8, 8, 16, 0.9)';
           ctx.beginPath();
-          ctx.roundRect(mx - 26, my - 8, 52, 16, 8);
+          ctx.roundRect(mx - 28, my - 9, 56, 18, 9);
           ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
           ctx.fillStyle = '#6ee7b7';
-          ctx.font = '700 9px Inter, sans-serif';
+          ctx.font = '800 9px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(`${sim}% DNA`, mx, my + 3);
+          ctx.fillText(`${sim}% DNA`, mx, my + 3.5);
         }
         ctx.restore();
       }
 
-      // 6. Draw Expanding Supernova Shockwaves
+      // 7. Supernova Expanding Shockwaves
       shockwavesRef.current = shockwavesRef.current.filter((sw) => sw.alpha > 0.02);
       for (const sw of shockwavesRef.current) {
-        sw.radius += dt * 210;
+        sw.radius += dt * 220;
         sw.alpha *= 0.92;
         ctx.strokeStyle = sw.color;
         ctx.globalAlpha = sw.alpha;
@@ -1093,7 +1373,7 @@ export default function SonicGalaxyPage() {
       }
       ctx.globalAlpha = 1;
 
-      // 7. Draw 3D Planetary Star Nodes
+      // 8. Draw 3D Planetary Star Nodes
       for (const { sx, sy, scale, depthZ, drawR, node } of backToFront) {
         const hoverMix = hoverMixMap.get(node.id) ?? 0;
         const selectMix = selectMixMap.get(node.id) ?? 0;
@@ -1101,7 +1381,7 @@ export default function SonicGalaxyPage() {
         const isPlayingNow = playingTrackId === node.id;
 
         const depthAlpha = Math.max(
-          0.4,
+          0.38,
           Math.min(1, 1.15 - (depthZ + 0.6) * 0.45 + activeMix * 0.4)
         );
         ctx.save();
@@ -1112,13 +1392,14 @@ export default function SonicGalaxyPage() {
           1 +
           idlePulse +
           activeMix * (0.42 + midEnergy * 0.12) +
-          (isPlayingNow ? 0.25 + bassEnergy * 0.38 : 0);
+          (isPlayingNow ? 0.28 + bassEnergy * 0.42 : 0);
 
         const r = drawR * smoothScale;
 
+        // Glowing Audio-Reactive Corona
         const coronaRadius = r * (2.6 + hoverMix * 1.4);
         const corona = ctx.createRadialGradient(sx, sy, r * 0.25, sx, sy, coronaRadius);
-        corona.addColorStop(0, isPlayingNow ? '#10b981aa' : `${node.color}99`);
+        corona.addColorStop(0, isPlayingNow ? '#10b981cc' : `${node.color}aa`);
         corona.addColorStop(0.5, `${node.secondaryColor}33`);
         corona.addColorStop(1, 'transparent');
         ctx.fillStyle = corona;
@@ -1126,6 +1407,7 @@ export default function SonicGalaxyPage() {
         ctx.arc(sx, sy, coronaRadius, 0, Math.PI * 2);
         ctx.fill();
 
+        // Audio Frequency Spikes / Ray Coronas
         if (activeMix > 0.02 || isPlayingNow) {
           const rayAlpha = isPlayingNow ? 1 : activeMix;
           const rayCount = 24;
@@ -1140,7 +1422,7 @@ export default function SonicGalaxyPage() {
               : 0.32 + 0.32 * Math.sin(time * 6 + k);
             const innerR = r + 3;
             const outerR =
-              r + 6 + binVal * (isPlayingNow ? 26 : 16 * activeMix) * scale;
+              r + 6 + binVal * (isPlayingNow ? 28 : 16 * activeMix) * scale;
             ctx.strokeStyle = isPlayingNow ? '#34d399' : node.secondaryColor;
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -1148,19 +1430,29 @@ export default function SonicGalaxyPage() {
             ctx.lineTo(Math.cos(ang) * outerR, Math.sin(ang) * outerR);
             ctx.stroke();
           }
-
-          if (hoverMix > 0.05) {
-            ctx.strokeStyle = '#ffffff';
-            ctx.globalAlpha = depthAlpha * hoverMix * 0.75;
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.arc(0, 0, r + 9, 0, Math.PI * 2);
-            ctx.stroke();
-          }
           ctx.restore();
         }
 
+        // 3D Saturnian Planetary Rings on Core/Liked Stars
+        if (node.hasPlanetaryRing) {
+          ctx.save();
+          ctx.strokeStyle = `${node.secondaryColor}66`;
+          ctx.lineWidth = 2.4 * scale;
+          ctx.beginPath();
+          ctx.ellipse(
+            sx,
+            sy,
+            r * 1.9,
+            r * 0.48,
+            cameraRef.current.pitch * 0.5 + 0.35,
+            0,
+            Math.PI * 2
+          );
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Circular High-Res Album Art Image Disc
         const albumImg = getCachedAlbumImage(
           node.track.thumbnail || node.track.thumbnailUrl
         );
@@ -1189,16 +1481,18 @@ export default function SonicGalaxyPage() {
         }
         ctx.restore();
 
+        // Star Specular Fresnel Rim
         ctx.strokeStyle = isPlayingNow
           ? '#10b981'
           : activeMix > 0.3
           ? '#ffffff'
           : node.secondaryColor;
-        ctx.lineWidth = 1.5 + activeMix * 1.5;
+        ctx.lineWidth = 1.6 + activeMix * 1.5;
         ctx.beginPath();
         ctx.arc(sx, sy, r, 0, Math.PI * 2);
         ctx.stroke();
 
+        // Floating Title & Real Match % Pill
         if (
           activeMix > 0.05 ||
           isPlayingNow ||
@@ -1216,15 +1510,15 @@ export default function SonicGalaxyPage() {
               : '600 10px Inter, sans-serif';
           const labelText = `${shortTitle} • ${node.affinityScore}%`;
           const textWidth = ctx.measureText(labelText).width;
-          const pillW = textWidth + 16;
-          const pillH = hoverMix > 0.25 ? 30 : 18;
+          const pillW = textWidth + 18;
+          const pillH = hoverMix > 0.25 ? 32 : 18;
           const pillX = sx - pillW / 2;
           const pillY = sy + r + 7;
 
           ctx.fillStyle =
             activeMix > 0.25 || isPlayingNow
-              ? 'rgba(15, 23, 42, 0.94)'
-              : 'rgba(10, 10, 20, 0.76)';
+              ? 'rgba(15, 23, 42, 0.95)'
+              : 'rgba(10, 10, 20, 0.8)';
           ctx.beginPath();
           ctx.roundRect(pillX, pillY, pillW, pillH, 9);
           ctx.fill();
@@ -1248,13 +1542,51 @@ export default function SonicGalaxyPage() {
             ctx.fillText(
               currentSelected?.id === node.id ? '▶ Click to Play Now' : '✦ Click to Inspect DNA',
               sx,
-              pillY + 24
+              pillY + 25
             );
           }
         }
 
         ctx.restore();
       }
+
+      // 9. Floating Celestial Compass / Minimap Radar
+      const mmR = 30;
+      const mmX = width - mmR - 14;
+      const mmY = 14 + mmR;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(mmX, mmY, mmR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Quadrant dividers in minimap
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(mmX - mmR, mmY);
+      ctx.lineTo(mmX + mmR, mmY);
+      ctx.moveTo(mmX, mmY - mmR);
+      ctx.lineTo(mmX, mmY + mmR);
+      ctx.stroke();
+
+      // Camera Yaw Orientation Arrow
+      const arrowAng = cameraRef.current.yaw;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(mmX, mmY);
+      ctx.lineTo(mmX + Math.cos(arrowAng) * (mmR - 4), mmY + Math.sin(arrowAng) * (mmR - 4));
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 7px Inter, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('N', mmX, mmY - mmR + 8);
+      ctx.restore();
 
       rafId = requestAnimationFrame(render);
     };
@@ -1272,6 +1604,7 @@ export default function SonicGalaxyPage() {
   }, []);
 
   const handleLaunchConstellation = (clusterIdx: number) => {
+    triggerAndroidHaptic('medium');
     const clusterTracks = stars
       .filter((s) => s.clusterIndex === clusterIdx)
       .map((s) => s.track);
@@ -1283,32 +1616,60 @@ export default function SonicGalaxyPage() {
 
   const handleSupernovaShuffle = () => {
     if (stars.length === 0) return;
+    triggerAndroidHaptic('medium');
     const randomStar = stars[Math.floor(Math.random() * stars.length)];
     setSelectedStar(randomStar);
-    cameraRef.current.warpBoost = 0.75;
+    cameraRef.current.warpBoost = 0.8;
     unlockAudioEngine();
     playTrackWithSmartQueue(randomStar.track);
   };
 
-  const visibleRosterStars = useMemo(
-    () =>
-      stars.filter(
-        (s) => activeClusterFilter === null || s.clusterIndex === activeClusterFilter
-      ),
-    [stars, activeClusterFilter]
-  );
+  const handleChainHarmonicQueue = () => {
+    if (harmonicNeighbors.length === 0) return;
+    triggerAndroidHaptic('heavy');
+    unlockAudioEngine();
+    const neighborTracks = harmonicNeighbors.map((n) => n.star.track);
+    playTrack(neighborTracks[0], neighborTracks, 0);
+  };
+
+  // Filter & Sort Roster Stars
+  const filteredRosterStars = useMemo(() => {
+    let result = stars.filter(
+      (s) => activeClusterFilter === null || s.clusterIndex === activeClusterFilter
+    );
+
+    if (rosterSearch.trim()) {
+      const q = rosterSearch.toLowerCase();
+      result = result.filter(
+        (s) =>
+          s.track.title.toLowerCase().includes(q) ||
+          s.track.artist.toLowerCase().includes(q) ||
+          s.clusterName.toLowerCase().includes(q)
+      );
+    }
+
+    if (rosterSort === 'title') {
+      result.sort((a, b) => a.track.title.localeCompare(b.track.title));
+    } else if (rosterSort === 'artist') {
+      result.sort((a, b) => a.track.artist.localeCompare(b.track.artist));
+    } else {
+      result.sort((a, b) => b.affinityScore - a.affinityScore);
+    }
+
+    return result;
+  }, [stars, activeClusterFilter, rosterSearch, rosterSort]);
 
   return (
     <div className="pb-28 pt-1 text-white space-y-4 select-none">
-      {/* Unified Liquid Glass Top Observatory Command Deck */}
+      {/* ================= VisionOS Liquid Glass Astrolabe Command Deck ================= */}
       <div className="rounded-3xl liquid-glass border border-white/20 p-4 sm:p-5 space-y-4 shadow-2xl">
-        {/* Top Row: Title + Live Telemetry + Layout Switcher + Hyperjump Search */}
+        {/* Top Row: Observatory Live Telemetry, Formations & Warp Search */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/40 text-[10px] font-extrabold uppercase tracking-widest text-purple-200 whitespace-nowrap flex-shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
-                4D COSINE DNA ENGINE
+                OBSERVATORY LIVE • 120 FPS
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 whitespace-nowrap flex-shrink-0">
                 {stars.length} {stars.length === 1 ? 'Star' : 'Stars'} • {avgTasteMatch}% Match
@@ -1324,40 +1685,60 @@ export default function SonicGalaxyPage() {
               )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-purple-200 to-cyan-300 bg-clip-text text-transparent">
-              Sonic Galaxy • 3D Musical Observatory
+              Sonic Galaxy • 3D Musical Universe
             </h1>
-            <p className="text-xs text-white/50">
+            <p className="text-xs text-white/55">
               {likedSongs.length > 0
-                ? 'Your personal 3D universe strictly mapped from your Liked Songs'
-                : 'Preview universe • Like songs (tap ❤️) anywhere in WaveCraft to build your personalized galaxy'}
+                ? 'Your personal 3D universe dynamically mapped from your Liked Songs with 4D Cosine DNA'
+                : 'Preview universe • Like songs anywhere in WaveCraft to build your personalized 3D galaxy'}
             </p>
           </div>
 
-          {/* Right Controls: Layout Mode + Hyperjump Search */}
+          {/* Right Controls: 3 Formations & Wormhole Warp Search */}
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* 3D Layout Switcher */}
+            {/* 3-Way Formation Switcher */}
             <div className="flex items-center p-1 rounded-2xl bg-black/40 border border-white/15">
               <button
                 type="button"
-                onClick={() => setGalaxyLayout('quadrants')}
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setGalaxyLayout('quadrants');
+                }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                   galaxyLayout === 'quadrants'
-                    ? 'glass-button-purple text-white'
+                    ? 'glass-button-purple text-white shadow-md'
                     : 'text-white/65 hover:text-white'
                 }`}
               >
-                🪐 3D Quadrants
+                🪐 Constellations
               </button>
               <button
                 type="button"
-                onClick={() => setGalaxyLayout('rings')}
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setGalaxyLayout('rings');
+                }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                   galaxyLayout === 'rings'
-                    ? 'glass-button-cyan text-white'
+                    ? 'glass-button-cyan text-white shadow-md'
                     : 'text-white/65 hover:text-white'
                 }`}
               >
-                🎯 Taste Radar Rings
+                🎯 Taste Radar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setGalaxyLayout('spiral');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  galaxyLayout === 'spiral'
+                    ? 'glass-button-primary text-white shadow-md'
+                    : 'text-white/65 hover:text-white'
+                }`}
+              >
+                🌀 Spiral Galaxy
               </button>
             </div>
 
@@ -1375,7 +1756,7 @@ export default function SonicGalaxyPage() {
                 type="text"
                 value={warpQuery}
                 onChange={(e) => setWarpQuery(e.target.value)}
-                placeholder="Warp to artist, mood, or era..."
+                placeholder="Warp to artist, genre, or vibe..."
                 className="w-full sm:w-56 h-10 px-3.5 rounded-full glass-input text-xs text-white placeholder-white/40"
               />
               <button
@@ -1389,9 +1770,9 @@ export default function SonicGalaxyPage() {
           </div>
         </div>
 
-        {/* Bottom Row of Top Deck: Wormhole Presets & Constellation Quadrant Filters */}
+        {/* Bottom Row: Universe Source Presets & Quadrant Filter Chips */}
         <div className="pt-3 border-t border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Universe Source Pills */}
+          {/* Universe Presets */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
             {WORMHOLE_PRESETS.map((preset) => {
               const isActive = activeWormholeLabel === preset.label;
@@ -1401,7 +1782,7 @@ export default function SonicGalaxyPage() {
                   onClick={() => triggerWormholeWarp(preset.query, preset.label)}
                   className={`px-3 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${
                     isActive
-                      ? 'glass-button-purple text-white'
+                      ? 'glass-button-purple text-white shadow-sm'
                       : 'glass-button text-white/70 hover:text-white'
                   }`}
                 >
@@ -1411,22 +1792,28 @@ export default function SonicGalaxyPage() {
             })}
           </div>
 
-          {/* Cluster Quadrant Filter Pills */}
+          {/* Quadrant Filter Pills with Live Count */}
           <div className="flex flex-wrap items-center gap-1.5">
             <button
-              onClick={() => setActiveClusterFilter(null)}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setActiveClusterFilter(null);
+              }}
               className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all ${
                 activeClusterFilter === null
                   ? 'glass-button-primary text-white'
                   : 'glass-button text-white/70 hover:text-white'
               }`}
             >
-              All ({stars.length})
+              All Quadrants ({stars.length})
             </button>
             {CLUSTERS.map((c, idx) => (
               <button
                 key={c.name}
-                onClick={() => setActiveClusterFilter(activeClusterFilter === idx ? null : idx)}
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setActiveClusterFilter(activeClusterFilter === idx ? null : idx);
+                }}
                 className={`px-3 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
                   activeClusterFilter === idx
                     ? 'glass-button text-white ring-2 ring-white/40'
@@ -1442,25 +1829,53 @@ export default function SonicGalaxyPage() {
         </div>
       </div>
 
-      {/* Main 12-Column Observatory Grid: 3D Interactive Viewport (7 cols) + Organized Right Inspector (5 cols) */}
+      {/* ================= Main 12-Column Layout ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        {/* Left: 120fps 3D Interactive Star Map (7 cols) */}
-        <div className="lg:col-span-7 relative rounded-3xl overflow-hidden border border-white/20 bg-[#05030a] shadow-[0_30px_100px_rgba(0,0,0,0.9)] h-[520px] sm:h-[630px]">
+        {/* Left: 120fps 3D Interactive Star Map Viewport (7 cols) */}
+        <div className="lg:col-span-7 relative rounded-3xl overflow-hidden border border-white/20 bg-[#040208] shadow-[0_30px_100px_rgba(0,0,0,0.9)] h-[480px] sm:h-[620px] lg:h-[700px]">
           <canvas ref={canvasRef} className="w-full h-full block touch-none" />
 
-          {/* Top-Left VisionOS Viewport Controls */}
+          {/* Top Viewport VisionOS Controls */}
           <div className="absolute top-3.5 left-3.5 right-3.5 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
             <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
               <button
-                onClick={() => setAutoOrbit((v) => !v)}
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setAutoOrbit((v) => !v);
+                }}
                 className={`px-3.5 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all ${
                   autoOrbit ? 'glass-button-emerald' : 'glass-button text-white/75'
                 }`}
               >
-                {autoOrbit ? '🔄 Auto-Orbit: ON' : '✋ Manual Orbit'}
+                {autoOrbit ? '🔄 Orbit: ON' : '✋ Orbit: PAUSED'}
               </button>
               <button
                 onClick={() => {
+                  triggerAndroidHaptic('medium');
+                  setIsCinematicTour((t) => !t);
+                }}
+                className={`px-3.5 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all ${
+                  isCinematicTour ? 'glass-button-purple animate-pulse' : 'glass-button text-white/85'
+                }`}
+                title="Glide autonomously from star to star in a cinematic cosmic tour"
+              >
+                {isCinematicTour ? '🛸 Tour: ACTIVE' : '🚀 Cinematic Tour'}
+              </button>
+              <button
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setShowCoordinateGrid((g) => !g);
+                }}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
+                  showCoordinateGrid ? 'glass-button text-white' : 'glass-button text-white/40'
+                }`}
+                title="Toggle celestial coordinate grid lines"
+              >
+                🌐 Grid
+              </button>
+              <button
+                onClick={() => {
+                  triggerAndroidHaptic('light');
                   cameraRef.current.yaw = 0.25;
                   cameraRef.current.pitch = 0.22;
                   cameraRef.current.velYaw = 0;
@@ -1469,23 +1884,23 @@ export default function SonicGalaxyPage() {
                 }}
                 className="px-3.5 py-1.5 rounded-full glass-button text-[11px] font-bold text-white/85 cursor-pointer"
               >
-                🎯 Center View
+                🎯 Center
               </button>
               <button
                 onClick={handleSupernovaShuffle}
                 className="px-3.5 py-1.5 rounded-full glass-button-primary text-[11px] font-extrabold text-white cursor-pointer"
               >
-                ✨ Supernova Shuffle
+                ✨ Shuffle
               </button>
             </div>
 
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass border border-white/15 text-[10px] font-bold text-white/75">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              <span>DRAG TO ROTATE • SCROLL TO ZOOM</span>
+              <span>DRAG TO ROTATE • SCROLL / PINCH TO ZOOM</span>
             </div>
           </div>
 
-          {/* Bottom-Left Floating Selected Star Quick-Play Bar */}
+          {/* Bottom-Left Floating Selected Star Quick-Bar */}
           {selectedStar && (
             <div className="absolute bottom-3.5 left-3.5 right-32 sm:right-auto sm:max-w-xs pointer-events-auto">
               <div
@@ -1519,7 +1934,7 @@ export default function SonicGalaxyPage() {
                       style={{ backgroundColor: selectedStar.color }}
                     />
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 truncate">
-                      {selectedStar.affinityScore}% Match
+                      {selectedStar.affinityScore}% Match • {selectedStar.parsecDistance} pc
                     </span>
                   </div>
                   <p className="text-xs font-extrabold text-white truncate">
@@ -1531,6 +1946,7 @@ export default function SonicGalaxyPage() {
                 </div>
                 <button
                   onClick={() => {
+                    triggerAndroidHaptic('light');
                     unlockAudioEngine();
                     if (currentTrack?.id === selectedStar.id) {
                       togglePlay();
@@ -1549,20 +1965,29 @@ export default function SonicGalaxyPage() {
           {/* Bottom-Right Zoom Controls */}
           <div className="absolute bottom-3.5 right-3.5 flex items-center gap-1.5">
             <button
-              onClick={() => setZoom((z) => Math.max(0.7, +(z - 0.15).toFixed(2)))}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setZoom((z) => Math.max(0.65, +(z - 0.15).toFixed(2)));
+              }}
               className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white font-bold cursor-pointer"
               title="Zoom Out"
             >
               −
             </button>
             <button
-              onClick={() => setZoom(1.05)}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setZoom(1.05);
+              }}
               className="px-3 h-9 rounded-full glass-button flex items-center justify-center text-xs font-bold text-white/90 cursor-pointer tabular-nums"
             >
               {Math.round(zoom * 100)}%
             </button>
             <button
-              onClick={() => setZoom((z) => Math.min(1.85, +(z + 0.15).toFixed(2)))}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setZoom((z) => Math.min(1.95, +(z + 0.15).toFixed(2)));
+              }}
               className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white font-bold cursor-pointer"
               title="Zoom In"
             >
@@ -1571,31 +1996,37 @@ export default function SonicGalaxyPage() {
           </div>
         </div>
 
-        {/* Right: Perfected Tabbed Planetary Telemetry Inspector (5 cols) */}
+        {/* Right: VisionOS Planetary Telemetry Station (5 cols) */}
         <GlassCard
           variant="liquid"
           padding="md"
-          className="lg:col-span-5 flex flex-col justify-between border border-white/20 h-[520px] sm:h-[630px] overflow-hidden"
+          className="lg:col-span-5 flex flex-col justify-between border border-white/20 h-[520px] sm:h-[620px] lg:h-[700px] overflow-hidden"
         >
-          {/* Inspector Top Navigation Tabs */}
+          {/* Top Inspector Navigation Tabs */}
           <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/15 mb-3 flex-shrink-0">
             <button
               type="button"
-              onClick={() => setInspectorTab('dna')}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setInspectorTab('dna');
+              }}
               className={`flex-1 py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 inspectorTab === 'dna'
-                  ? 'glass-button-primary text-white'
+                  ? 'glass-button-primary text-white shadow-md'
                   : 'text-white/65 hover:text-white'
               }`}
             >
-              🧬 Taste & DNA
+              🧬 4D DNA & Spider
             </button>
             <button
               type="button"
-              onClick={() => setInspectorTab('neighbors')}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setInspectorTab('neighbors');
+              }}
               className={`flex-1 py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 inspectorTab === 'neighbors'
-                  ? 'glass-button-purple text-white'
+                  ? 'glass-button-purple text-white shadow-md'
                   : 'text-white/65 hover:text-white'
               }`}
             >
@@ -1603,14 +2034,17 @@ export default function SonicGalaxyPage() {
             </button>
             <button
               type="button"
-              onClick={() => setInspectorTab('roster')}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setInspectorTab('roster');
+              }}
               className={`flex-1 py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 inspectorTab === 'roster'
-                  ? 'glass-button-cyan text-white'
+                  ? 'glass-button-cyan text-white shadow-md'
                   : 'text-white/65 hover:text-white'
               }`}
             >
-              📋 All Stars ({visibleRosterStars.length})
+              📋 Roster ({filteredRosterStars.length})
             </button>
           </div>
 
@@ -1618,7 +2052,7 @@ export default function SonicGalaxyPage() {
           <div className="flex-1 overflow-y-auto pr-1 space-y-4">
             {selectedStar ? (
               <>
-                {/* Selected Star Compact Header (Always visible across tabs) */}
+                {/* Hero Planet Card Header */}
                 <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/15 flex items-center gap-3.5">
                   <div className="relative w-16 h-16 flex-shrink-0">
                     <div
@@ -1720,10 +2154,17 @@ export default function SonicGalaxyPage() {
                         </div>
                       </div>
 
-                      {/* Planetary Sonic DNA 4-Channel Bars */}
+                      {/* Interactive 4D Sonic Spider/Radar SVG Chart */}
+                      <SonicSpiderRadar
+                        trackDna={selectedStar.dna}
+                        userDna={userTasteProfile.userDna}
+                        clusterColor={selectedStar.color}
+                      />
+
+                      {/* Planetary Sonic DNA 4-Channel Visualizer Bars */}
                       <div className="p-3.5 rounded-2xl bg-black/40 border border-white/12 space-y-2.5">
                         <div className="flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase tracking-wider text-white/65">
-                          <span className="whitespace-nowrap truncate">🧬 Track Sonic DNA vs. Your Profile</span>
+                          <span className="whitespace-nowrap truncate">🧬 Acoustic Dimension Channels</span>
                           <span className="text-cyan-300 whitespace-nowrap flex-shrink-0">320kbps HD</span>
                         </div>
                         {[
@@ -1784,16 +2225,28 @@ export default function SonicGalaxyPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.16 }}
-                      className="space-y-2"
+                      className="space-y-2.5"
                     >
-                      <div className="text-[11px] font-bold text-white/60 px-1">
-                        Top 5 songs in the galaxy with the highest 4D Cosine DNA similarity to{' '}
-                        <span className="text-white font-extrabold">{selectedStar.track.title}</span>:
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[11px] font-bold text-white/60">
+                          Resonating stars near <span className="text-white font-extrabold">{selectedStar.track.title}</span>:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleChainHarmonicQueue}
+                          className="px-2.5 py-1 rounded-full glass-button-purple text-[10px] font-extrabold text-white cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                        >
+                          ⚡ Play Resonant Queue
+                        </button>
                       </div>
-                      {harmonicNeighbors.map(({ star: neighbor, pairMatch }) => (
+
+                      {harmonicNeighbors.map(({ star: neighbor, pairMatch, spatialDist }) => (
                         <div
                           key={neighbor.id}
-                          onClick={() => setSelectedStar(neighbor)}
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            setSelectedStar(neighbor);
+                          }}
                           className="p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/10 flex items-center justify-between gap-2.5 cursor-pointer transition-all"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -1812,6 +2265,9 @@ export default function SonicGalaxyPage() {
                               <p className="text-[11px] text-white/55 truncate">
                                 {neighbor.track.artist}
                               </p>
+                              <span className="text-[9px] text-cyan-300/80 font-mono">
+                                🌌 {spatialDist} parsecs away
+                              </span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
@@ -1822,6 +2278,7 @@ export default function SonicGalaxyPage() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                triggerAndroidHaptic('medium');
                                 unlockAudioEngine();
                                 playTrackWithSmartQueue(neighbor.track);
                               }}
@@ -1843,60 +2300,86 @@ export default function SonicGalaxyPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.16 }}
-                      className="space-y-1.5"
+                      className="space-y-2.5"
                     >
-                      {visibleRosterStars.map((node, i) => {
-                        const isSel = selectedStar?.id === node.id;
-                        return (
-                          <div
-                            key={node.id}
-                            onClick={() => setSelectedStar(node)}
-                            className={`p-2 rounded-xl border flex items-center justify-between gap-2.5 cursor-pointer transition-all ${
-                              isSel
-                                ? 'bg-white/15 border-white/30'
-                                : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/10'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className="text-[10px] font-extrabold text-white/45 w-5 text-center tabular-nums">
-                                #{i + 1}
-                              </span>
-                              <img
-                                src={node.track.thumbnail || DEFAULT_THUMBNAIL}
-                                alt={node.track.title}
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                                }}
-                                className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
-                              />
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-white truncate">
-                                  {node.track.title}
-                                </p>
-                                <p className="text-[10px] text-white/50 truncate">
-                                  {node.track.artist}
-                                </p>
+                      {/* Search & Sort Bar inside Roster */}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={rosterSearch}
+                          onChange={(e) => setRosterSearch(e.target.value)}
+                          placeholder="Search star roster..."
+                          className="flex-1 h-8 px-3 rounded-xl bg-white/[0.06] border border-white/15 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+                        />
+                        <select
+                          value={rosterSort}
+                          onChange={(e) => setRosterSort(e.target.value as any)}
+                          className="h-8 px-2 rounded-xl bg-white/[0.06] border border-white/15 text-[11px] text-white font-bold focus:outline-none cursor-pointer"
+                        >
+                          <option value="match" className="bg-[#0b0816] text-white">Sort: Match %</option>
+                          <option value="title" className="bg-[#0b0816] text-white">Sort: Title</option>
+                          <option value="artist" className="bg-[#0b0816] text-white">Sort: Artist</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {filteredRosterStars.map((node, i) => {
+                          const isSel = selectedStar?.id === node.id;
+                          return (
+                            <div
+                              key={node.id}
+                              onClick={() => {
+                                triggerAndroidHaptic('light');
+                                setSelectedStar(node);
+                              }}
+                              className={`p-2 rounded-xl border flex items-center justify-between gap-2.5 cursor-pointer transition-all ${
+                                isSel
+                                  ? 'bg-white/15 border-white/30 shadow-md'
+                                  : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/10'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="text-[10px] font-extrabold text-white/45 w-5 text-center tabular-nums">
+                                  #{i + 1}
+                                </span>
+                                <img
+                                  src={node.track.thumbnail || DEFAULT_THUMBNAIL}
+                                  alt={node.track.title}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                                  }}
+                                  className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-white truncate">
+                                    {node.track.title}
+                                  </p>
+                                  <p className="text-[10px] text-white/50 truncate">
+                                    {node.track.artist}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-extrabold text-emerald-300 tabular-nums">
+                                  {node.affinityScore}%
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    triggerAndroidHaptic('medium');
+                                    unlockAudioEngine();
+                                    playTrackWithSmartQueue(node.track);
+                                  }}
+                                  className="w-7 h-7 rounded-full glass-button flex items-center justify-center text-white text-[10px] cursor-pointer"
+                                >
+                                  ▶
+                                </button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-extrabold text-emerald-300 tabular-nums">
-                                {node.affinityScore}%
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  unlockAudioEngine();
-                                  playTrackWithSmartQueue(node.track);
-                                }}
-                                className="w-7 h-7 rounded-full glass-button flex items-center justify-center text-white text-[10px] cursor-pointer"
-                              >
-                                ▶
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1908,16 +2391,17 @@ export default function SonicGalaxyPage() {
             )}
           </div>
 
-          {/* Sticky Bottom Action Deck inside Right Inspector */}
+          {/* Sticky Bottom Action Dock inside Right Telemetry Inspector */}
           {selectedStar && (
             <div className="pt-3 mt-2 border-t border-white/15 space-y-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => {
+                  triggerAndroidHaptic('medium');
                   unlockAudioEngine();
                   playTrackWithSmartQueue(selectedStar.track);
                 }}
-                className="w-full py-2.5 rounded-full glass-button-primary text-white font-extrabold text-xs uppercase tracking-wider cursor-pointer"
+                className="w-full py-2.5 rounded-full glass-button-primary text-white font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-lg hover:scale-105 active:scale-95 transition-all"
               >
                 ▶ Play Star + Smart Gravity Queue
               </button>
@@ -1925,8 +2409,11 @@ export default function SonicGalaxyPage() {
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => addNext(selectedStar.track)}
-                  className="py-2 px-2.5 rounded-full glass-button text-white font-bold text-[11px] cursor-pointer truncate"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    addNext(selectedStar.track);
+                  }}
+                  className="py-2 px-2.5 rounded-full glass-button text-white font-bold text-[11px] cursor-pointer truncate hover:text-white"
                 >
                   ➕ Play Next
                 </button>
