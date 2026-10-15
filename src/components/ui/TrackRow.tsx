@@ -10,6 +10,7 @@ import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import HeartBurstButton from './HeartBurstButton';
 
 // Shared module-level hover coordinator so moving the cursor from one TrackRow
 // to another TrackRow bridges the 6px row gap and smoothly glides a single
@@ -417,31 +418,25 @@ const TrackRow = memo(({
 
         {/* Right: Clean, consistent controls (Like, Duration, More Actions •••) */}
         <div className="relative z-10 flex items-center gap-2 sm:gap-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          {/* 1. Like Button */}
-          <button
-            type="button"
-            onClick={handleLike}
-            title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-75 flex-shrink-0 ${
+          {/* 1. Like Button with HeartBurst physics */}
+          <div
+            className={`transition-all duration-200 flex-shrink-0 ${
               liked
-                ? 'glass-button-primary text-white opacity-100'
+                ? 'opacity-100'
                 : isPhone
-                ? 'glass-button text-white/60 opacity-80 hover:opacity-100'
+                ? 'opacity-80 hover:opacity-100'
                 : activeVisual
-                ? 'glass-button text-white/60 hover:text-white opacity-100'
+                ? 'opacity-100'
                 : 'opacity-0 pointer-events-none'
             }`}
           >
-            <svg
-              className="w-4 h-4"
-              viewBox="0 0 24 24"
-              fill={liked ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              strokeWidth="2.2"
-            >
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-          </button>
+            <HeartBurstButton
+              isLiked={liked}
+              onToggle={handleLike}
+              size="sm"
+              title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
+            />
+          </div>
 
           {/* 2. Duration (Fixed width, never overlapped) */}
           <div className="text-xs font-medium text-white/50 min-w-11 text-right tabular-nums whitespace-nowrap flex-shrink-0 select-none">

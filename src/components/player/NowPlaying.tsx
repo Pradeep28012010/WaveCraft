@@ -23,6 +23,8 @@ import { useSleepTimer } from '../../hooks/useSleepTimer';
 import WindowsTitleBar from '../layout/WindowsTitleBar';
 import { useNavigate } from 'react-router-dom';
 import { estimateTrackAcoustics } from '../../services/aiDjEngine';
+import WaveformScrubber from './WaveformScrubber';
+import HeartBurstButton from '../ui/HeartBurstButton';
 
 interface NowPlayingProps {
   isOpen: boolean;
@@ -1303,63 +1305,56 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         )}
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={handleToggleLike}
-                        aria-label={isLiked ? 'Unlike track' : 'Like track'}
+                      <HeartBurstButton
+                        isLiked={isLiked}
+                        onToggle={handleToggleLike}
+                        size="md"
                         title={isLiked ? 'Unlike' : 'Like'}
-                        className={`w-10 h-10 p-0 flex items-center justify-center rounded-full flex-shrink-0 transition-transform cursor-pointer active:scale-75 ${
-                          isLiked
-                            ? 'glass-button-primary text-[var(--color-accent)] scale-105'
-                            : 'glass-button text-white/65 hover:text-white'
-                        }`}
-                      >
-                        <svg
-                          className="w-5 h-5 block"
-                          viewBox="0 0 24 24"
-                          fill={isLiked ? 'currentColor' : 'none'}
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                        </svg>
-                      </button>
+                      />
                     </div>
                   </motion.div>
 
-                  {/* Isolated 120fps Progress Bar */}
-                  <NowPlayingScrubber fallbackDuration={currentTrack.duration || 210} />
+                  {/* Interactive Waveform Scrubber with Peak Frequency Mini-Map */}
+                  <WaveformScrubber
+                    fallbackDuration={currentTrack.duration || 210}
+                    trackId={currentTrack.id}
+                    trackTitle={currentTrack.title}
+                  />
 
-                  {/* Symmetric Centered Transport Buttons */}
+                  {/* Symmetric Centered Transport Buttons with Tactile Spring Physics */}
                   <div className="w-full flex items-center justify-center gap-5 sm:gap-6 mt-3">
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.86 }}
                       onClick={handleToggleShuffle}
                       title={isShuffled ? 'Shuffle On' : 'Shuffle Off'}
-                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer active:scale-90 ${
+                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer ${
                         isShuffled
-                          ? 'glass-button-primary text-white'
+                          ? 'glass-button-primary text-white shadow-[0_0_12px_var(--color-accent)]'
                           : 'glass-button text-white/60 hover:text-white'
                       }`}
                     >
                       <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                       </svg>
-                    </button>
+                    </motion.button>
 
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.88 }}
                       onClick={handlePrevTrack}
                       title="Previous Track"
-                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90"
+                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
                     >
                       <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                       </svg>
-                    </button>
+                    </motion.button>
 
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.90 }}
+                      whileHover={{ scale: 1.05 }}
                       onClick={handleTogglePlay}
                       title={isPlaying ? 'Pause' : 'Play'}
-                      className="w-16 h-16 p-0 flex items-center justify-center rounded-full glass-button-primary text-white hover:scale-105 active:scale-90 transition-transform cursor-pointer shadow-[0_10px_32px_rgba(250,45,72,0.38)]"
+                      className="w-16 h-16 p-0 flex items-center justify-center rounded-full glass-button-primary text-white transition-transform cursor-pointer shadow-[0_10px_32px_rgba(250,45,72,0.45)]"
                     >
                       {isPlaying ? (
                         <svg className="w-7 h-7 block" viewBox="0 0 24 24" fill="currentColor">
@@ -1371,19 +1366,21 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
                         </svg>
                       )}
-                    </button>
+                    </motion.button>
 
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.88 }}
                       onClick={handleNextTrack}
                       title="Next Track"
-                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90"
+                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
                     >
                       <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                       </svg>
-                    </button>
+                    </motion.button>
 
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.86 }}
                       onClick={handleCycleRepeat}
                       title={
                         repeatMode === 'one'
@@ -1399,9 +1396,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           ? 'Repeat All'
                           : 'Repeat Off'
                       }
-                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer relative active:scale-90 ${
+                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer relative ${
                         repeatMode !== 'off'
-                          ? 'glass-button-primary text-white'
+                          ? 'glass-button-primary text-white shadow-[0_0_12px_var(--color-accent)]'
                           : 'glass-button text-white/60 hover:text-white'
                       }`}
                     >
@@ -1430,7 +1427,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           1
                         </span>
                       )}
-                    </button>
+                    </motion.button>
                   </div>
 
                   {/* Mobile Actions vs Desktop Volume & Feature Toggles */}

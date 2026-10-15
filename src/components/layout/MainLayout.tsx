@@ -1,4 +1,5 @@
 import { Component, Suspense, type ErrorInfo, type ReactNode, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -137,11 +138,17 @@ export default function MainLayout() {
                   : `px-6 lg:px-8 pt-4 ${hasCurrentTrack ? 'pb-32' : 'pb-24'}`
               }`}>
                 <RouteErrorBoundary resetKey={location.pathname}>
-                  <div className="w-full">
+                  <motion.div
+                    key={location.pathname}
+                    initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    className="w-full will-change-transform"
+                  >
                     <Suspense fallback={null}>
                       <Outlet />
                     </Suspense>
-                  </div>
+                  </motion.div>
                 </RouteErrorBoundary>
               </div>
             </main>

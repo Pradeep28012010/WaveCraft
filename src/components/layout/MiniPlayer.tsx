@@ -11,6 +11,7 @@ import NowPlaying from '../player/NowPlaying';
 import QueuePanel from '../player/QueuePanel';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
+import HeartBurstButton from '../ui/HeartBurstButton';
 
 /**
  * iOS / Apple Music style Elastic Snap Slider for MiniPlayer
@@ -564,29 +565,12 @@ export default function MiniPlayer() {
               )}
             </motion.button>
 
-            <motion.button
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.75 }}
-              animate={isLiked ? { scale: [1, 1.3, 1] } : { scale: 1 }}
-              transition={{ duration: 0.28 }}
-              onClick={() => toggleLike(currentTrack)}
+            <HeartBurstButton
+              isLiked={isLiked}
+              onToggle={() => toggleLike(currentTrack)}
+              size="sm"
               title={isLiked ? 'Unlike' : 'Like'}
-              className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors flex-shrink-0 cursor-pointer ${
-                isLiked
-                  ? 'glass-button-primary text-white'
-                  : 'glass-button text-white/70 hover:text-white'
-              }`}
-            >
-              <svg
-                className="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill={isLiked ? 'currentColor' : 'none'}
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-            </motion.button>
+            />
           </div>
 
           {/* Center: Transport Controls */}
