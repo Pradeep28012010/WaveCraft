@@ -1,11 +1,12 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import GlassModal from '../ui/GlassModal';
-import GlassButton from '../ui/GlassButton';
 import { useLibraryStore, normalizeQueryFingerprint } from '../../stores/libraryStore';
 import { searchTracks } from '../../services/youtube';
 import { parseM3U8String, parseJSONPlaylistString, type ParsedPlaylistFile } from '../../utils/playlistExport';
 import { apiUrl } from '../../services/apiConfig';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import type { Track, Playlist } from '../../types';
 
 interface ImportPlaylistModalProps {
@@ -20,6 +21,15 @@ interface ImportQueryItem {
   videoId?: string;
 }
 
+const MODES = [
+  { id: 'live', label: 'Live Auto-Sync', icon: '⚡', dot: true },
+  { id: 'url', label: 'One-Time Link', icon: '🔗', dot: false },
+  { id: 'text', label: 'Paste Song List', icon: '📋', dot: false },
+  { id: 'file', label: 'Upload File', icon: '📁', dot: false }
+] as const;
+
+type ImportMode = typeof MODES[number]['id'];
+
 export default function ImportPlaylistModal({
   isOpen,
   onClose,
@@ -30,7 +40,7 @@ export default function ImportPlaylistModal({
   const addTracksToPlaylist = useLibraryStore((s) => s.addTracksToPlaylist);
   const updatePlaylist = useLibraryStore((s) => s.updatePlaylist);
 
-  const [mode, setMode] = useState<'live' | 'url' | 'text' | 'file'>(initialMode);
+  const [mode, setMode] = useState<ImportMode>(initialMode);
   const [prevOpenKey, setPrevOpenKey] = useState(`${isOpen}:${initialMode}`);
   const [urlInput, setUrlInput] = useState('');
   const [customName, setCustomName] = useState('');
@@ -53,7 +63,7 @@ export default function ImportPlaylistModal({
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Sync mode synchronously before paint when modal opens so Frame 1 never flashes the wrong tab
+  // Sync mode synchronously before paint when modal opens
   const currentOpenKey = `${isOpen}:${initialMode}`;
   if (currentOpenKey !== prevOpenKey) {
     setPrevOpenKey(currentOpenKey);
@@ -74,9 +84,9 @@ export default function ImportPlaylistModal({
         icon: '🟢',
         badge: 'SPOTIFY PLAYLIST',
         accent: 'from-emerald-500 to-green-600',
-        textColor: 'text-emerald-300',
+        textColor: 'text-emerald-400',
         borderColor: 'border-emerald-500/40',
-        bgColor: 'bg-emerald-500/10'
+        bgColor: 'bg-emerald-500/15'
       };
     }
     if (raw.includes('youtube.com') || raw.includes('youtu.be')) {
@@ -85,9 +95,9 @@ export default function ImportPlaylistModal({
         icon: '🔴',
         badge: 'YOUTUBE PLAYLIST',
         accent: 'from-rose-500 to-red-600',
-        textColor: 'text-rose-300',
+        textColor: 'text-rose-400',
         borderColor: 'border-rose-500/40',
-        bgColor: 'bg-rose-500/10'
+        bgColor: 'bg-rose-500/15'
       };
     }
     if (raw.includes('apple.com')) {
@@ -96,9 +106,9 @@ export default function ImportPlaylistModal({
         icon: '🍎',
         badge: 'APPLE MUSIC',
         accent: 'from-pink-500 to-rose-600',
-        textColor: 'text-pink-300',
+        textColor: 'text-pink-400',
         borderColor: 'border-pink-500/40',
-        bgColor: 'bg-pink-500/10'
+        bgColor: 'bg-pink-500/15'
       };
     }
     return null;
@@ -115,7 +125,7 @@ export default function ImportPlaylistModal({
     setTotalCount(queries.length);
     setMatchedCount(0);
     setStatusText(
-      `Creating "${playlistName}" • Importing all ${queries.length} tracks in 320kbps...`
+      `Creating "${playlistName}" • Importing ${queries.length} tracks in 320kbps...`
     );
     setProgressPct(3);
 
@@ -187,7 +197,7 @@ export default function ImportPlaylistModal({
 
         let batchResolvedTracks: Array<{ track: Track; fp: string }> = [];
 
-        // 1. Try server-side batch search first (ultra-fast, cached, immune to CORS and rate limits)
+        // 1. Try server-side batch search first (fast, cached)
         try {
           const endpoint = apiUrl('/api/music?action=batch-search');
           const batchRes = await fetch(endpoint, {
@@ -216,7 +226,7 @@ export default function ImportPlaylistModal({
           // If batch-search failed or timed out, will fall back below
         }
 
-        // 2. If batch search didn't resolve all tracks, run resilient single search fallback for missing ones
+        // 2. Fallback single search for missing ones
         if (batchResolvedTracks.length < chunk.length && !abortRef.current) {
           const resolvedTitles = new Set(
             batchResolvedTracks.map((b) => b.track.title.toLowerCase())
@@ -300,12 +310,13 @@ export default function ImportPlaylistModal({
     const cleanedUrl = urlInput.trim();
     if (!cleanedUrl) return;
 
+    triggerAndroidHaptic('medium');
     setIsImporting(true);
     setErrorMsg('');
     setStatusText(
       mode === 'live'
         ? 'Connecting Live Sync Engine to source playlist...'
-        : 'Fetching complete playlist tracklist (unlimited tracks)...'
+        : 'Fetching complete playlist tracklist...'
     );
     setProgressPct(5);
 
@@ -332,7 +343,6 @@ export default function ImportPlaylistModal({
         console.warn('Initial import fetch failed:', err);
       }
 
-      // If initial fetch failed, returned an error, or had no queries, retry with direct PROD_API_ORIGIN
       if (!data || data.error || !Array.isArray(data.queries) || data.queries.length === 0) {
         try {
           const directRes = await fetch(
@@ -390,6 +400,7 @@ export default function ImportPlaylistModal({
       .filter(Boolean);
     if (lines.length === 0) return;
 
+    triggerAndroidHaptic('medium');
     setIsImporting(true);
     setErrorMsg('');
 
@@ -433,6 +444,7 @@ export default function ImportPlaylistModal({
           return;
         }
         setParsedFile(parsed);
+        triggerAndroidHaptic('light');
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Failed to parse file format. Ensure valid M3U8 or JSON.';
         setFileError(msg);
@@ -445,6 +457,7 @@ export default function ImportPlaylistModal({
   const handleImportFile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!parsedFile || !parsedFile.tracks.length) return;
+    triggerAndroidHaptic('medium');
     setIsImporting(true);
     setErrorMsg('');
 
@@ -472,166 +485,176 @@ export default function ImportPlaylistModal({
       isOpen={isOpen}
       onClose={onClose}
       size="xl"
-      title="Universal Playlist Importer & Live Auto-Sync"
+      title="Universal Playlist Importer"
     >
-      <div className="flex flex-col gap-4 text-white">
-        {/* ================= VISUAL CONNECTION PIPELINE BANNER ================= */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-white/[0.05] via-white/[0.02] to-white/[0.05] border border-white/12 flex items-center justify-between gap-3 overflow-hidden relative">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-lg flex-shrink-0">
+      <div className="flex flex-col gap-4 text-white select-none">
+        {/* ── Apple-Grade Connection Pipeline Glass Banner ── */}
+        <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.03] border border-white/10 flex items-center justify-between gap-3 overflow-hidden relative shadow-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 transition-all ${
+              detectedPlatform
+                ? `${detectedPlatform.bgColor} border ${detectedPlatform.borderColor} shadow-md`
+                : 'bg-white/10 border border-white/15'
+            }`}>
               {detectedPlatform ? detectedPlatform.icon : '🌐'}
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-wider text-white/50 block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 block">
                 SOURCE STREAM
               </span>
-              <span className="text-xs font-extrabold text-white truncate block">
-                {detectedPlatform ? detectedPlatform.name : 'Spotify • YouTube'}
+              <span className="text-xs font-bold text-white truncate block">
+                {detectedPlatform ? detectedPlatform.name : 'Spotify • YouTube • Apple Music'}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full liquid-glass bg-black/40 border border-white/10 flex-shrink-0 shadow-inner">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
-              320kbps HD Matcher
+            <span className="text-[10px] font-black uppercase tracking-wider text-cyan-300">
+              Lossless 320k Matcher
             </span>
-            <span className="text-white/40">⟶</span>
+            <span className="text-white/40 text-xs">⟶</span>
           </div>
 
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-purple-600 border border-white/20 flex items-center justify-center text-white flex-shrink-0 shadow-md">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-purple-600 border border-white/20 flex items-center justify-center text-white flex-shrink-0 shadow-lg">
               <span className="text-sm font-black">W</span>
             </div>
             <div className="min-w-0 hidden sm:block">
-              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-accent)] block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent)] block">
                 WAVECRAFT
               </span>
-              <span className="text-xs font-extrabold text-white truncate block">
-                Local HD Library
+              <span className="text-xs font-bold text-white truncate block">
+                Library HD
               </span>
             </div>
           </div>
         </div>
 
-        {/* ================= 4-WAY SEGMENTED MODE SELECTOR ================= */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 rounded-2xl liquid-glass border border-white/12">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('live');
-              setErrorMsg('');
-            }}
-            className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 ${
-              mode === 'live'
-                ? 'glass-button-emerald text-white shadow-lg'
-                : 'glass-button text-white/70 hover:text-white'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-            <span>Live Auto-Sync</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('url');
-              setErrorMsg('');
-            }}
-            className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 ${
-              mode === 'url'
-                ? 'glass-button-primary text-white shadow-lg'
-                : 'glass-button text-white/70 hover:text-white'
-            }`}
-          >
-            <span>🔗 One-Time Link</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('text');
-              setErrorMsg('');
-            }}
-            className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 ${
-              mode === 'text'
-                ? 'glass-button-primary text-white shadow-lg'
-                : 'glass-button text-white/70 hover:text-white'
-            }`}
-          >
-            <span>📋 Paste Song List</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('file');
-              setErrorMsg('');
-            }}
-            className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 ${
-              mode === 'file'
-                ? 'glass-button-primary text-white shadow-lg'
-                : 'glass-button text-white/70 hover:text-white'
-            }`}
-          >
-            <span>📁 Upload File</span>
-          </button>
+        {/* ── Apple-Style Sliding Segmented Control ── */}
+        <div className="flex items-center p-1 rounded-xl liquid-glass bg-white/[0.04] border border-white/10 relative gap-1">
+          {MODES.map((m) => {
+            const isActive = mode === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setMode(m.id);
+                  setErrorMsg('');
+                }}
+                className={`relative flex-1 py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 z-10 ${
+                  isActive ? 'text-white' : 'text-white/60 hover:text-white'
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="import-modal-tab-pill"
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    className={`absolute inset-0 rounded-lg shadow-md border ${
+                      m.id === 'live'
+                        ? 'bg-emerald-500/30 border-emerald-400/40'
+                        : 'bg-white/15 border-white/20'
+                    }`}
+                  />
+                )}
+                {m.dot && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0 relative z-10" />
+                )}
+                <span className="relative z-10 flex items-center gap-1">
+                  <span>{m.icon}</span>
+                  <span className="hidden sm:inline">{m.label}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* ================= MODE EXPLANATION ACCORDION ================= */}
-        {mode === 'live' ? (
-          <div className="px-3.5 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-400/25 flex flex-col gap-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-extrabold text-emerald-300 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Live Playlist Auto-Sync Engine
+        {/* ── Mode Info Card ── */}
+        <AnimatePresence mode="wait">
+          {mode === 'live' ? (
+            <motion.div
+              key="info-live"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="px-3.5 py-2.5 rounded-xl liquid-glass bg-emerald-500/10 border border-emerald-400/25 flex flex-col gap-0.5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  Live Playlist Auto-Sync Engine
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[9px] font-black text-emerald-200 uppercase tracking-wider">
+                  BACKGROUND ENGINE
+                </span>
+              </div>
+              <p className="text-[11px] text-white/70 leading-relaxed">
+                Keeps your local playlist in sync with the original Spotify or YouTube link. Any new songs added remotely get resolved automatically in 320kbps.
+              </p>
+            </motion.div>
+          ) : mode === 'url' ? (
+            <motion.div
+              key="info-url"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="px-3.5 py-2 rounded-xl liquid-glass bg-cyan-500/10 border border-cyan-400/25 flex items-center justify-between text-xs text-cyan-200"
+            >
+              <span className="font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                One-Time Playlist Snapshot
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/35 text-[10px] font-extrabold text-emerald-200 uppercase tracking-wider">
-                ACTIVE BACKGROUND SYNC
+              <span className="text-[10px] text-cyan-300/80 font-bold uppercase tracking-wider">
+                Unlimited Tracks • 320kbps HD
               </span>
-            </div>
-            <p className="text-[11px] text-white/70 leading-relaxed">
-              Maintains an active bridge with your original Spotify or YouTube playlist. When new songs are added to the source, WaveCraft automatically resolves and adds them in 320kbps.
-            </p>
-          </div>
-        ) : mode === 'url' ? (
-          <div className="px-3.5 py-2 rounded-xl bg-cyan-500/10 border border-cyan-400/25 flex items-center justify-between text-xs text-cyan-200">
-            <span className="font-bold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              One-Time Snapshot Importer
-            </span>
-            <span className="text-[11px] text-cyan-300/80 font-semibold">
-              All tracks • 320kbps Studio Audio
-            </span>
-          </div>
-        ) : mode === 'text' ? (
-          <div className="px-3.5 py-2 rounded-xl bg-purple-500/10 border border-purple-400/25 flex items-center justify-between text-xs text-purple-200">
-            <span className="font-bold flex items-center gap-2">
-              <span>📋 Batch Text Importer</span>
-            </span>
-            <span className="text-[11px] text-purple-300/80 font-semibold">
-              Paste song titles from Notes, Reddit, or YouTube descriptions
-            </span>
-          </div>
-        ) : (
-          <div className="px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-400/25 flex items-center justify-between text-xs text-amber-200">
-            <span className="font-bold flex items-center gap-2">
-              <span>📁 M3U8 & JSON File Importer</span>
-            </span>
-            <span className="text-[11px] text-amber-300/80 font-semibold">
-              VLC, Apple Music, Winamp playlists or WaveCraft JSON backups
-            </span>
-          </div>
-        )}
+            </motion.div>
+          ) : mode === 'text' ? (
+            <motion.div
+              key="info-text"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="px-3.5 py-2 rounded-xl liquid-glass bg-purple-500/10 border border-purple-400/25 flex items-center justify-between text-xs text-purple-200"
+            >
+              <span className="font-bold flex items-center gap-1.5">
+                <span>📋 Batch Tracklist Importer</span>
+              </span>
+              <span className="text-[10px] text-purple-300/80 font-bold uppercase tracking-wider">
+                Paste from Notes, Reddit, or YouTube
+              </span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="info-file"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="px-3.5 py-2 rounded-xl liquid-glass bg-amber-500/10 border border-amber-400/25 flex items-center justify-between text-xs text-amber-200"
+            >
+              <span className="font-bold flex items-center gap-1.5">
+                <span>📁 M3U8 & JSON File Importer</span>
+              </span>
+              <span className="text-[10px] text-amber-300/80 font-bold uppercase tracking-wider">
+                Apple Music, VLC, Winamp or WaveCraft Backups
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* ================= TAB 1 & 2: URL IMPORTER (LIVE OR ONE-TIME) ================= */}
-        {mode === 'live' || mode === 'url' ? (
-          <form onSubmit={handleImportUrl} className="flex flex-col gap-3.5">
+        {/* ── TAB 1 & 2: URL IMPORTER (LIVE OR ONE-TIME) ── */}
+        {(mode === 'live' || mode === 'url') && (
+          <form onSubmit={handleImportUrl} className="flex flex-col gap-3">
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-white/85 flex items-center gap-1.5">
-                  <span>{mode === 'live' ? 'Source Playlist URL to Monitor' : 'Public Playlist or Album URL'}</span>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+                  {mode === 'live' ? 'Source Playlist URL to Monitor' : 'Public Playlist URL'} <span className="text-rose-400">*</span>
                 </label>
                 {detectedPlatform && (
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${detectedPlatform.bgColor} ${detectedPlatform.textColor} border ${detectedPlatform.borderColor}`}>
-                    {detectedPlatform.icon} {detectedPlatform.badge}
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${detectedPlatform.bgColor} ${detectedPlatform.textColor} border ${detectedPlatform.borderColor} flex items-center gap-1`}>
+                    <span>{detectedPlatform.icon}</span>
+                    <span>{detectedPlatform.badge}</span>
                   </span>
                 )}
               </div>
@@ -642,33 +665,33 @@ export default function ImportPlaylistModal({
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 placeholder="https://open.spotify.com/playlist/... or https://youtube.com/playlist?list=..."
-                className="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/35 focus:border-cyan-400/60"
+                className="w-full h-11 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
               />
             </div>
 
             <div>
-              <label className="text-xs font-bold text-white/85 block mb-1.5">
-                Custom Playlist Name <span className="text-white/45 font-normal">(optional — defaults to original title)</span>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-white/50 mb-1">
+                Custom Playlist Name <span className="text-white/30 lowercase font-normal">(optional — defaults to source name)</span>
               </label>
               <input
                 type="text"
                 disabled={isImporting}
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
-                placeholder="Leave blank to use original playlist name"
-                className="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/35"
+                placeholder="Leave blank to use original title"
+                className="w-full h-10 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
               />
             </div>
 
             {/* LIVE AUTO-SYNC CONFIGURATION CARD */}
             {mode === 'live' && (
-              <div className="p-4 rounded-2xl liquid-glass border border-white/12 space-y-3.5">
+              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.02] border border-white/10 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
                     <span>⚡ Sync Engine Rules</span>
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-white/50 font-bold mr-1">Check interval:</span>
+                    <span className="text-[10px] text-white/50 font-bold mr-1">Check interval:</span>
                     {[
                       { mins: 15, label: '15m' },
                       { mins: 30, label: '30m' },
@@ -678,11 +701,14 @@ export default function ImportPlaylistModal({
                       <button
                         key={opt.mins}
                         type="button"
-                        onClick={() => setSyncIntervalMinutes(opt.mins)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setSyncIntervalMinutes(opt.mins);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer whitespace-nowrap ${
                           syncIntervalMinutes === opt.mins
                             ? 'glass-button-emerald text-emerald-100 shadow-sm'
-                            : 'glass-button text-white/70 hover:text-white'
+                            : 'glass-button text-white/60 hover:text-white'
                         }`}
                       >
                         {opt.label}
@@ -691,17 +717,19 @@ export default function ImportPlaylistModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSyncStrategy('append')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 whitespace-normal break-words w-full overflow-hidden ${
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setSyncStrategy('append');
+                    }}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
                       syncStrategy === 'append'
-                        ? 'glass-button-emerald text-white shadow-md'
-                        : 'glass-button text-white/70 hover:text-white'
+                        ? 'liquid-glass bg-emerald-500/15 border-emerald-400/40 text-white shadow-md'
+                        : 'liquid-glass bg-white/[0.02] border-white/10 text-white/70 hover:text-white'
                     }`}
                   >
-                    <div className="text-xs font-black flex items-center justify-between">
+                    <div className="text-xs font-bold flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <span>➕ Auto-Append Mode</span>
                       </span>
@@ -709,21 +737,23 @@ export default function ImportPlaylistModal({
                         <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
                       )}
                     </div>
-                    <div className="text-[11px] text-white/60 leading-snug whitespace-normal break-words">
-                      Preserves any tracks you manually add in WaveCraft, while seamlessly fetching newly released tracks from the source.
+                    <div className="text-[10px] text-white/60 leading-snug">
+                      Preserves any tracks you manually add in WaveCraft, while seamlessly fetching newly released tracks from source.
                     </div>
-                  </button>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setSyncStrategy('mirror')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 whitespace-normal break-words w-full overflow-hidden ${
+                  <div
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setSyncStrategy('mirror');
+                    }}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
                       syncStrategy === 'mirror'
-                        ? 'glass-button-emerald text-white shadow-md'
-                        : 'glass-button text-white/70 hover:text-white'
+                        ? 'liquid-glass bg-emerald-500/15 border-emerald-400/40 text-white shadow-md'
+                        : 'liquid-glass bg-white/[0.02] border-white/10 text-white/70 hover:text-white'
                     }`}
                   >
-                    <div className="text-xs font-black flex items-center justify-between">
+                    <div className="text-xs font-bold flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <span>🪞 Exact Mirror Mode</span>
                       </span>
@@ -731,50 +761,53 @@ export default function ImportPlaylistModal({
                         <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
                       )}
                     </div>
-                    <div className="text-[11px] text-white/60 leading-snug whitespace-normal break-words">
+                    <div className="text-[10px] text-white/60 leading-snug">
                       Mirrors the exact source tracklist. When songs are removed or reordered on Spotify/YouTube, WaveCraft mirrors them.
                     </div>
-                  </button>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* QUICK PRESETS CHIPS */}
-            <div className="flex flex-wrap items-center gap-2 pt-0.5">
-              <span className="text-[11px] text-white/45 font-bold uppercase tracking-wider">
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider mr-1">
                 Instant Charts:
               </span>
               <button
                 type="button"
-                onClick={() =>
-                  setUrlInput('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M')
-                }
-                className="text-[11px] px-3 py-1 rounded-full glass-button text-emerald-300 hover:text-white cursor-pointer whitespace-nowrap"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setUrlInput('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M');
+                }}
+                className="text-[11px] px-2.5 py-1 rounded-lg glass-button text-emerald-300 hover:text-white cursor-pointer active:scale-95 transition-all"
               >
-                Global Top Hits (50+ Songs)
+                Global Top Hits
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  setUrlInput('https://open.spotify.com/playlist/37i9dQZF1DX0XUfTFmNBRM')
-                }
-                className="text-[11px] px-3 py-1 rounded-full glass-button text-emerald-300 hover:text-white cursor-pointer whitespace-nowrap"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setUrlInput('https://open.spotify.com/playlist/37i9dQZF1DX0XUfTFmNBRM');
+                }}
+                className="text-[11px] px-2.5 py-1 rounded-lg glass-button text-emerald-300 hover:text-white cursor-pointer active:scale-95 transition-all"
               >
-                Trending India (50+ Songs)
+                Trending India
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  setUrlInput('https://open.spotify.com/playlist/37i9dQZF1DX4t95PaoR1zy')
-                }
-                className="text-[11px] px-3 py-1 rounded-full glass-button text-purple-300 hover:text-white cursor-pointer whitespace-nowrap"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setUrlInput('https://open.spotify.com/playlist/37i9dQZF1DX4t95PaoR1zy');
+                }}
+                className="text-[11px] px-2.5 py-1 rounded-lg glass-button text-purple-300 hover:text-white cursor-pointer active:scale-95 transition-all"
               >
-                Lo-Fi Beats (50+ Songs)
+                Lo-Fi Beats
               </button>
             </div>
 
             {errorMsg && (
-              <div className="p-3.5 rounded-xl bg-red-500/15 border border-red-500/35 text-xs text-red-200 flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/35 text-xs text-red-200 flex items-center gap-2">
                 <span className="text-base flex-shrink-0">⚠️</span>
                 <span>{errorMsg}</span>
               </div>
@@ -782,22 +815,22 @@ export default function ImportPlaylistModal({
 
             {/* IMPORT PROGRESS HUD */}
             {isImporting && (
-              <div className="p-4 rounded-2xl liquid-glass border border-white/20 space-y-2.5">
+              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.04] border border-white/20 space-y-2">
                 <div className="flex justify-between items-center text-xs font-bold text-white">
                   <span className="truncate pr-2 flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin border-2 border-cyan-400 border-t-transparent" />
                     <span>{statusText}</span>
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-black tabular-nums flex-shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-white/15 text-[10px] font-black tabular-nums flex-shrink-0">
                     {progressPct}%
                   </span>
                 </div>
                 {currentTrackLabel && (
-                  <p className="text-[11px] text-white/65 truncate">
+                  <p className="text-[11px] text-white/60 truncate">
                     🎵 Matching: <span className="text-white font-semibold">{currentTrackLabel}</span>
                   </p>
                 )}
-                <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
+                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 transition-all duration-300 shadow-[0_0_12px_rgba(34,211,238,0.75)]"
                     style={{ width: `${progressPct}%` }}
@@ -808,9 +841,10 @@ export default function ImportPlaylistModal({
                     <button
                       type="button"
                       onClick={() => {
+                        triggerAndroidHaptic('light');
                         abortRef.current = true;
                       }}
-                      className="text-[11px] px-3.5 py-1.5 rounded-full glass-button text-amber-300 hover:text-white cursor-pointer whitespace-nowrap"
+                      className="text-[11px] px-3 py-1 rounded-lg glass-button text-amber-300 hover:text-white cursor-pointer active:scale-95 transition-all"
                     >
                       Finish Initial Sync & Open ({matchedCount} tracks ready)
                     </button>
@@ -819,25 +853,38 @@ export default function ImportPlaylistModal({
               </div>
             )}
 
-            <div className="flex justify-end gap-2.5 pt-2">
-              <GlassButton type="button" variant="ghost" onClick={onClose} disabled={isImporting}>
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10 mt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isImporting}
+                className="px-4 py-2 rounded-xl glass-button text-xs font-semibold text-white/70 hover:text-white transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+              >
                 Cancel
-              </GlassButton>
-              <GlassButton type="submit" variant="primary" disabled={isImporting}>
+              </button>
+              <button
+                type="submit"
+                disabled={isImporting}
+                className={`px-5 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-40 ${
+                  mode === 'live' ? 'glass-button-emerald' : 'glass-button-primary'
+                }`}
+              >
                 {isImporting
                   ? `Syncing (${matchedCount}/${totalCount || '...'})`
                   : mode === 'live'
                   ? 'Connect & Sync Live Playlist'
                   : 'Import All Tracks'}
-              </GlassButton>
+              </button>
             </div>
           </form>
-        ) : mode === 'text' ? (
-          /* ================= TAB 3: BATCH TEXT IMPORTER ================= */
-          <form onSubmit={handleImportText} className="flex flex-col gap-3.5">
+        )}
+
+        {/* ── TAB 3: BATCH TEXT IMPORTER ── */}
+        {mode === 'text' && (
+          <form onSubmit={handleImportText} className="flex flex-col gap-3">
             <div>
-              <label className="text-xs font-bold text-white/85 block mb-1.5">
-                Playlist Name
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-white/50 mb-1">
+                Playlist Name <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
@@ -846,30 +893,31 @@ export default function ImportPlaylistModal({
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder="My Curated Vibe"
-                className="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/35"
+                className="w-full h-10 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
               />
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-white/85">
-                  Song List (one song per line, e.g. "Song Name - Artist" • Unlimited)
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+                  Song List (one song per line, e.g. "Song Name - Artist")
                 </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
                       setTextInput(
                         `Starboy - The Weeknd\nBlinding Lights - The Weeknd\nCruel Summer - Taylor Swift\nHukum - Anirudh Ravichander\nBeliever - Imagine Dragons\nKesariya - Arijit Singh\nDynamite - BTS\nViva La Vida - Coldplay`
-                      )
-                    }
+                      );
+                    }}
                     className="text-[10px] text-cyan-300 hover:text-white cursor-pointer font-bold"
                   >
                     Paste Demo List
                   </button>
                   {parsedLineCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/30 text-[10px] font-extrabold text-purple-200">
-                      {parsedLineCount} {parsedLineCount === 1 ? 'track' : 'tracks'} detected
+                      {parsedLineCount} {parsedLineCount === 1 ? 'track' : 'tracks'}
                     </span>
                   )}
                 </div>
@@ -880,16 +928,16 @@ export default function ImportPlaylistModal({
                 disabled={isImporting}
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
-                placeholder={`Yeshanagula - Anirudh Ravichander\nOne Sun One Moon - Anirudh\nStarboy - The Weeknd\nBeliever - Imagine Dragons`}
-                className="w-full glass-input rounded-xl p-3.5 text-sm text-white placeholder:text-white/35 resize-none font-mono"
+                placeholder={`Starboy - The Weeknd\nBlinding Lights - The Weeknd\nCruel Summer - Taylor Swift\nBeliever - Imagine Dragons`}
+                className="w-full p-3 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 resize-none font-mono focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
               />
             </div>
 
             {isImporting && (
-              <div className="p-4 rounded-2xl liquid-glass border border-white/20 space-y-2.5">
+              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.04] border border-white/20 space-y-2">
                 <div className="flex justify-between items-center text-xs font-bold text-white">
                   <span className="truncate pr-2">{statusText}</span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-black tabular-nums flex-shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-white/15 text-[10px] font-black tabular-nums flex-shrink-0">
                     {progressPct}%
                   </span>
                 </div>
@@ -898,7 +946,7 @@ export default function ImportPlaylistModal({
                     🎵 Matching: <span className="text-white font-semibold">{currentTrackLabel}</span>
                   </p>
                 )}
-                <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
+                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-[var(--color-accent)] via-fuchsia-500 to-cyan-400 transition-all duration-300 shadow-[0_0_12px_rgba(250,45,72,0.7)]"
                     style={{ width: `${progressPct}%` }}
@@ -907,21 +955,32 @@ export default function ImportPlaylistModal({
               </div>
             )}
 
-            <div className="flex justify-end gap-2.5 pt-2">
-              <GlassButton type="button" variant="ghost" onClick={onClose} disabled={isImporting}>
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10 mt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isImporting}
+                className="px-4 py-2 rounded-xl glass-button text-xs font-semibold text-white/70 hover:text-white transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+              >
                 Cancel
-              </GlassButton>
-              <GlassButton type="submit" variant="primary" disabled={isImporting}>
+              </button>
+              <button
+                type="submit"
+                disabled={isImporting}
+                className="px-5 py-2 rounded-xl glass-button-primary text-xs font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-40"
+              >
                 {isImporting ? `Matching (${matchedCount}/${totalCount})...` : 'Build Full Playlist'}
-              </GlassButton>
+              </button>
             </div>
           </form>
-        ) : (
-          /* ================= TAB 4: FILE IMPORTER (.M3U8 / .JSON) ================= */
-          <form onSubmit={handleImportFile} className="flex flex-col gap-3.5">
+        )}
+
+        {/* ── TAB 4: FILE IMPORTER (.M3U8 / .JSON) ── */}
+        {mode === 'file' && (
+          <form onSubmit={handleImportFile} className="flex flex-col gap-3">
             <div>
-              <label className="text-xs font-bold text-white/85 block mb-1.5">
-                Playlist Name (Optional override)
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-white/50 mb-1">
+                Playlist Name <span className="text-white/30 lowercase font-normal">(optional override)</span>
               </label>
               <input
                 type="text"
@@ -929,7 +988,7 @@ export default function ImportPlaylistModal({
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder={parsedFile?.name || 'File Playlist Name'}
-                className="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/35"
+                className="w-full h-10 px-3.5 rounded-xl liquid-glass bg-white/[0.05] border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400/60 transition-all shadow-inner"
               />
             </div>
 
@@ -952,7 +1011,7 @@ export default function ImportPlaylistModal({
                   ? 'border-amber-400 bg-amber-500/15 scale-[1.01] liquid-glass'
                   : parsedFile
                   ? 'border-emerald-400/50 bg-emerald-500/[0.08] liquid-glass'
-                  : 'border-white/20 hover:border-white/40 liquid-glass'
+                  : 'border-white/20 hover:border-white/40 liquid-glass bg-white/[0.02]'
               }`}
             >
               <input
@@ -987,8 +1046,8 @@ export default function ImportPlaylistModal({
             )}
 
             {parsedFile && parsedFile.tracks.length > 0 && (
-              <div className="p-3 rounded-xl liquid-glass border border-white/10 space-y-1.5 max-h-36 overflow-y-auto">
-                <span className="text-[10px] font-black uppercase tracking-wider text-white/50 block">
+              <div className="p-3 rounded-xl liquid-glass bg-white/[0.03] border border-white/10 space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 block">
                   Preview ({parsedFile.tracks.length} Tracks)
                 </span>
                 {parsedFile.tracks.slice(0, 5).map((t, i) => (
@@ -1008,12 +1067,12 @@ export default function ImportPlaylistModal({
 
             {/* Progress Bar when importing */}
             {isImporting && (
-              <div className="p-3.5 rounded-2xl liquid-glass border border-white/15 space-y-2 mt-1">
+              <div className="p-3.5 rounded-2xl liquid-glass bg-white/[0.04] border border-white/15 space-y-2 mt-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-extrabold text-amber-300 animate-pulse">
                     {statusText || 'Importing tracks...'}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-black tabular-nums flex-shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-white/15 text-[10px] font-black tabular-nums flex-shrink-0">
                     {progressPct}%
                   </span>
                 </div>
@@ -1022,7 +1081,7 @@ export default function ImportPlaylistModal({
                     🎵 Matching: <span className="text-white font-semibold">{currentTrackLabel}</span>
                   </p>
                 )}
-                <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
+                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-500 transition-all duration-300 shadow-[0_0_12px_rgba(245,158,11,0.7)]"
                     style={{ width: `${progressPct}%` }}
@@ -1031,19 +1090,24 @@ export default function ImportPlaylistModal({
               </div>
             )}
 
-            <div className="flex justify-end gap-2.5 pt-2">
-              <GlassButton type="button" variant="ghost" onClick={onClose} disabled={isImporting}>
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10 mt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isImporting}
+                className="px-4 py-2 rounded-xl glass-button text-xs font-semibold text-white/70 hover:text-white transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+              >
                 Cancel
-              </GlassButton>
-              <GlassButton
+              </button>
+              <button
                 type="submit"
-                variant="primary"
                 disabled={isImporting || !parsedFile || !parsedFile.tracks.length}
+                className="px-5 py-2 rounded-xl glass-button-primary text-xs font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-40"
               >
                 {isImporting
                   ? `Importing (${matchedCount}/${totalCount})...`
                   : `Import ${parsedFile?.tracks.length || 0} Songs`}
-              </GlassButton>
+              </button>
             </div>
           </form>
         )}
