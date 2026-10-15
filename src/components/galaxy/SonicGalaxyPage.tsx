@@ -1774,7 +1774,7 @@ export default function SonicGalaxyPage() {
                 }}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
                   activeClusterFilter === idx
-                    ? 'glass-button text-white ring-2 ring-white/40 shadow-sm'
+                    ? 'glass-button text-white border-white/50 bg-white/20 shadow-md'
                     : 'glass-button text-white/70 hover:text-white'
                 }`}
               >

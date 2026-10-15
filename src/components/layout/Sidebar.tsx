@@ -563,7 +563,7 @@ export default function Sidebar() {
                       )}
 
                       {collapsed && item.badge !== undefined && (
-                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--color-accent)] ring-2 ring-black" />
+                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--color-accent)] border border-black" />
                       )}
                     </>
                   )}

@@ -300,14 +300,7 @@ const TrackRow = memo(({
             mass: 0.48
           }}
           className="absolute inset-0 rounded-2xl liquid-glass border border-white/20 pointer-events-none z-0 shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
-        >
-          <span className="absolute left-1.5 top-3 bottom-3 w-1 rounded-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
-        </motion.div>
-      )}
-
-      {/* Persistent Left Accent Pill for Currently Playing Track (when not hovered) */}
-      {isCurrentTrack && !activeVisual && (
-        <span className="absolute left-1.5 top-3 bottom-3 w-1 rounded-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)] pointer-events-none z-10" />
+        />
       )}
 
       {/* Single, Unified Track Row Surface */}

@@ -50,7 +50,7 @@ const GlassButton = ({
   }
 
   if (active && variant !== 'primary') {
-    variantClass += ' ring-2 ring-[var(--color-accent)] glow-accent bg-white/15 border-white/30';
+    variantClass += ' border-[var(--color-accent)]/60 glow-accent bg-[var(--color-accent)]/20 shadow-[0_0_16px_var(--color-accent)]';
   }
 
   if (disabled) {

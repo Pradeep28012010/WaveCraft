@@ -390,8 +390,6 @@ export default function HomePage() {
             );
           })}
 
-          <span className="h-4 w-px bg-white/15 mx-1 flex-shrink-0" />
-
           {/* Quick Library Portals Bar (Telemetry Badges) */}
           <button
             onClick={() => {
@@ -649,8 +647,8 @@ export default function HomePage() {
                   }}
                   className={`group relative flex items-center gap-2.5 sm:gap-3.5 p-2 rounded-2xl liquid-glass border transition-all cursor-pointer shadow-md overflow-hidden active:scale-[0.98] ${
                     isThisPlaying
-                      ? 'border-[var(--color-accent)]/60 bg-white/[0.14] ring-2 ring-[var(--color-accent)]/40 ring-offset-2 ring-offset-black/60'
-                      : 'border-white/14 hover:border-white/35 hover:bg-white/[0.12]'
+                      ? 'border-[var(--color-accent)]/50 bg-white/[0.14] shadow-[0_8px_28px_rgba(0,0,0,0.45),0_0_20px_rgba(250,45,72,0.2)]'
+                      : 'border-white/10 hover:border-white/25 hover:bg-white/[0.10]'
                   }`}
                 >
                   <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
@@ -662,14 +660,12 @@ export default function HomePage() {
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
 
-                    {/* Active Live Equalizer if playing */}
+                    {/* Active Live Equalizer Mini Badge in corner */}
                     {isThisPlaying && isPlaying ? (
-                      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center">
-                        <div className="flex items-end gap-1 h-5 px-1.5 py-1 rounded bg-black/60 border border-white/20">
-                          <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.7s_ease-in-out_infinite] h-full" />
-                          <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_1.0s_ease-in-out_infinite] h-3/5" />
-                          <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.5s_ease-in-out_infinite] h-4/5" />
-                        </div>
+                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-md flex items-end gap-0.5 h-3.5 shadow-md border border-white/15 pointer-events-none">
+                        <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.7s_ease-in-out_infinite] h-full" />
+                        <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_1.0s_ease-in-out_infinite] h-3/5" />
+                        <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.5s_ease-in-out_infinite] h-4/5" />
                       </div>
                     ) : (
                       /* Hover Play Button */
@@ -684,11 +680,14 @@ export default function HomePage() {
                   </div>
 
                   <div className="min-w-0 flex-1 pr-1.5 sm:pr-2">
-                    <h4 className={`text-xs sm:text-sm font-bold truncate leading-snug transition-colors ${
-                      isThisPlaying ? 'text-[var(--color-accent)]' : 'text-white group-hover:text-[var(--color-accent)]'
-                    }`}>
-                      {track.title}
-                    </h4>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs sm:text-sm font-bold text-white truncate leading-snug group-hover:text-[var(--color-accent)] transition-colors">
+                        {track.title}
+                      </h4>
+                      {isThisPlaying && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse flex-shrink-0" title="Now Playing" />
+                      )}
+                    </div>
                     <p className="text-[10px] sm:text-[11px] text-white/55 truncate leading-snug mt-0.5 font-medium">
                       {track.artist}
                     </p>
@@ -806,8 +805,8 @@ export default function HomePage() {
                   );
                 }}
               >
-                <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 ${
-                  isPlayingThis ? 'ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-black/60 shadow-lg' : ''
+                <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 border ${
+                  isPlayingThis ? 'border-[var(--color-accent)]/60 shadow-[0_8px_25px_rgba(250,45,72,0.3)]' : 'border-white/10'
                 }`}>
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
@@ -817,14 +816,12 @@ export default function HomePage() {
                     className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
                   />
 
-                  {/* Active Live Equalizer if playing */}
+                  {/* Active Live Equalizer Mini Badge */}
                   {isPlayingThis && isPlaying ? (
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center">
-                      <div className="flex items-end gap-1 h-5 px-1.5 py-1 rounded bg-black/60 border border-white/20">
-                        <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.7s_ease-in-out_infinite] h-full" />
-                        <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_1.0s_ease-in-out_infinite] h-3/5" />
-                        <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.5s_ease-in-out_infinite] h-4/5" />
-                      </div>
+                    <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-md flex items-end gap-0.5 h-3.5 shadow-md border border-white/15 pointer-events-none">
+                      <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.7s_ease-in-out_infinite] h-full" />
+                      <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_1.0s_ease-in-out_infinite] h-3/5" />
+                      <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.5s_ease-in-out_infinite] h-4/5" />
                     </div>
                   ) : (
                     /* Desktop Hover Play Button */

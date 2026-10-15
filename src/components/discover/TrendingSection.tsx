@@ -155,7 +155,7 @@ export default function TrendingSection({
                   }}
                 >
                   <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative liquid-glass shadow-md group-hover:shadow-2xl transition-all duration-300 ${
-                    isActive ? 'ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-black' : ''
+                    isActive ? 'border border-[var(--color-accent)]/60 shadow-[0_8px_25px_rgba(250,45,72,0.3)]' : 'border border-white/10'
                   }`}>
                     <img
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
