@@ -338,74 +338,72 @@ export default function HomePage() {
       />
 
       {/* ================= EDITORIAL ATMOSPHERIC HEADER ================= */}
-      <div className="mb-8 px-1 pt-1 flex flex-col gap-5 w-full min-w-0 max-w-full">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 w-full min-w-0">
-          <div className="min-w-0 flex-1">
-            {/* Live Date & Session Badge */}
-            <div className="flex items-center gap-2.5 mb-2 flex-wrap min-w-0">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-white/[0.08] border border-white/15 text-white/85 backdrop-blur-md shadow-sm flex-shrink-0">
-                <svg className="w-3.5 h-3.5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span>{todayFormatted}</span>
-              </span>
+      <div className="mb-8 px-1 pt-1 flex flex-col gap-4 w-full min-w-0 max-w-full">
+        <div className="w-full min-w-0">
+          {/* Live Date & Session Badge */}
+          <div className="flex items-center gap-2.5 mb-2 flex-wrap min-w-0">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-white/[0.08] border border-white/15 text-white/85 backdrop-blur-md shadow-sm flex-shrink-0">
+              <svg className="w-3.5 h-3.5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{todayFormatted}</span>
+            </span>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/35 text-[var(--color-accent)] backdrop-blur-md max-w-[260px] sm:max-w-none">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse flex-shrink-0" />
-                <span className="truncate">{greetingInfo.vibeBadge}</span>
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight break-words">
-              {greetingInfo.greeting}
-            </h1>
-            <p className="text-xs sm:text-sm text-white/60 mt-1.5 font-medium flex items-center gap-2 flex-wrap min-w-0">
-              <span>{greetingInfo.tagline}</span>
-              <span className="hidden sm:inline text-white/30">•</span>
-              <span className="text-white/80 font-bold bg-white/10 px-2 py-0.5 rounded-md text-[11px] whitespace-nowrap">
-                320kbps Studio Master
-              </span>
-            </p>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/35 text-[var(--color-accent)] backdrop-blur-md max-w-[260px] sm:max-w-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse flex-shrink-0" />
+              <span className="truncate">{greetingInfo.vibeBadge}</span>
+            </span>
           </div>
 
-          {/* Category Filter Segmented Switch */}
-          <div className="flex items-center gap-2 overflow-x-auto sm:overflow-x-visible no-scrollbar py-2 px-1 -my-1 -mx-1 max-w-full flex-shrink-0">
-            {([
-              { id: 'all', label: 'All', icon: '✨' },
-              { id: 'music', label: 'Music', icon: '🎵' },
-              { id: 'albums', label: 'Albums', icon: '💿' },
-              { id: 'moods', label: 'Moods & Mixes', icon: '🌊' }
-            ] as const).map((chip) => {
-              const isSelected = activeFilter === chip.id;
-              return (
-                <button
-                  key={chip.id}
-                  onClick={() => {
-                    triggerAndroidHaptic('light');
-                    setActiveFilter(chip.id);
-                  }}
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-                    isSelected
-                      ? 'glass-button-primary text-white shadow-lg scale-102'
-                      : 'glass-button text-white/70 hover:text-white'
-                  }`}
-                >
-                  <span className="text-xs">{chip.icon}</span>
-                  <span>{chip.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight break-words">
+            {greetingInfo.greeting}
+          </h1>
+          <p className="text-xs sm:text-sm text-white/60 mt-1 font-medium flex items-center gap-2 flex-wrap min-w-0">
+            <span>{greetingInfo.tagline}</span>
+            <span className="hidden sm:inline text-white/30">•</span>
+            <span className="text-white/80 font-bold bg-white/10 px-2 py-0.5 rounded-md text-[11px] whitespace-nowrap">
+              320kbps Studio Master
+            </span>
+          </p>
         </div>
 
-        {/* Quick Library Portals Bar (Telemetry Badges) */}
-        <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1 w-full max-w-full">
+        {/* Unified Discovery & Navigation Control Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full max-w-full">
+          {([
+            { id: 'all', label: 'All', icon: '✨' },
+            { id: 'music', label: 'Music', icon: '🎵' },
+            { id: 'albums', label: 'Albums', icon: '💿' },
+            { id: 'moods', label: 'Moods & Mixes', icon: '🌊' }
+          ] as const).map((chip) => {
+            const isSelected = activeFilter === chip.id;
+            return (
+              <button
+                key={chip.id}
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setActiveFilter(chip.id);
+                }}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
+                  isSelected
+                    ? 'glass-button-primary text-white shadow-lg scale-102'
+                    : 'glass-button text-white/70 hover:text-white'
+                }`}
+              >
+                <span className="text-xs">{chip.icon}</span>
+                <span>{chip.label}</span>
+              </button>
+            );
+          })}
+
+          <span className="h-4 w-px bg-white/15 mx-1 flex-shrink-0" />
+
+          {/* Quick Library Portals Bar (Telemetry Badges) */}
           <button
             onClick={() => {
               triggerAndroidHaptic('light');
               navigate('/liked');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/80 hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/80 hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
           >
             <span className="text-rose-400">❤️</span>
             <span>Liked Songs</span>
@@ -419,7 +417,7 @@ export default function HomePage() {
               triggerAndroidHaptic('medium');
               navigate('/galaxy');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/20 to-indigo-500/20 border border-violet-400/40 text-xs font-bold text-violet-200 hover:text-white hover:border-violet-400/60 active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/20 to-indigo-500/20 border border-violet-400/40 text-xs font-bold text-violet-200 hover:text-white hover:border-violet-400/60 active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm flex-shrink-0"
           >
             <span>🪐</span>
             <span>3D Sonic Galaxy</span>
@@ -431,7 +429,7 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               setStudioModalOpen(true);
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/80 hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/80 hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
           >
             <span className="text-amber-400">⚡</span>
             <span>Studio FX</span>
@@ -445,7 +443,7 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               navigate('/downloads');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/80 hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border border-white/15 text-xs font-bold text-white/80 hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
           >
             <span className="text-emerald-400">📥</span>
             <span>Offline Vault</span>
@@ -467,9 +465,9 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/30" />
             </div>
 
-            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 w-full min-w-0">
+            <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 sm:gap-6 w-full min-w-0">
               {/* Left Column: Hero Art & Acoustic Info */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 min-w-0 flex-1 w-full md:w-auto">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 min-w-0 flex-1 w-full">
                 <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl border border-white/25 group-hover:scale-105 transition-transform duration-500">
                   <img
                     src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
@@ -486,7 +484,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="min-w-0 flex-1 w-full sm:w-auto">
+                <div className="min-w-0 flex-1 w-full">
                   <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/45 text-[var(--color-accent)] flex-shrink-0">
                       ✨ FEATURED SPOTLIGHT
@@ -525,8 +523,8 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Right Column: High-Impact Action Dock */}
-              <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap flex-shrink-0 w-full md:w-auto pt-2 md:pt-0">
+              {/* Action Dock: Sits below on tablet/narrow laptop with full width, and side-by-side on wide desktop */}
+              <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap w-full xl:w-auto pt-3 xl:pt-0 border-t border-white/[0.08] xl:border-t-0">
                 {/* Play Mix Now */}
                 <button
                   type="button"
@@ -534,7 +532,7 @@ export default function HomePage() {
                     triggerAndroidHaptic('medium');
                     playTrack(spotlightTrack, trendingTracks, 0);
                   }}
-                  className="flex-1 md:flex-none px-6 py-3 rounded-full glass-button-primary text-white font-black text-sm flex items-center justify-center gap-2 shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                  className="flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-full glass-button-primary text-white font-black text-sm flex items-center justify-center gap-2 shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 >
                   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
@@ -549,11 +547,11 @@ export default function HomePage() {
                     triggerAndroidHaptic('medium');
                     navigate('/galaxy');
                   }}
-                  className="px-4 py-3 rounded-full glass-button text-white/90 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                  className="px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-full glass-button text-white/90 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                   title="Visualize in 3D Sonic Galaxy"
                 >
                   <span>🪐</span>
-                  <span className="hidden sm:inline">3D Galaxy</span>
+                  <span>3D Galaxy</span>
                 </button>
 
                 {/* Add to Queue */}
@@ -564,7 +562,7 @@ export default function HomePage() {
                     addToQueue(spotlightTrack);
                     showToast(`Added "${spotlightTrack.title}" to queue`);
                   }}
-                  className="w-11 h-11 rounded-full flex items-center justify-center glass-button text-white/80 hover:text-white cursor-pointer active:scale-90 transition-all"
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center glass-button text-white/80 hover:text-white cursor-pointer active:scale-90 transition-all flex-shrink-0"
                   title="Add to queue"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -580,7 +578,7 @@ export default function HomePage() {
                     toggleLike(spotlightTrack);
                     showToast(likedIds[spotlightTrack.id] ? 'Removed from Liked Songs' : 'Saved to Liked Songs');
                   }}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-90 ${
+                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-90 flex-shrink-0 ${
                     likedIds[spotlightTrack.id]
                       ? 'glass-button-primary text-[var(--color-accent)]'
                       : 'glass-button text-white/70 hover:text-white'
@@ -603,7 +601,7 @@ export default function HomePage() {
                       trendingTracks
                     );
                   }}
-                  className="w-11 h-11 rounded-full flex items-center justify-center glass-button text-white/70 hover:text-white cursor-pointer active:scale-90 transition-all"
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center glass-button text-white/70 hover:text-white cursor-pointer active:scale-90 transition-all flex-shrink-0"
                   title="More options"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

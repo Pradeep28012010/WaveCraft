@@ -2014,20 +2014,22 @@ export default function SonicGalaxyPage() {
           className="lg:col-span-5 flex flex-col justify-between border border-white/20 h-[520px] sm:h-[620px] lg:h-[700px] overflow-hidden"
         >
           {/* Top Inspector Navigation Tabs */}
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/15 mb-3 flex-shrink-0">
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-black/50 border border-white/15 mb-3 flex-shrink-0 w-full min-w-0 overflow-hidden">
             <button
               type="button"
               onClick={() => {
                 triggerAndroidHaptic('light');
                 setInspectorTab('dna');
               }}
-              className={`flex-1 py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+              title="4D Acoustic DNA & Radar Spider"
+              className={`py-2 px-1 sm:px-2 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
                 inspectorTab === 'dna'
                   ? 'glass-button-primary text-white shadow-md'
                   : 'text-white/65 hover:text-white'
               }`}
             >
-              🧬 4D DNA & Spider
+              <span>🧬</span>
+              <span className="truncate">4D DNA</span>
             </button>
             <button
               type="button"
@@ -2035,13 +2037,16 @@ export default function SonicGalaxyPage() {
                 triggerAndroidHaptic('light');
                 setInspectorTab('neighbors');
               }}
-              className={`flex-1 py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+              title="Harmonic Cosmic Neighbors"
+              className={`py-2 px-1 sm:px-2 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
                 inspectorTab === 'neighbors'
                   ? 'glass-button-purple text-white shadow-md'
                   : 'text-white/65 hover:text-white'
               }`}
             >
-              🔗 Harmonic ({harmonicNeighbors.length})
+              <span>🔗</span>
+              <span className="truncate">Harmonic</span>
+              <span className="text-[10px] opacity-75 tabular-nums">({harmonicNeighbors.length})</span>
             </button>
             <button
               type="button"
@@ -2049,13 +2054,16 @@ export default function SonicGalaxyPage() {
                 triggerAndroidHaptic('light');
                 setInspectorTab('roster');
               }}
-              className={`flex-1 py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+              title="Star Roster"
+              className={`py-2 px-1 sm:px-2 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
                 inspectorTab === 'roster'
                   ? 'glass-button-cyan text-white shadow-md'
                   : 'text-white/65 hover:text-white'
               }`}
             >
-              📋 Roster ({filteredRosterStars.length})
+              <span>📋</span>
+              <span className="truncate">Roster</span>
+              <span className="text-[10px] opacity-75 tabular-nums">({filteredRosterStars.length})</span>
             </button>
           </div>
 
