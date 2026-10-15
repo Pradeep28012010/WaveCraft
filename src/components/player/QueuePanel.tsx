@@ -10,7 +10,6 @@ import { formatTime } from '../../utils/formatTime';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
-import GradualBlur from '../ui/GradualBlur';
 import ReactBitsReorderList from '../ui/ReactBitsReorderList';
 import type { Track } from '../../types';
 
@@ -744,16 +743,6 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
               )}
             </div>
 
-            {/* Smooth bottom edge blur so scrolling doesn't abruptly cut off */}
-            <GradualBlur
-              target="parent"
-              position="bottom"
-              height="3.5rem"
-              strength={1.8}
-              divCount={4}
-              curve="bezier"
-              opacity={0.85}
-            />
           </motion.aside>
     </>
   );

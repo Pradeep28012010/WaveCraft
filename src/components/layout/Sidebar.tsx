@@ -460,12 +460,12 @@ export default function Sidebar() {
   return (
     <>
       <aside
-        className={`flex flex-col h-full liquid-glass bg-[#06060f]/80 backdrop-blur-3xl border-r border-white/[0.08] shadow-[4px_0_30px_rgba(0,0,0,0.5)] transition-all duration-300 select-none z-30 flex-shrink-0 ${
+        className={`flex flex-col h-full liquid-glass bg-[#06060f]/80 backdrop-blur-3xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] transition-all duration-300 select-none z-30 flex-shrink-0 ${
           collapsed ? 'w-20' : 'w-64'
         }`}
       >
         {/* Brand Header */}
-        <div className={`flex items-center h-18 border-b border-white/[0.06] flex-shrink-0 transition-all ${
+        <div className={`flex items-center h-18 flex-shrink-0 transition-all ${
           collapsed ? 'justify-center px-0' : 'justify-between px-5'
         }`}>
           <div className="flex items-center gap-3 min-w-0">
@@ -533,7 +533,7 @@ export default function Sidebar() {
                           layoutId="sidebar-active-pill-desktop"
                           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                           style={{ position: 'absolute', inset: 0 }}
-                          className="rounded-xl bg-gradient-to-r from-white/[0.14] via-white/[0.08] to-white/[0.03] backdrop-blur-xl border border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.25)] pointer-events-none z-0 overflow-hidden"
+                          className="rounded-xl bg-gradient-to-r from-white/[0.14] via-white/[0.08] to-white/[0.03] backdrop-blur-xl border border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.4)] pointer-events-none z-0 overflow-hidden"
                         >
                           <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
                         </motion.div>
@@ -647,7 +647,7 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer Actions: Collapse Controls */}
-        <div className="p-2.5 pt-1 space-y-1.5 border-t border-white/[0.06] flex-shrink-0">
+        <div className="p-2.5 pt-1 space-y-1.5 flex-shrink-0">
           <button
             onClick={handleToggleCollapse}
             aria-label={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}

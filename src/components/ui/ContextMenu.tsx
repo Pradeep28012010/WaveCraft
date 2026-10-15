@@ -887,7 +887,7 @@ function ContextMenuInner() {
           left: `${safeX}px`,
           top: `${safeY}px`
         }}
-        className="w-[260px] max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar rounded-[22px] border border-white/20 glass-bloom-menu py-2 px-2 flex flex-col gap-0.5 text-xs text-white/90 shadow-[0_24px_50px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.2)]"
+        className="w-[260px] max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar rounded-[22px] border border-white/20 glass-bloom-menu py-2 px-2 flex flex-col gap-0.5 text-xs text-white/90 shadow-[0_24px_50px_rgba(0,0,0,0.65)]"
       >
         {/* Toast confirmation feedback */}
         {toastMessage && (

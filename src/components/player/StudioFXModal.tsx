@@ -571,7 +571,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       }}
                       className={`text-left p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
                         isSelected
-                          ? 'border-cyan-400/80 liquid-glass bg-cyan-500/15 shadow-[0_0_24px_rgba(6,182,212,0.25),inset_0_1px_0_rgba(255,255,255,0.25)]'
+                          ? 'border-cyan-400/80 liquid-glass bg-cyan-500/15 shadow-[0_0_24px_rgba(6,182,212,0.25)]'
                           : 'border-white/10 liquid-glass hover:bg-white/[0.08] hover:border-white/20'
                       }`}
                     >

@@ -17,7 +17,6 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 import AnimatedBackground from '../ui/AnimatedBackground';
 import YouTubeEmbed from '../player/YouTubeEmbed';
 import { useColorExtract } from '../../hooks/useColorExtract';
-import GradualBlur from '../ui/GradualBlur';
 import GlobalDownloadIndicator from '../ui/GlobalDownloadIndicator';
 
 class RouteErrorBoundary extends Component<
@@ -146,44 +145,6 @@ export default function MainLayout() {
               </div>
             </main>
 
-            {/* Visual edge blur / gradient masking: On mobile, use GPU-friendly single gradients to eliminate flickering */}
-            {isPhone ? (
-              <>
-                <div className="pointer-events-none absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-[#06060b] to-transparent z-20" />
-                <div
-                  className={`pointer-events-none absolute bottom-0 left-0 right-0 ${
-                    hasCurrentTrack ? 'h-20' : 'h-8'
-                  } bg-gradient-to-t from-[#06060b] via-[#06060b]/80 to-transparent z-20`}
-                />
-              </>
-            ) : (
-              <>
-                {/* Desktop: React Bits GradualBlur mathematical edge blur */}
-                <GradualBlur
-                  target="parent"
-                  position="top"
-                  className="pointer-events-none"
-                  height="2.25rem"
-                  strength={1.5}
-                  divCount={5}
-                  curve="bezier"
-                  exponential={true}
-                  opacity={1}
-                />
-
-                <GradualBlur
-                  target="parent"
-                  position="bottom"
-                  className="pointer-events-none"
-                  height={hasCurrentTrack ? '3.5rem' : '1.5rem'}
-                  strength={1.5}
-                  divCount={5}
-                  curve="bezier"
-                  exponential={true}
-                  opacity={1}
-                />
-              </>
-            )}
           </div>
         </div>
       </div>

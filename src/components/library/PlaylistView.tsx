@@ -667,7 +667,7 @@ export default function PlaylistView() {
                 animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                 exit={{ opacity: 0, y: -4, scale: 0.96, filter: 'blur(8px)' }}
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute right-0 top-12 z-30 w-60 rounded-[20px] glass-bloom-menu border border-white/20 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.2)] space-y-1 text-xs"
+                className="absolute right-0 top-12 z-30 w-60 rounded-[20px] glass-bloom-menu border border-white/20 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.7)] space-y-1 text-xs"
                 onClick={() => setShowExportMenu(false)}
               >
                 <button

@@ -317,7 +317,7 @@ export default function MiniPlayer() {
               }}
               onTouchStart={handleMiniPlayerTouchStart}
               onTouchEnd={handleMiniPlayerTouchEnd}
-              className="h-15 liquid-glass bg-[#080812]/90 backdrop-blur-3xl rounded-[24px] flex items-center justify-between px-3 relative overflow-hidden shadow-[0_18px_48px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.28)] border border-white/20 cursor-pointer active:scale-[0.99] transition-transform"
+              className="h-15 liquid-glass bg-[#080812]/90 backdrop-blur-3xl rounded-[24px] flex items-center justify-between px-3 relative overflow-hidden shadow-[0_18px_48px_rgba(0,0,0,0.85)] border border-white/20 cursor-pointer active:scale-[0.99] transition-transform"
             >
               <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 

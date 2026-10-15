@@ -239,9 +239,7 @@ ul::-webkit-scrollbar:horizontal {
   border-radius: 20px;
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.85),
-    0 4px 16px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
-    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
+    0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 @layer components {
@@ -255,10 +253,7 @@ ul::-webkit-scrollbar:horizontal {
     backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-lg);
-    box-shadow:
-      0 12px 32px -8px rgba(0, 0, 0, 0.45),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.45);
   }
 
   .glass-heavy {
@@ -271,9 +266,7 @@ ul::-webkit-scrollbar:horizontal {
     backdrop-filter: blur(32px) saturate(190%);
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: var(--radius-lg);
-    box-shadow:
-      0 20px 50px rgba(0, 0, 0, 0.65),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
   }
 
   .glass-light {
@@ -293,12 +286,9 @@ ul::-webkit-scrollbar:horizontal {
     );
     -webkit-backdrop-filter: blur(24px) saturate(185%);
     backdrop-filter: blur(24px) saturate(185%);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-lg);
-    box-shadow:
-      0 16px 40px -8px rgba(0, 0, 0, 0.5),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
+    box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5);
   }
 
   .glass-button {
@@ -312,10 +302,7 @@ ul::-webkit-scrollbar:horizontal {
     backdrop-filter: blur(24px) saturate(190%);
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 22px -4px rgba(0, 0, 0, 0.42),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
+    box-shadow: 0 8px 22px -4px rgba(0, 0, 0, 0.42);
     color: var(--color-text-primary);
     white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
@@ -330,10 +317,7 @@ ul::-webkit-scrollbar:horizontal {
       rgba(255, 255, 255, 0.14) 100%
     );
     border-color: rgba(255, 255, 255, 0.34);
-    box-shadow:
-      0 12px 28px -4px rgba(0, 0, 0, 0.52),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.38),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.52);
     transform: translate3d(0, -1px, 0);
   }
 
@@ -341,7 +325,7 @@ ul::-webkit-scrollbar:horizontal {
     transform: scale3d(0.96, 0.96, 1);
   }
 
-  /* Translucent Rose-Tinted Liquid Glass Primary Button (Exact same glass material, never opaque!) */
+  /* Translucent Rose-Tinted Liquid Glass Primary Button */
   .glass-button-primary {
     background: linear-gradient(
       135deg,
@@ -353,10 +337,7 @@ ul::-webkit-scrollbar:horizontal {
     backdrop-filter: blur(24px) saturate(195%);
     border: 1px solid rgba(250, 45, 72, 0.48);
     border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 24px -4px rgba(250, 45, 72, 0.3),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
-      inset 0 -1px 0 0 rgba(250, 45, 72, 0.14);
+    box-shadow: 0 8px 24px -4px rgba(250, 45, 72, 0.3);
     color: #ffffff;
     white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
@@ -371,10 +352,7 @@ ul::-webkit-scrollbar:horizontal {
       rgba(168, 85, 247, 0.34) 100%
     );
     border-color: rgba(255, 120, 140, 0.65);
-    box-shadow:
-      0 12px 30px -4px rgba(250, 45, 72, 0.42),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.44),
-      inset 0 -1px 0 0 rgba(250, 45, 72, 0.18);
+    box-shadow: 0 12px 30px -4px rgba(250, 45, 72, 0.42);
     transform: translate3d(0, -1px, 0);
   }
 
@@ -394,10 +372,7 @@ ul::-webkit-scrollbar:horizontal {
     backdrop-filter: blur(22px) saturate(190%);
     border: 1px solid rgba(52, 211, 153, 0.38);
     border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 24px -4px rgba(16, 185, 129, 0.25),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
-      inset 0 -1px 0 0 rgba(52, 211, 153, 0.12);
+    box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.25);
     color: #a7f3d0;
     white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
@@ -419,9 +394,7 @@ ul::-webkit-scrollbar:horizontal {
     );
     border-color: rgba(110, 231, 183, 0.55);
     color: #ffffff;
-    box-shadow:
-      0 12px 30px -4px rgba(16, 185, 129, 0.38),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.42);
+    box-shadow: 0 12px 30px -4px rgba(16, 185, 129, 0.38);
     transform: translate3d(0, -1px, 0);
   }
 
@@ -437,10 +410,7 @@ ul::-webkit-scrollbar:horizontal {
     backdrop-filter: blur(22px) saturate(190%);
     border: 1px solid rgba(192, 132, 252, 0.38);
     border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 24px -4px rgba(139, 92, 246, 0.28),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
-      inset 0 -1px 0 0 rgba(192, 132, 252, 0.12);
+    box-shadow: 0 8px 24px -4px rgba(139, 92, 246, 0.28);
     color: #e9d5ff;
     white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
@@ -456,9 +426,7 @@ ul::-webkit-scrollbar:horizontal {
     );
     border-color: rgba(216, 180, 254, 0.58);
     color: #ffffff;
-    box-shadow:
-      0 12px 30px -4px rgba(139, 92, 246, 0.42),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.44);
+    box-shadow: 0 12px 30px -4px rgba(139, 92, 246, 0.42);
     transform: translate3d(0, -1px, 0);
   }
 
@@ -474,10 +442,7 @@ ul::-webkit-scrollbar:horizontal {
     backdrop-filter: blur(22px) saturate(190%);
     border: 1px solid rgba(34, 211, 238, 0.38);
     border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 24px -4px rgba(6, 182, 212, 0.26),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
-      inset 0 -1px 0 0 rgba(34, 211, 238, 0.12);
+    box-shadow: 0 8px 24px -4px rgba(6, 182, 212, 0.26);
     color: #a5f3fc;
     white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
@@ -493,9 +458,7 @@ ul::-webkit-scrollbar:horizontal {
     );
     border-color: rgba(103, 232, 249, 0.58);
     color: #ffffff;
-    box-shadow:
-      0 12px 30px -4px rgba(6, 182, 212, 0.4),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.44);
+    box-shadow: 0 12px 30px -4px rgba(6, 182, 212, 0.4);
     transform: translate3d(0, -1px, 0);
   }
 
@@ -511,10 +474,7 @@ ul::-webkit-scrollbar:horizontal {
     backdrop-filter: blur(22px) saturate(190%);
     border: 1px solid rgba(245, 158, 11, 0.42);
     border-radius: var(--radius-full);
-    box-shadow:
-      0 8px 24px -4px rgba(245, 158, 11, 0.26),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
-      inset 0 -1px 0 0 rgba(245, 158, 11, 0.12);
+    box-shadow: 0 8px 24px -4px rgba(245, 158, 11, 0.26);
     color: #fef3c7;
     white-space: nowrap;
     transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
@@ -530,9 +490,7 @@ ul::-webkit-scrollbar:horizontal {
     );
     border-color: rgba(252, 211, 77, 0.62);
     color: #ffffff;
-    box-shadow:
-      0 12px 30px -4px rgba(245, 158, 11, 0.38),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.44);
+    box-shadow: 0 12px 30px -4px rgba(245, 158, 11, 0.38);
     transform: translate3d(0, -1px, 0);
   }
 
@@ -541,7 +499,6 @@ ul::-webkit-scrollbar:horizontal {
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
     border-radius: var(--radius-md);
     color: var(--color-text-primary);
     outline: none;
@@ -572,10 +529,7 @@ ul::-webkit-scrollbar:horizontal {
     backdrop-filter: blur(40px) saturate(190%);
     border: 1px solid rgba(255, 255, 255, 0.20);
     border-radius: var(--radius-2xl);
-    box-shadow:
-      0 32px 100px rgba(0, 0, 0, 0.88),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.26),
-      inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
+    box-shadow: 0 32px 100px rgba(0, 0, 0, 0.88);
   }
 
   /* Prevent nested backdrop-filter compositing flashes inside already-blurred modals */
