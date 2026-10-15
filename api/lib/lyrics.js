@@ -250,6 +250,10 @@ export async function fetchMultiSourceLyrics(rawTitle, rawArtist, duration = 0) 
   const { cleanTitle, cleanArtist, primaryArtist } = parseTrackMetadata(rawTitle, rawArtist);
   if (!cleanTitle) return { synced: false, lyrics: null, source: null };
 
+  const LRCLIB_HEADERS = {
+    'User-Agent': 'WaveCraft-Player/2.4.0 (https://github.com/Pradeep28012010/WaveCraft)'
+  };
+
   // 1. Try LRCLIB exact match (/api/get)
   if (primaryArtist && cleanTitle) {
     try {
@@ -262,12 +266,12 @@ export async function fetchMultiSourceLyrics(rawTitle, rawArtist, duration = 0) 
       }
       const r1 = await fetchWithTimeout(
         `https://lrclib.net/api/get?${getParams.toString()}`,
-        { headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' } },
-        2500
+        { headers: LRCLIB_HEADERS },
+        3000
       );
       if (r1.ok) {
         const item = await r1.json();
-        const raw = item.syncedLyrics || item.plainLyrics;
+        const raw = item?.syncedLyrics || item?.plainLyrics;
         if (raw) {
           return {
             synced: Boolean(item.syncedLyrics),
@@ -286,11 +290,7 @@ export async function fetchMultiSourceLyrics(rawTitle, rawArtist, duration = 0) 
       ? `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`
       : `https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle)}`;
 
-    const r2 = await fetchWithTimeout(
-      searchUrl,
-      { headers: { 'User-Agent': 'WaveCraft/2.0 (https://wavecraft.app)' } },
-      2500
-    );
+    const r2 = await fetchWithTimeout(searchUrl, { headers: LRCLIB_HEADERS }, 3200);
     if (r2.ok) {
       const list = await r2.json();
       if (Array.isArray(list) && list.length > 0) {
@@ -306,7 +306,7 @@ export async function fetchMultiSourceLyrics(rawTitle, rawArtist, duration = 0) 
               duration
             )
           }))
-          .filter((c) => c.score >= 0.70)
+          .filter((c) => c.score >= 0.65)
           .sort((a, b) => {
             if (Boolean(b.item.syncedLyrics) !== Boolean(a.item.syncedLyrics)) {
               return b.item.syncedLyrics ? 1 : -1;
@@ -330,13 +330,40 @@ export async function fetchMultiSourceLyrics(rawTitle, rawArtist, duration = 0) 
     }
   } catch {}
 
+  // 2b. Try LRCLIB general fuzzy search (/api/search?q=...)
+  try {
+    const query = primaryArtist ? `${cleanTitle} ${primaryArtist}` : cleanTitle;
+    const r2b = await fetchWithTimeout(
+      `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`,
+      { headers: LRCLIB_HEADERS },
+      3200
+    );
+    if (r2b.ok) {
+      const list = await r2b.json();
+      if (Array.isArray(list) && list.length > 0) {
+        // Find best match with synced lyrics
+        const withLyrics = list.filter((item) => item.syncedLyrics || item.plainLyrics);
+        if (withLyrics.length > 0) {
+          const syncedFirst = withLyrics.sort((a, b) => (b.syncedLyrics ? 1 : 0) - (a.syncedLyrics ? 1 : 0));
+          const best = syncedFirst[0];
+          return {
+            synced: Boolean(best.syncedLyrics),
+            lyrics: best.syncedLyrics || best.plainLyrics,
+            source: best.syncedLyrics ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics',
+            verified: true
+          };
+        }
+      }
+    }
+  } catch {}
+
   // 3. Try plain lyrics lookup (lyrics.ovh) with primaryArtist and cleanTitle
   if (primaryArtist && cleanTitle) {
     try {
       const ovhRes = await fetchWithTimeout(
         `https://api.lyrics.ovh/v1/${encodeURIComponent(primaryArtist)}/${encodeURIComponent(cleanTitle)}`,
         {},
-        2000
+        2500
       );
       if (ovhRes.ok) {
         const ovhData = await ovhRes.json();

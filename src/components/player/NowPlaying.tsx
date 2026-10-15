@@ -1319,6 +1319,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     fallbackDuration={currentTrack.duration || 210}
                     trackId={currentTrack.id}
                     trackTitle={currentTrack.title}
+                    trackArtist={currentTrack.artist}
                   />
 
                   {/* Symmetric Centered Transport Buttons with Tactile Spring Physics */}

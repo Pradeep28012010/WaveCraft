@@ -1,5 +1,5 @@
 import type { LyricLine } from '../types';
-import { apiUrl } from './apiConfig';
+import { apiUrl, PROD_API_ORIGIN } from './apiConfig';
 
 export interface LyricsCandidate {
   id: string | number;
@@ -31,7 +31,7 @@ const cache = new Map<string, LyricsResult | null>();
 
 export function getLyricsOffsetKey(artist: string, title: string): string {
   const cleanTitle = extractCleanSongTitle(title).toLowerCase();
-  const cleanArtist = extractCleanArtist(artist).toLowerCase();
+  const cleanArtist = extractCleanArtist(artist, title).toLowerCase();
   return `wavecraft_lrc_offset_${cleanArtist}__${cleanTitle}`;
 }
 
@@ -215,6 +215,10 @@ export function computeWordTimings(
   });
 }
 
+/**
+ * Robust title cleaner that handles YouTube / iTunes titles, removes video junk,
+ * and extracts the true song title without clobbering "Artist - Title" formats.
+ */
 export function extractCleanSongTitle(rawTitle: string): string {
   let t = (rawTitle || '')
     .replace(/&quot;/g, '"')
@@ -249,29 +253,57 @@ export function extractCleanSongTitle(rawTitle: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 
-  if (t.includes(' - ')) {
-    const dashParts = t.split(' - ').map((s) => s.trim()).filter(Boolean);
+  // Handle "Artist - Song Title" or "Song Title - Video Format"
+  if (t.includes(' - ') || t.includes(' – ') || t.includes(' — ')) {
+    const dashParts = t.split(/\s*[-–—]\s*/).map((s) => s.trim()).filter(Boolean);
     if (dashParts.length >= 2) {
-      t = dashParts[0];
+      if (/(?:full\s+video|video\s+song|official|lyrical|audio|4k|8k|hd|movie|film)/i.test(dashParts[1])) {
+        t = dashParts[0];
+      } else if (/(?:full\s+video|video\s+song|official|lyrical|audio|4k|8k|hd)/i.test(dashParts[0])) {
+        t = dashParts[1];
+      } else {
+        // Standard "Artist - Title" format: The right side is the song title!
+        t = dashParts.slice(1).join(' - ');
+      }
     }
   }
 
   return t || rawTitle.trim();
 }
 
-export function extractCleanArtist(rawArtist: string): string {
-  const first = (rawArtist || '')
+/**
+ * Clean artist name, discarding record company channel labels (T-Series, Sony, Aditya, etc.)
+ * and extracting the real artist from rawTitle if necessary.
+ */
+export function extractCleanArtist(rawArtist: string, rawTitle = ''): string {
+  let first = (rawArtist || '')
     .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
     .split(',')[0]
     .split('&')[0]
     .split(/feat\.|ft\./i)[0]
+    .replace(/ - Topic$/i, '')
     .trim();
 
-  if (
-    /t-series|aditya|sony\s*music|zee\s*music|saregama|think\s*music|lahari|junglee|tips|yrf|mythri|hombale|vevo|wavecraft|unknown|official|channel|records|films|movies/i.test(
-      first
-    )
-  ) {
+  const isLabel = /t-series|aditya|sony\s*music|zee\s*music|saregama|think\s*music|lahari|junglee|tips|yrf|mythri|hombale|vevo|wavecraft|unknown|official|channel|records|films|movies/i.test(
+    first
+  );
+
+  // If the artist string is empty or a generic record label channel, try extracting artist from "Artist - Song" in rawTitle
+  if ((!first || isLabel) && rawTitle) {
+    const dashParts = rawTitle
+      .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+      .split(/\s*[-–—]\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (
+      dashParts.length >= 2 &&
+      !/(?:full\s+video|video\s+song|official|lyrical|audio|4k|8k|hd)/i.test(dashParts[0])
+    ) {
+      return dashParts[0];
+    }
+  }
+
+  if (isLabel) {
     return '';
   }
   return first;
@@ -283,21 +315,79 @@ export async function getLyricsData(
   duration = 210
 ): Promise<LyricsResult | null> {
   const cleanTitle = extractCleanSongTitle(title);
-  const cleanArtist = extractCleanArtist(artist);
-  const cacheKey = `v3__${cleanArtist.toLowerCase()}__${cleanTitle.toLowerCase()}__${Math.round(duration)}`;
+  const cleanArtist = extractCleanArtist(artist, title);
+  const cacheKey = `v4__${cleanArtist.toLowerCase()}__${cleanTitle.toLowerCase()}__${Math.round(duration)}`;
 
   if (cache.has(cacheKey)) {
-    return cache.get(cacheKey) || null;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
   }
 
-  // 1. Direct fast browser query to LRCLIB (cleanTitle + cleanArtist, then cleanTitle only)
+  // 1. Primary: Query WaveCraft multi-tier server-side resolver
+  // (Runs with verified User-Agent, zero browser CORS/rate-limits, LRCLIB + lyrics.ovh)
+  const queryEndpoints = [
+    apiUrl(`/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}&duration=${Math.round(duration)}`),
+    `${PROD_API_ORIGIN}/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}&duration=${Math.round(duration)}`
+  ];
+
+  if (!cleanArtist) {
+    queryEndpoints.push(
+      apiUrl(`/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&duration=${Math.round(duration)}`),
+      `${PROD_API_ORIGIN}/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&duration=${Math.round(duration)}`
+    );
+  }
+
+  for (const endpoint of queryEndpoints) {
+    try {
+      const res = await fetch(endpoint, { signal: AbortSignal.timeout(4500) });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.lyrics && typeof data.lyrics === 'string' && data.lyrics.trim().length > 20) {
+          const parsedLines = parseLyrics(data.lyrics, duration);
+          if (parsedLines.length > 0) {
+            const langMeta = detectLanguageMeta(data.lyrics);
+            const candidate: LyricsCandidate = {
+              id: 'server-lyrics',
+              trackName: cleanTitle,
+              artistName: cleanArtist || artist,
+              duration,
+              synced: Boolean(data.synced),
+              lyrics: data.lyrics,
+              lines: parsedLines,
+              scriptType: langMeta.scriptType,
+              languageCode: langMeta.code,
+              languageLabel: langMeta.label,
+              durationDiff: 0,
+              source: data.source || (data.synced ? 'WaveSync • Time-Synced' : 'Studio Lyrics'),
+              score: data.synced ? 1000 : 500
+            };
+
+            const result: LyricsResult = {
+              synced: Boolean(data.synced),
+              lyrics: data.lyrics,
+              lines: parsedLines,
+              source: data.source || (data.synced ? 'WaveSync • Time-Synced' : 'Studio Lyrics'),
+              candidates: [candidate],
+              activeCandidateId: candidate.id
+            };
+            cache.set(cacheKey, result);
+            return result;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Direct browser query to LRCLIB search (if backend was unreachable)
   const queriesToTry = cleanArtist ? [`${cleanTitle} ${cleanArtist}`, cleanTitle] : [cleanTitle];
   const allCandidates: LyricsCandidate[] = [];
 
   for (const q of queriesToTry) {
     if (!q) continue;
     try {
-      const r = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`);
+      const r = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`, {
+        signal: AbortSignal.timeout(3500)
+      });
       if (r.ok) {
         const list = await r.json();
         if (Array.isArray(list) && list.length > 0) {
@@ -319,17 +409,13 @@ export async function getLyricsData(
 
             if (cleanArtist && aName.includes(cleanArtist.toLowerCase())) score += 120;
 
-            // Penalize remixes, mashups, instrumental unless query explicitly mentions them
             if (
               /remix|mashup|sped up|slowed|lofi|acoustic|live|cover/i.test(tName) &&
               !/remix|mashup|sped|slowed|lofi|acoustic|live|cover/i.test(target)
             ) {
               score -= 260;
             }
-            if (/\(future bass\)|\(trap\)/i.test(tName)) score -= 150;
-            if (/pagalworld|mr-jatt|dj/i.test(tName + ' ' + aName)) score -= 50;
 
-            // Duration match scoring (punish video intro offsets that differ from audio duration)
             const itemDur = item.duration ? Number(item.duration) : 0;
             let durDiff = 0;
             if (itemDur > 0 && duration > 0) {
@@ -365,8 +451,6 @@ export async function getLyricsData(
   if (allCandidates.length > 0) {
     allCandidates.sort((a, b) => b.score - a.score);
 
-    // Deduplicate candidates by detected language/script so each language appears AT MOST ONCE
-    // The highest-scoring candidate for each language is selected
     const languageMap = new Map<string, LyricsCandidate>();
     for (const cand of allCandidates) {
       const existing = languageMap.get(cand.languageCode);
@@ -390,31 +474,6 @@ export async function getLyricsData(
     return parsed;
   }
 
-  // 2. Fallback to backend /api/music?action=lyrics (LRCLIB targeted + lyrics.ovh)
-  try {
-    const res = await fetch(
-      apiUrl(`/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`)
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.lyrics) {
-        const parsed: LyricsResult = {
-          synced: Boolean(data.synced),
-          lyrics: data.lyrics,
-          lines: parseLyrics(data.lyrics, duration),
-          source: data.source || 'Studio Lyrics',
-          candidates: [],
-          activeCandidateId: 'backend-fallback'
-        };
-        cache.set(cacheKey, parsed);
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('Secondary lyrics API fallback failed:', err);
-  }
-
-  cache.set(cacheKey, null);
   return null;
 }
 
