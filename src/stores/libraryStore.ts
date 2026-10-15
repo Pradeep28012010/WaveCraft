@@ -4,6 +4,7 @@ import * as storage from '../services/storage';
 import { usePlayerStore } from './playerStore';
 import { searchTracks } from '../services/youtube';
 import { apiUrl } from '../services/apiConfig';
+import { DEFAULT_THUMBNAIL } from '../utils/constants';
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
@@ -389,21 +390,28 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   addToPlaylist: (playlistId, track) => {
+    if (!track || !track.id) return;
     const pl = get().playlists.find((p) => p.id === playlistId);
     if (!pl) return;
+    const existing = Array.isArray(pl.tracks) ? pl.tracks : [];
+    const alreadyExists = existing.some((t) => t.id === track.id);
+    const updated = alreadyExists ? existing : [...existing, track];
     get().updatePlaylist(playlistId, {
-      tracks: [...pl.tracks, track],
-      coverUrl: pl.coverUrl || track.thumbnail
+      tracks: updated,
+      coverUrl: pl.coverUrl || track.thumbnail || DEFAULT_THUMBNAIL
     });
   },
 
   addTracksToPlaylist: (playlistId, tracksToAdd) => {
-    if (!tracksToAdd.length) return;
+    if (!tracksToAdd || !tracksToAdd.length) return;
     const pl = get().playlists.find((p) => p.id === playlistId);
     if (!pl) return;
+    const existing = Array.isArray(pl.tracks) ? pl.tracks : [];
+    const existingIds = new Set(existing.map((t) => t.id));
+    const newItems = tracksToAdd.filter((t) => t && t.id && !existingIds.has(t.id));
     get().updatePlaylist(playlistId, {
-      tracks: [...pl.tracks, ...tracksToAdd],
-      coverUrl: pl.coverUrl || tracksToAdd[0]?.thumbnail
+      tracks: [...existing, ...newItems],
+      coverUrl: pl.coverUrl || tracksToAdd[0]?.thumbnail || DEFAULT_THUMBNAIL
     });
   },
 

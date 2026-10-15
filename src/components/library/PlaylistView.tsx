@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import TrackRow from '../ui/TrackRow';
@@ -659,45 +660,54 @@ export default function PlaylistView() {
             <span>Export</span>
           </button>
 
-          {showExportMenu && (
-            <div
-              className="absolute right-0 top-12 z-30 w-56 rounded-2xl liquid-glass border border-white/20 p-2 shadow-2xl space-y-1 text-xs"
-              onClick={() => setShowExportMenu(false)}
-            >
-              <button
-                onClick={() => exportToM3U8(playlist)}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2 cursor-pointer transition-colors"
+          <AnimatePresence>
+            {showExportMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.94, filter: 'blur(10px)' }}
+                animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, y: -4, scale: 0.96, filter: 'blur(8px)' }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute right-0 top-12 z-30 w-60 rounded-[20px] glass-bloom-menu border border-white/20 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.2)] space-y-1 text-xs"
+                onClick={() => setShowExportMenu(false)}
               >
-                <span className="text-base">🎵</span>
-                <div>
-                  <div className="font-bold">M3U8 Playlist (.m3u8)</div>
-                  <div className="text-[10px] text-white/50">For Apple, VLC & players</div>
-                </div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => exportToM3U8(playlist)}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.12] active:bg-white/[0.18] text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                >
+                  <span className="text-base flex-shrink-0">🎵</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold">M3U8 Playlist (.m3u8)</div>
+                    <div className="text-[10px] text-white/50">For Apple, VLC & players</div>
+                  </div>
+                </button>
 
-              <button
-                onClick={() => exportToJSON(playlist)}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2 cursor-pointer transition-colors"
-              >
-                <span className="text-base">📦</span>
-                <div>
-                  <div className="font-bold">WaveCraft JSON (.json)</div>
-                  <div className="text-[10px] text-white/50">Full backup with metadata</div>
-                </div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => exportToJSON(playlist)}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.12] active:bg-white/[0.18] text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                >
+                  <span className="text-base flex-shrink-0">📦</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold">WaveCraft JSON (.json)</div>
+                    <div className="text-[10px] text-white/50">Full backup with metadata</div>
+                  </div>
+                </button>
 
-              <button
-                onClick={handleCopyTrackList}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2 cursor-pointer transition-colors"
-              >
-                <span className="text-base">📋</span>
-                <div>
-                  <div className="font-bold">{copyFeedback ? 'Copied to Clipboard!' : 'Copy Track List'}</div>
-                  <div className="text-[10px] text-white/50">Plain text song names</div>
-                </div>
-              </button>
-            </div>
-          )}
+                <button
+                  type="button"
+                  onClick={handleCopyTrackList}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.12] active:bg-white/[0.18] text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                >
+                  <span className="text-base flex-shrink-0">📋</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold">{copyFeedback ? 'Copied to Clipboard!' : 'Copy Track List'}</div>
+                    <div className="text-[10px] text-white/50">Plain text song names</div>
+                  </div>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <button

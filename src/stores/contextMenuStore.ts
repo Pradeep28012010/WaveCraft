@@ -11,11 +11,18 @@ export interface ContextMenuState {
   track: Track | null;
   tracks?: Track[];
   onRemove?: (() => void) | null;
+  initialView?: 'main' | 'playlist';
   openTrackMenu: (
     e: { clientX: number; clientY: number },
     track: Track,
     tracks?: Track[],
-    onRemove?: (() => void) | null
+    onRemove?: (() => void) | null,
+    initialView?: 'main' | 'playlist'
+  ) => void;
+  openPlaylistPicker: (
+    e: { clientX: number; clientY: number },
+    track: Track,
+    tracks?: Track[]
   ) => void;
   openPageMenu: (e: { clientX: number; clientY: number }) => void;
   closeMenu: () => void;
@@ -29,8 +36,9 @@ export const useContextMenuStore = create<ContextMenuState>((set) => ({
   track: null,
   tracks: undefined,
   onRemove: null,
+  initialView: 'main',
 
-  openTrackMenu: (e, track, tracks, onRemove) => {
+  openTrackMenu: (e, track, tracks, onRemove, initialView = 'main') => {
     const x = typeof e?.clientX === 'number' && isFinite(e.clientX) ? e.clientX : 100;
     const y = typeof e?.clientY === 'number' && isFinite(e.clientY) ? e.clientY : 100;
     set({
@@ -40,7 +48,23 @@ export const useContextMenuStore = create<ContextMenuState>((set) => ({
       type: 'track',
       track,
       tracks,
-      onRemove: onRemove || null
+      onRemove: onRemove || null,
+      initialView
+    });
+  },
+
+  openPlaylistPicker: (e, track, tracks) => {
+    const x = typeof e?.clientX === 'number' && isFinite(e.clientX) ? e.clientX : 100;
+    const y = typeof e?.clientY === 'number' && isFinite(e.clientY) ? e.clientY : 100;
+    set({
+      isOpen: true,
+      x,
+      y,
+      type: 'track',
+      track,
+      tracks,
+      onRemove: null,
+      initialView: 'playlist'
     });
   },
 
@@ -54,11 +78,12 @@ export const useContextMenuStore = create<ContextMenuState>((set) => ({
       type: 'page',
       track: null,
       tracks: undefined,
-      onRemove: null
+      onRemove: null,
+      initialView: 'main'
     });
   },
 
   closeMenu: () => {
-    set({ isOpen: false, track: null, tracks: undefined, onRemove: null });
+    set({ isOpen: false, track: null, tracks: undefined, onRemove: null, initialView: 'main' });
   }
 }));
