@@ -132,7 +132,7 @@ export default function MainLayout() {
               ref={mainRef}
               className="h-full overflow-y-auto overflow-x-hidden overscroll-y-contain flex flex-col"
             >
-              <div className={`flex-1 w-full max-w-7xl mx-auto ${
+              <div className={`flex-1 w-full max-w-7xl mx-auto min-w-0 ${
                 isPhone
                   ? `px-3.5 pt-2 ${hasCurrentTrack ? 'pb-44' : 'pb-28'}`
                   : `px-6 lg:px-8 pt-4 ${hasCurrentTrack ? 'pb-32' : 'pb-24'}`
@@ -143,7 +143,7 @@ export default function MainLayout() {
                     initial={{ opacity: 0, y: 10, scale: 0.995 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                    className="w-full will-change-transform"
+                    className="w-full min-w-0 will-change-transform"
                   >
                     <Suspense fallback={null}>
                       <Outlet />

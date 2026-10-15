@@ -322,7 +322,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="relative pb-44 sm:pb-24 pt-2 text-white min-h-screen">
+    <div className="relative w-full min-w-0 max-w-full overflow-x-hidden pb-44 sm:pb-24 pt-2 text-white min-h-screen">
       {/* Floating Micro-Toast Feedback */}
       {toastMessage && (
         <div className="fixed top-20 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl liquid-glass border border-white/20 text-white text-xs font-bold shadow-[0_12px_32px_rgba(0,0,0,0.6)] animate-in fade-in slide-in-from-top-3 duration-200">
@@ -338,38 +338,38 @@ export default function HomePage() {
       />
 
       {/* ================= EDITORIAL ATMOSPHERIC HEADER ================= */}
-      <div className="mb-8 px-1 pt-1 flex flex-col gap-5">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-          <div>
+      <div className="mb-8 px-1 pt-1 flex flex-col gap-5 w-full min-w-0 max-w-full">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 w-full min-w-0">
+          <div className="min-w-0 flex-1">
             {/* Live Date & Session Badge */}
-            <div className="flex items-center gap-2.5 mb-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-white/[0.08] border border-white/15 text-white/85 backdrop-blur-md shadow-sm">
+            <div className="flex items-center gap-2.5 mb-2 flex-wrap min-w-0">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-white/[0.08] border border-white/15 text-white/85 backdrop-blur-md shadow-sm flex-shrink-0">
                 <svg className="w-3.5 h-3.5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <span>{todayFormatted}</span>
               </span>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/35 text-[var(--color-accent)] backdrop-blur-md">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
-                {greetingInfo.vibeBadge}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/35 text-[var(--color-accent)] backdrop-blur-md max-w-[260px] sm:max-w-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse flex-shrink-0" />
+                <span className="truncate">{greetingInfo.vibeBadge}</span>
               </span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight break-words">
               {greetingInfo.greeting}
             </h1>
-            <p className="text-xs sm:text-sm text-white/60 mt-1.5 font-medium flex items-center gap-2 flex-wrap">
+            <p className="text-xs sm:text-sm text-white/60 mt-1.5 font-medium flex items-center gap-2 flex-wrap min-w-0">
               <span>{greetingInfo.tagline}</span>
               <span className="hidden sm:inline text-white/30">•</span>
-              <span className="text-white/80 font-bold bg-white/10 px-2 py-0.5 rounded-md text-[11px]">
+              <span className="text-white/80 font-bold bg-white/10 px-2 py-0.5 rounded-md text-[11px] whitespace-nowrap">
                 320kbps Studio Master
               </span>
             </p>
           </div>
 
           {/* Category Filter Segmented Switch */}
-          <div className="flex items-center gap-2 overflow-x-auto sm:overflow-x-visible no-scrollbar py-2 px-1 -my-1 -mx-1">
+          <div className="flex items-center gap-2 overflow-x-auto sm:overflow-x-visible no-scrollbar py-2 px-1 -my-1 -mx-1 max-w-full flex-shrink-0">
             {([
               { id: 'all', label: 'All', icon: '✨' },
               { id: 'music', label: 'Music', icon: '🎵' },
@@ -399,7 +399,7 @@ export default function HomePage() {
         </div>
 
         {/* Quick Library Portals Bar (Telemetry Badges) */}
-        <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1">
+        <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1 w-full max-w-full">
           <button
             onClick={() => {
               triggerAndroidHaptic('light');
@@ -455,8 +455,8 @@ export default function HomePage() {
 
       {/* ================= HERO SPOTLIGHT BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && spotlightTrack && (
-        <section className="mb-10 px-1">
-          <div className="relative rounded-3xl liquid-glass border border-white/20 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group">
+        <section className="mb-10 px-1 w-full min-w-0 max-w-full">
+          <div className="relative rounded-3xl liquid-glass border border-white/20 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
             {/* Ambient Blurred Artwork Backdrop */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
               <img
@@ -467,9 +467,9 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/30" />
             </div>
 
-            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 w-full min-w-0">
               {/* Left Column: Hero Art & Acoustic Info */}
-              <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 min-w-0 flex-1 w-full md:w-auto">
                 <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl border border-white/25 group-hover:scale-105 transition-transform duration-500">
                   <img
                     src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
@@ -486,15 +486,15 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/45 text-[var(--color-accent)]">
+                <div className="min-w-0 flex-1 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/45 text-[var(--color-accent)] flex-shrink-0">
                       ✨ FEATURED SPOTLIGHT
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/80 border border-white/15">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/80 border border-white/15 flex-shrink-0">
                       320KBPS STUDIO AAC
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/60 hidden sm:inline-flex">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/60 hidden sm:inline-flex flex-shrink-0">
                       LOSSLESS DSP
                     </span>
                   </div>
@@ -504,7 +504,7 @@ export default function HomePage() {
                       triggerAndroidHaptic('medium');
                       playTrack(spotlightTrack, trendingTracks, 0);
                     }}
-                    className="text-xl sm:text-3xl font-black text-white truncate tracking-tight leading-tight group-hover:text-[var(--color-accent)] transition-colors cursor-pointer"
+                    className="text-xl sm:text-3xl font-black text-white truncate tracking-tight leading-tight group-hover:text-[var(--color-accent)] transition-colors cursor-pointer block max-w-full"
                   >
                     {spotlightTrack.title}
                   </h2>
@@ -709,8 +709,8 @@ export default function HomePage() {
 
       {/* ================= 3D SONIC GALAXY OBSERVATORY PORTAL BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
-        <section className="mb-10 px-1">
-          <div className="relative rounded-3xl liquid-glass border border-white/20 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group">
+        <section className="mb-10 px-1 w-full min-w-0 max-w-full">
+          <div className="relative rounded-3xl liquid-glass border border-white/20 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
             {/* Deep Galactic Gradient Background */}
             <div className="absolute inset-0 pointer-events-none -z-10">
               <div className="absolute inset-0 bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-blue-950/70" />
@@ -718,9 +718,9 @@ export default function HomePage() {
               <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-cyan-600/20 blur-3xl" />
             </div>
 
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 w-full min-w-0">
               {/* Left Column: Visual Details & Description */}
-              <div className="max-w-2xl">
+              <div className="max-w-2xl min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase bg-gradient-to-r from-violet-500/20 to-cyan-500/20 border border-violet-400/40 text-violet-200 backdrop-blur-md">
                     <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse shadow-[0_0_8px_#a78bfa]" />

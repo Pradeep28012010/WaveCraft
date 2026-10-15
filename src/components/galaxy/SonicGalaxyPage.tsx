@@ -1551,9 +1551,10 @@ export default function SonicGalaxyPage() {
       }
 
       // 9. Floating Celestial Compass / Minimap Radar
-      const mmR = 30;
-      const mmX = width - mmR - 14;
-      const mmY = 14 + mmR;
+      // Positioned cleanly at bottom-right above zoom controls to prevent overlap with top controls
+      const mmR = 26;
+      const mmX = width - mmR - 16;
+      const mmY = height - mmR - 62;
 
       ctx.save();
       ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
@@ -1846,14 +1847,14 @@ export default function SonicGalaxyPage() {
           <canvas ref={canvasRef} className="w-full h-full block touch-none" />
 
           {/* Top Viewport VisionOS Controls */}
-          <div className="absolute top-3.5 left-3.5 right-3.5 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-            <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
+          <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2 pointer-events-none">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pointer-events-auto max-w-full">
               <button
                 onClick={() => {
                   triggerAndroidHaptic('light');
                   setAutoOrbit((v) => !v);
                 }}
-                className={`px-3.5 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all ${
+                className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                   autoOrbit ? 'glass-button-emerald' : 'glass-button text-white/75'
                 }`}
               >
@@ -1864,7 +1865,7 @@ export default function SonicGalaxyPage() {
                   triggerAndroidHaptic('medium');
                   setIsCinematicTour((t) => !t);
                 }}
-                className={`px-3.5 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all ${
+                className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                   isCinematicTour ? 'glass-button-purple animate-pulse' : 'glass-button text-white/85'
                 }`}
                 title="Glide autonomously from star to star in a cinematic cosmic tour"
@@ -1876,7 +1877,7 @@ export default function SonicGalaxyPage() {
                   triggerAndroidHaptic('light');
                   setShowCoordinateGrid((g) => !g);
                 }}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
+                className={`px-3 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                   showCoordinateGrid ? 'glass-button text-white' : 'glass-button text-white/40'
                 }`}
                 title="Toggle celestial coordinate grid lines"
@@ -1892,19 +1893,19 @@ export default function SonicGalaxyPage() {
                   cameraRef.current.velPitch = 0;
                   setZoom(1.05);
                 }}
-                className="px-3.5 py-1.5 rounded-full glass-button text-[11px] font-bold text-white/85 cursor-pointer"
+                className="px-3 py-1.5 rounded-full glass-button text-[11px] font-bold text-white/85 cursor-pointer whitespace-nowrap flex-shrink-0"
               >
                 🎯 Center
               </button>
               <button
                 onClick={handleSupernovaShuffle}
-                className="px-3.5 py-1.5 rounded-full glass-button-primary text-[11px] font-extrabold text-white cursor-pointer"
+                className="px-3 py-1.5 rounded-full glass-button-primary text-[11px] font-extrabold text-white cursor-pointer whitespace-nowrap flex-shrink-0"
               >
                 ✨ Shuffle
               </button>
             </div>
 
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass border border-white/15 text-[10px] font-bold text-white/75">
+            <div className="hidden 2xl:flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass border border-white/15 text-[10px] font-bold text-white/75 flex-shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
               <span>DRAG TO ROTATE • SCROLL / PINCH TO ZOOM</span>
             </div>
@@ -2063,52 +2064,59 @@ export default function SonicGalaxyPage() {
             {selectedStar ? (
               <>
                 {/* Hero Planet Card Header */}
-                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/15 flex items-center gap-3.5">
-                  <div className="relative w-16 h-16 flex-shrink-0">
-                    <div
-                      className="absolute -inset-1 rounded-2xl blur-md opacity-60"
-                      style={{ backgroundColor: selectedStar.color }}
-                    />
-                    <img
-                      src={selectedStar.track.thumbnail || DEFAULT_THUMBNAIL}
-                      alt={selectedStar.track.title}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                      }}
-                      className="relative w-16 h-16 rounded-2xl object-cover shadow-xl border border-white/25"
-                    />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 mb-1 overflow-hidden">
-                      <span
-                        className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white whitespace-nowrap flex-shrink-0"
-                        style={{
-                          backgroundColor: `${selectedStar.color}40`,
-                          border: `1px solid ${selectedStar.color}`
+                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/15 flex flex-col gap-2.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0">
+                      <div
+                        className="absolute -inset-1 rounded-2xl blur-md opacity-60"
+                        style={{ backgroundColor: selectedStar.color }}
+                      />
+                      <img
+                        src={selectedStar.track.thumbnail || DEFAULT_THUMBNAIL}
+                        alt={selectedStar.track.title}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                         }}
-                      >
-                        {selectedStar.clusterName}
+                        className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover shadow-xl border border-white/25"
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm sm:text-base font-black text-white truncate leading-tight">
+                        {selectedStar.track.title}
+                      </h3>
+                      <p className="text-xs font-semibold text-white/65 truncate mt-0.5">
+                        {selectedStar.track.artist}
+                      </p>
+                    </div>
+
+                    {/* Real Taste Match Circular Badge */}
+                    <div className="flex flex-col items-center justify-center px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-400/35 flex-shrink-0">
+                      <span className="text-base sm:text-lg font-black text-emerald-300 leading-none tabular-nums whitespace-nowrap">
+                        {selectedStar.affinityScore}%
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-[9px] font-bold text-white/70 whitespace-nowrap flex-shrink-0">
-                        {selectedStar.sourceLabel}
+                      <span className="text-[8px] font-extrabold uppercase tracking-wider text-emerald-200/80 mt-0.5 whitespace-nowrap">
+                        Match
                       </span>
                     </div>
-                    <h3 className="text-base font-black text-white truncate">
-                      {selectedStar.track.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-white/65 truncate">
-                      {selectedStar.track.artist}
-                    </p>
                   </div>
 
-                  {/* Real Taste Match Circular Badge */}
-                  <div className="flex flex-col items-center justify-center px-3 py-2 rounded-2xl bg-emerald-500/15 border border-emerald-400/35 flex-shrink-0">
-                    <span className="text-lg font-black text-emerald-300 leading-none tabular-nums whitespace-nowrap">
-                      {selectedStar.affinityScore}%
+                  {/* Badges Row: Dedicated row with wrap so badges NEVER clip */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-white/8">
+                    <span
+                      className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white whitespace-nowrap"
+                      style={{
+                        backgroundColor: `${selectedStar.color}40`,
+                        border: `1px solid ${selectedStar.color}`
+                      }}
+                    >
+                      {selectedStar.clusterName}
                     </span>
-                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-200/80 mt-0.5 whitespace-nowrap">
-                      Match
+                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-[9px] font-bold text-white/70 whitespace-nowrap">
+                      {selectedStar.sourceLabel}
+                    </span>
+                    <span className="text-[9px] font-semibold text-white/45 ml-auto whitespace-nowrap">
+                      {selectedStar.parsecDistance} pc
                     </span>
                   </div>
                 </div>
@@ -2125,11 +2133,11 @@ export default function SonicGalaxyPage() {
                     >
                       {/* Real Taste Match Breakdown Card */}
                       <div className="p-3.5 rounded-2xl bg-black/40 border border-white/12 space-y-2.5">
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 whitespace-nowrap">
                             🎯 Real Taste Match Breakdown
                           </span>
-                          <span className="text-[10px] font-bold text-white/50 whitespace-nowrap flex-shrink-0">
+                          <span className="text-[10px] font-bold text-white/50 whitespace-nowrap">
                             Cosine Vector Engine
                           </span>
                         </div>

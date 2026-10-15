@@ -460,7 +460,7 @@ export default function Sidebar() {
   return (
     <>
       <aside
-        className={`flex flex-col h-full liquid-glass bg-[#06060f]/80 backdrop-blur-3xl border-r border-white/[0.08] shadow-[4px_0_30px_rgba(0,0,0,0.5)] transition-all duration-300 select-none z-30 ${
+        className={`flex flex-col h-full liquid-glass bg-[#06060f]/80 backdrop-blur-3xl border-r border-white/[0.08] shadow-[4px_0_30px_rgba(0,0,0,0.5)] transition-all duration-300 select-none z-30 flex-shrink-0 ${
           collapsed ? 'w-20' : 'w-64'
         }`}
       >
