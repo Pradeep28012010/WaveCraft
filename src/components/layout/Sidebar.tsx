@@ -43,10 +43,7 @@ export default function Sidebar() {
   const recentlyPlayed = useLibraryStore((state) => state.recentlyPlayed) || [];
   const { offlineTracks } = useOfflineVault();
 
-  const currentTrack = usePlayerStore((state) => state.currentTrack);
   const isPlaying = usePlayerStore((state) => state.isPlaying);
-  const togglePlay = usePlayerStore((state) => state.togglePlay);
-  const setIsNowPlayingOpen = usePlayerStore((state) => state.setIsNowPlayingOpen);
 
   const { isPhone, isMobileDrawerOpen, setMobileDrawerOpen } = useDevicePreset();
   const { isInstalled } = usePWAInstall();
@@ -482,63 +479,6 @@ export default function Sidebar() {
                   <span>Feedback & Bug Report</span>
                 </button>
               </nav>
-
-              {/* Mobile Drawer Bottom Mini Now-Playing Card */}
-              {currentTrack && (
-                <div className="p-3 border-t border-white/10 flex-shrink-0 bg-white/[0.02]">
-                  <div
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      setMobileDrawerOpen(false);
-                      setIsNowPlayingOpen(true);
-                    }}
-                    className="flex items-center gap-3 p-2 rounded-2xl liquid-glass bg-white/[0.05] border border-white/15 cursor-pointer active:scale-98 transition-transform"
-                  >
-                    <div className="w-10 h-10 rounded-xl overflow-hidden relative flex-shrink-0 shadow-md">
-                      <img
-                        src={currentTrack.thumbnail || '/default-album.png'}
-                        alt={currentTrack.title}
-                        className="w-full h-full object-cover"
-                      />
-                      {isPlaying && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-0.5">
-                          <span className="w-1 bg-[var(--color-accent)] rounded-full animate-pulse h-3" />
-                          <span className="w-1 bg-white rounded-full animate-pulse [animation-delay:150ms] h-4" />
-                          <span className="w-1 bg-[var(--color-accent)] rounded-full animate-pulse [animation-delay:300ms] h-2.5" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 pr-1">
-                      <div className="text-xs font-bold text-white truncate">
-                        {currentTrack.title}
-                      </div>
-                      <div className="text-[10px] text-white/50 truncate">
-                        {currentTrack.artist}
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        triggerAndroidHaptic('light');
-                        togglePlay();
-                      }}
-                      className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white flex-shrink-0 active:scale-90"
-                      aria-label={isPlaying ? 'Pause' : 'Play'}
-                    >
-                      {isPlaying ? (
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                          <rect x="6" y="4" width="4" height="16" rx="1" />
-                          <rect x="14" y="4" width="4" height="16" rx="1" />
-                        </svg>
-                      ) : (
-                        <svg className="w-3.5 h-3.5 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                          <polygon points="5 3 19 12 5 21 5 3" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
             </motion.aside>
           </motion.div>
         )}
@@ -743,78 +683,6 @@ export default function Sidebar() {
             </div>
           </div>
         </nav>
-
-        {/* Integrated Desktop Mini Now-Playing Status Card */}
-        {currentTrack && (
-          <div className="px-2.5 pb-2 flex-shrink-0">
-            {!collapsed ? (
-              <div
-                onClick={() => setIsNowPlayingOpen(true)}
-                className="group p-2 rounded-2xl liquid-glass bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all cursor-pointer flex items-center gap-3 relative overflow-hidden shadow-lg"
-              >
-                <div className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
-                  <img
-                    src={currentTrack.thumbnail || '/default-album.png'}
-                    alt={currentTrack.title}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  />
-                  {isPlaying && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-0.5">
-                      <span className="w-1 bg-[var(--color-accent)] rounded-full animate-bounce [animation-delay:0ms] h-3" />
-                      <span className="w-1 bg-white rounded-full animate-bounce [animation-delay:150ms] h-4" />
-                      <span className="w-1 bg-[var(--color-accent)] rounded-full animate-bounce [animation-delay:300ms] h-2.5" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 pr-1">
-                  <div className="text-xs font-bold text-white truncate group-hover:text-[var(--color-accent)] transition-colors">
-                    {currentTrack.title}
-                  </div>
-                  <div className="text-[11px] text-white/50 truncate">
-                    {currentTrack.artist}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    triggerAndroidHaptic('light');
-                    togglePlay();
-                  }}
-                  aria-label={isPlaying ? 'Pause' : 'Play'}
-                  className="w-7 h-7 rounded-full glass-button flex items-center justify-center text-white/80 hover:text-white flex-shrink-0 active:scale-90 transition-transform cursor-pointer"
-                >
-                  {isPlaying ? (
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="6" y="4" width="4" height="16" rx="1" />
-                      <rect x="14" y="4" width="4" height="16" rx="1" />
-                    </svg>
-                  ) : (
-                    <svg className="w-3.5 h-3.5 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5 3 19 12 5 21 5 3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            ) : (
-              <div
-                onClick={() => setIsNowPlayingOpen(true)}
-                className="flex justify-center cursor-pointer group"
-                title={`Now Playing: ${currentTrack.title} — ${currentTrack.artist}`}
-              >
-                <div className="w-11 h-11 rounded-2xl overflow-hidden border border-white/20 shadow-lg relative transition-transform group-hover:scale-105">
-                  <img
-                    src={currentTrack.thumbnail || '/default-album.png'}
-                    alt={currentTrack.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {isPlaying && (
-                    <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] ring-2 ring-black" />
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Footer Actions: Feedback & Collapse Controls */}
         <div className="p-2.5 pt-1 space-y-1.5 border-t border-white/[0.06] flex-shrink-0">
