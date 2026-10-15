@@ -19,16 +19,17 @@ import {
   resumeAudioContextIfNeeded
 } from '../../services/audioEngine';
 import InteractiveEQ from './InteractiveEQ';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
-type StudioTab = 'eq' | 'spatial' | 'mastering' | 'arena' | 'ambient' | 'timers';
+type StudioTab = 'eq' | 'spatial' | 'mastering' | 'ambient';
 
-const STUDIO_BACKDROP_TRANSITION = { duration: 0.38, ease: [0.16, 1, 0.3, 1] as const };
+const STUDIO_BACKDROP_TRANSITION = { duration: 0.32, ease: [0.16, 1, 0.3, 1] as const };
 const STUDIO_PANEL_VARIANTS = {
   initial: {
     opacity: 0,
-    scale: 0.93,
-    y: 18,
-    filter: 'blur(14px)'
+    scale: 0.95,
+    y: 20,
+    filter: 'blur(16px)'
   },
   animate: {
     opacity: 1,
@@ -36,21 +37,112 @@ const STUDIO_PANEL_VARIANTS = {
     y: 0,
     filter: 'blur(0px)',
     transition: {
-      duration: 0.4,
+      duration: 0.36,
       ease: [0.16, 1, 0.3, 1] as const
     }
   },
   exit: {
     opacity: 0,
-    scale: 0.96,
-    y: 12,
-    filter: 'blur(8px)',
+    scale: 0.97,
+    y: 14,
+    filter: 'blur(10px)',
     transition: {
-      duration: 0.18,
+      duration: 0.2,
       ease: [0.16, 1, 0.3, 1] as const
     }
   }
 };
+
+/**
+ * Minimalist Apple-Grade Fluid Gesture Slider
+ * Pill-shaped track with filled gradient, elevated white thumb, and formatted readout.
+ */
+function AppleFluidSlider({
+  label,
+  value,
+  min,
+  max,
+  step = 0.01,
+  formattedValue,
+  accentColor = 'cyan',
+  onChange,
+  onReset
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  formattedValue: string;
+  accentColor?: 'cyan' | 'amber' | 'indigo' | 'pink' | 'emerald';
+  onChange: (val: number) => void;
+  onReset?: () => void;
+}) {
+  const percent = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+
+  const accentGradients = {
+    cyan: 'from-cyan-500 via-sky-400 to-blue-500',
+    amber: 'from-amber-400 via-orange-400 to-rose-500',
+    indigo: 'from-indigo-500 via-purple-500 to-pink-500',
+    pink: 'from-pink-500 via-rose-500 to-red-500',
+    emerald: 'from-emerald-400 via-teal-400 to-cyan-500'
+  };
+
+  const accentThumbBorders = {
+    cyan: 'border-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.5)]',
+    amber: 'border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)]',
+    indigo: 'border-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.5)]',
+    pink: 'border-pink-300 shadow-[0_0_12px_rgba(244,63,94,0.5)]',
+    emerald: 'border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+  };
+
+  return (
+    <div className="space-y-1.5 select-none group">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-white/80 group-hover:text-white transition-colors">
+          {label}
+        </span>
+        <button
+          type="button"
+          onClick={onReset}
+          className="font-mono text-xs font-bold text-white/90 hover:text-white transition cursor-pointer"
+          title={onReset ? 'Double-click to reset' : undefined}
+        >
+          {formattedValue}
+        </button>
+      </div>
+
+      <div className="relative h-6 flex items-center">
+        {/* Track Bar */}
+        <div className="w-full h-2 rounded-full bg-white/10 relative overflow-hidden backdrop-blur-md">
+          <div
+            className={`h-full bg-gradient-to-r ${accentGradients[accentColor]} transition-all duration-75`}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+
+        {/* Elevated Thumb */}
+        <div
+          className={`absolute w-4.5 h-4.5 -ml-2 rounded-full bg-white border-2 ${accentThumbBorders[accentColor]} pointer-events-none transition-transform group-hover:scale-125 shadow-md`}
+          style={{ left: `${percent}%` }}
+        />
+
+        {/* Native Touch & Mouse Range */}
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => {
+            onChange(parseFloat(e.target.value));
+          }}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        />
+      </div>
+    </div>
+  );
+}
 
 function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   const {
@@ -99,14 +191,13 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     setEndAtTrack
   } = useSleepTimer();
 
-  // Active tab state: defaults according to active fxMode
+  // Active tab state
   const [activeTab, setActiveTab] = useState<StudioTab>(() => {
-    if (fxMode === '8d-orbit') return 'spatial';
-    if (fxMode === 'arena-live') return 'arena';
-    return 'mastering';
+    if (fxMode === '8d-orbit' || fxMode === 'arena-live') return 'spatial';
+    return 'eq';
   });
 
-  // Permanently unlock AudioContext as soon as the Studio FX workstation is opened
+  // Permanently unlock AudioContext on mount
   useEffect(() => {
     unlockAudioEngine();
     resumeAudioContextIfNeeded();
@@ -123,7 +214,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
   const prevVisualsRef = useRef({ az: '', dist: '', l: '', r: '', zone: '' });
 
-  // Update radar position readout directly without React re-renders or redundant DOM dirtying
+  // Update radar visuals without triggering React re-renders
   const updateRadarVisuals = (
     x: number,
     z: number,
@@ -162,7 +253,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     }
   };
 
-  // High-Definition 60fps Real-Time Spectrum Analyzer Canvas
+  // Real-time 60fps 32-Band Spectrum Analyzer Canvas
   useEffect(() => {
     const canvas = spectrumCanvasRef.current;
     if (!canvas) return;
@@ -183,8 +274,8 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
 
-      // Subtle horizontal dB reference grid lines
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      // Subtle horizontal dB reference grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
       ctx.lineWidth = 1;
       [-12, -24, -36].forEach((db) => {
         const y = h * (1 - (db + 48) / 48);
@@ -199,27 +290,27 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       const barW = (w - gap * (barCount - 1)) / barCount;
 
       for (let i = 0; i < barCount; i++) {
-        let norm = 0.08;
+        let norm = 0.06;
         if (hasLive) {
           const bin = Math.min(freqData.length - 1, Math.floor((i / barCount) * 44));
-          norm = Math.max(0.08, freqData[bin] / 255);
+          norm = Math.max(0.06, freqData[bin] / 255);
         } else if (isPlaying) {
           norm =
-            0.15 +
-            0.38 * Math.abs(Math.sin(phase + i * 0.25)) * Math.cos(phase * 0.7 - i * 0.15);
+            0.12 +
+            0.35 * Math.abs(Math.sin(phase + i * 0.25)) * Math.cos(phase * 0.7 - i * 0.15);
         }
 
         if (norm > peakBars[i]) {
           peakBars[i] = norm;
         } else {
-          peakBars[i] = Math.max(0.08, peakBars[i] - 0.015);
+          peakBars[i] = Math.max(0.06, peakBars[i] - 0.015);
         }
 
-        const barH = Math.max(4, norm * (h - 6));
+        const barH = Math.max(3, norm * (h - 4));
         const x = i * (barW + gap);
         const y = h - barH;
 
-        // Audiophile multi-spectrum gradient (Sub Cyan -> Mid Purple -> Peak Coral)
+        // Apple-grade multi-spectrum gradient (Cyan -> Purple -> Coral)
         const grad = ctx.createLinearGradient(0, h, 0, 0);
         grad.addColorStop(0, 'rgba(6, 182, 212, 0.85)');
         grad.addColorStop(0.55, 'rgba(168, 85, 247, 0.95)');
@@ -235,7 +326,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
         ctx.fill();
 
         // Glowing peak hold dot
-        const peakY = h - Math.max(4, peakBars[i] * (h - 6));
+        const peakY = h - Math.max(3, peakBars[i] * (h - 4));
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(x, Math.max(0, peakY - 2), barW, 2);
       }
@@ -250,7 +341,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     };
   }, [isPlaying]);
 
-  // Subscribe to Global Persistent Orbit Engine
+  // Subscribe to live spatial engine
   useEffect(() => {
     if (fxMode !== '8d-orbit') return;
     const unsubscribe = subscribeLiveSpatial((state) => {
@@ -269,6 +360,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     }
   }, [spatialManualPos, spatialOrbitAuto, fxMode]);
 
+  // Sync manual radar drag to audio engine
   const updateRadarPosFromPointer = (clientX: number, clientY: number) => {
     if (!radarRef.current) return;
     const rect = radarRef.current.getBoundingClientRect();
@@ -336,38 +428,48 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   }, [safeAmbientVolumes]);
 
   return (
-    <div onPointerDown={unlockAudioEngine} className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden">
-      {/* Mobile Bottom Sheet Drag Handle */}
-      <div className="w-12 h-1.5 rounded-full bg-white/25 mx-auto mt-2.5 sm:hidden flex-shrink-0" />
+    <div onPointerDown={unlockAudioEngine} className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden select-none">
+      {/* iOS Drag Handle */}
+      <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-2.5 sm:hidden flex-shrink-0" />
 
-      {/* ── Top Pinned Header ── */}
-      <div className="flex items-center justify-between px-5 py-3 sm:py-4 border-b border-white/12 flex-shrink-0 bg-white/[0.02]">
+      {/* ── Top Apple Floating Window Header ── */}
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 flex-shrink-0 bg-white/[0.02]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] via-purple-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/20 text-white flex-shrink-0">
-            <span className="text-xl">🎛️</span>
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] via-purple-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/20 text-white flex-shrink-0">
+            <svg className="w-4.5 h-4.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="21" x2="4" y2="14" />
+              <line x1="4" y1="10" x2="4" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" y2="3" />
+              <line x1="20" y1="21" x2="20" y2="16" />
+              <line x1="20" y1="12" x2="20" y2="3" />
+            </svg>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 id="studio-fx-modal-title" className="text-base sm:text-lg font-black tracking-tight text-white">
-                Studio FX Workstation
+              <h2 id="studio-fx-modal-title" className="text-base font-bold tracking-tight text-white">
+                Studio FX & Audio EQ
               </h2>
-              <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-[10px] font-bold tracking-wider uppercase">
-                320kbps DSP
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-[9px] font-black tracking-wider uppercase">
+                32-Bit Lossless DSP
               </span>
             </div>
-            <p className="text-xs text-white/55 font-medium">
-              Real-time binaural spatial audio, mastering rack & ambient soundscapes
+            <p className="text-[11px] text-white/50 font-medium">
+              360° Spatial Audio • Catmull-Rom Spline EQ • 12AX7 Tube Saturation
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {hasCustomDSP && (
             <button
               type="button"
-              onClick={resetToOriginal}
-              className="px-3 py-1.5 rounded-full border border-white/20 glass-button text-xs font-bold text-white/90 hover:text-white transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-              title="Reset all studio effects to flat master"
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                resetToOriginal();
+              }}
+              className="px-3 py-1.5 rounded-full border border-white/15 glass-button text-xs font-semibold text-white/90 hover:text-white transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+              title="Reset all effects to flat reference audio"
             >
               <span>↺</span>
               <span>Reset</span>
@@ -376,9 +478,12 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              onClose();
+            }}
             aria-label="Close Studio FX"
-            className="w-8 h-8 rounded-full glass-button border border-white/20 flex items-center justify-center text-white/80 hover:text-white transition cursor-pointer text-sm font-bold active:scale-95"
+            className="w-8 h-8 rounded-full glass-button border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer text-xs font-bold active:scale-95"
             title="Close (Esc)"
           >
             ✕
@@ -386,78 +491,18 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {/* ── Scrollable Body Stage ── */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 no-scrollbar">
-        {/* Sound Mode Cards */}
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-white/50 mb-2">
-            Soundstage Mode
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            {STUDIO_FX_MODES.map((mode) => {
-              const isSelected = fxMode === mode.id;
-              return (
-                <button
-                  key={mode.id}
-                  type="button"
-                  onClick={() => {
-                    setFxMode(mode.id as StudioFXMode);
-                    if (mode.id === '8d-orbit') {
-                      setSpatialOrbitAuto(true);
-                      setActiveTab('spatial');
-                    } else if (mode.id === 'arena-live') {
-                      setActiveTab('arena');
-                    } else {
-                      setActiveTab('mastering');
-                    }
-                  }}
-                  className={`text-left p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
-                    isSelected
-                      ? 'border-cyan-400/80 liquid-glass bg-cyan-500/15 shadow-[0_0_24px_rgba(6,182,212,0.25),inset_0_1px_0_rgba(255,255,255,0.25)]'
-                      : 'border-white/10 liquid-glass hover:bg-white/[0.08] hover:border-white/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xl">{mode.icon}</span>
-                    <span
-                      className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                        isSelected
-                          ? 'bg-cyan-400 text-black shadow-sm'
-                          : 'bg-white/10 text-white/60'
-                      }`}
-                    >
-                      {mode.badge}
-                    </span>
-                  </div>
-                  <div className="font-bold text-xs text-white">{mode.name}</div>
-                  <p className="text-[10px] text-white/55 line-clamp-2 mt-0.5 leading-snug">
-                    {mode.description}
-                  </p>
-                  {isSelected && (
-                    <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── Segmented Rack Navigation Tabs ── */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl liquid-glass border border-white/15 overflow-x-auto no-scrollbar">
+      {/* ── Apple-Grade Segmented Tab Pills ── */}
+      <div className="px-5 pt-3 pb-1 flex-shrink-0">
+        <div className="flex items-center p-1 rounded-2xl liquid-glass bg-white/[0.04] border border-white/10 relative">
           {[
-            { id: 'eq', label: '📊 10-Band EQ', badge: null },
-            { id: 'mastering', label: '🎚️ Mastering & Tube', badge: harmonicDrive > 0.05 ? 'TUBE ON' : null },
-            { id: 'spatial', label: '🪐 3D Spatial Radar', badge: fxMode === '8d-orbit' ? 'ACTIVE' : null },
-            { id: 'arena', label: '🏟️ Concert Arena', badge: fxMode === 'arena-live' ? 'ACTIVE' : null },
+            { id: 'eq', label: '10-Band EQ', icon: '📊' },
+            { id: 'spatial', label: 'Spatial Audio', icon: '🪐' },
+            { id: 'mastering', label: 'Analog Master', icon: '🎚️' },
             {
               id: 'ambient',
-              label: '🌧️ Ambient Synth',
-              badge: activeAmbientCount > 0 ? `${activeAmbientCount} ON` : null
-            },
-            {
-              id: 'timers',
-              label: '🌙 Sleep & Focus',
-              badge: sleepActive ? 'SLEEP' : pomodoroActive ? 'FOCUS' : null
+              label: 'Ambient & Timers',
+              icon: '🌧️',
+              badge: activeAmbientCount > 0 ? `${activeAmbientCount}` : sleepActive ? '🌙' : null
             }
           ].map((tab) => {
             const isActive = activeTab === tab.id;
@@ -465,22 +510,25 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id as StudioTab)}
-                className={`flex-1 min-w-max px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  isActive
-                    ? 'glass-button-cyan text-white shadow-sm'
-                    : 'text-white/60 hover:text-white hover:bg-white/5 border border-transparent'
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setActiveTab(tab.id as StudioTab);
+                }}
+                className={`relative flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer z-10 ${
+                  isActive ? 'text-white' : 'text-white/55 hover:text-white'
                 }`}
               >
-                <span>{tab.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="studio-active-tab-pill"
+                    transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/[0.18] via-white/[0.12] to-white/[0.06] border border-white/25 shadow-[0_4px_16px_rgba(0,0,0,0.4)] pointer-events-none"
+                  />
+                )}
+                <span className="relative z-10 text-xs">{tab.icon}</span>
+                <span className="relative z-10 text-xs font-bold truncate">{tab.label}</span>
                 {tab.badge && (
-                  <span
-                    className={`text-[9px] px-1.5 py-0.2 rounded-full font-black ${
-                      tab.badge === 'ACTIVE'
-                        ? 'bg-cyan-400 text-black'
-                        : 'bg-amber-400 text-black'
-                    }`}
-                  >
+                  <span className="relative z-10 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-cyan-400 text-black">
                     {tab.badge}
                   </span>
                 )}
@@ -488,22 +536,79 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             );
           })}
         </div>
+      </div>
 
-        {/* ── Active Tab Stage ── */}
-        <div className="p-4 sm:p-5 rounded-2xl border border-white/12 liquid-glass">
-          {/* TAB 0: 10-BAND INTERACTIVE EQUALIZER */}
-          {activeTab === 'eq' && <InteractiveEQ />}
+      {/* ── Scrollable Tab Content ── */}
+      <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 no-scrollbar">
+        {/* ── TAB 1: 10-BAND INTERACTIVE EQUALIZER ── */}
+        {activeTab === 'eq' && (
+          <div className="space-y-4">
+            <InteractiveEQ />
+          </div>
+        )}
 
-          {/* TAB 1: 3D SPATIAL RADAR */}
-          {activeTab === 'spatial' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+        {/* ── TAB 2: 3D SPATIAL AUDIO & RADAR ── */}
+        {activeTab === 'spatial' && (
+          <div className="space-y-4">
+            {/* Soundstage Mode Selector Cards */}
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-white/50 mb-2">
+                Acoustic Soundstage
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {STUDIO_FX_MODES.map((mode) => {
+                  const isSelected = fxMode === mode.id;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        setFxMode(mode.id as StudioFXMode);
+                        if (mode.id === '8d-orbit') {
+                          setSpatialOrbitAuto(true);
+                        }
+                      }}
+                      className={`text-left p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                        isSelected
+                          ? 'border-cyan-400/80 liquid-glass bg-cyan-500/15 shadow-[0_0_24px_rgba(6,182,212,0.25),inset_0_1px_0_rgba(255,255,255,0.25)]'
+                          : 'border-white/10 liquid-glass hover:bg-white/[0.08] hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xl">{mode.icon}</span>
+                        <span
+                          className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                            isSelected
+                              ? 'bg-cyan-400 text-black shadow-sm'
+                              : 'bg-white/10 text-white/60'
+                          }`}
+                        >
+                          {mode.badge}
+                        </span>
+                      </div>
+                      <div className="font-bold text-xs text-white">{mode.name}</div>
+                      <p className="text-[10px] text-white/55 line-clamp-2 mt-0.5 leading-snug">
+                        {mode.description}
+                      </p>
+                      {isSelected && (
+                        <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 360° Interactive Spatial Radar Card */}
+            <div className="rounded-2xl border border-white/12 liquid-glass p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <span className="text-cyan-400 text-lg">🪐</span>
                   <div>
                     <div className="font-bold text-sm text-white">360° Binaural Spatial Radar</div>
                     <div className="text-[11px] text-white/50">
-                      Drag anywhere on the radar stage to manually position sound in 3D binaural space.
+                      Drag anywhere on the radar stage to manually steer audio in 3D binaural space.
                     </div>
                   </div>
                 </div>
@@ -515,8 +620,8 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
-              {/* 2D Interactive Radar Display */}
-              <div className="flex flex-col sm:flex-row items-center gap-5 my-2">
+              <div className="flex flex-col sm:flex-row items-center gap-6 my-2">
+                {/* 2D Interactive Radar Display */}
                 <div
                   ref={radarRef}
                   onPointerDown={(e) => {
@@ -529,21 +634,18 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   }}
                   className="relative w-44 h-44 rounded-full border-2 border-cyan-500/30 bg-black/60 shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center cursor-crosshair flex-shrink-0 touch-none select-none"
                 >
-                  {/* Concentric distance rings */}
                   <div className="absolute inset-4 rounded-full border border-cyan-500/15 pointer-events-none" />
                   <div className="absolute inset-9 rounded-full border border-cyan-500/20 pointer-events-none" />
                   <div className="absolute inset-14 rounded-full border border-cyan-500/25 pointer-events-none" />
-
-                  {/* Crosshairs */}
                   <div className="absolute inset-x-0 top-1/2 h-[1px] bg-cyan-500/15 pointer-events-none" />
                   <div className="absolute inset-y-0 left-1/2 w-[1px] bg-cyan-500/15 pointer-events-none" />
 
-                  {/* Center Listener Head */}
+                  {/* Listener Head */}
                   <div className="w-8 h-8 rounded-full bg-white/15 border border-white/40 flex items-center justify-center text-xs shadow-md z-10 pointer-events-none">
                     🎧
                   </div>
 
-                  {/* Orbiting / Positioned Sound Source Dot */}
+                  {/* Positioned Sound Dot */}
                   <div
                     ref={orbDotRef}
                     className="absolute w-5 h-5 rounded-full bg-cyan-400 border-2 border-white shadow-[0_0_16px_rgba(6,182,212,1)] z-20 pointer-events-none transition-none"
@@ -555,29 +657,29 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   />
                 </div>
 
-                {/* Radar Readout & Controls */}
-                <div className="flex-1 w-full space-y-3">
+                {/* Readouts & Fluid Sliders */}
+                <div className="flex-1 w-full space-y-4">
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
-                      <div className="text-white/50 text-[10px] uppercase font-bold">Azimuth</div>
+                    <div className="p-2.5 rounded-xl liquid-glass border border-white/10">
+                      <div className="text-white/45 text-[10px] uppercase font-bold">Azimuth</div>
                       <div ref={azimuthRef} className="text-sm font-black text-cyan-300">
                         {initialAzimuthDeg}°
                       </div>
                     </div>
-                    <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
-                      <div className="text-white/50 text-[10px] uppercase font-bold">Distance</div>
+                    <div className="p-2.5 rounded-xl liquid-glass border border-white/10">
+                      <div className="text-white/45 text-[10px] uppercase font-bold">Distance</div>
                       <div ref={distanceRef} className="text-sm font-black text-white">
                         {initialDistanceMeters} m
                       </div>
                     </div>
-                    <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
-                      <div className="text-white/50 text-[10px] uppercase font-bold">Left Ear</div>
+                    <div className="p-2.5 rounded-xl liquid-glass border border-white/10">
+                      <div className="text-white/45 text-[10px] uppercase font-bold">Left Ear</div>
                       <div ref={leftEarRef} className="text-sm font-black text-cyan-400">
                         {initialLeftEarLevel}%
                       </div>
                     </div>
-                    <div className="p-2.5 rounded-xl liquid-glass border border-white/12">
-                      <div className="text-white/50 text-[10px] uppercase font-bold">Right Ear</div>
+                    <div className="p-2.5 rounded-xl liquid-glass border border-white/10">
+                      <div className="text-white/45 text-[10px] uppercase font-bold">Right Ear</div>
                       <div ref={rightEarRef} className="text-sm font-black text-indigo-400">
                         {initialRightEarLevel}%
                       </div>
@@ -586,10 +688,11 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
                   {/* Auto-Orbit Toggle Button */}
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs font-semibold text-white/80">Continuous 360° Orbit</span>
+                    <span className="text-xs font-semibold text-white/80">Continuous 360° Auto-Orbit</span>
                     <button
                       type="button"
                       onClick={() => {
+                        triggerAndroidHaptic('light');
                         setSpatialOrbitAuto(!spatialOrbitAuto);
                         if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
                       }}
@@ -599,530 +702,377 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                           : 'bg-white/10 text-white/60 border-white/15 hover:bg-white/15'
                       }`}
                     >
-                      {spatialOrbitAuto ? 'Auto-Orbit: ON' : 'Manual Point'}
+                      {spatialOrbitAuto ? 'Auto-Orbit: ON' : 'Manual Lock'}
                     </button>
                   </div>
 
-                  {/* Orbit Speed Slider */}
                   {spatialOrbitAuto && (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-white/60">
-                        <span>Orbit Speed</span>
-                        <span className="font-mono text-cyan-300 font-bold">
-                          {((spatialOrbitSpeed || 0.12) * 10).toFixed(1)}x
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.05"
-                        max="0.35"
-                        step="0.01"
-                        value={spatialOrbitSpeed || 0.12}
-                        onChange={(e) => setSpatialOrbitSpeed(parseFloat(e.target.value))}
-                        className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                      />
-                    </div>
+                    <AppleFluidSlider
+                      label="Orbit Rotation Speed"
+                      value={spatialOrbitSpeed || 0.12}
+                      min={0.05}
+                      max={0.35}
+                      step={0.01}
+                      formattedValue={`${((spatialOrbitSpeed || 0.12) * 10).toFixed(1)}x`}
+                      accentColor="cyan"
+                      onChange={setSpatialOrbitSpeed}
+                      onReset={() => setSpatialOrbitSpeed(0.12)}
+                    />
                   )}
 
-                  {/* Spatial Depth Slider */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-white/60">
-                      <span>Spatial Room Depth</span>
-                      <span className="font-mono text-white font-bold">
-                        {Math.round((spatialRoomSize || 0.26) * 100)}%
+                  <AppleFluidSlider
+                    label="Spatial Room Depth"
+                    value={spatialRoomSize || 0.26}
+                    min={0.05}
+                    max={0.65}
+                    step={0.01}
+                    formattedValue={`${Math.round((spatialRoomSize || 0.26) * 100)}%`}
+                    accentColor="indigo"
+                    onChange={setSpatialRoomSize}
+                    onReset={() => setSpatialRoomSize(0.26)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB 3: ANALOG MASTER & TUBE ── */}
+        {activeTab === 'mastering' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-bold text-sm text-white">Studio DSP Mastering Rack</div>
+                <div className="text-[11px] text-white/50">
+                  Hardware-grade analog processing with transparent dynamic limiting
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  resetMasteringRack();
+                }}
+                className="px-2.5 py-1 rounded-xl glass-button text-xs font-bold text-white/70 hover:text-white transition cursor-pointer"
+              >
+                Reset Rack
+              </button>
+            </div>
+
+            {/* Analog Vacuum Tube Visualizer Card */}
+            <div className="relative rounded-2xl liquid-glass border border-white/12 p-4 overflow-hidden bg-gradient-to-b from-[#140b07]/80 via-[#0d0705]/90 to-[#060403]">
+              <div
+                className="absolute inset-0 pointer-events-none transition-opacity duration-300 blur-2xl"
+                style={{
+                  background: `radial-gradient(circle at 50% 50%, rgba(251, 146, 60, ${harmonicDrive * 0.45}) 0%, rgba(234, 88, 12, ${harmonicDrive * 0.2}) 50%, transparent 80%)`
+                }}
+              />
+
+              <div className="relative z-10 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  {/* SVG 12AX7 Vacuum Tube */}
+                  <div className="relative w-12 h-16 sm:w-14 sm:h-20 flex-shrink-0 flex items-center justify-center">
+                    <svg viewBox="0 0 60 90" className="w-full h-full drop-shadow-md">
+                      <path
+                        d="M 15 80 L 15 35 Q 15 15, 30 15 Q 45 15, 45 35 L 45 80 Z"
+                        fill="rgba(255, 255, 255, 0.04)"
+                        stroke="rgba(255, 255, 255, 0.3)"
+                        strokeWidth="1.5"
+                      />
+                      <path d="M 28 15 Q 30 10, 32 15" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="1.5" fill="none" />
+                      <rect x="22" y="32" width="16" height="38" rx="2" fill="none" stroke="rgba(255, 255, 255, 0.18)" strokeWidth="1" />
+                      <line x1="24" y1="40" x2="36" y2="40" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
+                      <line x1="24" y1="48" x2="36" y2="48" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
+                      <line x1="24" y1="56" x2="36" y2="56" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
+                      <line x1="24" y1="64" x2="36" y2="64" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
+
+                      {/* Filament Coil */}
+                      <path
+                        d="M 28 72 L 28 38 Q 30 35, 32 38 L 32 72"
+                        fill="none"
+                        stroke={harmonicDrive > 0.05 ? '#fb923c' : 'rgba(255, 255, 255, 0.25)'}
+                        strokeWidth={harmonicDrive > 0.05 ? 2.5 : 1.2}
+                        strokeLinecap="round"
+                        style={{
+                          filter: harmonicDrive > 0.05 ? `drop-shadow(0 0 ${4 + harmonicDrive * 8}px #f97316)` : undefined,
+                          transition: 'all 0.3s ease'
+                        }}
+                      />
+
+                      <line x1="18" y1="80" x2="18" y2="87" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                      <line x1="26" y1="80" x2="26" y2="88" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                      <line x1="34" y1="80" x2="34" y2="88" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                      <line x1="42" y1="80" x2="42" y2="87" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-amber-300 font-mono">12AX7 / ECC83</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200 font-bold uppercase tracking-wider">
+                        Triode Saturation
                       </span>
                     </div>
-                    <input
-                      type="range"
-                      min="0.05"
-                      max="0.65"
-                      step="0.01"
-                      value={spatialRoomSize || 0.26}
-                      onChange={(e) => setSpatialRoomSize(parseFloat(e.target.value))}
-                      className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                    />
+                    <div className="text-[11px] text-white/60 mt-0.5">
+                      {harmonicDrive < 0.05
+                        ? 'Zero Coloration • Bit-perfect linear bypass'
+                        : harmonicDrive < 0.35
+                          ? 'Warm Tape Glue • Gentle even harmonics & soft compression'
+                          : harmonicDrive < 0.7
+                            ? 'Vintage Class-A Valve • Rich analog saturation'
+                            : 'Hot Valve Overdrive • High-energy tape compression'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right flex-shrink-0">
+                  <div className="text-base font-black font-mono text-amber-300">
+                    {Math.round(harmonicDrive * 100)}%
+                  </div>
+                  <div className="text-[10px] text-white/40 uppercase font-semibold tracking-wider">
+                    Drive
                   </div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* TAB 2: MASTERING RACK */}
-          {activeTab === 'mastering' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-sm text-white">Studio DSP Mastering Rack</div>
-                  <div className="text-[11px] text-white/50">
-                    Hardware-grade analog processing with zero dynamic clipping
-                  </div>
+              {/* Quick Tube Presets */}
+              <div className="flex items-center gap-1.5 pt-2.5 mt-2.5 border-t border-white/8">
+                {[
+                  { label: 'Clean (0%)', val: 0 },
+                  { label: 'Warm Tape (25%)', val: 0.25 },
+                  { label: 'Vintage Tube (50%)', val: 0.5 },
+                  { label: 'Hot Valve (80%)', val: 0.8 }
+                ].map((tp) => (
+                  <button
+                    key={tp.label}
+                    type="button"
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setHarmonicDrive(tp.val);
+                    }}
+                    className={`px-2.5 py-1 rounded-xl text-[10px] font-bold transition cursor-pointer border ${
+                      Math.abs(harmonicDrive - tp.val) < 0.05
+                        ? 'bg-amber-400 text-black border-amber-300 shadow-sm'
+                        : 'liquid-glass border-white/10 text-white/65 hover:text-white'
+                    }`}
+                  >
+                    {tp.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Apple Fluid Gesture Sliders Card */}
+            <div className="p-4 rounded-2xl border border-white/12 liquid-glass space-y-4">
+              <AppleFluidSlider
+                label="Sub-Bass Floor (54Hz Low-Shelf)"
+                value={subBassBoost}
+                min={0}
+                max={9}
+                step={0.5}
+                formattedValue={`+${subBassBoost.toFixed(1)} dB`}
+                accentColor="cyan"
+                onChange={setSubBassBoost}
+                onReset={() => setSubBassBoost(0)}
+              />
+
+              <AppleFluidSlider
+                label="Harmonic Drive (Analog Tape Warmth)"
+                value={harmonicDrive}
+                min={0}
+                max={1}
+                step={0.05}
+                formattedValue={`${Math.round(harmonicDrive * 100)}%`}
+                accentColor="amber"
+                onChange={setHarmonicDrive}
+                onReset={() => setHarmonicDrive(0)}
+              />
+
+              <AppleFluidSlider
+                label="Stereo Width (Haas Matrix)"
+                value={stereoWidth}
+                min={0}
+                max={1}
+                step={0.05}
+                formattedValue={`${Math.round(stereoWidth * 100)}%`}
+                accentColor="indigo"
+                onChange={setStereoWidth}
+                onReset={() => setStereoWidth(0)}
+              />
+
+              <AppleFluidSlider
+                label="Treble Silk Air (11kHz Silk Shelf / Lo-Fi Cut)"
+                value={trebleAir}
+                min={-6}
+                max={6}
+                step={0.5}
+                formattedValue={trebleAir > 0 ? `+${trebleAir.toFixed(1)} dB` : `${trebleAir.toFixed(1)} dB`}
+                accentColor="pink"
+                onChange={setTrebleAir}
+                onReset={() => setTrebleAir(0)}
+              />
+
+              <AppleFluidSlider
+                label="Concert Hall Reverb Echo"
+                value={reverbMix}
+                min={0}
+                max={0.75}
+                step={0.02}
+                formattedValue={`${Math.round(reverbMix * 100)}%`}
+                accentColor="amber"
+                onChange={setReverbMix}
+                onReset={() => setReverbMix(0)}
+              />
+            </div>
+
+            {/* 1-Tap Mastering Preset Chips */}
+            <div className="pt-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-white/50 mb-2">
+                Acoustic Mastering Presets
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { label: 'Hi-Fi Punch', bass: 4.5, drive: 0.2, width: 0.35, air: 1.5, rev: 0.05 },
+                  { label: 'Warm Analog', bass: 3.0, drive: 0.55, width: 0.15, air: -1.0, rev: 0 },
+                  { label: 'Wide Concert', bass: 3.5, drive: 0.15, width: 0.8, air: 2.0, rev: 0.25 },
+                  { label: 'Lo-Fi Velvet', bass: 2.5, drive: 0.45, width: 0, air: -4.0, rev: 0.1 }
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setSubBassBoost(preset.bass);
+                      setHarmonicDrive(preset.drive);
+                      setStereoWidth(preset.width);
+                      setTrebleAir(preset.air);
+                      setReverbMix(preset.rev);
+                    }}
+                    className="px-3 py-1.5 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB 4: AMBIENT & TIMERS ── */}
+        {activeTab === 'ambient' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-bold text-sm text-white">Procedural Ambient Soundscapes</div>
+                <div className="text-[11px] text-white/50">
+                  Real-time procedural Web Audio soundscapes synthesized directly in your browser
                 </div>
+              </div>
+              {activeAmbientCount > 0 && (
                 <button
                   type="button"
-                  onClick={resetMasteringRack}
-                  className="px-2.5 py-1 rounded-xl glass-button text-xs font-bold text-white/70 hover:text-white transition cursor-pointer"
-                >
-                  Reset Rack
-                </button>
-              </div>
-
-              {/* Analog Vacuum Tube Visualizer Display */}
-              <div className="relative rounded-2xl liquid-glass border border-white/12 p-3 sm:p-4 overflow-hidden bg-gradient-to-b from-[#140b07]/80 via-[#0d0705]/90 to-[#060403]">
-                {/* Tube Glow Backdrop */}
-                <div
-                  className="absolute inset-0 pointer-events-none transition-opacity duration-300 blur-2xl"
-                  style={{
-                    background: `radial-gradient(circle at 50% 50%, rgba(251, 146, 60, ${harmonicDrive * 0.45}) 0%, rgba(234, 88, 12, ${harmonicDrive * 0.2}) 50%, transparent 80%)`
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    stopAllAmbient();
                   }}
-                />
+                  className="px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer"
+                >
+                  Mute All
+                </button>
+              )}
+            </div>
 
-                <div className="relative z-10 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    {/* SVG 12AX7 Vacuum Tube Illustration */}
-                    <div className="relative w-12 h-16 sm:w-14 sm:h-20 flex-shrink-0 flex items-center justify-center">
-                      <svg viewBox="0 0 60 90" className="w-full h-full drop-shadow-md">
-                        {/* Glass Bulb Outline */}
-                        <path
-                          d="M 15 80 L 15 35 Q 15 15, 30 15 Q 45 15, 45 35 L 45 80 Z"
-                          fill="rgba(255, 255, 255, 0.04)"
-                          stroke="rgba(255, 255, 255, 0.3)"
-                          strokeWidth="1.5"
-                        />
-                        {/* Top evacuation tip */}
-                        <path d="M 28 15 Q 30 10, 32 15" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="1.5" fill="none" />
-                        {/* Internal Anode Plate Metal Structure */}
-                        <rect x="22" y="32" width="16" height="38" rx="2" fill="none" stroke="rgba(255, 255, 255, 0.18)" strokeWidth="1" />
-                        {/* Internal Grid Windings */}
-                        <line x1="24" y1="40" x2="36" y2="40" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
-                        <line x1="24" y1="48" x2="36" y2="48" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
-                        <line x1="24" y1="56" x2="36" y2="56" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
-                        <line x1="24" y1="64" x2="36" y2="64" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="0.8" />
-
-                        {/* Central Filament Heater Coil (Heats up with harmonicDrive) */}
-                        <path
-                          d="M 28 72 L 28 38 Q 30 35, 32 38 L 32 72"
-                          fill="none"
-                          stroke={harmonicDrive > 0.05 ? '#fb923c' : 'rgba(255, 255, 255, 0.25)'}
-                          strokeWidth={harmonicDrive > 0.05 ? 2.5 : 1.2}
-                          strokeLinecap="round"
-                          style={{
-                            filter: harmonicDrive > 0.05 ? `drop-shadow(0 0 ${4 + harmonicDrive * 8}px #f97316)` : undefined,
-                            transition: 'all 0.3s ease'
-                          }}
-                        />
-
-                        {/* Metallic Tube Pins at Base */}
-                        <line x1="18" y1="80" x2="18" y2="87" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="26" y1="80" x2="26" y2="88" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="34" y1="80" x2="34" y2="88" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="42" y1="80" x2="42" y2="87" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-amber-300 font-mono">12AX7 / ECC83</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200 font-bold uppercase tracking-wider">
-                          Triode Saturation
-                        </span>
+            {/* 6 Ambient Soundscape Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {AMBIENT_LAYERS.map((layer) => {
+                const vol = (safeAmbientVolumes && safeAmbientVolumes[layer.id]) || 0;
+                const isActive = vol > 0.02;
+                return (
+                  <div
+                    key={layer.id}
+                    className={`p-3.5 rounded-2xl border transition-all ${
+                      isActive
+                        ? 'border-emerald-400/50 liquid-glass bg-emerald-500/10'
+                        : 'border-white/10 liquid-glass'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">{layer.icon}</span>
+                        <div>
+                          <div className="text-xs font-bold text-white">{layer.name}</div>
+                          <div className="text-[10px] text-white/50">{layer.subtitle}</div>
+                        </div>
                       </div>
-                      <div className="text-[11px] text-white/60 mt-0.5">
-                        {harmonicDrive < 0.05
-                          ? 'Zero Coloration • Bit-perfect linear bypass'
-                          : harmonicDrive < 0.35
-                            ? 'Warm Tape Glue • Gentle even harmonics & soft clipping'
-                            : harmonicDrive < 0.7
-                              ? 'Vintage Class-A Valve • Rich analog saturation'
-                              : 'Hot Valve Overdrive • High-energy tape compression'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-base font-black font-mono text-amber-300">
-                      {Math.round(harmonicDrive * 100)}%
-                    </div>
-                    <div className="text-[10px] text-white/40 uppercase font-semibold tracking-wider">
-                      Drive
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Tube Saturation Presets */}
-                <div className="flex items-center gap-1.5 pt-2.5 mt-2.5 border-t border-white/8">
-                  {[
-                    { label: 'Clean (0%)', val: 0 },
-                    { label: 'Warm Tape (25%)', val: 0.25 },
-                    { label: 'Vintage Tube (50%)', val: 0.5 },
-                    { label: 'Hot Valve (80%)', val: 0.8 }
-                  ].map((tp) => (
-                    <button
-                      key={tp.label}
-                      type="button"
-                      onClick={() => setHarmonicDrive(tp.val)}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
-                        Math.abs(harmonicDrive - tp.val) < 0.05
-                          ? 'bg-amber-400 text-black border-amber-300'
-                          : 'liquid-glass border-white/10 text-white/60 hover:text-white'
-                      }`}
-                    >
-                      {tp.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mastering Sliders Grid */}
-              <div className="space-y-3 pt-1">
-                {/* 1. Sub-Bass */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-white/70 font-semibold">
-                    <span>Sub-Bass Floor (54Hz Shelf)</span>
-                    <span className="font-mono text-cyan-300 font-bold">
-                      +{subBassBoost.toFixed(1)} dB
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="9"
-                    step="0.5"
-                    value={subBassBoost}
-                    onChange={(e) => setSubBassBoost(parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                  />
-                </div>
-
-                {/* 2. Harmonic Drive */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-white/70 font-semibold">
-                    <span>Harmonic Drive (Analog Tube Warmth)</span>
-                    <span className="font-mono text-amber-300 font-bold">
-                      {Math.round(harmonicDrive * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={harmonicDrive}
-                    onChange={(e) => setHarmonicDrive(parseFloat(e.target.value))}
-                    className="w-full accent-amber-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                  />
-                </div>
-
-                {/* 3. Stereo Width */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-white/70 font-semibold">
-                    <span>Stereo Width (Haas Matrix)</span>
-                    <span className="font-mono text-indigo-300 font-bold">
-                      {Math.round(stereoWidth * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={stereoWidth}
-                    onChange={(e) => setStereoWidth(parseFloat(e.target.value))}
-                    className="w-full accent-indigo-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                  />
-                </div>
-
-                {/* 4. Treble Silk Air */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-white/70 font-semibold">
-                    <span>Treble Air (11kHz Silk Shelf / Lo-Fi Cut)</span>
-                    <span className="font-mono text-pink-300 font-bold">
-                      {trebleAir > 0 ? `+${trebleAir.toFixed(1)}` : trebleAir.toFixed(1)} dB
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-6"
-                    max="6"
-                    step="0.5"
-                    value={trebleAir}
-                    onChange={(e) => setTrebleAir(parseFloat(e.target.value))}
-                    className="w-full accent-pink-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                  />
-                </div>
-
-                {/* 5. Convolution Reverb Mix */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-white/70 font-semibold">
-                    <span>Concert Hall Reverb Echo</span>
-                    <span className="font-mono text-amber-300 font-bold">
-                      {Math.round(reverbMix * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="0.75"
-                    step="0.02"
-                    value={reverbMix}
-                    onChange={(e) => setReverbMix(parseFloat(e.target.value))}
-                    className="w-full accent-amber-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                  />
-                  {/* Quick Reverb Presets */}
-                  <div className="flex items-center gap-1.5 pt-1">
-                    {[
-                      { label: 'Dry Bypass (0%)', val: 0 },
-                      { label: 'Intimate Studio (12%)', val: 0.12 },
-                      { label: 'Concert Hall (35%)', val: 0.35 },
-                      { label: 'Cathedral Arena (60%)', val: 0.6 }
-                    ].map((rp) => (
                       <button
-                        key={rp.label}
                         type="button"
-                        onClick={() => setReverbMix(rp.val)}
-                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
-                          Math.abs(reverbMix - rp.val) < 0.04
-                            ? 'bg-amber-400 text-black border-amber-300'
-                            : 'liquid-glass border-white/10 text-white/60 hover:text-white'
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setAmbientVolume(layer.id, isActive ? 0 : 0.5);
+                        }}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition cursor-pointer ${
+                          isActive
+                            ? 'glass-button-emerald text-emerald-200'
+                            : 'glass-button text-white/70'
                         }`}
                       >
-                        {rp.label}
+                        {isActive ? `${Math.round(vol * 100)}%` : 'OFF'}
                       </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* 1-Tap Mastering Presets */}
-              <div className="pt-2 border-t border-white/10">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-white/50 mb-2">
-                  Mastering Presets
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {[
-                    { label: 'Hi-Fi Punch', bass: 4.5, drive: 0.2, width: 0.35, air: 1.5, rev: 0.05 },
-                    { label: 'Warm Analog', bass: 3.0, drive: 0.55, width: 0.15, air: -1.0, rev: 0 },
-                    { label: 'Wide Concert', bass: 3.5, drive: 0.15, width: 0.8, air: 2.0, rev: 0.25 },
-                    { label: 'Lo-Fi Velvet', bass: 2.5, drive: 0.45, width: 0, air: -4.0, rev: 0.1 }
-                  ].map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => {
-                        setSubBassBoost(preset.bass);
-                        setHarmonicDrive(preset.drive);
-                        setStereoWidth(preset.width);
-                        setTrebleAir(preset.air);
-                        setReverbMix(preset.rev);
-                      }}
-                      className="px-2.5 py-1 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: CONCERT ARENA */}
-          {activeTab === 'arena' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-amber-400 text-lg">🏟️</span>
-                  <div>
-                    <div className="font-bold text-sm text-white">Live Concert Arena Field</div>
-                    <div className="text-[11px] text-white/50">
-                      Recreates the physical acoustic energy of a 50,000-seat stadium tour
                     </div>
-                  </div>
-                </div>
-                <div className="text-xs font-semibold text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-                  Stadium Acoustics
-                </div>
-              </div>
 
-              <div className="space-y-3 pt-1">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-white/70 font-semibold">
-                    <span>Stadium Reverb & Hall Echo</span>
-                    <span className="font-mono text-amber-300 font-bold">
-                      {Math.round((reverbMix || 0.25) * 100)}%
-                    </span>
+                    <AppleFluidSlider
+                      label="Layer Volume"
+                      value={vol}
+                      min={0}
+                      max={1}
+                      step={0.02}
+                      formattedValue={`${Math.round(vol * 100)}%`}
+                      accentColor="emerald"
+                      onChange={(val) => setAmbientVolume(layer.id, val)}
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min="0.05"
-                    max="0.75"
-                    step="0.02"
-                    value={reverbMix || 0.25}
-                    onChange={(e) => {
-                      setReverbMix(parseFloat(e.target.value));
-                      if (fxMode !== 'arena-live') setFxMode('arena-live');
-                    }}
-                    className="w-full accent-amber-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-white/70 font-semibold">
-                    <span>Arena Sub-Bass Floor Punch</span>
-                    <span className="font-mono text-amber-300 font-bold">
-                      +{(subBassBoost || 3).toFixed(1)} dB
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="8"
-                    step="0.5"
-                    value={subBassBoost || 3}
-                    onChange={(e) => {
-                      setSubBassBoost(parseFloat(e.target.value));
-                      if (fxMode !== 'arena-live') setFxMode('arena-live');
-                    }}
-                    className="w-full accent-amber-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                  />
-                </div>
-              </div>
-
-              {/* Quick Arena Presets */}
-              <div className="pt-2 border-t border-white/10">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-white/50 mb-2">
-                  Stage Size Presets
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {[
-                    { label: 'Grand Arena', rev: 0.45, bass: 5 },
-                    { label: 'Festival Stadium', rev: 0.3, bass: 3.5 },
-                    { label: 'Live Concert Hall', rev: 0.18, bass: 2 },
-                    { label: 'Intimate Club', rev: 0.1, bass: 3.5 }
-                  ].map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => {
-                        setReverbMix(preset.rev);
-                        setSubBassBoost(preset.bass);
-                        if (fxMode !== 'arena-live') setFxMode('arena-live');
-                      }}
-                      className="px-2.5 py-1 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                );
+              })}
             </div>
-          )}
 
-          {/* TAB 4: AMBIENT SOUNDSCAPE MIXER */}
-          {activeTab === 'ambient' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-sm text-white">Procedural Ambient Soundscapes</div>
-                  <div className="text-[11px] text-white/50">
-                    Real-time Web Audio soundscapes synthesized directly in your browser
-                  </div>
-                </div>
-                {activeAmbientCount > 0 && (
+            {/* Ambient Presets */}
+            <div className="pt-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-white/50 mb-2">
+                Atmospheric Mix Presets
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { label: '🌧️ Rainy Study', preset: { rain: 0.65, binaural: 0.45 } },
+                  { label: '☕ Midnight Cafe', preset: { cafe: 0.5, vinyl: 0.35 } },
+                  { label: '🔥 Campfire Night', preset: { campfire: 0.6, rain: 0.25 } },
+                  { label: '🌊 Coastal Calm', preset: { waves: 0.7, vinyl: 0.2 } }
+                ].map((p) => (
                   <button
+                    key={p.label}
                     type="button"
-                    onClick={stopAllAmbient}
-                    className="px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer"
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      applyAmbientPreset(p.preset as Partial<Record<AmbientLayerId, number>>);
+                    }}
+                    className="px-3 py-1.5 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
                   >
-                    Mute All
+                    {p.label}
                   </button>
-                )}
-              </div>
-
-              {/* 6 Ambient Layers Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                {AMBIENT_LAYERS.map((layer) => {
-                  const vol = (safeAmbientVolumes && safeAmbientVolumes[layer.id]) || 0;
-                  const isActive = vol > 0.02;
-                  return (
-                    <div
-                      key={layer.id}
-                      className={`p-3 rounded-2xl border transition-all ${
-                        isActive
-                          ? 'border-emerald-400/50 liquid-glass bg-emerald-500/10'
-                          : 'border-white/10 liquid-glass'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">{layer.icon}</span>
-                          <div>
-                            <div className="text-xs font-bold text-white">{layer.name}</div>
-                            <div className="text-[10px] text-white/50">{layer.subtitle}</div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setAmbientVolume(layer.id, isActive ? 0 : 0.5)}
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition cursor-pointer ${
-                            isActive
-                              ? 'glass-button-emerald text-emerald-200'
-                              : 'glass-button text-white/70'
-                          }`}
-                        >
-                          {isActive ? `${Math.round(vol * 100)}%` : 'OFF'}
-                        </button>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.02"
-                        value={vol}
-                        onChange={(e) => setAmbientVolume(layer.id, parseFloat(e.target.value))}
-                        className="w-full accent-emerald-400 cursor-pointer h-1.5 bg-white/15 rounded-lg"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Ambient Presets */}
-              <div className="pt-2 border-t border-white/10">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-white/50 mb-2">
-                  Atmospheric Mix Presets
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {[
-                    { label: '🌧️ Rainy Study', preset: { rain: 0.65, binaural: 0.45 } },
-                    { label: '☕ Midnight Cafe', preset: { cafe: 0.5, vinyl: 0.35 } },
-                    { label: '🔥 Campfire Night', preset: { campfire: 0.6, rain: 0.25 } },
-                    { label: '🌊 Coastal Calm', preset: { waves: 0.7, vinyl: 0.2 } }
-                  ].map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => applyAmbientPreset(p.preset as Partial<Record<AmbientLayerId, number>>)}
-                      className="px-2.5 py-1 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
             </div>
-          )}
 
-          {/* TAB 5: SLEEP & FOCUS TIMERS */}
-          {activeTab === 'timers' && (
-            <div className="space-y-5">
+            {/* ── Sleep & Focus Timers Section ── */}
+            <div className="pt-4 border-t border-white/10 space-y-4">
               {/* Sleep Timer */}
-              <div className="space-y-3">
+              <div className="p-4 rounded-2xl border border-white/10 liquid-glass space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">🌙</span>
                     <div>
                       <div className="font-bold text-sm text-white">Sleep Timer</div>
                       <div className="text-[11px] text-white/50">
-                        Automatically fades volume over 10 seconds and pauses music
+                        Automatically fades volume over 10s and pauses playback
                       </div>
                     </div>
                   </div>
@@ -1137,7 +1087,10 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   {sleepActive ? (
                     <button
                       type="button"
-                      onClick={stopSleepTimer}
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        stopSleepTimer();
+                      }}
                       className="px-4 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer"
                     >
                       Cancel Sleep Timer
@@ -1148,7 +1101,10 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         <button
                           key={mins}
                           type="button"
-                          onClick={() => startSleepTimer(mins)}
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            startSleepTimer(mins);
+                          }}
                           className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
                         >
                           {mins} mins
@@ -1156,7 +1112,10 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       ))}
                       <button
                         type="button"
-                        onClick={() => setEndAtTrack(true)}
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setEndAtTrack(true);
+                        }}
                         className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
                       >
                         End of Song
@@ -1167,7 +1126,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Pomodoro Focus Timer */}
-              <div className="pt-4 border-t border-white/10 space-y-3">
+              <div className="p-4 rounded-2xl border border-white/10 liquid-glass space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">🍅</span>
@@ -1189,7 +1148,10 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   {pomodoroActive ? (
                     <button
                       type="button"
-                      onClick={stopPomodoro}
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        stopPomodoro();
+                      }}
                       className="px-4 py-1.5 rounded-xl glass-button text-rose-300 border border-rose-500/30 text-xs font-bold transition cursor-pointer"
                     >
                       Pause Focus Sprint
@@ -1197,40 +1159,43 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => startPomodoro(pomodoroMode)}
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        startPomodoro(pomodoroMode);
+                      }}
                       className="px-4 py-1.5 rounded-xl glass-button-emerald text-emerald-100 text-xs font-bold transition cursor-pointer"
                     >
                       Start Focus ({formatClock(pomodoroSeconds)})
                     </button>
                   )}
                   {completedSessions > 0 && (
-                    <span className="text-xs text-white/50">
+                    <span className="text-xs text-white/50 font-medium">
                       🎉 {completedSessions} session{completedSessions === 1 ? '' : 's'} completed
                     </span>
                   )}
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* ── Docked Real-Time Mastering Spectrum Visualizer ── */}
-        <div className="space-y-1.5 pt-1">
-          <div className="flex items-center justify-between text-xs text-white/50 font-bold px-1">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span>Live 32-Band Spectrum Analyzer</span>
-            </span>
-            <span className="font-mono text-[10px] text-cyan-400">FFT 60 FPS</span>
-          </div>
-          <div className="h-16 w-full rounded-2xl border border-white/10 bg-black/50 overflow-hidden p-1.5 shadow-inner">
-            <canvas
-              ref={spectrumCanvasRef}
-              width={600}
-              height={56}
-              className="w-full h-full block"
-            />
-          </div>
+      {/* ── Docked Real-Time 32-Band Spectrum Analyzer ── */}
+      <div className="px-5 py-2.5 border-t border-white/10 flex-shrink-0 bg-white/[0.02]">
+        <div className="flex items-center justify-between text-xs text-white/50 font-semibold mb-1">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-[10px] uppercase font-bold tracking-wider">Live Spectrum Analyzer</span>
+          </span>
+          <span className="font-mono text-[9px] text-cyan-400">FFT 60 FPS</span>
+        </div>
+        <div className="h-10 w-full rounded-xl border border-white/10 bg-black/40 overflow-hidden p-1 shadow-inner">
+          <canvas
+            ref={spectrumCanvasRef}
+            width={600}
+            height={36}
+            className="w-full h-full block"
+          />
         </div>
       </div>
     </div>
@@ -1302,7 +1267,7 @@ export default function StudioFXModal() {
     <AnimatePresence>
       {isStudioModalOpen && (
         <div className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none">
-          {/* Central UI Liquid-Glass Modal Backdrop */}
+          {/* Frosted Modal Backdrop */}
           <motion.div
             key="studio-fx-backdrop"
             initial={{ opacity: 0 }}
@@ -1310,11 +1275,11 @@ export default function StudioFXModal() {
             exit={{ opacity: 0 }}
             transition={STUDIO_BACKDROP_TRANSITION}
             onClick={handleClose}
-            className="absolute inset-0 modal-backdrop-blur bg-[radial-gradient(circle_at_center,_rgba(6,182,212,0.14)_0%,_rgba(6,7,15,0.88)_75%)] cursor-pointer"
+            className="absolute inset-0 modal-backdrop-blur bg-black/75 cursor-pointer"
             aria-hidden="true"
           />
 
-          {/* Central UI Liquid-Glass Modal Window Chassis */}
+          {/* Minimalist Apple-Grade Floating Sheet Chassis */}
           <motion.div
             key="studio-fx-dialog"
             role="dialog"
@@ -1325,7 +1290,7 @@ export default function StudioFXModal() {
             animate="animate"
             exit="exit"
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[24px] glass-bloom-menu text-white shadow-[0_32px_90px_rgba(0,0,0,0.88),0_0_60px_rgba(6,182,212,0.15)] overflow-hidden border border-white/20 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
+            className="relative z-10 w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/92 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border border-white/20 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
           >
             <StudioFXErrorBoundary onClose={handleClose}>
               <StudioFXModalContent onClose={handleClose} />
