@@ -1,12 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   searchTracks,
   getCachedSearch,
   getTrending,
-  getCachedTrending,
-  searchSuggestions
+  getCachedTrending
 } from '../../services/youtube';
 import { searchAlbums, searchArtists, getAlbumTracks } from '../../services/itunes';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
@@ -89,18 +88,6 @@ export default function SearchResults() {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
 
-  // Local Search Bar State for on-page input (two-way sync with query)
-  const [localQuery, setLocalQuery] = useState(query);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isListeningVoice, setIsListeningVoice] = useState(false);
-  const isLocalFocusedRef = useRef(false);
-  const lastPushedQueryRef = useRef(query);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchRequestIdRef = useRef(0);
-  const recognitionRef = useRef<{ stop: () => void; abort: () => void } | null>(null);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
-
   const { history, removeSearchTerm, clearSearchHistory, saveSearchTerm } = useSearchHistory();
   const libraryPlaylists = useLibraryStore((state) => state.playlists);
   const likedSongs = useLibraryStore((state) => state.likedSongs);
@@ -128,42 +115,6 @@ export default function SearchResults() {
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumResult | null>(null);
   const [albumTracks, setAlbumTracks] = useState<Track[]>([]);
   const [isAlbumLoading, setIsAlbumLoading] = useState<boolean>(false);
-
-  // Sync query -> localQuery when URL changes externally
-  useEffect(() => {
-    if (query === lastPushedQueryRef.current) return;
-    if (isLocalFocusedRef.current) return;
-    setLocalQuery(query);
-    lastPushedQueryRef.current = query;
-  }, [query]);
-
-  // Click outside listener for suggestions
-  useEffect(() => {
-    if (!showSuggestions) return;
-    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('touchstart', handleOutsideClick);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('touchstart', handleOutsideClick);
-    };
-  }, [showSuggestions]);
-
-  // Cleanup timers & voice on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {}
-      }
-    };
-  }, []);
 
   const matchingPlaylists = useMemo(() => {
     if (!query.trim()) return [];
@@ -365,9 +316,6 @@ export default function SearchResults() {
     saveSearchTerm(term);
     setSelectedAlbum(null);
     setActiveTab('all');
-    lastPushedQueryRef.current = term;
-    setLocalQuery(term);
-    setShowSuggestions(false);
     setSearchParams({ q: term });
   };
 
@@ -383,126 +331,6 @@ export default function SearchResults() {
       }
     } catch {
       handleQuickSearch(term);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setLocalQuery(val);
-
-    const reqId = ++searchRequestIdRef.current;
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-
-    const trimmed = val.trim();
-    if (!trimmed) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      lastPushedQueryRef.current = '';
-      navigate('/search', { replace: true });
-      return;
-    }
-
-    debounceTimer.current = setTimeout(async () => {
-      if (reqId !== searchRequestIdRef.current) return;
-      lastPushedQueryRef.current = trimmed;
-      navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
-      try {
-        const sugs = await searchSuggestions(trimmed);
-        if (reqId === searchRequestIdRef.current && isLocalFocusedRef.current) {
-          setSuggestions(sugs.slice(0, 6));
-          setShowSuggestions(true);
-        }
-      } catch {
-        if (reqId === searchRequestIdRef.current) {
-          setSuggestions([]);
-        }
-      }
-    }, 280);
-  };
-
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      setShowSuggestions(false);
-      const trimmed = localQuery.trim();
-      lastPushedQueryRef.current = trimmed;
-      if (trimmed) {
-        saveSearchTerm(trimmed);
-        navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
-      } else {
-        navigate('/search', { replace: true });
-      }
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
-    }
-  };
-
-  const handleClearInput = () => {
-    searchRequestIdRef.current++;
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    lastPushedQueryRef.current = '';
-    setLocalQuery('');
-    setSuggestions([]);
-    setShowSuggestions(false);
-    navigate('/search', { replace: true });
-  };
-
-  const toggleVoiceSearch = () => {
-    if (isListeningVoice) {
-      try {
-        recognitionRef.current?.stop();
-      } catch {}
-      setIsListeningVoice(false);
-      return;
-    }
-
-    type SpeechRecConstructor = new () => {
-      lang: string;
-      interimResults: boolean;
-      maxAlternatives: number;
-      onstart: (() => void) | null;
-      onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
-      onerror: (() => void) | null;
-      onend: (() => void) | null;
-      start: () => void;
-      stop: () => void;
-      abort: () => void;
-    };
-
-    const windowWithSpeech = window as unknown as {
-      SpeechRecognition?: SpeechRecConstructor;
-      webkitSpeechRecognition?: SpeechRecConstructor;
-    };
-    const SpeechRec = windowWithSpeech.SpeechRecognition || windowWithSpeech.webkitSpeechRecognition;
-    if (!SpeechRec) {
-      return;
-    }
-
-    try {
-      const rec = new SpeechRec();
-      recognitionRef.current = rec;
-      rec.lang = 'en-US';
-      rec.interimResults = true;
-      rec.maxAlternatives = 1;
-
-      rec.onstart = () => setIsListeningVoice(true);
-      rec.onresult = (event) => {
-        let transcript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        const cleaned = transcript.trim();
-        if (cleaned) {
-          lastPushedQueryRef.current = cleaned;
-          setLocalQuery(cleaned);
-          handleQuickSearch(cleaned);
-        }
-      };
-      rec.onerror = () => setIsListeningVoice(false);
-      rec.onend = () => setIsListeningVoice(false);
-      rec.start();
-    } catch {
-      setIsListeningVoice(false);
     }
   };
 
@@ -552,147 +380,46 @@ export default function SearchResults() {
   ];
 
   return (
-    <div className="flex flex-col gap-8 pb-48 sm:pb-32 pt-2 px-1 sm:px-4 text-white max-w-full">
-      {/* ============================================================== */}
-      {/* HERO SEARCH DOCK (On-Page Flagship Search Bar)                 */}
-      {/* ============================================================== */}
-      <div className="relative w-full max-w-3xl mx-auto pt-1 sm:pt-2" ref={searchContainerRef}>
-        <div className="relative flex items-center group">
-          {/* Ambient Glow behind input */}
-          <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-[var(--color-accent)]/20 via-purple-600/15 to-cyan-500/15 blur-xl opacity-60 group-hover:opacity-90 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
-
-          {/* Search Magnifier Icon */}
-          <div className="absolute left-4.5 pointer-events-none text-white/50 group-focus-within:text-[var(--color-accent)] transition-colors">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </div>
-
-          <input
-            type="text"
-            value={localQuery}
-            onChange={handleInputChange}
-            onKeyDown={handleInputKeyDown}
-            onFocus={() => {
-              isLocalFocusedRef.current = true;
-              if (localQuery.trim()) setShowSuggestions(true);
-            }}
-            onBlur={() => {
-              isLocalFocusedRef.current = false;
-            }}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder={
-              isListeningVoice
-                ? '🎙️ Listening... say a song title or artist...'
-                : 'Search any song, artist, album, lyric or genre...'
-            }
-            className="w-full h-13 sm:h-14 liquid-glass rounded-full pl-12.5 pr-28 sm:pr-32 text-sm sm:text-base font-medium text-white placeholder-white/40 border border-white/20 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all"
-          />
-
-          {/* Right Action Tray: Clear Button + Voice Search + Keyboard Hint */}
-          <div className="absolute right-2.5 inset-y-0 flex items-center gap-1.5 sm:gap-2">
-            {localQuery ? (
-              <button
-                type="button"
-                onClick={handleClearInput}
-                aria-label="Clear Search"
-                className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            ) : null}
-
-            {/* Voice Search Button */}
-            <button
-              type="button"
-              onClick={toggleVoiceSearch}
-              aria-label={isListeningVoice ? 'Stop listening' : 'Start voice search'}
-              title="Voice Search"
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                isListeningVoice
-                  ? 'glass-button-primary text-white animate-pulse shadow-[0_0_16px_var(--color-accent)]'
-                  : 'glass-button text-white/70 hover:text-white'
-              }`}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Live Auto-Complete Suggestions Dropdown */}
-        <AnimatePresence>
-          {showSuggestions && suggestions.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              transition={{ duration: 0.16 }}
-              className="absolute left-0 right-0 top-16 bg-[#090a12]/98 backdrop-blur-3xl rounded-3xl p-2.5 shadow-[0_28px_80px_rgba(0,0,0,0.95)] border border-white/20 z-50 overflow-hidden"
-            >
-              <div className="px-3 py-1.5 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-white/40 border-b border-white/[0.08] mb-1">
-                <span>Instant Suggestions</span>
-                <span>Press Enter ↵</span>
-              </div>
-              <div className="space-y-0.5">
-                {suggestions.map((sug, i) => {
-                  const clean = sug.split(' - ')[0];
-                  return (
-                    <button
-                      key={i}
-                      onMouseDown={() => handleQuickSearch(clean)}
-                      className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left text-xs sm:text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10 transition-colors cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-3 truncate">
-                        <svg className="w-3.5 h-3.5 text-white/40 group-hover:text-[var(--color-accent)] transition-colors flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="11" cy="11" r="8" />
-                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <span className="truncate">{clean}</span>
-                      </div>
-                      <span className="text-[11px] text-white/40 group-hover:text-white/80 transition-colors flex-shrink-0 font-mono">
-                        Search ↗
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Quick Inspiration Tags Strip */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-3 px-1">
-          <span className="text-[10px] font-black uppercase tracking-wider text-white/40 flex-shrink-0">
-            Inspire:
-          </span>
-          {INSPIRATION_TAGS.map((tag) => (
-            <button
-              key={tag.label}
-              onClick={() => handleQuickSearch(tag.query)}
-              className="px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 hover:border-white/25 text-[11px] font-semibold text-white/80 hover:text-white transition-all cursor-pointer flex-shrink-0 whitespace-nowrap active:scale-95"
-            >
-              {tag.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
+    <div className="flex flex-col gap-6 pb-48 sm:pb-32 pt-1 px-1 sm:px-4 text-white max-w-full">
       {/* ============================================================== */}
       {/* EMPTY DISCOVER STATE (!query.trim())                           */}
       {/* ============================================================== */}
       {!query.trim() ? (
-        <div className="space-y-12">
+        <div className="space-y-10">
+          {/* Search & Discover Header with Quick Vibe Inspiration Chips */}
+          <div className="space-y-4 pt-1">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
+                  <span className="text-[11px] font-black uppercase tracking-widest text-[var(--color-accent)]">
+                    Explore Music
+                  </span>
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">Search & Discover</h1>
+                <p className="text-sm text-white/60 mt-1">
+                  Type any song title, artist, lyric line, or soundscape into the top search bar
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Inspiration Tags Strip */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-white/40 flex-shrink-0">
+                Quick Vibes:
+              </span>
+              {INSPIRATION_TAGS.map((tag) => (
+                <button
+                  key={tag.label}
+                  onClick={() => handleQuickSearch(tag.query)}
+                  className="px-3.5 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 hover:border-white/25 text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer flex-shrink-0 whitespace-nowrap active:scale-95"
+                >
+                  {tag.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Recent Search History with Smooth Clear */}
           {history.length > 0 && (
             <section className="space-y-3">
@@ -989,7 +716,7 @@ export default function SearchResults() {
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
                 <button
-                  onClick={handleClearInput}
+                  onClick={() => setSearchParams({})}
                   className="px-5 py-2.5 rounded-full glass-button-primary text-xs font-bold text-white cursor-pointer"
                 >
                   Explore Trending Charts
