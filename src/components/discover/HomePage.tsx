@@ -447,13 +447,18 @@ export default function HomePage() {
       {/* ================= HERO SPOTLIGHT BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && spotlightTrack && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
-          <div className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)]">
+          <div
+            className="relative rounded-3xl bg-[#0f1019]/90 border-0 p-5 sm:p-7 shadow-[0_12px_36px_rgba(0,0,0,0.45)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)] [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)]"
+            style={{
+              WebkitMaskImage: '-webkit-radial-gradient(white, black)'
+            }}
+          >
             {/* Ambient Blurred Artwork Backdrop */}
-            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
+            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0 [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)]">
               <img
                 src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
                 alt=""
-                className="w-full h-full object-cover blur-3xl opacity-35 scale-125 transition-transform duration-1000 group-hover:scale-135"
+                className="w-full h-full object-cover blur-2xl opacity-35 scale-110 transition-transform duration-1000 group-hover:scale-120"
               />
               <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-black/90 via-black/60 to-black/30" />
             </div>
@@ -702,12 +707,17 @@ export default function HomePage() {
       {/* ================= 3D SONIC GALAXY OBSERVATORY PORTAL BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
-          <div className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)]">
+          <div
+            className="relative rounded-3xl bg-[#0f1019]/90 border-0 p-5 sm:p-7 shadow-[0_12px_36px_rgba(0,0,0,0.45)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)] [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)]"
+            style={{
+              WebkitMaskImage: '-webkit-radial-gradient(white, black)'
+            }}
+          >
             {/* Deep Galactic Gradient Background */}
-            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
+            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0 [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)]">
               <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-blue-950/70" />
-              <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-violet-600/20 blur-3xl" />
-              <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-cyan-600/20 blur-3xl" />
+              <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-violet-600/20 blur-2xl" />
+              <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-cyan-600/20 blur-2xl" />
             </div>
 
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 w-full min-w-0">
