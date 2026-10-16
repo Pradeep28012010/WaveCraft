@@ -228,18 +228,6 @@ export default function PlaylistView() {
 
   return (
     <div className="relative pb-44 sm:pb-24 pt-4 text-white min-h-screen">
-      {/* Ambient Blurred Artwork Backdrop */}
-      {hdCoverUrl && (
-        <div className="absolute -top-6 left-0 right-0 h-96 overflow-hidden pointer-events-none z-0">
-          <img
-            src={hdCoverUrl}
-            alt=""
-            className="w-full h-full object-cover blur-3xl opacity-25 scale-125"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#06060b]/75 to-[#06060b]" />
-        </div>
-      )}
-
       {/* Navigation Breadcrumb */}
       <div className="relative z-10 flex items-center gap-2 text-xs font-semibold text-white/50 mb-6">
         <button
