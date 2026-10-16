@@ -5,7 +5,6 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import { getTrending, getCachedTrending, searchTracks } from '../../services/youtube';
 import { getNewReleases, getCachedNewReleases, getAlbumTracks, FALLBACK_NEW_RELEASES } from '../../services/itunes';
-import GlassCard from '../ui/GlassCard';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from '../search/GenreBrowser';
 import TrendingSection from './TrendingSection';
@@ -332,36 +331,40 @@ export default function HomePage() {
       {/* ================= EDITORIAL ATMOSPHERIC HEADER ================= */}
       <div className="mb-8 px-1 pt-1 flex flex-col gap-4 w-full min-w-0 max-w-full">
         <div className="w-full min-w-0">
-          {/* Live Date & Session Badge */}
-          <div className="flex items-center gap-2.5 mb-2 flex-wrap min-w-0">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-white/[0.08] border-0 text-white/85 backdrop-blur-md shadow-sm flex-shrink-0">
+          {/* Live Date, Stage & Session Badge */}
+          <div className="flex items-center gap-2.5 mb-2.5 flex-wrap min-w-0">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-white/[0.08] border-0 text-white/90 backdrop-blur-md shadow-sm flex-shrink-0">
               <svg className="w-3.5 h-3.5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span>{todayFormatted}</span>
             </span>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-[var(--color-accent)]/15 border-0 text-[var(--color-accent)] backdrop-blur-md max-w-[260px] sm:max-w-none">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-[var(--color-accent)]/15 border-0 text-[var(--color-accent)] backdrop-blur-md max-w-[280px] sm:max-w-none shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse flex-shrink-0" />
               <span className="truncate">{greetingInfo.vibeBadge}</span>
             </span>
+
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/[0.06] text-white/60 backdrop-blur-md">
+              <span>🎧 320KBPS LOSSLESS</span>
+            </span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight break-words">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight break-words bg-gradient-to-r from-white via-white/95 to-white/75 bg-clip-text text-transparent">
             {greetingInfo.greeting}
           </h1>
-          <p className="text-xs sm:text-sm text-white/60 mt-1 font-medium flex items-center gap-2 flex-wrap min-w-0">
+          <p className="text-xs sm:text-sm text-white/65 mt-1 font-medium flex items-center gap-2 flex-wrap min-w-0">
             <span>{greetingInfo.tagline}</span>
             <span className="hidden sm:inline text-white/30">•</span>
-            <span className="text-white/80 font-bold bg-white/10 px-2 py-0.5 rounded-md text-[11px] whitespace-nowrap">
-              320kbps Studio Master
+            <span className="text-white/90 font-bold bg-white/10 px-2.5 py-0.5 rounded-md text-[11px] whitespace-nowrap shadow-sm">
+              Spatial Master Sound
             </span>
           </p>
         </div>
 
         {/* Unified Discovery & Navigation Control Bar */}
         <div
-          className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-2.5 px-1 w-full max-w-full"
+          className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-2 px-1 w-full max-w-full"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {([
@@ -378,10 +381,10 @@ export default function HomePage() {
                   triggerAndroidHaptic('light');
                   setActiveFilter(chip.id);
                 }}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
                   isSelected
-                    ? 'glass-button-primary text-white shadow-md scale-102'
-                    : 'glass-button text-white/70 hover:text-white'
+                    ? 'glass-button-primary text-white shadow-lg scale-102 ring-1 ring-white/20'
+                    : 'glass-button text-white/75 hover:text-white'
                 }`}
               >
                 <span className="text-xs">{chip.icon}</span>
@@ -390,17 +393,19 @@ export default function HomePage() {
             );
           })}
 
+          <div className="h-4 w-[1px] bg-white/15 mx-1 flex-shrink-0" />
+
           {/* Quick Library Portals Bar (Telemetry Badges) */}
           <button
             onClick={() => {
               triggerAndroidHaptic('light');
               navigate('/liked');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border-0 text-xs font-bold text-white/80 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border-0 text-xs font-bold text-white/85 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
           >
             <span className="text-rose-400">❤️</span>
             <span>Liked Songs</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/10 font-black text-white/70">
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/10 font-black text-rose-300">
               {likedSongs.length}
             </span>
           </button>
@@ -410,7 +415,7 @@ export default function HomePage() {
               triggerAndroidHaptic('medium');
               navigate('/galaxy');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/15 to-indigo-500/15 border-0 text-xs font-bold text-violet-200 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm flex-shrink-0"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/20 to-indigo-500/20 hover:from-violet-500/30 hover:to-indigo-500/30 border-0 text-xs font-bold text-violet-200 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm flex-shrink-0"
           >
             <span>🪐</span>
             <span>3D Sonic Galaxy</span>
@@ -422,11 +427,11 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               setStudioModalOpen(true);
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border-0 text-xs font-bold text-white/80 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border-0 text-xs font-bold text-white/85 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
           >
             <span className="text-amber-400">⚡</span>
             <span>Studio FX</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/10 font-black text-amber-200">
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-400/15 font-black text-amber-200">
               {activeStudioMode.name}
             </span>
           </button>
@@ -436,7 +441,7 @@ export default function HomePage() {
               triggerAndroidHaptic('light');
               navigate('/downloads');
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-glass border-0 text-xs font-bold text-white/80 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border-0 text-xs font-bold text-white/85 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
           >
             <span className="text-emerald-400">📥</span>
             <span>Offline Vault</span>
@@ -453,6 +458,9 @@ export default function HomePage() {
               WebkitMaskImage: '-webkit-radial-gradient(white, black)'
             }}
           >
+            {/* Top Specular Rim Reflection */}
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none z-10" />
+
             {/* Ambient Blurred Artwork Backdrop */}
             <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0 [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)]">
               <img
@@ -460,37 +468,52 @@ export default function HomePage() {
                 alt=""
                 className="w-full h-full object-cover blur-2xl opacity-35 scale-110 transition-transform duration-1000 group-hover:scale-120"
               />
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-black/90 via-black/60 to-black/30" />
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-black/92 via-black/65 to-black/35" />
             </div>
 
             <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 sm:gap-6 w-full min-w-0">
               {/* Left Column: Hero Art & Acoustic Info */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 min-w-0 flex-1 w-full">
-                <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl border-0 group-hover:scale-105 transition-transform duration-500">
-                  <img
-                    src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
-                    alt={spotlightTrack.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                  />
-                  {/* Floating Live Equalizer Bars */}
-                  <div className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-md flex items-end gap-1 h-4 border-0 shadow-md">
-                    <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.8s_ease-in-out_infinite] h-full" />
-                    <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_1.1s_ease-in-out_infinite] h-2/3" />
-                    <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.6s_ease-in-out_infinite] h-5/6" />
-                    <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.9s_ease-in-out_infinite] h-1/2" />
+                {/* Artwork Container with 3D Vinyl Sleeve Peeking */}
+                <div className="relative flex-shrink-0 group/cover">
+                  {/* Realistic Anodized Vinyl Record Peeking from Sleeve on Hover */}
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-20 h-20 sm:w-28 sm:h-28 rounded-full vinyl-disc shadow-[0_8px_24px_rgba(0,0,0,0.8)] transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/cover:translate-x-6 sm:group-hover/cover:translate-x-8 pointer-events-none z-0">
+                    {/* Vinyl Center Spindle & Label */}
+                    <div className="absolute inset-0 m-auto w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-zinc-800 to-black border border-white/20 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-black border border-white/40" />
+                    </div>
+                  </div>
+
+                  {/* Primary Front Album Art Sleeve */}
+                  <div className="relative z-10 w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden shadow-[0_16px_36px_rgba(0,0,0,0.7)] border-0 group-hover/cover:scale-[1.03] transition-transform duration-500">
+                    <img
+                      src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
+                      alt={spotlightTrack.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
+                    />
+                    {/* Subtle Top-Light Specular Sleeve Sheen */}
+                    <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
+
+                    {/* Floating Live Equalizer Bars */}
+                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-black/75 backdrop-blur-md flex items-end gap-1 h-4 border-0 shadow-md">
+                      <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.8s_ease-in-out_infinite] h-full" />
+                      <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_1.1s_ease-in-out_infinite] h-2/3" />
+                      <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.6s_ease-in-out_infinite] h-5/6" />
+                      <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.9s_ease-in-out_infinite] h-1/2" />
+                    </div>
                   </div>
                 </div>
 
                 <div className="min-w-0 flex-1 w-full">
                   <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--color-accent)]/20 border-0 text-[var(--color-accent)] flex-shrink-0">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--color-accent)]/20 border-0 text-[var(--color-accent)] flex-shrink-0 shadow-sm">
                       ✨ FEATURED SPOTLIGHT
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/80 border-0 flex-shrink-0">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/90 border-0 flex-shrink-0">
                       320KBPS STUDIO AAC
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/60 hidden sm:inline-flex flex-shrink-0">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/70 hidden sm:inline-flex flex-shrink-0">
                       LOSSLESS DSP
                     </span>
                   </div>
@@ -500,7 +523,7 @@ export default function HomePage() {
                       triggerAndroidHaptic('medium');
                       playTrack(spotlightTrack, trendingTracks, 0);
                     }}
-                    className="text-xl sm:text-3xl font-black text-white truncate tracking-tight leading-tight group-hover:text-[var(--color-accent)] transition-colors cursor-pointer block max-w-full"
+                    className="text-2xl sm:text-3xl lg:text-4xl font-black text-white truncate tracking-tight leading-tight group-hover:text-[var(--color-accent)] transition-colors cursor-pointer block max-w-full"
                   >
                     {spotlightTrack.title}
                   </h2>
@@ -510,12 +533,12 @@ export default function HomePage() {
                       triggerAndroidHaptic('light');
                       navigate(`/search?q=${encodeURIComponent(spotlightTrack.artist)}`);
                     }}
-                    className="text-sm sm:text-base text-white/70 truncate mt-0.5 font-semibold hover:text-white cursor-pointer transition-colors"
+                    className="text-sm sm:text-base text-white/75 truncate mt-1 font-semibold hover:text-white cursor-pointer transition-colors"
                   >
                     {spotlightTrack.artist}
                   </p>
 
-                  <p className="text-xs text-white/50 mt-1.5 line-clamp-1 max-w-lg hidden sm:block">
+                  <p className="text-xs text-white/55 mt-1.5 line-clamp-1 max-w-lg hidden sm:block font-medium">
                     Pristine acoustics with zero internet buffering • Tap to experience pure lossless studio sound
                   </p>
                 </div>
@@ -618,11 +641,11 @@ export default function HomePage() {
       {(activeFilter === 'all' || activeFilter === 'music') && quickMixTracks.length > 0 && (
         <section className="mb-10 px-1">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-black uppercase tracking-wider text-white/70 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />
+            <h3 className="text-sm font-black uppercase tracking-wider text-white/75 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
               Quick Jump In
             </h3>
-            <span className="text-[11px] text-white/40 font-medium">Recent & Liked Favorites</span>
+            <span className="text-[11px] text-white/45 font-semibold">Instant Sessions & Favorites</span>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5">
@@ -650,24 +673,27 @@ export default function HomePage() {
                       quickMixTracks
                     );
                   }}
-                  className={`group relative flex items-center gap-2.5 sm:gap-3.5 p-2 rounded-2xl liquid-glass transition-all cursor-pointer shadow-md overflow-hidden active:scale-[0.98] ${
+                  className={`group relative flex items-center gap-2.5 sm:gap-3.5 p-2 sm:p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg overflow-hidden active:scale-[0.98] ${
                     isThisPlaying
-                      ? 'bg-white/[0.14] shadow-[0_8px_28px_rgba(0,0,0,0.45),0_0_24px_rgba(250,45,72,0.18)]'
-                      : 'hover:bg-white/[0.10]'
+                      ? 'bg-white/[0.12] ring-1 ring-[var(--color-accent)]/30 shadow-[0_8px_24px_rgba(0,0,0,0.4),0_0_20px_rgba(250,45,72,0.15)]'
+                      : ''
                   }`}
                 >
-                  <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                  {/* Subtle top specular sheen */}
+                  <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/12 to-transparent pointer-events-none" />
+
+                  <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.4)] bg-white/5">
                     <img
                       src={track.thumbnail || DEFAULT_THUMBNAIL}
                       alt={track.title}
                       decoding="async"
                       onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
                     />
 
                     {/* Active Live Equalizer Mini Badge in corner */}
                     {isThisPlaying && isPlaying ? (
-                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-md flex items-end gap-0.5 h-3.5 shadow-md border-0 pointer-events-none">
+                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/85 backdrop-blur-md flex items-end gap-0.5 h-3.5 shadow-md border-0 pointer-events-none">
                         <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.7s_ease-in-out_infinite] h-full" />
                         <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_1.0s_ease-in-out_infinite] h-3/5" />
                         <span className="w-0.5 bg-[var(--color-accent)] rounded-full animate-[pulse_0.5s_ease-in-out_infinite] h-4/5" />
@@ -686,7 +712,9 @@ export default function HomePage() {
 
                   <div className="min-w-0 flex-1 pr-1.5 sm:pr-2">
                     <div className="flex items-center gap-1.5">
-                      <h4 className="text-xs sm:text-sm font-bold text-white truncate leading-snug group-hover:text-[var(--color-accent)] transition-colors">
+                      <h4 className={`text-xs sm:text-sm font-bold truncate leading-snug transition-colors ${
+                        isThisPlaying ? 'text-[var(--color-accent)]' : 'text-white group-hover:text-[var(--color-accent)]'
+                      }`}>
                         {track.title}
                       </h4>
                       {isThisPlaying && (
@@ -815,8 +843,8 @@ export default function HomePage() {
                   );
                 }}
               >
-                <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 ${
-                  isPlayingThis ? 'shadow-[0_8px_25px_rgba(250,45,72,0.25)]' : ''
+                <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 ring-1 ring-white/10 group-hover:ring-white/20 ${
+                  isPlayingThis ? 'shadow-[0_8px_25px_rgba(250,45,72,0.25)] ring-[var(--color-accent)]/50' : ''
                 }`}>
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
@@ -825,6 +853,8 @@ export default function HomePage() {
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                     className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
                   />
+                  {/* Top Specular Sheen */}
+                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
 
                   {/* Active Live Equalizer Mini Badge */}
                   {isPlayingThis && isPlaying ? (
@@ -844,7 +874,7 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  {/* Dedicated 3-Dots Button for Mobile */}
+                  {/* Dedicated 3-Dots Button for Mobile & Desktop */}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -857,7 +887,7 @@ export default function HomePage() {
                         recentTracks
                       );
                     }}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 active:scale-90"
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:text-white hover:bg-black/80 active:scale-90 transition-all cursor-pointer"
                     title="Track actions"
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -903,7 +933,7 @@ export default function HomePage() {
               }}
               className="min-w-[130px] max-w-[130px] sm:min-w-[155px] sm:max-w-[155px] flex-shrink-0 snap-start flex flex-col items-center text-center group cursor-pointer"
             >
-              <div className="w-28 h-28 sm:w-34 sm:h-34 rounded-full overflow-hidden mb-2.5 relative bg-white/10 shadow-lg border-0 group-hover:shadow-[0_0_20px_rgba(250,45,72,0.3)] transition-all duration-300">
+              <div className="w-28 h-28 sm:w-34 sm:h-34 rounded-full overflow-hidden mb-2.5 relative bg-white/10 shadow-lg border-0 ring-2 ring-white/10 group-hover:ring-[var(--color-accent)]/60 group-hover:shadow-[0_0_25px_rgba(250,45,72,0.35)] transition-all duration-300">
                 <img
                   src={artist.avatar}
                   alt={artist.name}
@@ -920,11 +950,15 @@ export default function HomePage() {
                     </svg>
                   </div>
                 </div>
+                {/* Verified Artist Checkmark Badge */}
+                <div className="absolute bottom-1 right-2 w-5 h-5 rounded-full bg-cyan-500 text-black flex items-center justify-center text-[10px] font-black shadow-md border border-black/40 pointer-events-none">
+                  ✓
+                </div>
               </div>
               <h4 className="font-bold text-xs sm:text-sm text-white truncate w-full group-hover:text-[var(--color-accent)] transition-colors">
                 {artist.name}
               </h4>
-              <p className="text-[11px] text-white/50 truncate w-full mt-0.5">
+              <p className="text-[11px] text-white/50 truncate w-full mt-0.5 font-medium">
                 {artist.genre || 'Artist'}
               </p>
             </div>
@@ -936,34 +970,39 @@ export default function HomePage() {
       {(activeFilter === 'all' || activeFilter === 'moods') && (
         activeFilter === 'moods' ? (
           <section className="mb-10 px-1">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-white mb-1">All Moods & Activities</h2>
-            <p className="text-xs text-white/50 mb-4">Tap any vibe to launch an instant endless curated mix</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">All Moods & Activities</h2>
+                <p className="text-xs text-white/55 mt-0.5 font-medium">Tap any vibe to launch an instant endless curated mix</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
               {MOOD_PLAYLISTS.map((mood) => {
                 const isMoodLoading = loadingMoodId === mood.id;
                 return (
-                  <GlassCard
+                  <div
                     key={mood.id}
-                    padding="md"
-                    hover
-                    className={`cursor-pointer relative overflow-hidden active:scale-[0.98] transition-transform ${mood.colorClass}`}
                     onClick={() => handlePlayMood(mood.id, mood.query || mood.searchQuery)}
+                    className={`relative rounded-2xl overflow-hidden p-5 transition-all duration-300 cursor-pointer group active:scale-[0.98] shadow-md hover:shadow-2xl hover:-translate-y-1 ${mood.colorClass}`}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-3xl drop-shadow">{mood.emoji}</span>
-                      <div className="w-8 h-8 rounded-full glass-button-primary text-white flex items-center justify-center">
+                    {/* Top Specular Sheen */}
+                    <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
+                    
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-3xl sm:text-4xl drop-shadow-lg group-hover:scale-115 transition-transform duration-300">{mood.emoji}</span>
+                      <div className="w-9 h-9 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-all">
                         {isMoodLoading ? (
-                          <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
-                          <svg className="w-3.5 h-3.5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z" />
                           </svg>
                         )}
                       </div>
                     </div>
-                    <h3 className="font-extrabold text-sm sm:text-base text-white">{mood.name}</h3>
-                    <p className="text-[11px] text-white/70 mt-0.5">{mood.sub || 'Play instant mix'}</p>
-                  </GlassCard>
+                    <h3 className="font-black text-sm sm:text-base text-white tracking-tight">{mood.name}</h3>
+                    <p className="text-[11px] text-white/75 mt-0.5 font-medium">{mood.sub || 'Play instant mix'}</p>
+                  </div>
                 );
               })}
             </div>
@@ -973,28 +1012,29 @@ export default function HomePage() {
             {MOOD_PLAYLISTS.map((mood) => {
               const isMoodLoading = loadingMoodId === mood.id;
               return (
-                <GlassCard
+                <div
                   key={mood.id}
-                  padding="md"
-                  hover
-                  className={`min-w-[190px] max-w-[190px] sm:min-w-[215px] sm:max-w-[215px] flex-shrink-0 snap-start cursor-pointer relative overflow-hidden group ${mood.colorClass}`}
                   onClick={() => handlePlayMood(mood.id, mood.query || mood.searchQuery)}
+                  className={`min-w-[190px] max-w-[190px] sm:min-w-[215px] sm:max-w-[215px] flex-shrink-0 snap-start relative rounded-2xl overflow-hidden p-5 transition-all duration-300 cursor-pointer group active:scale-[0.98] shadow-md hover:shadow-2xl hover:-translate-y-1 ${mood.colorClass}`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-3xl drop-shadow group-hover:scale-110 transition-transform">{mood.emoji}</span>
-                    <div className="w-8 h-8 rounded-full glass-button-primary text-white flex items-center justify-center group-hover:scale-110 transition-all">
+                  {/* Top Specular Sheen */}
+                  <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
+
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-3xl sm:text-4xl drop-shadow-lg group-hover:scale-115 transition-transform duration-300">{mood.emoji}</span>
+                    <div className="w-9 h-9 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-all">
                       {isMoodLoading ? (
-                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : (
-                        <svg className="w-3.5 h-3.5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M8 5v14l11-7z" />
                         </svg>
                       )}
                     </div>
                   </div>
-                  <h3 className="font-extrabold text-base text-white">{mood.name}</h3>
-                  <p className="text-[11px] text-white/70 mt-0.5">{mood.sub || 'Play instant mix'}</p>
-                </GlassCard>
+                  <h3 className="font-black text-sm sm:text-base text-white tracking-tight">{mood.name}</h3>
+                  <p className="text-[11px] text-white/75 mt-0.5 font-medium">{mood.sub || 'Play instant mix'}</p>
+                </div>
               );
             })}
           </HorizontalScroll>
@@ -1068,7 +1108,7 @@ export default function HomePage() {
                       navigate(`/search?q=${encodeURIComponent(`${album.title || album.name} ${album.artist}`)}`);
                     }}
                   >
-                    <div className="aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300">
+                    <div className="aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 ring-1 ring-white/10 group-hover:ring-white/20">
                       <img
                         src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                         alt={album.title || album.name}
@@ -1078,10 +1118,13 @@ export default function HomePage() {
                         onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                         className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
                       />
+                      {/* Top Specular Sheen */}
+                      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                         <button
                           onClick={(e) => handlePlayAlbum(album, e)}
-                          className="w-11 h-11 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg scale-90 translate-y-2 group-hover:scale-100 group-hover:translate-y-0 transition-all duration-300 cursor-pointer hover:brightness-110 active:scale-95"
+                          className="w-11 h-11 rounded-full glass-button-primary text-white flex items-center justify-center shadow-xl scale-90 translate-y-2 group-hover:scale-100 group-hover:translate-y-0 transition-all duration-300 cursor-pointer hover:brightness-110 active:scale-95"
                           title={`Play ${album.title || album.name}`}
                         >
                           {playingAlbumId === album.id ? (
@@ -1095,7 +1138,7 @@ export default function HomePage() {
                       </div>
                     </div>
                     <h3 className="font-bold text-xs sm:text-sm truncate text-white group-hover:text-[var(--color-accent)] transition-colors duration-200">{album.title || album.name}</h3>
-                    <p className="text-[11px] text-white/50 truncate mt-0.5">{album.artist}</p>
+                    <p className="text-[11px] text-white/50 truncate mt-0.5 font-medium">{album.artist}</p>
                   </div>
                 ))}
           </HorizontalScroll>
