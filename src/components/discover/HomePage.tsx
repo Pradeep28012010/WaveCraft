@@ -447,15 +447,15 @@ export default function HomePage() {
       {/* ================= HERO SPOTLIGHT BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && spotlightTrack && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
-          <div className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
+          <div className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)]">
             {/* Ambient Blurred Artwork Backdrop */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
               <img
                 src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
                 alt=""
                 className="w-full h-full object-cover blur-3xl opacity-35 scale-125 transition-transform duration-1000 group-hover:scale-135"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/30" />
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-black/90 via-black/60 to-black/30" />
             </div>
 
             <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 sm:gap-6 w-full min-w-0">
@@ -702,10 +702,10 @@ export default function HomePage() {
       {/* ================= 3D SONIC GALAXY OBSERVATORY PORTAL BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
-          <div className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0">
+          <div className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)]">
             {/* Deep Galactic Gradient Background */}
-            <div className="absolute inset-0 pointer-events-none -z-10">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-blue-950/70" />
+            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-blue-950/70" />
               <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-violet-600/20 blur-3xl" />
               <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-cyan-600/20 blur-3xl" />
             </div>
