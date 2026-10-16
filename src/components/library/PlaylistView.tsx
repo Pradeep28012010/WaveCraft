@@ -7,7 +7,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import TrackRow from '../ui/TrackRow';
 import GlassButton from '../ui/GlassButton';
 import CreatePlaylist from './CreatePlaylist';
-import { getHighResPlaylistCover } from './PlaylistCard';
+import { PlaylistArtwork } from './PlaylistCard';
 import { exportToM3U8, exportToJSON } from '../../utils/playlistExport';
 import {
   isPlaylistFullyOffline,
@@ -218,7 +218,6 @@ export default function PlaylistView() {
     }
     return `${mins} min`;
   }, [totalDuration]);
-  const hdCoverUrl = getHighResPlaylistCover(playlist);
   const lastSyncFormatted = playlist.lastSyncedAt
     ? new Date(playlist.lastSyncedAt).toLocaleTimeString([], {
         hour: '2-digit',
@@ -262,17 +261,10 @@ export default function PlaylistView() {
       <div className="relative z-10 flex flex-col sm:flex-row gap-5 sm:gap-6 items-start sm:items-end mb-5">
         {/* Compact Squircle Cover Artwork with 3D Specular Sheen */}
         <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 flex-shrink-0 rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_16px_36px_rgba(0,0,0,0.6)] bg-white/10 [clip-path:inset(0_round_1.25rem)] [-webkit-clip-path:inset(0_round_1.25rem)] group/cover">
-          {hdCoverUrl ? (
-            <img
-              src={hdCoverUrl}
-              alt={playlist.name}
-              className="w-full h-full object-cover group-hover/cover:scale-105 transition-transform duration-700"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-5xl font-bold text-white shadow-inner">
-              {playlist.name.charAt(0)}
-            </div>
-          )}
+          <PlaylistArtwork
+            playlist={playlist}
+            imgClassName="group-hover/cover:scale-105 transition-transform duration-700"
+          />
           {/* Subtle Top-Light Specular Sheen */}
           <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
 

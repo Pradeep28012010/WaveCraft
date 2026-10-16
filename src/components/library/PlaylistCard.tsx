@@ -10,6 +10,7 @@ interface PlaylistCardProps {
   playlist: Playlist;
   onPlay?: () => void;
   showFolderBadge?: boolean;
+  variant?: 'grid' | 'list';
 }
 
 export function getHighResPlaylistCover(playlist: Playlist): string {
@@ -29,12 +30,95 @@ export function getHighResPlaylistCover(playlist: Playlist): string {
     .replace('100x100bb', '600x600bb');
 }
 
+export function PlaylistArtwork({
+  playlist,
+  className = '',
+  imgClassName = ''
+}: {
+  playlist: Playlist;
+  className?: string;
+  imgClassName?: string;
+}) {
+  const hdCoverUrl = getHighResPlaylistCover(playlist);
+
+  // If user explicitly provided a custom coverUrl, use that
+  if (playlist.coverUrl) {
+    return (
+      <div className={`relative w-full h-full overflow-hidden ${className}`}>
+        <img
+          src={hdCoverUrl}
+          alt={playlist.name}
+          decoding="async"
+          className={`w-full h-full object-cover ${imgClassName}`}
+        />
+        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+      </div>
+    );
+  }
+
+  // Extract distinct thumbnails from tracks for 4-track collage
+  const distinctThumbs: string[] = [];
+  const seenUrls = new Set<string>();
+  for (const track of playlist.tracks || []) {
+    const raw = track.thumbnailLarge || track.thumbnail;
+    if (raw && !seenUrls.has(raw)) {
+      seenUrls.add(raw);
+      distinctThumbs.push(raw);
+      if (distinctThumbs.length === 4) break;
+    }
+  }
+
+  // If 4 distinct track thumbnails exist, render the classic 2x2 collage (Spotify / Apple Music style)
+  if (distinctThumbs.length >= 4) {
+    return (
+      <div className={`relative w-full h-full overflow-hidden grid grid-cols-2 grid-rows-2 ${className}`}>
+        {distinctThumbs.slice(0, 4).map((thumb, idx) => (
+          <div key={idx} className="relative w-full h-full overflow-hidden bg-white/5">
+            <img
+              src={thumb}
+              alt=""
+              decoding="async"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ))}
+        {/* Subtle grid line separator & top specular sheen */}
+        <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" />
+        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+      </div>
+    );
+  }
+
+  // If 1 to 3 tracks exist, render the single high-res cover
+  if (hdCoverUrl) {
+    return (
+      <div className={`relative w-full h-full overflow-hidden ${className}`}>
+        <img
+          src={hdCoverUrl}
+          alt={playlist.name}
+          decoding="async"
+          className={`w-full h-full object-cover ${imgClassName}`}
+        />
+        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+      </div>
+    );
+  }
+
+  // Default empty state: sleek gradient squircle
+  return (
+    <div className={`w-full h-full bg-gradient-to-br from-indigo-500/80 via-purple-600/80 to-pink-600/80 flex items-center justify-center text-4xl font-black text-white shadow-inner relative overflow-hidden ${className}`}>
+      <span className="drop-shadow-md">{playlist.name.charAt(0).toUpperCase() || '♪'}</span>
+      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
+    </div>
+  );
+}
+
 const PlaylistCard = memo(function PlaylistCard({
   playlist,
   onPlay,
-  showFolderBadge = true
+  showFolderBadge = true,
+  variant = 'grid'
 }: PlaylistCardProps) {
-  const hdCoverUrl = getHighResPlaylistCover(playlist);
   const isSyncing = useLibraryStore((s) => Boolean(s.syncingPlaylistIds[playlist.id]));
   const togglePin = useLibraryStore((s) => s.togglePinPlaylist);
   const folder = useLibraryStore((s) =>
@@ -65,6 +149,113 @@ const PlaylistCard = memo(function PlaylistCard({
     }
   };
 
+  if (variant === 'list') {
+    return (
+      <div className="group flex items-center justify-between gap-3.5 p-2.5 sm:p-3 rounded-2xl liquid-glass hover:bg-white/[0.08] transition-all border-0">
+        <Link to={`/playlist/${playlist.id}`} className="flex items-center gap-3.5 min-w-0 flex-1">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex-shrink-0 bg-white/5 relative shadow-md">
+            <PlaylistArtwork playlist={playlist} />
+            {playlist.isLiveSync && (
+              <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-black animate-pulse" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-sm sm:text-base text-white truncate group-hover:text-[var(--color-accent)] transition-colors">
+                {playlist.name}
+              </h3>
+              {playlist.isPinned && (
+                <span className="text-xs">📌</span>
+              )}
+              {showFolderBadge && folder && (
+                <span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold truncate flex items-center gap-1"
+                  style={{
+                    backgroundColor: `${folder.color || '#6366f1'}20`,
+                    color: folder.color || '#a5b4fc'
+                  }}
+                >
+                  <span>{folder.icon || '📁'}</span>
+                  <span>{folder.name}</span>
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-white/55 mt-0.5 font-medium">
+              <span>{playlist.tracks.length} tracks</span>
+              {playlist.isLiveSync && (
+                <>
+                  <span>•</span>
+                  <span className="text-emerald-400 font-semibold">Live Sync</span>
+                </>
+              )}
+              {isFullyOffline && (
+                <>
+                  <span>•</span>
+                  <span className="text-cyan-300">Offline Ready</span>
+                </>
+              )}
+            </div>
+          </div>
+        </Link>
+
+        {/* Action Buttons in List Row */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              togglePin(playlist.id);
+            }}
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs transition-colors cursor-pointer ${
+              playlist.isPinned
+                ? 'bg-amber-500/20 text-amber-300'
+                : 'text-white/40 hover:text-white hover:bg-white/10'
+            }`}
+            title={playlist.isPinned ? 'Unpin' : 'Pin to top'}
+          >
+            📌
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDownloadClick}
+            disabled={playlist.tracks.length === 0 || isCurrentDownloading}
+            className={`h-8 px-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              isFullyOffline
+                ? 'bg-emerald-500/20 text-emerald-300'
+                : isCurrentDownloading
+                ? 'bg-cyan-500/20 text-cyan-200'
+                : 'text-white/50 hover:text-white hover:bg-white/10'
+            }`}
+            title="Download offline"
+          >
+            {isCurrentDownloading ? (
+              <div className="w-3 h-3 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin" />
+            ) : isFullyOffline ? (
+              <span>✓</span>
+            ) : (
+              <span>⬇</span>
+            )}
+          </button>
+
+          {onPlay && (
+            <button
+              type="button"
+              onClick={onPlay}
+              disabled={playlist.tracks.length === 0}
+              className="w-9 h-9 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center hover:scale-105 active:scale-95 shadow-md cursor-pointer transition-transform disabled:opacity-40"
+              title="Play playlist"
+            >
+              <svg className="w-4 h-4 ml-0.5 fill-current" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Link to={`/playlist/${playlist.id}`} className="block group">
       <GlassCard
@@ -73,18 +264,10 @@ const PlaylistCard = memo(function PlaylistCard({
         }`}
       >
         <div className="aspect-square rounded-xl overflow-hidden mb-3 relative bg-white/5">
-          {hdCoverUrl ? (
-            <img
-              src={hdCoverUrl}
-              alt={playlist.name}
-              decoding="async"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-indigo-500/80 to-purple-600/80 flex items-center justify-center text-4xl font-bold text-white">
-              {playlist.name.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <PlaylistArtwork
+            playlist={playlist}
+            imgClassName="group-hover:scale-105 transition-transform duration-500"
+          />
 
           {/* Live Auto-Sync Badge */}
           {playlist.isLiveSync && (

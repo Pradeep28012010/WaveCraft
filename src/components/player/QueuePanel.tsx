@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo, memo } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
 import { shuffleArray } from '../../utils/shuffle';
@@ -213,11 +214,39 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const isCurrentLiked = useLibraryStore((s) =>
     currentTrack ? Boolean(s.likedIds[currentTrack.id]) : false
   );
+  const autoplay = useSettingsStore((s) => s.autoplay);
+  const toggleAutoplay = useSettingsStore((s) => s.toggleAutoplay);
   const { isPhone } = useDevicePreset();
 
   const [activeTab, setActiveTab] = useState<'upnext' | 'history'>('upnext');
   const [isAiFilling, setIsAiFilling] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
+  const [radioPreviewTracks, setRadioPreviewTracks] = useState<Track[]>([]);
+  const [isLoadingRadio, setIsLoadingRadio] = useState(false);
+
+  useEffect(() => {
+    if (!autoplay || !currentTrack) {
+      setRadioPreviewTracks([]);
+      return;
+    }
+    let active = true;
+    setIsLoadingRadio(true);
+    getSmartRecommendations(currentTrack, queue, 6)
+      .then((recs) => {
+        if (active) {
+          const queueIds = new Set(queue.map((t) => t.id));
+          const filtered = recs.filter((t) => !queueIds.has(t.id));
+          setRadioPreviewTracks(filtered);
+          setIsLoadingRadio(false);
+        }
+      })
+      .catch(() => {
+        if (active) setIsLoadingRadio(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [autoplay, currentTrack?.id, queue.length]);
 
   // Split queue into Previous (History in current queue) and Upcoming (after queueIndex)
   const effectiveIndex =
@@ -447,6 +476,22 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                 {/* Quick Action Toolbar Pills */}
                 <div className="flex items-center gap-1.5">
                   <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      toggleAutoplay();
+                    }}
+                    title={autoplay ? 'Infinite Radio ON: Automatically plays smart recommendations when queue ends' : 'Infinite Radio OFF: Tap to enable continuous radio flow'}
+                    className={`h-7 px-2.5 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      autoplay
+                        ? 'glass-button-primary text-white'
+                        : 'glass-button text-white/50 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-xs font-black">∞</span>
+                    <span className="hidden sm:inline">Radio</span>
+                  </button>
+
+                  <button
                     onClick={handleAiAutoFill}
                     disabled={!currentTrack || isAiFilling}
                     title="AI Smart Fill: Add 5 matching 320kbps tracks"
@@ -668,6 +713,99 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                           />
                         )}
                       />
+                    </div>
+                  )}
+
+                  {/* INFINITE SMART RADIO UP NEXT PREVIEW */}
+                  {autoplay && currentTrack && (
+                    <div className="mt-5 pt-4 border-t border-white/[0.08] space-y-2.5">
+                      <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+                          <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/70 flex items-center gap-1.5">
+                            <span className="text-sm font-black text-[var(--color-accent)] leading-none">∞</span>
+                            <span>Infinite Radio Next</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isLoadingRadio ? (
+                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <span className="text-[10px] text-white/40 font-medium">
+                              Auto-plays when queue ends
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {radioPreviewTracks.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {radioPreviewTracks.map((radioTrack) => (
+                            <div
+                              key={`radio-preview-${radioTrack.id}`}
+                              onContextMenu={(e) => {
+                                if (e.shiftKey) return;
+                                e.preventDefault();
+                                e.stopPropagation();
+                                useContextMenuStore.getState().openTrackMenu({ clientX: e.clientX, clientY: e.clientY }, radioTrack, queue);
+                              }}
+                              className="group flex items-center gap-2.5 p-2 rounded-2xl bg-white/[0.025] hover:bg-white/[0.08] border-0 transition-colors"
+                            >
+                              {/* Artwork with play overlay */}
+                              <div
+                                onClick={() => playTrack(radioTrack, [...queue, radioTrack], queue.length)}
+                                className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer"
+                              >
+                                <img
+                                  src={radioTrack.thumbnail || DEFAULT_THUMBNAIL}
+                                  alt={radioTrack.title}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                                  }}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                  <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M8 5v14l11-7z" />
+                                  </svg>
+                                </div>
+                              </div>
+
+                              {/* Title & Artist */}
+                              <div
+                                onClick={() => playTrack(radioTrack, [...queue, radioTrack], queue.length)}
+                                className="min-w-0 flex-1 cursor-pointer"
+                              >
+                                <p className="text-xs font-bold text-white/80 group-hover:text-white truncate">
+                                  {radioTrack.title}
+                                </p>
+                                <p className="text-[11px] text-white/50 truncate mt-0.5">
+                                  {radioTrack.artist}
+                                </p>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button
+                                  onClick={() => {
+                                    triggerAndroidHaptic('light');
+                                    addToQueue(radioTrack);
+                                  }}
+                                  title="Add to active queue"
+                                  className="h-7 px-2.5 rounded-lg glass-button text-[11px] font-bold text-white/70 hover:text-white flex items-center gap-1 transition-all cursor-pointer"
+                                >
+                                  <span>+</span>
+                                  <span className="hidden sm:inline">Queue</span>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : !isLoadingRadio ? (
+                        <p className="text-[11px] text-white/40 italic px-1">
+                          Analyzing acoustics to queue similar tracks...
+                        </p>
+                      ) : null}
                     </div>
                   )}
                 </div>
