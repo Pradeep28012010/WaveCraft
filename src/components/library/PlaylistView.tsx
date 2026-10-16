@@ -271,9 +271,9 @@ export default function PlaylistView() {
       </div>
 
       {/* Editorial Playlist Hero */}
-      <div className="relative z-10 flex flex-col md:flex-row gap-6 sm:gap-8 items-start md:items-end mb-8">
-        {/* Cover Artwork with 3D Specular Sheen & Squircle Clipping */}
-        <div className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-60 md:h-60 flex-shrink-0 rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)] bg-white/10 [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)] group/cover">
+      <div className="relative z-10 flex flex-col sm:flex-row gap-5 sm:gap-6 items-start sm:items-end mb-5">
+        {/* Compact Squircle Cover Artwork with 3D Specular Sheen */}
+        <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 flex-shrink-0 rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_16px_36px_rgba(0,0,0,0.6)] bg-white/10 [clip-path:inset(0_round_1.25rem)] [-webkit-clip-path:inset(0_round_1.25rem)] group/cover">
           {hdCoverUrl ? (
             <img
               src={hdCoverUrl}
@@ -281,7 +281,7 @@ export default function PlaylistView() {
               className="w-full h-full object-cover group-hover/cover:scale-105 transition-transform duration-700"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-6xl font-bold text-white shadow-inner">
+            <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-5xl font-bold text-white shadow-inner">
               {playlist.name.charAt(0)}
             </div>
           )}
@@ -289,18 +289,18 @@ export default function PlaylistView() {
           <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
 
           {playlist.isLiveSync && (
-            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-emerald-500/30 flex items-center gap-1.5 shadow-lg">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-black text-emerald-300 tracking-wider whitespace-nowrap">
-                LIVE AUTO-SYNC
+            <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-emerald-500/30 flex items-center gap-1 shadow-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[9px] font-black text-emerald-300 tracking-wider whitespace-nowrap">
+                LIVE SYNC
               </span>
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-2 flex-grow min-w-0">
+        <div className="flex flex-col gap-1.5 flex-grow min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="uppercase text-xs font-bold tracking-widest text-white/50 whitespace-nowrap">
+            <span className="uppercase text-[11px] font-black tracking-widest text-white/50 whitespace-nowrap">
               {playlist.isLiveSync ? 'Live Synced Playlist' : 'Playlist'}
             </span>
             {playlist.sourcePlatform && (
@@ -368,7 +368,7 @@ export default function PlaylistView() {
           </div>
 
           <h1
-            className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-[-0.03em] leading-tight text-white cursor-pointer hover:text-[var(--color-accent)] transition-colors truncate"
+            className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-[-0.03em] leading-tight text-white cursor-pointer hover:text-[var(--color-accent)] transition-colors truncate"
             onClick={() => setIsEditModalOpen(true)}
             title="Click to edit playlist"
           >
@@ -376,13 +376,13 @@ export default function PlaylistView() {
           </h1>
 
           {playlist.description && (
-            <p className="text-white/65 text-xs sm:text-sm mt-1 max-w-2xl font-medium leading-relaxed">
+            <p className="text-white/60 text-xs sm:text-sm max-w-2xl font-medium leading-relaxed line-clamp-2">
               {playlist.description}
             </p>
           )}
 
           {/* Smart Mood Tags */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+          <div className="flex flex-wrap items-center gap-1.5 mt-1">
             {(playlist.tags || []).map((t) => (
               <span
                 key={t}
@@ -439,182 +439,43 @@ export default function PlaylistView() {
             )}
           </div>
 
-          {/* Stats Bar */}
-          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-white/55 mt-2 font-medium">
+          {/* Clean Stats Bar (Zero Double-Bullet Glitch) */}
+          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-white/55 mt-1.5 font-medium">
             <span className="font-bold text-white whitespace-nowrap">
               {tracks.length} {tracks.length === 1 ? 'song' : 'songs'}
             </span>
             <span>•</span>
             <span className="whitespace-nowrap">{formattedPlaylistDuration}</span>
-            {playlist.lastSyncedAt && (
+            {playlist.sourceUrl && (
               <>
                 <span>•</span>
-                <span className="text-emerald-400 font-semibold whitespace-nowrap flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Synced {lastSyncFormatted}
-                </span>
+                <button
+                  type="button"
+                  onClick={handleManualSync}
+                  disabled={isSyncing}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 transition-all cursor-pointer shadow-sm disabled:opacity-60"
+                  title={`Live Synced with ${playlist.sourcePlatform || 'Source'}. Click to sync now.`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${
+                      isSyncing ? 'animate-spin' : 'animate-pulse'
+                    }`}
+                  />
+                  <span>{isSyncing ? 'Syncing...' : `Synced ${lastSyncFormatted}`}</span>
+                  <span className="text-[11px] opacity-75">↻</span>
+                </button>
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Live Auto-Sync Telemetry & Compact Capsule */}
-      {playlist.sourceUrl ? (
-        <div className="relative z-10 mb-6 rounded-2xl bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.08] p-3 sm:p-4 backdrop-blur-xl shadow-lg transition-all">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border ${
-                  playlist.isLiveSync
-                    ? 'bg-emerald-500/15 border-emerald-500/30'
-                    : 'bg-white/5 border-white/10'
-                }`}
-              >
-                <span
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    playlist.isLiveSync ? 'bg-emerald-400 animate-pulse' : 'bg-white/30'
-                  }`}
-                />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs sm:text-sm font-bold text-white">
-                    {playlist.isLiveSync ? 'Live Auto-Sync Active' : 'Live Sync Paused'}
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/70">
-                    {playlist.syncStrategy === 'mirror' ? 'Exact Mirror' : 'Auto-Append'}
-                  </span>
-                  {(playlist.lastSyncDelta || 0) > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200">
-                      +{playlist.lastSyncDelta} new
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-white/45 truncate mt-0.5 max-w-md">
-                  Tracking:{' '}
-                  <a
-                    href={playlist.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-emerald-300 hover:underline"
-                  >
-                    {playlist.sourceUrl}
-                  </a>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-center">
-              <button
-                type="button"
-                onClick={() =>
-                  updatePlaylist(playlist.id, {
-                    syncStrategy: playlist.syncStrategy === 'mirror' ? 'append' : 'mirror'
-                  })
-                }
-                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-white/80 hover:text-white transition-all cursor-pointer border border-white/[0.08]"
-                title="Switch between auto-appending new tracks vs exact mirror"
-              >
-                {playlist.syncStrategy === 'mirror' ? 'Mirror' : 'Append'}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  updatePlaylist(playlist.id, {
-                    isLiveSync: !playlist.isLiveSync
-                  })
-                }
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
-                  playlist.isLiveSync
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                    : 'bg-white/[0.06] text-white/60 border-white/[0.08]'
-                }`}
-              >
-                {playlist.isLiveSync ? 'Sync ON' : 'Sync OFF'}
-              </button>
-              <button
-                type="button"
-                onClick={handleManualSync}
-                disabled={isSyncing}
-                className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[var(--color-accent)] text-white hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-md"
-              >
-                <span className={isSyncing ? 'animate-spin inline-block' : ''}>↻</span>
-                <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
-              </button>
-            </div>
-          </div>
-
-          {syncResultBanner && (
-            <p className="text-xs font-semibold text-emerald-300 mt-2.5 pt-2 border-t border-white/[0.08]">
-              {syncResultBanner}
-            </p>
-          )}
-
-          {isSyncing && (
-            <div className="mt-3 pt-2.5 border-t border-white/[0.08] space-y-1.5">
-              <div className="flex justify-between text-[11px] font-bold text-emerald-200">
-                <span>{syncStatusText || 'Checking source playlist for changes...'}</span>
-                <span className="tabular-nums">{syncProgressPct}%</span>
-              </div>
-              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-300"
-                  style={{ width: `${Math.max(8, syncProgressPct)}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="relative z-10 mb-6">
-          {!showAttachSource ? (
-            <button
-              type="button"
-              onClick={() => setShowAttachSource(true)}
-              className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-emerald-300 hover:text-white border border-emerald-500/25 flex items-center gap-2 cursor-pointer whitespace-nowrap transition-all shadow-sm"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Link External Playlist URL for Live Auto-Sync</span>
-            </button>
-          ) : (
-            <form
-              onSubmit={handleAttachLiveSource}
-              className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex flex-col sm:flex-row items-center gap-2.5 backdrop-blur-xl"
-            >
-              <input
-                type="url"
-                required
-                value={attachUrlInput}
-                onChange={(e) => setAttachUrlInput(e.target.value)}
-                placeholder="Paste Spotify or YouTube playlist URL to keep this playlist live-synced..."
-                className="flex-1 w-full bg-white/[0.06] border border-white/[0.1] rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/40 outline-none focus:border-[var(--color-accent)]"
-              />
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowAttachSource(false)}
-                  className="px-3 py-2 rounded-xl text-xs font-semibold text-white/70 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[var(--color-accent)] text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-md"
-                >
-                  Connect Live Sync
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
-
       {/* Primary Action Ribbon */}
-      <div className="relative z-10 flex items-center gap-3 sm:gap-4 mb-6">
+      <div className="relative z-10 flex items-center gap-2.5 sm:gap-3.5 mb-5 pt-1">
+        {/* Big Play All Button */}
         <button
           onClick={handlePlayAll}
-          className="w-13 h-13 sm:w-14 sm:h-14 p-0 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center hover:scale-105 active:scale-95 shadow-[0_8px_24px_rgba(250,45,72,0.4)] transition-all disabled:opacity-40 disabled:hover:scale-100 cursor-pointer flex-shrink-0"
+          className="w-12 h-12 sm:w-14 sm:h-14 p-0 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center hover:scale-105 active:scale-95 shadow-[0_8px_24px_rgba(250,45,72,0.4)] transition-all disabled:opacity-40 disabled:hover:scale-100 cursor-pointer flex-shrink-0"
           disabled={tracks.length === 0}
           title="Play All"
         >
@@ -623,10 +484,11 @@ export default function PlaylistView() {
           </svg>
         </button>
 
+        {/* Shuffle Button */}
         <button
           onClick={handleShuffleAll}
           disabled={tracks.length === 0}
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/[0.06] hover:bg-white/[0.12] text-white/80 hover:text-white transition-all cursor-pointer active:scale-90 border border-white/[0.08] disabled:opacity-40"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/[0.06] hover:bg-white/[0.12] text-white/80 hover:text-white transition-all cursor-pointer active:scale-90 border border-white/[0.08] disabled:opacity-40 flex-shrink-0"
           title="Shuffle"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -644,7 +506,7 @@ export default function PlaylistView() {
           type="button"
           onClick={handleDownloadAll}
           disabled={tracks.length === 0 || isCurrentDownloading}
-          className={`h-10 sm:h-11 px-4 sm:px-5 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+          className={`h-10 sm:h-11 px-3.5 sm:px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border flex-shrink-0 ${
             isCurrentDownloading
               ? 'bg-cyan-500/20 text-cyan-200 border-cyan-500/30 shadow-[0_0_16px_rgba(6,182,212,0.3)]'
               : isAllOffline
@@ -678,7 +540,8 @@ export default function PlaylistView() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
-              <span>Offline Ready ({offlineCount})</span>
+              <span className="hidden sm:inline">Offline Ready</span>
+              <span>({offlineCount})</span>
             </>
           ) : (
             <>
@@ -695,16 +558,31 @@ export default function PlaylistView() {
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                 />
               </svg>
-              <span>Download All ({Math.max(0, tracks.length - offlineCount)})</span>
+              <span className="hidden sm:inline">Download All</span>
+              <span>({Math.max(0, tracks.length - offlineCount)})</span>
             </>
           )}
         </button>
+
+        {/* Sync Now Button in Action Ribbon if live synced */}
+        {playlist.sourceUrl && (
+          <button
+            type="button"
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="h-10 sm:h-11 px-3 sm:px-3.5 rounded-full text-xs font-bold bg-white/[0.06] hover:bg-white/[0.12] text-emerald-300 hover:text-white border border-white/[0.08] flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all flex-shrink-0"
+            title={`Sync with original ${playlist.sourcePlatform || 'playlist'}`}
+          >
+            <span className={isSyncing ? 'animate-spin inline-block' : ''}>↻</span>
+            <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>
+          </button>
+        )}
 
         {/* Toggle Pin to Top Button */}
         <button
           type="button"
           onClick={() => togglePin(playlist.id)}
-          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
+          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all cursor-pointer border flex-shrink-0 ${
             playlist.isPinned
               ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
               : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white border-white/[0.08]'
@@ -716,8 +594,8 @@ export default function PlaylistView() {
 
         <div className="flex-grow" />
 
-        {/* Unified More Options Dropdown */}
-        <div className="relative">
+        {/* Unified More Options (•••) Dropdown */}
+        <div className="relative flex-shrink-0">
           <button
             onClick={() => setShowOptionsMenu((v) => !v)}
             className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/[0.06] hover:bg-white/[0.12] text-white/75 hover:text-white transition-all cursor-pointer border border-white/[0.08]"
@@ -737,9 +615,84 @@ export default function PlaylistView() {
                 animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                 exit={{ opacity: 0, y: -4, scale: 0.96, filter: 'blur(8px)' }}
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute right-0 top-12 z-40 w-60 rounded-2xl bg-[#12131e]/95 backdrop-blur-2xl border border-white/10 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-1 text-xs"
+                className="absolute right-0 top-12 z-40 w-64 rounded-2xl bg-[#12131e]/95 backdrop-blur-2xl border border-white/10 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-1 text-xs"
                 onClick={() => setShowOptionsMenu(false)}
               >
+                {/* Live Sync Management in Menu */}
+                {playlist.sourceUrl ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleManualSync}
+                      disabled={isSyncing}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
+                    >
+                      <span className={isSyncing ? 'animate-spin' : ''}>↻</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold">{isSyncing ? 'Syncing Now...' : 'Sync Live Now'}</div>
+                        <div className="text-[10px] text-emerald-400/60">Pull updates from source</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updatePlaylist(playlist.id, {
+                          syncStrategy: playlist.syncStrategy === 'mirror' ? 'append' : 'mirror'
+                        })
+                      }
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                    >
+                      <span>🔄</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold">
+                          Mode: {playlist.syncStrategy === 'mirror' ? 'Exact Mirror' : 'Auto-Append'}
+                        </div>
+                        <div className="text-[10px] text-white/50">
+                          {playlist.syncStrategy === 'mirror'
+                            ? 'Removes songs not in source'
+                            : 'Preserves local, only appends'}
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updatePlaylist(playlist.id, {
+                          isLiveSync: !playlist.isLiveSync
+                        })
+                      }
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                    >
+                      <span>{playlist.isLiveSync ? '🟢' : '⚪'}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold">
+                          Auto-Sync: {playlist.isLiveSync ? 'Enabled' : 'Paused'}
+                        </div>
+                        <div className="text-[10px] text-white/50">Auto-checks on playlist open</div>
+                      </div>
+                    </button>
+
+                    <div className="h-[1px] bg-white/10 my-1" />
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowAttachSource(true)}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
+                    >
+                      <span>🔗</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold">Connect Live Sync URL</div>
+                        <div className="text-[10px] text-emerald-400/60">Link Spotify or YouTube playlist</div>
+                      </div>
+                    </button>
+                    <div className="h-[1px] bg-white/10 my-1" />
+                  </>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
@@ -809,7 +762,83 @@ export default function PlaylistView() {
         </div>
       </div>
 
-      {/* Column Headers (Desktop) */}
+      {/* Sync Status Banner Feedback */}
+      {syncResultBanner && (
+        <div className="relative z-10 mb-3 px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-sm animate-in fade-in duration-200">
+          <span>{syncResultBanner}</span>
+          <button
+            onClick={() => setSyncResultBanner('')}
+            className="text-emerald-300/70 hover:text-white ml-2 cursor-pointer font-bold text-sm"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Syncing Progress Bar */}
+      {isSyncing && (
+        <div className="relative z-10 mb-3 space-y-1">
+          <div className="flex justify-between text-[11px] font-bold text-emerald-300">
+            <span>{syncStatusText || 'Synchronizing with source...'}</span>
+            <span className="tabular-nums">{syncProgressPct}%</span>
+          </div>
+          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-300"
+              style={{ width: `${Math.max(10, syncProgressPct)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Connect Live Sync Modal Overlay */}
+      {showAttachSource && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl bg-[#12131e] border border-white/10 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>🔗</span> Connect Live Sync URL
+              </h3>
+              <button
+                onClick={() => setShowAttachSource(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-xs text-white/60">
+              Paste a Spotify or YouTube playlist URL. WaveCraft will keep this playlist automatically synchronized whenever the source updates.
+            </p>
+            <form onSubmit={handleAttachLiveSource} className="space-y-3">
+              <input
+                type="url"
+                required
+                value={attachUrlInput}
+                onChange={(e) => setAttachUrlInput(e.target.value)}
+                placeholder="https://open.spotify.com/playlist/... or YouTube playlist URL"
+                className="w-full bg-white/[0.06] border border-white/[0.12] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-white/40 outline-none focus:border-[var(--color-accent)]"
+              />
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAttachSource(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white/70 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[var(--color-accent)] text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-md"
+                >
+                  Connect & Sync Now
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Tracklist Column Headers */}
       {tracks.length > 0 && (
         <div className="relative z-10 hidden sm:flex items-center px-4 py-2 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-wider text-white/40 mb-2">
           <span className="w-8 text-center">#</span>
