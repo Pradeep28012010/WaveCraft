@@ -331,121 +331,127 @@ export default function HomePage() {
       {/* ================= EDITORIAL ATMOSPHERIC HEADER ================= */}
       <div className="mb-8 px-1 pt-1 flex flex-col gap-4 w-full min-w-0 max-w-full">
         <div className="w-full min-w-0">
-          {/* Live Date, Stage & Session Badge */}
-          <div className="flex items-center gap-2.5 mb-2.5 flex-wrap min-w-0">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-white/[0.08] border-0 text-white/90 backdrop-blur-md shadow-sm flex-shrink-0">
-              <svg className="w-3.5 h-3.5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>{todayFormatted}</span>
+          {/* Editorial Eyebrow Ribbon */}
+          <div className="flex items-center gap-2 sm:gap-2.5 text-[11px] sm:text-xs font-bold tracking-[0.18em] uppercase text-white/45 mb-2.5 flex-wrap min-w-0">
+            <span className="text-white/70">{todayFormatted}</span>
+            <span className="text-white/25">•</span>
+            <span className="inline-flex items-center gap-1.5 text-[var(--color-accent)] font-extrabold tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+              {greetingInfo.vibeBadge}
             </span>
-
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-[var(--color-accent)]/15 border-0 text-[var(--color-accent)] backdrop-blur-md max-w-[280px] sm:max-w-none shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse flex-shrink-0" />
-              <span className="truncate">{greetingInfo.vibeBadge}</span>
-            </span>
-
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/[0.06] text-white/60 backdrop-blur-md">
-              <span>🎧 320KBPS LOSSLESS</span>
+            <span className="hidden sm:inline text-white/25">•</span>
+            <span className="hidden sm:inline text-white/40 font-semibold tracking-wider">
+              320kbps Spatial Soundstage
             </span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight break-words bg-gradient-to-r from-white via-white/95 to-white/75 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-[-0.03em] leading-tight break-words text-white">
             {greetingInfo.greeting}
           </h1>
-          <p className="text-xs sm:text-sm text-white/65 mt-1 font-medium flex items-center gap-2 flex-wrap min-w-0">
+          <p className="text-xs sm:text-sm text-white/60 mt-1 sm:mt-1.5 font-medium flex items-center gap-2 flex-wrap min-w-0 leading-relaxed">
             <span>{greetingInfo.tagline}</span>
-            <span className="hidden sm:inline text-white/30">•</span>
-            <span className="text-white/90 font-bold bg-white/10 px-2.5 py-0.5 rounded-md text-[11px] whitespace-nowrap shadow-sm">
-              Spatial Master Sound
-            </span>
+            <span className="text-white/30">•</span>
+            <span className="text-white/80 font-semibold">Mastered for Spatial Audio</span>
           </p>
         </div>
 
         {/* Unified Discovery & Navigation Control Bar */}
-        <div
-          className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-2 px-1 w-full max-w-full"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {([
-            { id: 'all', label: 'All', icon: '✨' },
-            { id: 'music', label: 'Music', icon: '🎵' },
-            { id: 'albums', label: 'Albums', icon: '💿' },
-            { id: 'moods', label: 'Moods & Mixes', icon: '🌊' }
-          ] as const).map((chip) => {
-            const isSelected = activeFilter === chip.id;
-            return (
-              <button
-                key={chip.id}
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setActiveFilter(chip.id);
-                }}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
-                  isSelected
-                    ? 'glass-button-primary text-white shadow-lg scale-102 ring-1 ring-white/20'
-                    : 'glass-button text-white/75 hover:text-white'
-                }`}
-              >
-                <span className="text-xs">{chip.icon}</span>
-                <span>{chip.label}</span>
-              </button>
-            );
-          })}
-
-          <div className="h-4 w-[1px] bg-white/15 mx-1 flex-shrink-0" />
-
-          {/* Quick Library Portals Bar (Telemetry Badges) */}
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              navigate('/liked');
-            }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border-0 text-xs font-bold text-white/85 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 w-full min-w-0">
+          {/* Category Filter Pills (Apple Music / Spotify Segmented Style) */}
+          <div
+            className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto flex-shrink-0"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <span className="text-rose-400">❤️</span>
-            <span>Liked Songs</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/10 font-black text-rose-300">
-              {likedSongs.length}
-            </span>
-          </button>
+            {([
+              { id: 'all', label: 'All' },
+              { id: 'music', label: 'Music' },
+              { id: 'albums', label: 'Albums' },
+              { id: 'moods', label: 'Moods & Mixes' }
+            ] as const).map((chip) => {
+              const isSelected = activeFilter === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    setActiveFilter(chip.id);
+                  }}
+                  className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center justify-center cursor-pointer flex-shrink-0 ${
+                    isSelected
+                      ? 'bg-white text-black shadow-[0_4px_16px_rgba(255,255,255,0.2)] scale-[1.02]'
+                      : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white'
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
 
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('medium');
-              navigate('/galaxy');
-            }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/20 to-indigo-500/20 hover:from-violet-500/30 hover:to-indigo-500/30 border-0 text-xs font-bold text-violet-200 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-sm flex-shrink-0"
+          {/* Quick Soundstage Telemetry & Library Portals */}
+          <div
+            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto md:justify-end flex-shrink-0"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <span>🪐</span>
-            <span>3D Sonic Galaxy</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-          </button>
+            {/* Liked Songs */}
+            <button
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                navigate('/liked');
+              }}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white text-xs font-semibold transition-all cursor-pointer whitespace-nowrap border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm flex-shrink-0"
+              title="Liked Songs Library"
+            >
+              <span className="text-rose-400 text-xs">❤️</span>
+              <span>Liked</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-rose-500/15 text-rose-300 font-bold">
+                {likedSongs.length}
+              </span>
+            </button>
 
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              setStudioModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border-0 text-xs font-bold text-white/85 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
-          >
-            <span className="text-amber-400">⚡</span>
-            <span>Studio FX</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-400/15 font-black text-amber-200">
-              {activeStudioMode.name}
-            </span>
-          </button>
+            {/* 3D Sonic Galaxy */}
+            <button
+              onClick={() => {
+                triggerAndroidHaptic('medium');
+                navigate('/galaxy');
+              }}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white text-xs font-semibold transition-all cursor-pointer whitespace-nowrap border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm flex-shrink-0"
+              title="Open 3D Sonic Galaxy"
+            >
+              <span className="text-violet-400 text-xs">🪐</span>
+              <span>3D Galaxy</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            </button>
 
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              navigate('/downloads');
-            }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border-0 text-xs font-bold text-white/85 hover:text-white active:scale-95 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
-          >
-            <span className="text-emerald-400">📥</span>
-            <span>Offline Vault</span>
-          </button>
+            {/* Studio FX */}
+            <button
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setStudioModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white text-xs font-semibold transition-all cursor-pointer whitespace-nowrap border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm flex-shrink-0"
+              title="Studio FX Equalizer & Spatial DSP"
+            >
+              <span className="text-amber-400 text-xs">⚡</span>
+              <span>Studio FX</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400/15 text-amber-300 font-bold">
+                {activeStudioMode.name}
+              </span>
+            </button>
+
+            {/* Offline Vault */}
+            <button
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                navigate('/downloads');
+              }}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white text-xs font-semibold transition-all cursor-pointer whitespace-nowrap border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm flex-shrink-0"
+              title="Offline Vault Downloads"
+            >
+              <span className="text-emerald-400 text-xs">📥</span>
+              <span>Vault</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -506,15 +512,16 @@ export default function HomePage() {
                 </div>
 
                 <div className="min-w-0 flex-1 w-full">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[var(--color-accent)]/20 border-0 text-[var(--color-accent)] flex-shrink-0 shadow-sm">
-                      ✨ FEATURED SPOTLIGHT
+                  <div className="flex items-center gap-2.5 mb-2 flex-wrap min-w-0">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/20 text-[var(--color-accent)] shadow-sm flex-shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+                      FEATURED SPOTLIGHT
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/90 border-0 flex-shrink-0">
-                      320KBPS STUDIO AAC
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/70 hidden sm:inline-flex flex-shrink-0">
-                      LOSSLESS DSP
+                    <span className="text-[11px] font-bold text-white/50 tracking-wider uppercase flex items-center gap-2 flex-shrink-0">
+                      <span className="w-1 h-1 rounded-full bg-white/30" />
+                      <span>320kbps Studio Master</span>
+                      <span className="w-1 h-1 rounded-full bg-white/30" />
+                      <span className="text-white/70">Spatial DSP</span>
                     </span>
                   </div>
 
