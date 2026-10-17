@@ -120,7 +120,7 @@ function AppleFluidSlider({
   };
 
   return (
-    <div className="space-y-1.5 select-none group">
+    <div className="space-y-1.5 select-none group pointer-events-auto">
       <div className="flex items-center justify-between text-xs">
         <span className="font-semibold text-white/80 group-hover:text-white transition-colors">
           {label}
@@ -128,16 +128,16 @@ function AppleFluidSlider({
         <button
           type="button"
           onClick={onReset}
-          className="font-mono text-xs font-bold text-white/90 hover:text-white transition cursor-pointer"
+          className="font-mono text-xs font-bold text-white/90 hover:text-white transition cursor-pointer pointer-events-auto"
           title={onReset ? 'Double-click to reset' : undefined}
         >
           {formattedValue}
         </button>
       </div>
 
-      <div className="relative h-6 flex items-center">
+      <div className="relative h-6 flex items-center pointer-events-auto">
         {/* Track Bar */}
-        <div className="w-full h-2 rounded-full bg-white/10 relative overflow-hidden backdrop-blur-md">
+        <div className="w-full h-2 rounded-full bg-white/10 relative overflow-hidden backdrop-blur-md pointer-events-none">
           <div
             className={`h-full bg-gradient-to-r ${accentGradients[accentColor]} transition-all duration-75`}
             style={{ width: `${percent}%` }}
@@ -160,6 +160,12 @@ function AppleFluidSlider({
           onChange={(e) => {
             onChange(parseFloat(e.target.value));
           }}
+          onInput={(e) => {
+            onChange(parseFloat((e.target as HTMLInputElement).value));
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer pointer-events-auto touch-pan-x"
         />
       </div>
@@ -485,7 +491,12 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden pointer-events-auto">
+    <div
+      className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+    >
       {/* iOS Drag Handle */}
       <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-2.5 sm:hidden flex-shrink-0" />
 
@@ -550,7 +561,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
       {/* ── Apple-Grade Segmented Tab Pills ── */}
       <div className="px-5 pt-3 pb-1 flex-shrink-0">
-        <div className="flex items-center p-1 rounded-2xl liquid-glass bg-white/[0.04] border-0 relative">
+        <div className="flex items-center p-1 rounded-2xl liquid-glass bg-white/[0.04] border-0 relative pointer-events-auto">
           {[
             { id: 'eq', label: '10-Band EQ', icon: '📊' },
             { id: 'spatial', label: 'Spatial Audio', icon: '🪐' },
@@ -571,7 +582,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   triggerAndroidHaptic('light');
                   setActiveTab(tab.id as StudioTab);
                 }}
-                className={`relative flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer z-10 pointer-events-auto ${
+                className={`relative flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer z-10 pointer-events-auto select-none ${
                   isActive ? 'text-white' : 'text-white/55 hover:text-white'
                 }`}
               >
@@ -592,7 +603,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* ── Scrollable Tab Content ── */}
-      <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 no-scrollbar">
+      <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 no-scrollbar pointer-events-auto overscroll-contain">
         {/* ── TAB 1: 10-BAND INTERACTIVE EQUALIZER ── */}
         {activeTab === 'eq' && (
           <div className="space-y-4">
@@ -622,7 +633,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                           setSpatialOrbitAuto(true);
                         }
                       }}
-                      className={`text-left p-3 rounded-2xl border-0 transition-all cursor-pointer relative overflow-hidden group ${
+                      className={`text-left p-3 rounded-2xl border-0 transition-all cursor-pointer pointer-events-auto relative overflow-hidden group active:scale-[0.98] ${
                         isSelected
                           ? 'liquid-glass bg-cyan-500/15 shadow-[0_0_24px_rgba(6,182,212,0.25)]'
                           : 'liquid-glass hover:bg-white/[0.08]'
@@ -678,14 +689,17 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 <div
                   ref={radarRef}
                   onPointerDown={(e) => {
+                    e.stopPropagation();
                     updateRadarPosFromPointer(e.clientX, e.clientY);
                   }}
                   onPointerMove={(e) => {
                     if (e.buttons === 1) {
+                      e.stopPropagation();
                       updateRadarPosFromPointer(e.clientX, e.clientY);
                     }
                   }}
-                  className="relative w-44 h-44 rounded-full border-0 bg-black/60 shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center cursor-crosshair flex-shrink-0 touch-none select-none"
+                  onTouchStart={(e) => e.stopPropagation()}
+                  className="relative w-44 h-44 rounded-full border-0 bg-black/60 shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center cursor-crosshair flex-shrink-0 touch-none select-none pointer-events-auto"
                 >
                   <div className="absolute inset-4 rounded-full border-0 bg-cyan-500/[0.04] pointer-events-none" />
                   <div className="absolute inset-9 rounded-full border-0 bg-cyan-500/[0.06] pointer-events-none" />
@@ -901,7 +915,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       triggerAndroidHaptic('light');
                       setHarmonicDrive(tp.val);
                     }}
-                    className={`px-2.5 py-1 rounded-xl text-[10px] font-bold transition cursor-pointer border-0 ${
+                    className={`px-2.5 py-1 rounded-xl text-[10px] font-bold transition cursor-pointer border-0 pointer-events-auto active:scale-95 ${
                       Math.abs(harmonicDrive - tp.val) < 0.05
                         ? 'bg-amber-400 text-black shadow-sm'
                         : 'liquid-glass text-white/65 hover:text-white'
@@ -999,7 +1013,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       setTrebleAir(preset.air);
                       setReverbMix(preset.rev);
                     }}
-                    className="px-3 py-1.5 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer pointer-events-auto active:scale-95"
                   >
                     {preset.label}
                   </button>
@@ -1043,7 +1057,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   onClick={handleStopAll}
-                  className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-rose-300 hover:text-rose-200 hover:bg-rose-500/20 transition cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-rose-300 hover:text-rose-200 hover:bg-rose-500/20 transition cursor-pointer pointer-events-auto relative z-10 active:scale-95"
                 >
                   Mute All
                 </button>
@@ -1066,7 +1080,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       key={preset.id}
                       type="button"
                       onClick={() => handleApplyPreset(preset)}
-                      className={`p-3 rounded-2xl text-left transition-all cursor-pointer flex items-start gap-2.5 border-0 ${
+                      className={`p-3 rounded-2xl text-left transition-all cursor-pointer pointer-events-auto select-none flex items-start gap-2.5 border-0 ${
                         isSelected
                           ? 'glass-button-emerald shadow-[0_0_16px_rgba(16,185,129,0.25)]'
                           : 'liquid-glass hover:bg-white/[0.08] active:scale-[0.98]'
@@ -1088,7 +1102,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             </div>
 
             {/* 2. Master Ambient Blend Slider */}
-            <div className="p-4 rounded-2xl liquid-glass border-0 space-y-2">
+            <div className="p-4 rounded-2xl liquid-glass border-0 space-y-2 pointer-events-auto">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-sm">🎚️</span>
@@ -1105,6 +1119,10 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 step="0.02"
                 value={masterAverage}
                 onChange={(e) => handleMasterVolumeChange(parseFloat(e.target.value))}
+                onInput={(e) => handleMasterVolumeChange(parseFloat((e.target as HTMLInputElement).value))}
+                onPointerDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 className="w-full accent-emerald-400 cursor-pointer pointer-events-auto touch-pan-x h-2 bg-white/15 rounded-lg"
                 aria-label="Master Ambient Volume"
               />
@@ -1152,7 +1170,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                             setActivePresetId(null);
                             setAmbientVolume(layer.id, isActive ? 0 : 0.6);
                           }}
-                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full transition cursor-pointer ${
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full transition cursor-pointer pointer-events-auto relative z-10 active:scale-95 ${
                             isActive
                               ? 'glass-button-emerald text-emerald-200'
                               : 'glass-button text-white/70 hover:text-white'
@@ -1184,7 +1202,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             {/* 4. Sleep & Focus Timers Section */}
             <div className="pt-2 border-0 space-y-4">
               {/* Sleep Timer */}
-              <div className="p-4 rounded-2xl border-0 liquid-glass space-y-3">
+              <div className="p-4 rounded-2xl border-0 liquid-glass space-y-3 pointer-events-auto">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">🌙</span>
@@ -1210,7 +1228,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         triggerAndroidHaptic('light');
                         stopSleepTimer();
                       }}
-                      className="px-4 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border-0 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer"
+                      className="px-4 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border-0 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer pointer-events-auto active:scale-95"
                     >
                       Cancel Sleep Timer
                     </button>
@@ -1224,7 +1242,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                             triggerAndroidHaptic('light');
                             startSleepTimer(mins);
                           }}
-                          className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer pointer-events-auto active:scale-95"
                         >
                           {mins} mins
                         </button>
@@ -1235,7 +1253,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                           triggerAndroidHaptic('light');
                           setEndAtTrack(true);
                         }}
-                        className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
+                        className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer pointer-events-auto active:scale-95"
                       >
                         End of Song
                       </button>
@@ -1245,7 +1263,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Pomodoro Focus Timer */}
-              <div className="p-4 rounded-2xl border-0 liquid-glass space-y-3">
+              <div className="p-4 rounded-2xl border-0 liquid-glass space-y-3 pointer-events-auto">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">🍅</span>
@@ -1271,7 +1289,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         triggerAndroidHaptic('light');
                         stopPomodoro();
                       }}
-                      className="px-4 py-1.5 rounded-xl glass-button text-rose-300 border-0 text-xs font-bold transition cursor-pointer"
+                      className="px-4 py-1.5 rounded-xl glass-button text-rose-300 border-0 text-xs font-bold transition cursor-pointer pointer-events-auto active:scale-95"
                     >
                       Pause Focus Sprint
                     </button>
@@ -1282,7 +1300,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         triggerAndroidHaptic('light');
                         startPomodoro(pomodoroMode);
                       }}
-                      className="px-4 py-1.5 rounded-xl glass-button-emerald text-emerald-100 text-xs font-bold transition cursor-pointer"
+                      className="px-4 py-1.5 rounded-xl glass-button-emerald text-emerald-100 text-xs font-bold transition cursor-pointer pointer-events-auto active:scale-95"
                     >
                       Start Focus ({formatClock(pomodoroSeconds)})
                     </button>
@@ -1404,9 +1422,12 @@ export default function StudioFXModal() {
           key="studio-fx-portal-wrapper"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          exit={{ opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
           className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden pointer-events-auto"
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           {/* Frosted Modal Backdrop */}
           <motion.div
@@ -1416,7 +1437,7 @@ export default function StudioFXModal() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
             onClick={handleClose}
-            className="absolute inset-0 pointer-events-auto modal-backdrop-blur bg-black/75 cursor-pointer"
+            className="absolute inset-0 pointer-events-auto modal-backdrop-blur bg-black/75 cursor-pointer z-0"
             aria-hidden="true"
           />
 
@@ -1431,7 +1452,10 @@ export default function StudioFXModal() {
             exit={{ opacity: 0, scale: 0.96, y: 16 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 pointer-events-auto w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/95 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="relative z-10 isolate pointer-events-auto w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/95 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
           >
             <StudioFXErrorBoundary onClose={handleClose}>
               <StudioFXModalContent onClose={handleClose} />

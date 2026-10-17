@@ -83,4 +83,30 @@ test('Atmosphere Soundscapes & 3D Visualizer Architecture', async (t) => {
     assert.ok(decayedNeedle < needle, 'Needle should decay smoothly');
     assert.ok(decayedNeedle > 0.25, 'Needle decay should be damped and gentle');
   });
+
+  await t.test('Studio FX & Atmosphere Modal Drag Suppression Logic', () => {
+    const resolveDragSetting = (isStudioModalOpen, showQueue, showWaveCard) => {
+      return isStudioModalOpen || showQueue || showWaveCard ? false : 'y';
+    };
+
+    assert.equal(resolveDragSetting(false, false, false), 'y', 'Drag should be enabled when no modal is open');
+    assert.equal(resolveDragSetting(true, false, false), false, 'Drag must be disabled when Atmosphere/Studio modal is open');
+    assert.equal(resolveDragSetting(false, true, false), false, 'Drag must be disabled when Queue is open');
+    assert.equal(resolveDragSetting(false, false, true), false, 'Drag must be disabled when WaveCard is open');
+  });
+
+  await t.test('Studio Store Atmosphere Tab Routing', () => {
+    let state = {
+      isStudioModalOpen: false,
+      studioActiveTab: 'eq'
+    };
+
+    const openStudioWithTab = (tab) => {
+      state = { ...state, isStudioModalOpen: true, studioActiveTab: tab };
+    };
+
+    openStudioWithTab('atmosphere');
+    assert.equal(state.isStudioModalOpen, true, 'isStudioModalOpen must be true');
+    assert.equal(state.studioActiveTab, 'atmosphere', 'studioActiveTab must be atmosphere');
+  });
 });

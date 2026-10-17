@@ -335,6 +335,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const audioQuality = useSettingsStore((s) => s.audioQuality);
   const setAudioQuality = useSettingsStore((s) => s.setAudioQuality);
   const fxMode = useStudioStore((s) => s.fxMode);
+  const isStudioModalOpen = useStudioStore((s) => s.isStudioModalOpen);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
   const preservePitch = useStudioStore((s) => s.preservePitch);
   const setPreservePitch = useStudioStore((s) => s.setPreservePitch);
@@ -390,7 +391,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: '100%', opacity: 0 }}
       transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.75 }}
-      drag="y"
+      drag={isStudioModalOpen || showQueue || showWaveCard ? false : 'y'}
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={{ top: 0.04, bottom: 0.65 }}
       onDragEnd={(_, info) => {
@@ -1058,8 +1059,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                 type="button"
                                 onClick={() => {
                                   triggerAndroidHaptic('light');
-                                  useStudioStore.getState().openStudioWithTab('atmosphere');
                                   setShowToolsMenu(false);
+                                  useStudioStore.getState().openStudioWithTab('atmosphere');
                                 }}
                                 className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                               >
@@ -1082,8 +1083,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setStudioModalOpen(true);
                                   setShowToolsMenu(false);
+                                  setStudioModalOpen(true);
                                 }}
                                 className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                               >
