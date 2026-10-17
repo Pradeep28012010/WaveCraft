@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GENRE_LIST } from '../../utils/constants';
@@ -10,7 +10,7 @@ interface GenreBrowserProps {
   limit?: number;
 }
 
-export default function GenreBrowser({
+function GenreBrowser({
   onSelectGenre,
   title = 'Browse Soundscapes & Genres',
   subtitle = 'Curated sonic worlds, regional powerhouses & acoustic frequencies',
@@ -135,3 +135,7 @@ export default function GenreBrowser({
     </section>
   );
 }
+
+GenreBrowser.displayName = 'GenreBrowser';
+
+export default memo(GenreBrowser);

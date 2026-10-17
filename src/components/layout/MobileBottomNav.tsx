@@ -1,9 +1,10 @@
+import { memo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
-export default function MobileBottomNav() {
+function MobileBottomNav() {
   const { isPhone, setMobileDrawerOpen } = useDevicePreset();
 
   if (!isPhone) return null;
@@ -113,3 +114,7 @@ export default function MobileBottomNav() {
     </nav>
   );
 }
+
+MobileBottomNav.displayName = 'MobileBottomNav';
+
+export default memo(MobileBottomNav);

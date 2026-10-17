@@ -48,6 +48,7 @@ export function PlaylistArtwork({
         <img
           src={hdCoverUrl}
           alt={playlist.name}
+          loading="lazy"
           decoding="async"
           className={`w-full h-full object-cover ${imgClassName}`}
         />
@@ -77,6 +78,7 @@ export function PlaylistArtwork({
             <img
               src={thumb}
               alt=""
+              loading="lazy"
               decoding="async"
               className="w-full h-full object-cover"
             />
@@ -96,6 +98,7 @@ export function PlaylistArtwork({
         <img
           src={hdCoverUrl}
           alt={playlist.name}
+          loading="lazy"
           decoding="async"
           className={`w-full h-full object-cover ${imgClassName}`}
         />

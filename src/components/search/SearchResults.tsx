@@ -102,7 +102,7 @@ export default function SearchResults() {
   const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(query && !getCachedSearch(query)));
 
   // Player Store
-  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id);
   const isPlaying = usePlayerStore((state) => state.isPlaying);
   const togglePlay = usePlayerStore((state) => state.togglePlay);
   const playTrack = usePlayerStore((state) => state.playTrack);
@@ -282,6 +282,18 @@ export default function SearchResults() {
     playTrackWithSmartQueue(track);
   }, []);
 
+  const handlePlayAlbumTrack = useCallback(
+    (t: Track) => {
+      unlockAudioEngine();
+      setAlbumTracks((currentAlbumTracks) => {
+        const idx = currentAlbumTracks.findIndex((track) => track.id === t.id);
+        playTrack(t, currentAlbumTracks, idx >= 0 ? idx : 0);
+        return currentAlbumTracks;
+      });
+    },
+    [playTrack]
+  );
+
   const handleOpenAlbum = async (album: AlbumResult, autoPlayFirst = false) => {
     if (autoPlayFirst) {
       unlockAudioEngine();
@@ -370,7 +382,7 @@ export default function SearchResults() {
   };
 
   const topTrack = tracks[0];
-  const isTopPlaying = Boolean(currentTrack && topTrack && currentTrack.id === topTrack.id && isPlaying);
+  const isTopPlaying = Boolean(currentTrackId && topTrack && currentTrackId === topTrack.id && isPlaying);
   const isTopLiked = topTrack ? likedSongs.some((t) => t.id === topTrack.id) : false;
 
   const tabs: Array<{ id: 'all' | 'songs' | 'artists' | 'playlists' | 'albums'; label: string }> = [
@@ -691,10 +703,7 @@ export default function SearchResults() {
                           track={track}
                           tracks={albumTracks}
                           index={idx + 1}
-                          onPlay={(t) => {
-                            unlockAudioEngine();
-                            playTrack(t, albumTracks, idx);
-                          }}
+                          onPlay={handlePlayAlbumTrack}
                         />
                       ))}
                     </div>

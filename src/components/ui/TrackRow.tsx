@@ -369,6 +369,7 @@ const TrackRow = memo(({
             <img
               src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
               alt={track.title}
+              loading="lazy"
               decoding="async"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;

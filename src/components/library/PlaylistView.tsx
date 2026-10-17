@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import type { Track } from '../../types';
 import TrackRow from '../ui/TrackRow';
 import GlassButton from '../ui/GlassButton';
 import CreatePlaylist from './CreatePlaylist';
@@ -241,20 +242,35 @@ export default function PlaylistView() {
     }, 100);
   };
 
-  const handlePlayAll = () => {
+  const handlePlayAll = useCallback(() => {
     triggerAndroidHaptic('medium');
     if (tracks.length > 0) {
       playTrack(tracks[0], tracks, 0);
     }
-  };
+  }, [tracks, playTrack]);
 
-  const handleShuffleAll = () => {
+  const handleShuffleAll = useCallback(() => {
     triggerAndroidHaptic('medium');
     if (tracks.length > 0) {
       const shuffled = [...tracks].sort(() => Math.random() - 0.5);
       playTrack(shuffled[0], shuffled, 0);
     }
-  };
+  }, [tracks, playTrack]);
+
+  const handlePlayTrack = useCallback(
+    (track: Track) => {
+      const idx = tracks.findIndex((t) => t.id === track.id);
+      playTrack(track, tracks, idx >= 0 ? idx : 0);
+    },
+    [tracks, playTrack]
+  );
+
+  const handleRemoveTrack = useCallback(
+    (track: Track) => {
+      removeFromPlaylist(playlist.id, track.id);
+    },
+    [playlist.id, removeFromPlaylist]
+  );
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this playlist?')) {
@@ -909,8 +925,8 @@ export default function PlaylistView() {
               track={track}
               tracks={tracks}
               index={index + 1}
-              onPlay={() => playTrack(track, tracks, index)}
-              onRemove={() => removeFromPlaylist(playlist.id, track.id)}
+              onPlay={handlePlayTrack}
+              onRemove={handleRemoveTrack}
             />
           ))
         )}

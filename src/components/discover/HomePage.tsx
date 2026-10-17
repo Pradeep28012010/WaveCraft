@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -16,7 +16,7 @@ import type { Track, AlbumResult } from '../../types';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
-const HorizontalScroll = ({
+const HorizontalScroll = memo(({
   children,
   title,
   subtitle
@@ -78,12 +78,13 @@ const HorizontalScroll = ({
       </div>
     </section>
   );
-};
+});
+HorizontalScroll.displayName = 'HorizontalScroll';
 
 export default function HomePage() {
   const navigate = useNavigate();
   const playTrack = usePlayerStore((state) => state.playTrack);
-  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id);
   const isPlaying = usePlayerStore((state) => state.isPlaying);
   const togglePlay = usePlayerStore((state) => state.togglePlay);
   const addToQueue = usePlayerStore((state) => state.addToQueue);
@@ -267,7 +268,7 @@ export default function HomePage() {
     return STUDIO_FX_MODES.find((m) => m.id === fxMode) || STUDIO_FX_MODES[0];
   }, [fxMode]);
 
-  const handlePlayMood = async (moodId: string, moodQuery: string) => {
+  const handlePlayMood = useCallback(async (moodId: string, moodQuery: string) => {
     triggerAndroidHaptic('light');
     setLoadingMoodId(moodId);
     try {
@@ -280,9 +281,9 @@ export default function HomePage() {
     } finally {
       setLoadingMoodId(null);
     }
-  };
+  }, [playTrack]);
 
-  const handlePlayAlbum = async (album: AlbumResult, e: React.MouseEvent) => {
+  const handlePlayAlbum = useCallback(async (album: AlbumResult, e: React.MouseEvent) => {
     e.stopPropagation();
     triggerAndroidHaptic('light');
     setPlayingAlbumId(album.id);
@@ -298,24 +299,28 @@ export default function HomePage() {
     } finally {
       setPlayingAlbumId(null);
     }
-  };
+  }, [playTrack, navigate]);
 
-  const handleSelectTrendingCategory = async (categoryKey: string) => {
+  const handleSelectTrendingCategory = useCallback(async (categoryKey: string) => {
     triggerAndroidHaptic('light');
-    if (categoryKey === activeTrendingCategory && trendingTracks.length > 0) return;
-    setActiveTrendingCategory(categoryKey);
-    setIsCategoryTrendingLoading(true);
-    try {
-      const tracks = await getTrending(categoryKey);
-      if (tracks && tracks.length > 0) {
-        setTrendingTracks(tracks);
-      }
-    } catch (err) {
-      console.error('Failed to change trending category:', err);
-    } finally {
-      setIsCategoryTrendingLoading(false);
-    }
-  };
+    setActiveTrendingCategory((currentKey) => {
+      if (categoryKey === currentKey) return currentKey;
+      setIsCategoryTrendingLoading(true);
+      getTrending(categoryKey)
+        .then((tracks) => {
+          if (tracks && tracks.length > 0) {
+            setTrendingTracks(tracks);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to change trending category:', err);
+        })
+        .finally(() => {
+          setIsCategoryTrendingLoading(false);
+        });
+      return categoryKey;
+    });
+  }, []);
 
   return (
     <div className="relative w-full min-w-0 max-w-full overflow-x-hidden pb-44 sm:pb-24 pt-2 text-white min-h-screen">
@@ -657,7 +662,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5">
             {quickMixTracks.map((track, i) => {
-              const isThisPlaying = currentTrack?.id === track.id;
+              const isThisPlaying = currentTrackId === track.id;
               return (
                 <div
                   key={`quick-${track.id}-${i}`}
@@ -693,6 +698,7 @@ export default function HomePage() {
                     <img
                       src={track.thumbnail || DEFAULT_THUMBNAIL}
                       alt={track.title}
+                      loading="lazy"
                       decoding="async"
                       onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                       className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
@@ -820,7 +826,7 @@ export default function HomePage() {
           {recentlyPlayed.slice(0, 12).map((historyItem, i) => {
             const track = historyItem.track;
             if (!track) return null;
-            const isPlayingThis = currentTrack?.id === track.id;
+            const isPlayingThis = currentTrackId === track.id;
             return (
               <div
                 key={`${track.id}-${i}`}
@@ -856,6 +862,7 @@ export default function HomePage() {
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                     alt={track.title}
+                    loading="lazy"
                     decoding="async"
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                     className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
@@ -944,6 +951,7 @@ export default function HomePage() {
                 <img
                   src={artist.avatar}
                   alt={artist.name}
+                  loading="lazy"
                   decoding="async"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
@@ -1068,6 +1076,7 @@ export default function HomePage() {
                     <img
                       src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                       alt={album.title || album.name}
+                      loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
                       crossOrigin="anonymous"
@@ -1119,6 +1128,7 @@ export default function HomePage() {
                       <img
                         src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                         alt={album.title || album.name}
+                        loading="lazy"
                         decoding="async"
                         referrerPolicy="no-referrer"
                         crossOrigin="anonymous"

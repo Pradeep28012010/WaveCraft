@@ -328,7 +328,11 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   setProgress: (progress, currentTime) => set({ progress, currentTime }),
-  setDuration: (duration) => set({ duration }),
+  setDuration: (duration) => {
+    if (Math.abs(get().duration - duration) > 0.5) {
+      set({ duration });
+    }
+  },
 
   setVolume: (volume) => {
     set({ volume: Math.max(0, Math.min(1, volume)), isMuted: volume === 0 });

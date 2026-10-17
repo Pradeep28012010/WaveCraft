@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import type { Track } from '../../types';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import TrackRow from '../ui/TrackRow';
@@ -62,20 +63,28 @@ export default function LikedSongs() {
     await startBatchDownload('liked_songs', 'Liked Songs', filteredAndSortedSongs);
   };
 
-  const handlePlayAll = () => {
+  const handlePlayAll = useCallback(() => {
     triggerAndroidHaptic('medium');
     if (filteredAndSortedSongs.length > 0) {
       playTrack(filteredAndSortedSongs[0], filteredAndSortedSongs, 0);
     }
-  };
+  }, [filteredAndSortedSongs, playTrack]);
 
-  const handleShuffleAll = () => {
+  const handleShuffleAll = useCallback(() => {
     triggerAndroidHaptic('medium');
     if (filteredAndSortedSongs.length > 0) {
       const shuffled = [...filteredAndSortedSongs].sort(() => Math.random() - 0.5);
       playTrack(shuffled[0], shuffled, 0);
     }
-  };
+  }, [filteredAndSortedSongs, playTrack]);
+
+  const handlePlayTrack = useCallback(
+    (track: Track) => {
+      const idx = filteredAndSortedSongs.findIndex((t) => t.id === track.id);
+      playTrack(track, filteredAndSortedSongs, idx >= 0 ? idx : 0);
+    },
+    [filteredAndSortedSongs, playTrack]
+  );
 
   return (
     <div className="pb-44 sm:pb-24 pt-2 text-white min-h-screen">
@@ -193,7 +202,7 @@ export default function LikedSongs() {
               track={track}
               tracks={filteredAndSortedSongs}
               index={index + 1}
-              onPlay={(t) => playTrack(t, filteredAndSortedSongs, index)}
+              onPlay={handlePlayTrack}
             />
           ))
         )}

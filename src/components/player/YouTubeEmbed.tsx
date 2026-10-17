@@ -1445,7 +1445,14 @@ export default function YouTubeEmbed() {
             lastReportedYtTime = current;
             setProgress((current / duration) * 100, current);
           }
-          setDuration(duration);
+          if (
+            duration > 0 &&
+            !isNaN(duration) &&
+            isFinite(duration) &&
+            Math.abs(duration - usePlayerStore.getState().duration) > 0.5
+          ) {
+            setDuration(duration);
+          }
 
           // Smooth Audio Crossfading when approaching end of track
           const fadeSec = crossfadeDuration;

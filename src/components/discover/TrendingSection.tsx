@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, memo } from 'react';
 import type { Track } from '../../types';
 import Skeleton from '../ui/Skeleton';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -15,7 +15,7 @@ interface TrendingSectionProps {
   onPlayTrack: (track: Track, allTracks: Track[], index?: number) => void;
 }
 
-export default function TrendingSection({
+function TrendingSection({
   tracks,
   isLoading,
   activeCategory = 'global',
@@ -24,7 +24,8 @@ export default function TrendingSection({
 }: TrendingSectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
-  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const currentTrackId = usePlayerStore((s) => s.currentTrack?.id);
+  const currentTrackTitle = usePlayerStore((s) => s.currentTrack?.title);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -138,7 +139,7 @@ export default function TrendingSection({
                 </div>
               ))
           : tracks.map((track, i) => {
-              const isActive = currentTrack?.id === track.id || currentTrack?.title === track.title;
+              const isActive = currentTrackId === track.id || currentTrackTitle === track.title;
               return (
                 <div
                   key={`${track.id}-${i}`}
@@ -190,6 +191,7 @@ export default function TrendingSection({
                     <img
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                       alt={track.title}
+                      loading="lazy"
                       decoding="async"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
@@ -245,3 +247,7 @@ export default function TrendingSection({
     </section>
   );
 }
+
+TrendingSection.displayName = 'TrendingSection';
+
+export default memo(TrendingSection);
