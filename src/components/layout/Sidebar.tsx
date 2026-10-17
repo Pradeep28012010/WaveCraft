@@ -283,41 +283,124 @@ export default function Sidebar() {
     return gradients[Math.abs(hash) % gradients.length];
   };
 
+// Apple-grade Spring & Fluid Transition Variants for Navigation Drawer
+const drawerBackdropVariants = {
+  closed: {
+    opacity: 0,
+    transition: {
+      duration: 0.22,
+      ease: [0.32, 0, 0.67, 0]
+    }
+  },
+  open: {
+    opacity: 1,
+    transition: {
+      duration: 0.32,
+      ease: [0.16, 1, 0.3, 1]
+    }
+  }
+};
+
+const drawerPanelVariants = {
+  closed: {
+    x: '-102%',
+    scale: 0.985,
+    opacity: 0.9,
+    transition: {
+      duration: 0.22,
+      ease: [0.32, 0, 0.67, 0]
+    }
+  },
+  open: {
+    x: '0%',
+    scale: 1,
+    opacity: 1,
+    transition: {
+      type: 'spring',
+      damping: 28,
+      stiffness: 270,
+      mass: 0.8
+    }
+  }
+};
+
+const drawerNavVariants = {
+  closed: {},
+  open: {
+    transition: {
+      staggerChildren: 0.028,
+      delayChildren: 0.05
+    }
+  }
+};
+
+const drawerItemVariants = {
+  closed: {
+    opacity: 0,
+    x: -18,
+    scale: 0.97
+  },
+  open: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    transition: {
+      type: 'spring',
+      damping: 25,
+      stiffness: 300,
+      mass: 0.6
+    }
+  }
+};
+
   // Phone UI Preset: Slide-Over iOS Sheet with drag dismiss
   if (isPhone) {
     const mobileDrawer = (
       <AnimatePresence>
         {isMobileDrawerOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            key="mobile-drawer-scrim"
+            variants={drawerBackdropVariants}
+            initial="closed"
+            animate="open"
+            exit="closed"
             onClick={() => setMobileDrawerOpen(false)}
-            className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex"
+            className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-xl flex"
           >
             <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+              key="mobile-drawer-panel"
+              variants={drawerPanelVariants}
+              initial="closed"
+              animate="open"
+              exit="closed"
               drag="x"
               dragConstraints={{ right: 0, left: 0 }}
-              dragElastic={{ left: 0.6, right: 0 }}
+              dragElastic={{ left: 0.5, right: 0 }}
               onDragEnd={(_, info) => {
-                if (info.offset.x < -60 || info.velocity.x < -280) {
+                if (info.offset.x < -50 || info.velocity.x < -260) {
                   triggerAndroidHaptic('light');
                   setMobileDrawerOpen(false);
                 }
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-84 max-w-[86vw] h-full liquid-glass bg-[#070714]/98 backdrop-blur-3xl border-0 flex flex-col select-none shadow-[0_24px_80px_rgba(0,0,0,0.95)] z-[10000] relative"
+              className="w-84 max-w-[86vw] h-full liquid-glass bg-[#070714]/98 backdrop-blur-3xl border-0 flex flex-col select-none shadow-[0_24px_80px_rgba(0,0,0,0.95)] z-[10000] relative overflow-hidden"
               style={{
                 paddingTop: 'max(env(safe-area-inset-top, 0px), 10px)',
                 paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)'
               }}
             >
+              {/* Right-edge Specular Glass Rim & Elevation Shadow */}
+              <div className="absolute top-0 right-0 bottom-0 w-[1px] bg-gradient-to-b from-white/30 via-white/10 to-transparent pointer-events-none z-20" />
+              <div className="absolute top-0 -right-6 bottom-0 w-6 bg-gradient-to-r from-black/40 to-transparent pointer-events-none z-10" />
+
+              {/* Tactile drag affordance pill on the right border */}
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 w-1 h-11 rounded-full bg-white/20 pointer-events-none shadow-sm z-20" />
+
               {/* Header */}
-              <div className="flex items-center justify-between px-5 h-16 border-0 flex-shrink-0">
+              <motion.div
+                variants={drawerItemVariants}
+                className="flex items-center justify-between px-5 h-16 border-0 flex-shrink-0"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/30">
                     <svg className="w-5.5 h-5.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
@@ -352,64 +435,74 @@ export default function Sidebar() {
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
-              </div>
+              </motion.div>
 
               {/* Scrollable Navigation Body */}
-              <nav className="flex-1 overflow-y-auto px-3.5 py-3 space-y-4 no-scrollbar">
+              <motion.nav
+                variants={drawerNavVariants}
+                className="flex-1 overflow-y-auto px-3.5 py-3 space-y-4 no-scrollbar"
+              >
                 {navSections.map((section) => (
                   <div key={section.id} className="space-y-1">
-                    <div className="px-2 pb-1 text-[10px] font-black uppercase tracking-wider text-white/40">
+                    <motion.div
+                      variants={drawerItemVariants}
+                      className="px-2 pb-1 text-[10px] font-black uppercase tracking-wider text-white/40"
+                    >
                       {section.title}
-                    </div>
+                    </motion.div>
                     {section.items.map((item) => (
-                      <NavLink
-                        key={item.name}
-                        to={item.path}
-                        end={item.path === '/'}
-                        onMouseEnter={() => preloadRoute(item.path)}
-                        onTouchStart={() => preloadRoute(item.path)}
-                        onClick={() => {
-                          triggerAndroidHaptic('light');
-                          setMobileDrawerOpen(false);
-                        }}
-                        className={({ isActive }) =>
-                          `relative flex items-center justify-between gap-2 px-3 h-10.5 rounded-xl transition-all ${
-                            isActive
-                              ? 'text-white font-bold'
-                              : 'text-white/70 hover:text-white hover:bg-white/[0.06] active:scale-98'
-                          }`
-                        }
-                      >
-                        {({ isActive }) => (
-                          <>
-                            {isActive && (
-                              <motion.div
-                                layoutId="sidebar-active-pill-mobile"
-                                transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                                className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0"
-                              />
-                            )}
-                            <div className="relative z-10 flex items-center gap-3 min-w-0">
-                              <div className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-white/70'}`}>
-                                {item.icon(isActive)}
+                      <motion.div key={item.name} variants={drawerItemVariants}>
+                        <NavLink
+                          to={item.path}
+                          end={item.path === '/'}
+                          onMouseEnter={() => preloadRoute(item.path)}
+                          onTouchStart={() => preloadRoute(item.path)}
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            setMobileDrawerOpen(false);
+                          }}
+                          className={({ isActive }) =>
+                            `relative flex items-center justify-between gap-2 px-3 h-10.5 rounded-xl transition-all ${
+                              isActive
+                                ? 'text-white font-bold'
+                                : 'text-white/70 hover:text-white hover:bg-white/[0.06] active:scale-98'
+                            }`
+                          }
+                        >
+                          {({ isActive }) => (
+                            <>
+                              {isActive && (
+                                <motion.div
+                                  layoutId="sidebar-active-pill-mobile"
+                                  transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                                  className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0"
+                                />
+                              )}
+                              <div className="relative z-10 flex items-center gap-3 min-w-0">
+                                <div className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-white/70'}`}>
+                                  {item.icon(isActive)}
+                                </div>
+                                <span className="text-xs font-semibold truncate">{item.name}</span>
                               </div>
-                              <span className="text-xs font-semibold truncate">{item.name}</span>
-                            </div>
-                            {item.badge !== undefined && (
-                              <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
-                                {item.badge}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </NavLink>
+                              {item.badge !== undefined && (
+                                <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
+                                  {item.badge}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </NavLink>
+                      </motion.div>
                     ))}
                   </div>
                 ))}
 
                 {/* Playlists Section */}
                 <div className="pt-2 space-y-1.5">
-                  <div className="flex items-center justify-between px-2 pb-1">
+                  <motion.div
+                    variants={drawerItemVariants}
+                    className="flex items-center justify-between px-2 pb-1"
+                  >
                     <span className="text-[10px] font-black uppercase tracking-wider text-white/40">
                       PLAYLISTS ({playlists.length})
                     </span>
@@ -423,45 +516,48 @@ export default function Sidebar() {
                     >
                       + New
                     </button>
-                  </div>
+                  </motion.div>
 
-                  <button
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      setMobileDrawerOpen(false);
-                      setIsImportOpen(true);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 px-3 h-9 rounded-xl glass-button text-emerald-300 text-[11px] font-bold cursor-pointer active:scale-98"
-                  >
-                    <span>↓ Import External Playlist</span>
-                  </button>
+                  <motion.div variants={drawerItemVariants}>
+                    <button
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        setMobileDrawerOpen(false);
+                        setIsImportOpen(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-3 h-9 rounded-xl glass-button text-emerald-300 text-[11px] font-bold cursor-pointer active:scale-98"
+                    >
+                      <span>↓ Import External Playlist</span>
+                    </button>
+                  </motion.div>
 
                   <div className="space-y-0.5 max-h-44 overflow-y-auto no-scrollbar">
                     {playlists.map((playlist: Playlist) => (
-                      <NavLink
-                        key={playlist.id}
-                        to={`/playlist/${playlist.id}`}
-                        onClick={() => {
-                          triggerAndroidHaptic('light');
-                          setMobileDrawerOpen(false);
-                        }}
-                        className={({ isActive }) =>
-                          `flex items-center gap-2.5 px-3 h-9 rounded-xl transition-all text-xs ${
-                            isActive
-                              ? 'bg-white/15 text-white font-bold'
-                              : 'text-white/70 hover:text-white hover:bg-white/5'
-                          }`
-                        }
-                      >
-                        <div className={`w-5 h-5 rounded-md bg-gradient-to-br ${getPlaylistGradient(playlist.id)} flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 shadow-sm`}>
-                          {playlist.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="flex-1 truncate">{playlist.name}</span>
-                      </NavLink>
+                      <motion.div key={playlist.id} variants={drawerItemVariants}>
+                        <NavLink
+                          to={`/playlist/${playlist.id}`}
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            setMobileDrawerOpen(false);
+                          }}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2.5 px-3 h-9 rounded-xl transition-all text-xs ${
+                              isActive
+                                ? 'bg-white/15 text-white font-bold'
+                                : 'text-white/70 hover:text-white hover:bg-white/5'
+                            }`
+                          }
+                        >
+                          <div className={`w-5 h-5 rounded-md bg-gradient-to-br ${getPlaylistGradient(playlist.id)} flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 shadow-sm`}>
+                            {playlist.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="flex-1 truncate">{playlist.name}</span>
+                        </NavLink>
+                      </motion.div>
                     ))}
                   </div>
                 </div>
-              </nav>
+              </motion.nav>
             </motion.aside>
           </motion.div>
         )}
@@ -480,17 +576,26 @@ export default function Sidebar() {
   // Desktop / Laptop Sidebar
   return (
     <>
-      <aside
-        className={`flex flex-col h-full liquid-glass bg-[#06060f]/80 backdrop-blur-3xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] transition-all duration-300 select-none z-30 flex-shrink-0 ${
-          collapsed ? 'w-20' : 'w-64'
-        }`}
+      <motion.aside
+        animate={{ width: collapsed ? 80 : 256 }}
+        transition={{
+          type: 'spring',
+          damping: 28,
+          stiffness: 280,
+          mass: 0.8
+        }}
+        className="flex flex-col h-full liquid-glass bg-[#06060f]/80 backdrop-blur-3xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] select-none z-30 flex-shrink-0 overflow-hidden relative"
       >
         {/* Brand Header */}
         <div className={`flex items-center h-18 flex-shrink-0 transition-all ${
           collapsed ? 'justify-center px-0' : 'justify-between px-5'
         }`}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative group cursor-pointer" onClick={() => handleToggleCollapse()}>
+            <div
+              className="relative group cursor-pointer"
+              onClick={() => handleToggleCollapse()}
+              title={collapsed ? 'Click to expand sidebar' : 'Click to collapse sidebar'}
+            >
               <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25 flex-shrink-0 transition-transform group-hover:scale-105 active:scale-95">
                 <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                   <path d="M12 3v18M17 6v12M21 10v4M7 6v12M3 10v4" />
@@ -501,21 +606,29 @@ export default function Sidebar() {
               )}
             </div>
 
-            {!collapsed && (
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-base font-extrabold tracking-tight text-white leading-none">
-                    WaveCraft
+            <AnimatePresence initial={false}>
+              {!collapsed && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0, x: -10 }}
+                  animate={{ opacity: 1, width: 'auto', x: 0 }}
+                  exit={{ opacity: 0, width: 0, x: -10 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex flex-col overflow-hidden whitespace-nowrap min-w-0"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base font-extrabold tracking-tight text-white leading-none">
+                      WaveCraft
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 text-[8px] font-black tracking-widest text-[var(--color-accent)] uppercase border-0">
+                      PRO
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-medium tracking-wider text-white/45 mt-1">
+                    Liquid Audio Studio
                   </span>
-                  <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 text-[8px] font-black tracking-widest text-[var(--color-accent)] uppercase border-0">
-                    PRO
-                  </span>
-                </div>
-                <span className="text-[10px] font-medium tracking-wider text-white/45 mt-1">
-                  Liquid Audio Studio
-                </span>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -523,11 +636,19 @@ export default function Sidebar() {
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4 no-scrollbar">
           {navSections.map((section) => (
             <div key={section.id} className="space-y-1">
-              {!collapsed && (
-                <div className="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider text-white/40">
-                  {section.title}
-                </div>
-              )}
+              <AnimatePresence initial={false}>
+                {!collapsed && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider text-white/40 whitespace-nowrap"
+                  >
+                    {section.title}
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {collapsed && (
                 <div className="h-px w-8 mx-auto my-2 bg-white/10" />
               )}
@@ -574,16 +695,34 @@ export default function Sidebar() {
                         >
                           {item.icon(isActive)}
                         </div>
-                        {!collapsed && (
-                          <span className="text-sm truncate font-medium">{item.name}</span>
-                        )}
+                        <AnimatePresence initial={false}>
+                          {!collapsed && (
+                            <motion.span
+                              initial={{ opacity: 0, width: 0, x: -6 }}
+                              animate={{ opacity: 1, width: 'auto', x: 0 }}
+                              exit={{ opacity: 0, width: 0, x: -6 }}
+                              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                              className="text-sm truncate font-medium overflow-hidden whitespace-nowrap"
+                            >
+                              {item.name}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
                       </div>
 
-                      {!collapsed && item.badge !== undefined && (
-                        <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
-                          {item.badge}
-                        </span>
-                      )}
+                      <AnimatePresence initial={false}>
+                        {!collapsed && item.badge !== undefined && (
+                          <motion.span
+                            initial={{ opacity: 0, scale: 0.7 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.7 }}
+                            transition={{ duration: 0.15 }}
+                            className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}
+                          >
+                            {item.badge}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
 
                       {collapsed && item.badge !== undefined && (
                         <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--color-accent)] border-0 shadow-sm" />
@@ -597,34 +736,42 @@ export default function Sidebar() {
 
           {/* Playlists Section */}
           <div className="pt-2 pb-1 space-y-1">
-            {!collapsed && (
-              <div className="flex items-center justify-between px-3 mb-2">
-                <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
-                  Playlists ({playlists.length})
-                </h3>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setIsImportOpen(true)}
-                    className="p-1 rounded-lg text-emerald-400/80 hover:text-emerald-300 hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-                    title="Import External Playlist (Spotify / Apple Music / YouTube)"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => setIsCreateOpen(true)}
-                    className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-                    title="Create New Playlist"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {!collapsed && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex items-center justify-between px-3 mb-2 overflow-hidden whitespace-nowrap"
+                >
+                  <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+                    Playlists ({playlists.length})
+                  </h3>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setIsImportOpen(true)}
+                      className="p-1 rounded-lg text-emerald-400/80 hover:text-emerald-300 hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
+                      title="Import External Playlist (Spotify / Apple Music / YouTube)"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setIsCreateOpen(true)}
+                      className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
+                      title="Create New Playlist"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {collapsed && (
               <div className="flex justify-center mb-1">
@@ -660,9 +807,19 @@ export default function Sidebar() {
                   <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${getPlaylistGradient(playlist.id)} flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-sm`}>
                     {playlist.name.charAt(0).toUpperCase()}
                   </div>
-                  {!collapsed && (
-                    <span className="flex-1 truncate text-xs font-medium">{playlist.name}</span>
-                  )}
+                  <AnimatePresence initial={false}>
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0, x: -6 }}
+                        animate={{ opacity: 1, width: 'auto', x: 0 }}
+                        exit={{ opacity: 0, width: 0, x: -6 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="flex-1 truncate text-xs font-medium overflow-hidden whitespace-nowrap"
+                      >
+                        {playlist.name}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </NavLink>
               ))}
             </div>
@@ -674,11 +831,11 @@ export default function Sidebar() {
           <button
             onClick={handleToggleCollapse}
             aria-label={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            className="flex items-center justify-center gap-2 w-full h-9 rounded-xl text-white/60 hover:text-white glass-button text-xs font-medium cursor-pointer active:scale-95 transition-all"
+            className="flex items-center justify-center gap-2 w-full h-9 rounded-xl text-white/60 hover:text-white glass-button text-xs font-medium cursor-pointer active:scale-95 transition-all overflow-hidden"
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             <svg
-              className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 transition-transform duration-300 flex-shrink-0 ${collapsed ? 'rotate-180' : ''}`}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -688,10 +845,22 @@ export default function Sidebar() {
             >
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            {!collapsed && <span>Collapse Sidebar</span>}
+            <AnimatePresence initial={false}>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-hidden whitespace-nowrap"
+                >
+                  Collapse Sidebar
+                </motion.span>
+              )}
+            </AnimatePresence>
           </button>
         </div>
-      </aside>
+      </motion.aside>
 
       {isCreateOpen && (
         <Suspense fallback={null}>
