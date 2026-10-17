@@ -976,12 +976,16 @@ export const useJamStore = create<JamStore>((set, get) => {
       const player = usePlayerStore.getState();
 
       let playableTrack = track;
-      if (!playableTrack.audioUrl && playableTrack.title) {
+      if (!playableTrack.audioUrl && !playableTrack.youtubeId && playableTrack.title) {
         try {
           const res = await searchTracks(`${playableTrack.title} ${playableTrack.artist}`);
-          const match = res.find((t) => t.audioUrl);
-          if (match && match.audioUrl) {
-            playableTrack = { ...playableTrack, audioUrl: match.audioUrl };
+          const match = res.find((t) => t.audioUrl || t.youtubeId);
+          if (match) {
+            playableTrack = {
+              ...playableTrack,
+              audioUrl: match.audioUrl || playableTrack.audioUrl,
+              youtubeId: match.youtubeId || playableTrack.youtubeId
+            };
           }
         } catch {}
       }
@@ -1044,12 +1048,16 @@ export const useJamStore = create<JamStore>((set, get) => {
 
       // Resolve 320k direct stream if missing so both devices play on Web Audio
       let playableTrack = track;
-      if (!playableTrack.audioUrl && playableTrack.title) {
+      if (!playableTrack.audioUrl && !playableTrack.youtubeId && playableTrack.title) {
         try {
           const found = await searchTracks(`${playableTrack.title} ${playableTrack.artist}`);
-          const match = found.find((t) => t.audioUrl);
-          if (match && match.audioUrl) {
-            playableTrack = { ...playableTrack, audioUrl: match.audioUrl };
+          const match = found.find((t) => t.audioUrl || t.youtubeId);
+          if (match) {
+            playableTrack = {
+              ...playableTrack,
+              audioUrl: match.audioUrl || playableTrack.audioUrl,
+              youtubeId: match.youtubeId || playableTrack.youtubeId
+            };
           }
         } catch {}
       }

@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useJamStore } from '../../stores/jamStore';
 import { usePlayerStore } from '../../stores/playerStore';
-import { searchTracks } from '../../services/youtube';
+import { searchTracks, getCachedSearch } from '../../services/youtube';
+import { PROD_API_ORIGIN } from '../../services/apiConfig';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import { jamSyncEngine, type SyncTelemetry } from '../../services/jamSyncEngine';
 import type { Track } from '../../types';
@@ -11,6 +12,17 @@ import GlassCard from '../ui/GlassCard';
 import TrackRow from '../ui/TrackRow';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { formatTime } from '../../utils/formatTime';
+
+const QUICK_SONG_SUGGESTIONS = [
+  'Interstellar Theme',
+  'Hans Zimmer',
+  'Starboy',
+  'Die With A Smile',
+  'Blinding Lights',
+  'Arijit Singh',
+  'Anirudh Mass',
+  'Coldplay'
+];
 
 const REACTION_EMOJIS = ['🔥', '💜', '🎧', '⚡', '🚀', '🥹', '🙌', '✨'];
 
@@ -105,6 +117,8 @@ export default function JamRoomPage() {
   const [songQuery, setSongQuery] = useState('');
   const [songResults, setSongResults] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
   const [telemetry, setTelemetry] = useState<SyncTelemetry>(jamSyncEngine.getTelemetrySnapshot());
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -252,16 +266,85 @@ export default function JamRoomPage() {
     } catch {}
   };
 
-  const handleSearchSongs = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!songQuery.trim()) return;
+  const performSongSearch = useCallback(async (queryText: string) => {
+    const clean = queryText.trim();
+    if (!clean) {
+      setSongResults([]);
+      setHasSearched(false);
+      setSearchError(null);
+      setIsSearching(false);
+      return;
+    }
+
     setIsSearching(true);
+    setHasSearched(true);
+    setSearchError(null);
+
+    // 1. Instant cache check
+    const cached = getCachedSearch(clean);
+    if (cached && cached.length > 0) {
+      setSongResults(cached.slice(0, 8));
+      setIsSearching(false);
+      return;
+    }
+
     try {
-      const res = await searchTracks(songQuery.trim());
-      setSongResults(res.slice(0, 6));
+      let res = await searchTracks(clean);
+      if (res.length === 0) {
+        // Progressive fallback query
+        res = await searchTracks(`${clean} song soundtrack`);
+      }
+      setSongResults(res.slice(0, 8));
+      if (res.length === 0) {
+        setSearchError(`No songs found for "${clean}". Try another title or artist.`);
+      }
+    } catch (err) {
+      console.warn('Jam search fallback to direct API origin:', err);
+      try {
+        const fallbackRes = await fetch(
+          `${PROD_API_ORIGIN}/api/music?action=search&q=${encodeURIComponent(clean)}`,
+          { signal: AbortSignal.timeout(6000) }
+        );
+        if (fallbackRes.ok) {
+          const data = await fallbackRes.json();
+          const list: Track[] = data.tracks || data.youtube || [];
+          setSongResults(list.slice(0, 8));
+          if (list.length === 0) {
+            setSearchError(`No songs found for "${clean}".`);
+          }
+        } else {
+          setSearchError('Search request timed out. Please tap Search to retry.');
+        }
+      } catch {
+        setSearchError('Network error while searching songs. Please try again.');
+      }
     } finally {
       setIsSearching(false);
     }
+  }, []);
+
+  // Debounced live search as user types
+  useEffect(() => {
+    const clean = songQuery.trim();
+    if (!clean) {
+      setSongResults([]);
+      setHasSearched(false);
+      setSearchError(null);
+      setIsSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      performSongSearch(clean);
+    }, 320);
+
+    return () => clearTimeout(timer);
+  }, [songQuery, performSongSearch]);
+
+  const handleSearchSongs = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!songQuery.trim()) return;
+    performSongSearch(songQuery.trim());
   };
 
   const handleSendChat = async (e: React.FormEvent) => {
@@ -845,31 +928,90 @@ export default function JamRoomPage() {
                   </div>
                 </div>
 
-                <form onSubmit={handleSearchSongs} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={songQuery}
-                    onChange={(e) => setSongQuery(e.target.value)}
-                    placeholder="Search any song or artist..."
-                    className="flex-1 h-10 px-4 rounded-full glass-input text-xs text-white placeholder-white/40"
-                  />
+                <form onSubmit={handleSearchSongs} className="relative flex gap-2">
+                  <div className="relative flex-1">
+                    <svg
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input
+                      type="text"
+                      value={songQuery}
+                      onChange={(e) => setSongQuery(e.target.value)}
+                      placeholder="Search any song, artist, or theme..."
+                      className="w-full h-10 pl-10 pr-9 rounded-full glass-input text-xs text-white placeholder-white/40 focus:ring-1 focus:ring-emerald-400"
+                    />
+                    {songQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSongQuery('');
+                          setSongResults([]);
+                          setHasSearched(false);
+                          setSearchError(null);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-[10px] cursor-pointer"
+                        title="Clear search"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                   <motion.button
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.95 }}
                     type="submit"
+                    onClick={() => handleSearchSongs()}
                     disabled={isSearching}
-                    className="px-5 h-10 rounded-full bg-gradient-to-r from-[var(--color-accent)] to-rose-500 text-white font-extrabold text-xs cursor-pointer shadow-md"
+                    className="px-5 h-10 rounded-full bg-gradient-to-r from-[var(--color-accent)] to-rose-500 hover:brightness-110 text-white font-extrabold text-xs cursor-pointer shadow-md flex items-center gap-1.5 whitespace-nowrap active:scale-95"
                   >
-                    {isSearching ? '...' : 'Search'}
+                    {isSearching ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Finding...</span>
+                      </>
+                    ) : (
+                      'Search'
+                    )}
                   </motion.button>
                 </form>
 
-                {songResults.length > 0 && (
+                {/* Loading Skeletons */}
+                {isSearching && (
                   <div className="mt-4 space-y-2">
+                    {[1, 2, 3].map((n) => (
+                      <div
+                        key={n}
+                        className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-white/[0.03] animate-pulse"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-10 h-10 rounded-xl bg-white/10 flex-shrink-0" />
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="h-3 w-3/4 bg-white/15 rounded" />
+                            <div className="h-2.5 w-1/2 bg-white/10 rounded" />
+                          </div>
+                        </div>
+                        <div className="h-7 w-20 bg-white/10 rounded-full flex-shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Search Results List */}
+                {!isSearching && songResults.length > 0 && (
+                  <div className="mt-4 space-y-2 max-h-[380px] overflow-y-auto pr-1">
                     {songResults.map((track) => (
                       <div
                         key={track.id}
-                        className="flex items-center justify-between gap-2.5 p-2 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border-0 transition-colors"
+                        className="flex items-center justify-between gap-2.5 p-2 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border-0 transition-colors group"
                       >
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <img
@@ -883,7 +1025,17 @@ export default function JamRoomPage() {
                           />
                           <div className="min-w-0">
                             <p className="text-xs font-bold text-white truncate">{track.title}</p>
-                            <p className="text-[11px] text-white/55 truncate">{track.artist}</p>
+                            <div className="flex items-center gap-1.5 text-[11px] text-white/55">
+                              <span className="truncate">{track.artist}</span>
+                              {track.duration > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span className="font-mono text-[10px] text-white/40">
+                                    {formatTime(track.duration)}
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -908,6 +1060,55 @@ export default function JamRoomPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Empty / Error State */}
+                {!isSearching && hasSearched && songResults.length === 0 && (
+                  <div className="mt-4 p-4 rounded-2xl bg-white/[0.03] text-center space-y-2.5">
+                    <p className="text-xs text-white/70 font-semibold">
+                      {searchError || `No songs found for "${songQuery}".`}
+                    </p>
+                    <p className="text-[11px] text-white/45">Try tapping one of these popular tracks:</p>
+                    <div className="flex flex-wrap gap-1.5 justify-center pt-1">
+                      {QUICK_SONG_SUGGESTIONS.slice(0, 5).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => {
+                            setSongQuery(s);
+                            performSongSearch(s);
+                          }}
+                          className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-medium cursor-pointer transition-colors"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Initial Quick Suggestions when query is empty */}
+                {!isSearching && !hasSearched && songResults.length === 0 && (
+                  <div className="mt-4 p-3 rounded-2xl bg-white/[0.02]">
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-white/40 mb-2 px-1">
+                      Quick Suggestions
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {QUICK_SONG_SUGGESTIONS.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => {
+                            setSongQuery(s);
+                            performSongSearch(s);
+                          }}
+                          className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/15 border-0 text-white/70 hover:text-white text-[11px] font-medium transition-all cursor-pointer"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </GlassCard>
