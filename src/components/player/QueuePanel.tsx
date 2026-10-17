@@ -227,7 +227,6 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   const [activeTab, setActiveTab] = useState<'upnext' | 'history'>('upnext');
-  const [isAiFilling, setIsAiFilling] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [radioPreviewTracks, setRadioPreviewTracks] = useState<Track[]>([]);
   const [isLoadingRadio, setIsLoadingRadio] = useState(false);
@@ -334,21 +333,6 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
       queue: keepCurrent,
       originalQueue: keepCurrent
     });
-  };
-
-  const handleAiAutoFill = async () => {
-    if (!currentTrack || isAiFilling) return;
-    setIsAiFilling(true);
-    try {
-      const recs = await getSmartRecommendations(currentTrack, queue, 6);
-      const existingIds = new Set(usePlayerStore.getState().queue.map((t) => t.id));
-      const fresh = recs.filter((t) => !existingIds.has(t.id)).slice(0, 5);
-      fresh.forEach((t) => addToQueue(t));
-    } catch {
-      // ignore
-    } finally {
-      setIsAiFilling(false);
-    }
   };
 
   const handleSaveQueueAsPlaylist = () => {
@@ -515,8 +499,8 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                 )}
               </div>
 
-              {/* Dedicated Quick Action Toolbar Strip - Fully Responsive, Never Cuts Off */}
-              <div className="flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              {/* Dedicated Quick Action Toolbar Strip - Compact, Perfectly Spaced */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
                 {/* Autoplay / Infinite Radio Toggle */}
                 <button
                   onClick={() => {
@@ -532,23 +516,6 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                 >
                   <span className="text-xs font-black">∞</span>
                   <span>Radio</span>
-                </button>
-
-                {/* AI Smart Fill */}
-                <button
-                  onClick={handleAiAutoFill}
-                  disabled={!currentTrack || isAiFilling}
-                  title="AI Smart Fill: Add 5 matching 320kbps tracks"
-                  className="h-7.5 px-3 rounded-xl glass-button-primary text-[11px] font-bold text-white flex items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-40 flex-shrink-0"
-                >
-                  {isAiFilling ? (
-                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <svg className="w-3 h-3 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
-                      <path d="M12 3v18M3 12h18" />
-                    </svg>
-                  )}
-                  <span>AI +5</span>
                 </button>
 
                 {/* Shuffle Upcoming */}
@@ -721,19 +688,13 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                   </div>
 
                   {upcomingItems.length === 0 ? (
-                    <div className="py-12 px-4 rounded-2xl bg-white/[0.03] border-0 text-center space-y-3">
+                    <div className="py-12 px-4 rounded-2xl bg-white/[0.03] border-0 text-center space-y-2">
                       <p className="text-xs text-white/55 font-medium">
                         No upcoming tracks in queue.
                       </p>
-                      {currentTrack && (
-                        <button
-                          onClick={handleAiAutoFill}
-                          disabled={isAiFilling}
-                          className="px-4 py-2 rounded-full glass-button-primary text-white text-xs font-extrabold hover:scale-105 transition-transform cursor-pointer"
-                        >
-                          {isAiFilling ? 'Curating 320kbps Mix...' : '✨ Auto-Fill 5 Similar Songs'}
-                        </button>
-                      )}
+                      <p className="text-[11px] text-white/40">
+                        Add songs from Search or Library, or turn on Radio for continuous flow.
+                      </p>
                     </div>
                   ) : (
                     <div className="overflow-hidden">

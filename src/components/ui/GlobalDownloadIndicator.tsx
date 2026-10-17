@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDownloadStore } from '../../stores/downloadStore';
 import { isTrackOffline } from '../../services/offlineVault';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 export default function GlobalDownloadIndicator() {
   const navigate = useNavigate();
@@ -19,17 +20,37 @@ export default function GlobalDownloadIndicator() {
 
   const [expanded, setExpanded] = useState(false);
 
+  const isFinished = Boolean(activeJob && !activeJob.isDownloading);
+  const isCancelled = Boolean(activeJob?.isCancelled);
+
+  // Auto-close and dismiss indicator 2.5 seconds after download completes
+  useEffect(() => {
+    if (isFinished && !isCancelled) {
+      const timer = setTimeout(() => {
+        setExpanded(false);
+        setDrawerOpen(false);
+        dismissActiveJob();
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isFinished, isCancelled, dismissActiveJob, setDrawerOpen]);
+
   if (!activeJob) return null;
 
   const total = Math.max(1, activeJob.total);
   const completed = Math.min(total, activeJob.completed);
-  const percent = Math.round((completed / total) * 100);
-  const isFinished = !activeJob.isDownloading;
+  const rawPercent = Math.round((completed / total) * 100);
+  
+  // When finished without cancellation, ensure 100% full completion
+  const percent = isFinished && !isCancelled ? 100 : Math.min(99, rawPercent);
 
   // SVG circular ring geometry
   const radius = 16;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percent / 100) * circumference;
+  // Offset reaches 0 at 100% or when finished
+  const strokeDashoffset = isFinished && !isCancelled
+    ? 0
+    : Math.max(0, circumference - (percent / 100) * circumference);
 
   return (
     <div className="fixed bottom-24 sm:bottom-28 right-3 sm:right-6 z-40 flex flex-col items-end pointer-events-none select-none max-w-[calc(100vw-24px)]">
@@ -41,19 +62,21 @@ export default function GlobalDownloadIndicator() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ duration: 0.2 }}
-            className="pointer-events-auto mb-3 w-[340px] sm:w-[380px] max-w-full rounded-3xl bg-[#0b0c16]/95 border-0 p-4 shadow-2xl backdrop-blur-2xl text-white overflow-hidden"
+            className="pointer-events-auto mb-3 w-[340px] sm:w-[380px] max-w-full rounded-3xl liquid-glass border border-white/10 p-4 shadow-[0_24px_64px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] text-white overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border-0 flex items-center justify-center text-cyan-300 text-sm font-black flex-shrink-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 ${
+                  isFinished ? 'glass-button-emerald text-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.35)]' : 'bg-cyan-500/15 text-cyan-300'
+                }`}>
                   {isFinished ? '✓' : '⚡'}
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-xs font-black truncate">{activeJob.name}</h4>
                   <p className="text-[10px] text-white/50">
                     {isFinished
-                      ? `Downloaded ${completed} of ${total} tracks`
+                      ? `All ${completed} songs saved offline`
                       : activeJob.isPaused
                       ? 'Download paused'
                       : `Downloading (${percent}%) • ${total - completed} left`}
@@ -65,10 +88,11 @@ export default function GlobalDownloadIndicator() {
                 <button
                   type="button"
                   onClick={() => {
+                    triggerAndroidHaptic('light');
                     setExpanded(false);
                     setDrawerOpen(false);
                   }}
-                  className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-white/60 hover:text-white text-xs cursor-pointer transition"
+                  className="w-7 h-7 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white text-xs cursor-pointer transition active:scale-95"
                   title="Collapse"
                 >
                   ⌄
@@ -87,9 +111,9 @@ export default function GlobalDownloadIndicator() {
                     key={t.id || idx}
                     className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl text-xs transition ${
                       isCurrent
-                        ? 'bg-cyan-500/15 border-0 text-cyan-200'
+                        ? 'bg-cyan-500/20 border border-cyan-400/25 text-cyan-100 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
                         : isSaved
-                        ? 'bg-white/[0.03] text-white/70'
+                        ? 'bg-white/[0.04] text-white/80'
                         : 'text-white/40'
                     }`}
                   >
@@ -119,6 +143,7 @@ export default function GlobalDownloadIndicator() {
               <button
                 type="button"
                 onClick={() => {
+                  triggerAndroidHaptic('light');
                   setExpanded(false);
                   setDrawerOpen(false);
                   navigate('/downloads');
@@ -133,15 +158,22 @@ export default function GlobalDownloadIndicator() {
                   <>
                     <button
                       type="button"
-                      onClick={activeJob.isPaused ? resumeBatchDownload : pauseBatchDownload}
-                      className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white transition cursor-pointer"
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        if (activeJob.isPaused) resumeBatchDownload();
+                        else pauseBatchDownload();
+                      }}
+                      className="px-3 py-1 rounded-full glass-button text-[11px] font-bold text-white transition cursor-pointer active:scale-95"
                     >
                       {activeJob.isPaused ? 'Resume' : 'Pause'}
                     </button>
                     <button
                       type="button"
-                      onClick={cancelBatchDownload}
-                      className="px-2.5 py-1 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[11px] font-bold transition cursor-pointer"
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        cancelBatchDownload();
+                      }}
+                      className="px-3 py-1 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[11px] font-bold transition cursor-pointer active:scale-95"
                     >
                       Cancel
                     </button>
@@ -150,8 +182,11 @@ export default function GlobalDownloadIndicator() {
                 {isFinished && (
                   <button
                     type="button"
-                    onClick={dismissActiveJob}
-                    className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white transition cursor-pointer"
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      dismissActiveJob();
+                    }}
+                    className="px-3 py-1 rounded-full glass-button text-[11px] font-bold text-white transition cursor-pointer active:scale-95"
                   >
                     Dismiss
                   </button>
@@ -167,8 +202,9 @@ export default function GlobalDownloadIndicator() {
         initial={{ opacity: 0, y: 20, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.9 }}
-        className="pointer-events-auto flex items-center gap-3 px-3 py-2 rounded-2xl bg-[#0e0f1a]/90 hover:bg-[#121422]/95 border-0 shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_16px_rgba(6,182,212,0.15)] backdrop-blur-xl transition-all cursor-pointer group"
+        className="pointer-events-auto flex items-center gap-3 px-3.5 py-2.5 rounded-2xl liquid-glass border border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.65),0_0_20px_rgba(6,182,212,0.18),inset_0_1px_1px_rgba(255,255,255,0.2)] transition-all cursor-pointer group hover:bg-white/[0.12] active:scale-[0.98]"
         onClick={() => {
+          triggerAndroidHaptic('light');
           setExpanded((prev) => !prev);
           toggleDrawer();
         }}
@@ -228,9 +264,10 @@ export default function GlobalDownloadIndicator() {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                triggerAndroidHaptic('light');
                 dismissActiveJob();
               }}
-              className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white text-xs cursor-pointer transition"
+              className="w-6 h-6 rounded-full glass-button flex items-center justify-center text-white/70 hover:text-white text-xs cursor-pointer transition active:scale-90"
               title="Dismiss"
             >
               ✕
@@ -240,10 +277,11 @@ export default function GlobalDownloadIndicator() {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                triggerAndroidHaptic('light');
                 if (activeJob.isPaused) resumeBatchDownload();
                 else pauseBatchDownload();
               }}
-              className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white text-[10px] cursor-pointer transition"
+              className="w-6 h-6 rounded-full glass-button flex items-center justify-center text-white/80 hover:text-white text-[10px] cursor-pointer transition active:scale-90"
               title={activeJob.isPaused ? 'Resume' : 'Pause'}
             >
               {activeJob.isPaused ? '▶' : '⏸'}

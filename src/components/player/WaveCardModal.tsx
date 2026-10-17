@@ -5,6 +5,7 @@ import type { Track, LyricLine } from '../../types';
 import { getLyricsData } from '../../services/lyrics';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { getShareBaseUrl } from '../../services/apiConfig';
 
 interface WaveCardModalProps {
   isOpen: boolean;
@@ -122,7 +123,7 @@ export default function WaveCardModal({
     };
   }, [isOpen, track, currentTime, initialQuote]);
 
-  const shareUrl = `${window.location.origin}/?play=${encodeURIComponent(
+  const shareUrl = `${getShareBaseUrl()}/?play=${encodeURIComponent(
     `${track.title} ${track.artist}`
   )}`;
 

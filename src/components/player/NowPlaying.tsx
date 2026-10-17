@@ -22,6 +22,7 @@ import { useSleepTimer } from '../../hooks/useSleepTimer';
 import WindowsTitleBar from '../layout/WindowsTitleBar';
 import WaveformScrubber from './WaveformScrubber';
 import HeartBurstButton from '../ui/HeartBurstButton';
+import { getShareBaseUrl } from '../../services/apiConfig';
 
 interface NowPlayingProps {
   isOpen: boolean;
@@ -1014,15 +1015,22 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                 type="button"
                                 onClick={async () => {
                                   if (!currentTrack) return;
+                                  triggerAndroidHaptic('light');
                                   const shareText = `🎵 Listen to "${currentTrack.title}" by ${currentTrack.artist} on WaveCraft`;
-                                  const shareUrl = `${window.location.origin}/?track=${encodeURIComponent(currentTrack.title)}`;
+                                  const shareUrl = `${getShareBaseUrl()}/?track=${encodeURIComponent(currentTrack.title)}`;
                                   try {
-                                    if (navigator.clipboard) {
+                                    if (navigator.share) {
+                                      await navigator.share({
+                                        title: `${currentTrack.title} - ${currentTrack.artist}`,
+                                        text: shareText,
+                                        url: shareUrl
+                                      });
+                                    } else if (navigator.clipboard) {
                                       await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
                                       showToolsToast('Link copied to clipboard!');
                                     }
                                   } catch {
-                                    showToolsToast('Unable to copy link');
+                                    // User cancelled or clipboard fallback
                                   }
                                 }}
                                 className="w-full flex items-center justify-between p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"

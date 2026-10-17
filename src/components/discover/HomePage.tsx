@@ -354,10 +354,10 @@ export default function HomePage() {
         </div>
 
         {/* Unified Discovery & Navigation Control Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 w-full min-w-0">
+        <div className="flex flex-col items-start md:flex-row md:items-center justify-between gap-3 pt-1 w-full min-w-0">
           {/* Category Filter Pills (Apple Music / Spotify Segmented Style) */}
           <div
-            className="inline-flex items-center gap-1.5 p-1.5 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar w-auto max-w-full flex-shrink-0 relative"
+            className="inline-flex items-center gap-1.5 p-1.5 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar w-fit max-w-full flex-shrink-0 self-start relative"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {([

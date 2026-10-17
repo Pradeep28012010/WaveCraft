@@ -161,11 +161,12 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
     set((s) => {
       if (!s.activeJob || s.activeJob.id !== id) return s;
+      const finalCompleted = isCancelled ? completed : s.activeJob.total;
       const finishedJob: DownloadBatchJob = {
         ...s.activeJob,
         isDownloading: false,
         isCancelled,
-        completed,
+        completed: finalCompleted,
         failed,
         completedAt
       };

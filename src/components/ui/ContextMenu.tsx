@@ -14,6 +14,7 @@ import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useDownloadStore } from '../../stores/downloadStore';
+import { getShareBaseUrl } from '../../services/apiConfig';
 import type { Playlist } from '../../types';
 
 class ContextMenuErrorBoundary extends Component<
@@ -288,15 +289,22 @@ function ContextMenuInner() {
 
   const handleShare = async () => {
     if (!track) return;
+    triggerAndroidHaptic('light');
     const shareText = `🎵 Listen to "${track.title}" by ${track.artist} on WaveCraft`;
-    const shareUrl = `${window.location.origin}/?track=${encodeURIComponent(track.title)}`;
+    const shareUrl = `${getShareBaseUrl()}/?track=${encodeURIComponent(track.title)}`;
     try {
-      if (navigator.clipboard) {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${track.title} - ${track.artist}`,
+          text: shareText,
+          url: shareUrl
+        });
+      } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
         showToast('Link copied to clipboard!');
       }
     } catch {
-      showToast('Unable to copy link');
+      // User cancelled or clipboard fallback
     }
   };
 

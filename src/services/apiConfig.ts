@@ -79,3 +79,24 @@ export function apiUrl(endpoint: string): string {
   const clean = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   return `${base}${clean}`;
 }
+
+/**
+ * Returns the public web base URL for sharing tracks, links, and wavecards.
+ * Never returns 'http://localhost' or 'https://localhost' or 'capacitor://localhost'.
+ */
+export function getShareBaseUrl(): string {
+  if (typeof window === 'undefined') return PROD_API_ORIGIN;
+  const origin = window.location.origin;
+  if (
+    isAndroidNative() ||
+    isElectronApp() ||
+    !origin ||
+    origin.includes('localhost') ||
+    origin.includes('127.0.0.1') ||
+    origin.startsWith('capacitor:') ||
+    origin.startsWith('file:')
+  ) {
+    return PROD_API_ORIGIN;
+  }
+  return origin;
+}
