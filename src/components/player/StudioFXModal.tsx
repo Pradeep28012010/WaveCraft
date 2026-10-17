@@ -163,9 +163,6 @@ function AppleFluidSlider({
           onInput={(e) => {
             onChange(parseFloat((e.target as HTMLInputElement).value));
           }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer pointer-events-auto touch-pan-x"
         />
       </div>
@@ -491,12 +488,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div
-      className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden pointer-events-auto"
-      onClick={(e) => e.stopPropagation()}
-      onPointerDown={(e) => e.stopPropagation()}
-      onTouchStart={(e) => e.stopPropagation()}
-    >
+    <div className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden pointer-events-auto select-none">
       {/* iOS Drag Handle */}
       <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-2.5 sm:hidden flex-shrink-0" />
 
@@ -1120,9 +1112,6 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 value={masterAverage}
                 onChange={(e) => handleMasterVolumeChange(parseFloat(e.target.value))}
                 onInput={(e) => handleMasterVolumeChange(parseFloat((e.target as HTMLInputElement).value))}
-                onPointerDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
                 className="w-full accent-emerald-400 cursor-pointer pointer-events-auto touch-pan-x h-2 bg-white/15 rounded-lg"
                 aria-label="Master Ambient Volume"
               />
@@ -1424,10 +1413,7 @@ export default function StudioFXModal() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden pointer-events-auto"
-          onPointerDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-[9995] pointer-events-none flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none"
         >
           {/* Frosted Modal Backdrop */}
           <motion.div
@@ -1452,9 +1438,6 @@ export default function StudioFXModal() {
             exit={{ opacity: 0, scale: 0.96, y: 16 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
             className="relative z-10 isolate pointer-events-auto w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/95 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
           >
             <StudioFXErrorBoundary onClose={handleClose}>
