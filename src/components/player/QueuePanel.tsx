@@ -446,14 +446,17 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                 </button>
               </div>
 
-              {/* Segmented Tab Pill + Repeat Mode Badge */}
+              {/* Segmented Tab Pill + Quick Actions */}
               <div className="flex items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass">
                   <button
-                    onClick={() => setActiveTab('upnext')}
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setActiveTab('upnext');
+                    }}
                     className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       activeTab === 'upnext'
-                        ? 'glass-button-primary text-white'
+                        ? 'glass-button-primary text-white shadow-sm'
                         : 'text-white/60 hover:text-white'
                     }`}
                   >
@@ -461,10 +464,13 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     <span className="text-[10px] opacity-80">({upcomingItems.length})</span>
                   </button>
                   <button
-                    onClick={() => setActiveTab('history')}
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setActiveTab('history');
+                    }}
                     className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       activeTab === 'history'
-                        ? 'glass-button text-white'
+                        ? 'glass-button text-white shadow-sm'
                         : 'text-white/60 hover:text-white'
                     }`}
                   >
@@ -473,86 +479,104 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                   </button>
                 </div>
 
-                {/* Quick Action Toolbar Pills */}
-                <div className="flex items-center gap-1.5">
+                {activeTab === 'upnext' && upcomingItems.length > 0 && (
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
-                      toggleAutoplay();
+                      handleClearUpcoming();
                     }}
-                    title={autoplay ? 'Infinite Radio ON: Automatically plays smart recommendations when queue ends' : 'Infinite Radio OFF: Tap to enable continuous radio flow'}
-                    className={`h-7 px-2.5 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                      autoplay
-                        ? 'glass-button-primary text-white'
-                        : 'glass-button text-white/50 hover:text-white'
-                    }`}
+                    className="text-[11px] font-bold text-white/45 hover:text-rose-400 transition-colors cursor-pointer px-2.5 py-1 rounded-full hover:bg-rose-500/10"
+                    title="Clear Upcoming Queue"
                   >
-                    <span className="text-xs font-black">∞</span>
-                    <span className="hidden sm:inline">Radio</span>
+                    Clear All
                   </button>
+                )}
+              </div>
 
-                  <button
-                    onClick={handleAiAutoFill}
-                    disabled={!currentTrack || isAiFilling}
-                    title="AI Smart Fill: Add 5 matching 320kbps tracks"
-                    className="h-7 px-2.5 rounded-full glass-button-primary text-[11px] font-bold text-white flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40"
-                  >
-                    {isAiFilling ? (
-                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-3 h-3 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
-                        <path d="M12 3v18M3 12h18" />
-                      </svg>
-                    )}
-                    <span>AI +5</span>
-                  </button>
+              {/* Dedicated Quick Action Toolbar Strip - Fully Responsive, Never Cuts Off */}
+              <div className="flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                {/* Autoplay / Infinite Radio Toggle */}
+                <button
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    toggleAutoplay();
+                  }}
+                  title={autoplay ? 'Infinite Radio ON: Automatically plays smart recommendations when queue ends' : 'Infinite Radio OFF: Tap to enable continuous radio flow'}
+                  className={`h-7.5 px-3 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer flex-shrink-0 ${
+                    autoplay
+                      ? 'glass-button-primary text-white shadow-sm'
+                      : 'glass-button text-white/60 hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-black">∞</span>
+                  <span>Radio</span>
+                </button>
 
-                  <button
-                    onClick={handleShuffleUpcoming}
-                    disabled={upcomingItems.length <= 1}
-                    title="Shuffle Upcoming Tracks"
-                    className="w-7 h-7 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer disabled:opacity-35"
-                  >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
-                      <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+                {/* AI Smart Fill */}
+                <button
+                  onClick={handleAiAutoFill}
+                  disabled={!currentTrack || isAiFilling}
+                  title="AI Smart Fill: Add 5 matching 320kbps tracks"
+                  className="h-7.5 px-3 rounded-xl glass-button-primary text-[11px] font-bold text-white flex items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-40 flex-shrink-0"
+                >
+                  {isAiFilling ? (
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-3 h-3 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
+                      <path d="M12 3v18M3 12h18" />
                     </svg>
-                  </button>
+                  )}
+                  <span>AI +5</span>
+                </button>
 
-                  <button
-                    onClick={cycleRepeat}
-                    title={`Repeat Mode: ${repeatMode.toUpperCase()}`}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
-                      repeatMode !== 'off'
-                        ? 'glass-button-primary text-white'
-                        : 'glass-button text-white/70 hover:text-white'
-                    }`}
-                  >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
-                      <polyline points="17 1 21 5 17 9" />
-                      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                      <polyline points="7 23 3 19 7 15" />
-                      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                    </svg>
-                    {repeatMode === 'one' && (
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center">
-                        1
-                      </span>
-                    )}
-                  </button>
+                {/* Shuffle Upcoming */}
+                <button
+                  onClick={handleShuffleUpcoming}
+                  disabled={upcomingItems.length <= 1}
+                  title="Shuffle Upcoming Tracks"
+                  className="w-7.5 h-7.5 rounded-xl glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer disabled:opacity-35 flex-shrink-0"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
+                    <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+                  </svg>
+                </button>
 
-                  <button
-                    onClick={handleSaveQueueAsPlaylist}
-                    disabled={queue.length === 0}
-                    title="Save Queue as Playlist in Library"
-                    className={`h-7 px-2.5 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                      savedToast
-                        ? 'glass-button-emerald text-emerald-300'
-                        : 'glass-button text-white/75 hover:text-white'
-                    }`}
-                  >
-                    {savedToast ? '✓ Saved' : 'Save'}
-                  </button>
-                </div>
+                {/* Repeat Mode */}
+                <button
+                  onClick={cycleRepeat}
+                  title={`Repeat Mode: ${repeatMode.toUpperCase()}`}
+                  className={`w-7.5 h-7.5 rounded-xl flex items-center justify-center transition-all cursor-pointer relative flex-shrink-0 ${
+                    repeatMode !== 'off'
+                      ? 'glass-button-primary text-white'
+                      : 'glass-button text-white/70 hover:text-white'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
+                    <polyline points="17 1 21 5 17 9" />
+                    <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                    <polyline points="7 23 3 19 7 15" />
+                    <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                  </svg>
+                  {repeatMode === 'one' && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center">
+                      1
+                    </span>
+                  )}
+                </button>
+
+                {/* Save Queue as Playlist */}
+                <button
+                  onClick={handleSaveQueueAsPlaylist}
+                  disabled={queue.length === 0}
+                  title="Save Queue as Playlist in Library"
+                  className={`h-7.5 px-3 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer flex-shrink-0 ${
+                    savedToast
+                      ? 'glass-button-emerald text-emerald-300'
+                      : 'glass-button text-white/75 hover:text-white'
+                  }`}
+                >
+                  {savedToast ? '✓ Saved' : 'Save'}
+                </button>
               </div>
             </div>
 

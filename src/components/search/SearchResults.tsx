@@ -20,6 +20,7 @@ import { PlaylistArtwork } from '../library/PlaylistCard';
 import { DEFAULT_THUMBNAIL, MOOD_PLAYLISTS } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { useSearchHistory } from '../../utils/searchHistory';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import type { Track, AlbumResult, ArtistResult } from '../../types';
 
 const FALLBACK_LIVE_POOL = [
@@ -575,13 +576,13 @@ export default function SearchResults() {
 
             {/* Segmented Filter Pills */}
             <div
-              className="flex items-center gap-1.5 p-1.5 rounded-full bg-white/[0.05] border-0 backdrop-blur-2xl overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
+              className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar max-w-full"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {selectedAlbum ? (
                 <button
                   onClick={() => setSelectedAlbum(null)}
-                  className="px-4 py-2 rounded-full glass-button text-xs font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-1.5 flex-shrink-0 shadow-md active:scale-95"
+                  className="px-4 py-1.5 rounded-full glass-button text-xs font-bold text-white hover:bg-white/15 transition-all cursor-pointer flex items-center gap-1.5 flex-shrink-0 shadow-md active:scale-95"
                 >
                   <span>← Back to “{query}”</span>
                 </button>
@@ -589,21 +590,17 @@ export default function SearchResults() {
                 tabs.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`relative px-3.5 py-2 rounded-full text-xs font-extrabold transition-all cursor-pointer flex-shrink-0 whitespace-nowrap ${
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setActiveTab(tab.id);
+                    }}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex-shrink-0 whitespace-nowrap ${
                       activeTab === tab.id
-                        ? 'text-white'
-                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                        ? 'glass-button-primary text-white shadow-md'
+                        : 'text-white/65 hover:text-white hover:bg-white/[0.08]'
                     }`}
                   >
-                    {activeTab === tab.id && (
-                      <motion.div
-                        layoutId="searchActiveTab"
-                        className="absolute inset-0 rounded-full glass-button-primary shadow-lg -z-10"
-                        transition={{ type: 'spring', bounce: 0.2, duration: 0.3 }}
-                      />
-                    )}
-                    <span className="relative z-10">{tab.label}</span>
+                    {tab.label}
                   </button>
                 ))
               )}

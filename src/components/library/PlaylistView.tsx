@@ -451,7 +451,7 @@ export default function PlaylistView() {
       </div>
 
       {/* Primary Action Ribbon */}
-      <div className="relative z-10 flex items-center gap-2.5 sm:gap-3.5 mb-5 pt-1">
+      <div className="relative z-30 flex items-center gap-2.5 sm:gap-3.5 mb-5 pt-1">
         {/* Big Play All Button */}
         <button
           onClick={handlePlayAll}
@@ -575,7 +575,7 @@ export default function PlaylistView() {
         <div className="flex-grow" />
 
         {/* Unified More Options (•••) Dropdown */}
-        <div className="relative flex-shrink-0">
+        <div className="relative z-40 flex-shrink-0">
           <button
             onClick={() => setShowOptionsMenu((v) => !v)}
             className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/[0.06] hover:bg-white/[0.12] text-white/75 hover:text-white transition-all cursor-pointer border border-white/[0.08]"
@@ -595,7 +595,7 @@ export default function PlaylistView() {
                 animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                 exit={{ opacity: 0, y: -4, scale: 0.96, filter: 'blur(8px)' }}
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute right-0 top-12 z-40 w-64 rounded-2xl bg-[#12131e]/95 backdrop-blur-2xl border border-white/10 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-1 text-xs"
+                className="absolute right-0 top-12 z-50 w-64 rounded-2xl bg-[#12131e]/98 backdrop-blur-2xl border border-white/10 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.95)] space-y-1 text-xs"
                 onClick={() => setShowOptionsMenu(false)}
               >
                 {/* Live Sync Management in Menu */}
