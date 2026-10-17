@@ -123,7 +123,7 @@ export default function TopBar() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showInstallGuide, setShowInstallGuide]);
-  const { isPhone, toggleMobileDrawer, isSidebarCollapsed, toggleSidebarCollapsed } = useDevicePreset();
+  const { isPhone, toggleMobileDrawer } = useDevicePreset();
   const roomCode = useJamStore((s) => s.roomCode);
 
   const fxMode = useStudioStore((s) => s.fxMode);
@@ -651,25 +651,7 @@ export default function TopBar() {
         className="h-20 flex items-center justify-between px-6 lg:px-8 relative z-40 bg-[#06060b]/85 backdrop-blur-2xl shadow-[0_4px_24px_rgba(0,0,0,0.35)] transition-all flex-shrink-0 w-full"
       >
         {/* Navigation Controls */}
-        <div className="flex items-center gap-2">
-          {/* Sidebar Toggle Button (Desktop / Laptop) */}
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              toggleSidebarCollapsed();
-            }}
-            aria-label={isSidebarCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
-            title={isSidebarCollapsed ? 'Expand Sidebar (Ctrl+B)' : 'Collapse Sidebar (Ctrl+B)'}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl glass-button text-white/80 hover:text-white transition-all cursor-pointer active:scale-95 ${
-              isSidebarCollapsed ? 'bg-white/10 text-white shadow-sm' : ''
-            }`}
-          >
-            <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="9" y1="3" x2="9" y2="21" />
-            </svg>
-          </button>
-
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => navigate(-1)}
             aria-label="Go back"
