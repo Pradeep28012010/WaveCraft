@@ -6,9 +6,12 @@ export type DevicePreset = 'phone' | 'laptop';
 interface DevicePresetStore {
   preset: DevicePreset;
   isMobileDrawerOpen: boolean;
+  isSidebarCollapsed: boolean;
   setPreset: (preset: DevicePreset) => void;
   setMobileDrawerOpen: (open: boolean) => void;
   toggleMobileDrawer: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebarCollapsed: () => void;
 }
 
 /**
@@ -36,16 +39,36 @@ export function detectDevicePreset(): DevicePreset {
   return 'laptop';
 }
 
+function getInitialSidebarCollapsed(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem('wavecraft_sidebar_collapsed') === 'true';
+}
+
 export const useDevicePresetStore = create<DevicePresetStore>((set) => ({
   preset: detectDevicePreset(),
   isMobileDrawerOpen: false,
+  isSidebarCollapsed: getInitialSidebarCollapsed(),
   setPreset: (preset) =>
     set((state) => ({
       preset,
       isMobileDrawerOpen: preset === 'laptop' ? false : state.isMobileDrawerOpen
     })),
   setMobileDrawerOpen: (open) => set({ isMobileDrawerOpen: open }),
-  toggleMobileDrawer: () => set((state) => ({ isMobileDrawerOpen: !state.isMobileDrawerOpen }))
+  toggleMobileDrawer: () => set((state) => ({ isMobileDrawerOpen: !state.isMobileDrawerOpen })),
+  setSidebarCollapsed: (collapsed) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('wavecraft_sidebar_collapsed', String(collapsed));
+    }
+    set({ isSidebarCollapsed: collapsed });
+  },
+  toggleSidebarCollapsed: () =>
+    set((state) => {
+      const next = !state.isSidebarCollapsed;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('wavecraft_sidebar_collapsed', String(next));
+      }
+      return { isSidebarCollapsed: next };
+    })
 }));
 
 /**
@@ -55,9 +78,12 @@ export const useDevicePresetStore = create<DevicePresetStore>((set) => ({
 export function useDevicePreset() {
   const preset = useDevicePresetStore((s) => s.preset);
   const isMobileDrawerOpen = useDevicePresetStore((s) => s.isMobileDrawerOpen);
+  const isSidebarCollapsed = useDevicePresetStore((s) => s.isSidebarCollapsed);
   const setPreset = useDevicePresetStore((s) => s.setPreset);
   const setMobileDrawerOpen = useDevicePresetStore((s) => s.setMobileDrawerOpen);
   const toggleMobileDrawer = useDevicePresetStore((s) => s.toggleMobileDrawer);
+  const setSidebarCollapsed = useDevicePresetStore((s) => s.setSidebarCollapsed);
+  const toggleSidebarCollapsed = useDevicePresetStore((s) => s.toggleSidebarCollapsed);
 
   useEffect(() => {
     const syncPreset = () => {
@@ -83,6 +109,9 @@ export function useDevicePreset() {
     isLaptop: preset === 'laptop',
     isMobileDrawerOpen,
     setMobileDrawerOpen,
-    toggleMobileDrawer
+    toggleMobileDrawer,
+    isSidebarCollapsed,
+    setSidebarCollapsed,
+    toggleSidebarCollapsed
   };
 }
