@@ -459,22 +459,20 @@ export default function HomePage() {
       {(activeFilter === 'all' || activeFilter === 'music') && spotlightTrack && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
           <div
-            className="relative rounded-3xl bg-[#0f1019]/90 border-0 p-5 sm:p-7 shadow-[0_12px_36px_rgba(0,0,0,0.45)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)] [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)]"
-            style={{
-              WebkitMaskImage: '-webkit-radial-gradient(white, black)'
-            }}
+            className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)]"
           >
             {/* Top Specular Rim Reflection */}
-            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none z-10" />
+            <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none z-10" />
 
             {/* Ambient Blurred Artwork Backdrop */}
-            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0 [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)]">
+            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
               <img
                 src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
                 alt=""
-                className="w-full h-full object-cover blur-2xl opacity-35 scale-110 transition-transform duration-1000 group-hover:scale-120"
+                className="w-full h-full object-cover blur-3xl opacity-35 scale-125 transition-transform duration-1000 group-hover:scale-130"
               />
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-black/92 via-black/65 to-black/35" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/35 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] via-transparent to-black/20" />
             </div>
 
             <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 sm:gap-6 w-full min-w-0">
@@ -501,8 +499,8 @@ export default function HomePage() {
                     {/* Subtle Top-Light Specular Sleeve Sheen */}
                     <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
 
-                    {/* Floating Live Equalizer Bars */}
-                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-black/75 backdrop-blur-md flex items-end gap-1 h-4 border-0 shadow-md">
+                    {/* Floating Live Equalizer Bars in Liquid Glass */}
+                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-xl liquid-glass flex items-end gap-1 h-4.5 border-0 shadow-lg">
                       <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.8s_ease-in-out_infinite] h-full" />
                       <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_1.1s_ease-in-out_infinite] h-2/3" />
                       <span className="w-1 bg-[var(--color-accent)] rounded-full animate-[pulse_0.6s_ease-in-out_infinite] h-5/6" />
@@ -512,16 +510,18 @@ export default function HomePage() {
                 </div>
 
                 <div className="min-w-0 flex-1 w-full">
-                  <div className="flex items-center gap-2.5 mb-2 flex-wrap min-w-0">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/20 text-[var(--color-accent)] shadow-sm flex-shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+                  <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest glass-button text-[var(--color-accent)] shadow-sm flex-shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse shadow-[0_0_8px_var(--color-accent)]" />
                       FEATURED SPOTLIGHT
                     </span>
-                    <span className="text-[11px] font-bold text-white/50 tracking-wider uppercase flex items-center gap-2 flex-shrink-0">
-                      <span className="w-1 h-1 rounded-full bg-white/30" />
-                      <span>320kbps Studio Master</span>
-                      <span className="w-1 h-1 rounded-full bg-white/30" />
-                      <span className="text-white/70">Spatial DSP</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full glass-button text-[10px] font-bold text-white/70 tracking-wider uppercase flex-shrink-0">
+                      <span className="w-1 h-1 rounded-full bg-white/40" />
+                      320kbps Studio Master
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full glass-button text-[10px] font-bold text-cyan-300 tracking-wider uppercase flex-shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                      Spatial DSP
                     </span>
                   </div>
 
@@ -680,10 +680,10 @@ export default function HomePage() {
                       quickMixTracks
                     );
                   }}
-                  className={`group relative flex items-center gap-2.5 sm:gap-3.5 p-2 sm:p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg overflow-hidden active:scale-[0.98] ${
+                  className={`group relative flex items-center gap-2.5 sm:gap-3.5 p-2 sm:p-2.5 rounded-2xl liquid-glass border-0 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-lg overflow-hidden active:scale-[0.98] ${
                     isThisPlaying
-                      ? 'bg-white/[0.12] ring-1 ring-[var(--color-accent)]/30 shadow-[0_8px_24px_rgba(0,0,0,0.4),0_0_20px_rgba(250,45,72,0.15)]'
-                      : ''
+                      ? 'ring-1 ring-[var(--color-accent)]/50 shadow-[0_8px_24px_rgba(0,0,0,0.4),0_0_20px_rgba(250,45,72,0.25)]'
+                      : 'hover:brightness-110'
                   }`}
                 >
                   {/* Subtle top specular sheen */}
@@ -743,27 +743,27 @@ export default function HomePage() {
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
           <div
-            className="relative rounded-3xl bg-[#0f1019]/90 border-0 p-5 sm:p-7 shadow-[0_12px_36px_rgba(0,0,0,0.45)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)] [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)]"
-            style={{
-              WebkitMaskImage: '-webkit-radial-gradient(white, black)'
-            }}
+            className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)]"
           >
+            {/* Top Specular Rim Reflection */}
+            <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none z-10" />
+
             {/* Deep Galactic Gradient Background */}
-            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0 [clip-path:inset(0_round_1.5rem)] [-webkit-clip-path:inset(0_round_1.5rem)]">
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-950/60 via-indigo-950/50 to-blue-950/70" />
-              <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-violet-600/20 blur-2xl" />
-              <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-cyan-600/20 blur-2xl" />
+            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-950/40 via-indigo-950/25 to-blue-950/35" />
+              <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-violet-600/20 blur-3xl" />
+              <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-cyan-600/20 blur-3xl" />
             </div>
 
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 w-full min-w-0">
               {/* Left Column: Visual Details & Description */}
               <div className="max-w-2xl min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase bg-gradient-to-r from-violet-500/20 to-cyan-500/20 border-0 text-violet-200 backdrop-blur-md">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase glass-button border-0 text-violet-200">
                     <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse shadow-[0_0_8px_#a78bfa]" />
                     OBSERVATORY 3.0 • INTERACTIVE 3D MUSIC MAP
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/70">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold glass-button text-white/70">
                     Web Audio 3D Space
                   </span>
                 </div>
@@ -778,16 +778,16 @@ export default function HomePage() {
 
                 {/* Feature Badges */}
                 <div className="flex items-center gap-2 mt-4 flex-wrap">
-                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border-0 text-white/80 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-full text-[11px] font-bold glass-button border-0 text-white/90 flex items-center gap-1.5">
                     <span>🪐</span> 3 Celestial Formations
                   </span>
-                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border-0 text-white/80 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-full text-[11px] font-bold glass-button border-0 text-white/90 flex items-center gap-1.5">
                     <span>🌀</span> Accretion Core & Jets
                   </span>
-                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border-0 text-white/80 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-full text-[11px] font-bold glass-button border-0 text-white/90 flex items-center gap-1.5">
                     <span>🎯</span> 4D Taste Spider Radar
                   </span>
-                  <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white/[0.08] border-0 text-white/80 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-full text-[11px] font-bold glass-button border-0 text-white/90 flex items-center gap-1.5">
                     <span>🛸</span> Cinematic Tour
                   </span>
                 </div>
