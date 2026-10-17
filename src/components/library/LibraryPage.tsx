@@ -153,7 +153,7 @@ export default function LibraryPage() {
           </p>
         </div>
         <div
-          className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-2.5 px-1 sm:pb-0 sm:flex-wrap"
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3.5 -my-1 px-1.5 sm:pb-0 sm:flex-wrap"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {livePlaylistsCount > 0 && (
@@ -285,7 +285,7 @@ export default function LibraryPage() {
             )}
           </div>
           <div
-            className="flex items-center gap-2 overflow-x-auto overflow-y-hidden py-2 px-1 scrollbar-none no-scrollbar relative"
+            className="flex items-center gap-2 overflow-x-auto py-4 -my-2 px-2 scrollbar-none no-scrollbar relative"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             <button

@@ -99,7 +99,7 @@ function TrendingSection({
       {onSelectCategory && (
         <div
           ref={categoriesRef}
-          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-1 mb-4 relative z-10"
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-4 -my-2 px-2.5 mb-2 relative z-10"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {SPOTIFY_TRENDING_CATEGORIES.map((cat) => {
@@ -135,7 +135,7 @@ function TrendingSection({
       {/* Track Cards Horizontal Scroll */}
       <div
         ref={scrollRef}
-        className="flex gap-4 sm:gap-5 overflow-x-auto overflow-y-hidden no-scrollbar pt-2 pb-6 px-1 snap-x snap-mandatory"
+        className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar pt-3 pb-8 -mb-2 px-2 snap-x snap-mandatory"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {isLoading && tracks.length === 0

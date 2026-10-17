@@ -1815,7 +1815,7 @@ export default function SonicGalaxyPage() {
 
         {/* Tier 3: Universe Jump Presets Bar */}
         <div
-          className="pt-3 flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1.5 px-0.5"
+          className="pt-3 flex items-center gap-2 overflow-x-auto no-scrollbar py-3.5 -my-1.5 px-1.5"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           <span className="text-[11px] font-extrabold text-white/45 whitespace-nowrap flex items-center gap-1 flex-shrink-0">
@@ -1852,7 +1852,7 @@ export default function SonicGalaxyPage() {
           {/* Top Viewport VisionOS Controls */}
           <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2 pointer-events-none">
             <div
-              className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden no-scrollbar py-1.5 px-0.5 pointer-events-auto max-w-full"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-3 -my-1 px-1.5 pointer-events-auto max-w-full"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               <button

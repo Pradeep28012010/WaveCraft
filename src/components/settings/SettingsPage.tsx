@@ -312,7 +312,7 @@ export default function SettingsPage() {
 
         {/* Quick Category Filter Pills */}
         <div
-          className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-2.5 px-1"
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-4 -my-1.5 px-2"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {[

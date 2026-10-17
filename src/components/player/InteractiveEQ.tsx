@@ -209,7 +209,7 @@ export default function InteractiveEQ() {
 
       {/* Audiophile Preset Pills Bar */}
       <div
-        className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden no-scrollbar py-2 px-1 relative"
+        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-3.5 -my-1.5 px-2 relative"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {Object.keys(EQ_PRESETS).map((presetName) => {

@@ -71,7 +71,7 @@ const HorizontalScroll = memo(({
       </div>
       <div
         ref={scrollRef}
-        className="flex gap-3.5 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pt-2 pb-5 px-1"
+        className="flex gap-3.5 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pt-3 pb-8 -mb-3 px-2"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {children}
@@ -357,7 +357,7 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 w-full min-w-0">
           {/* Category Filter Pills (Apple Music / Spotify Segmented Style) */}
           <div
-            className="inline-flex items-center gap-1.5 p-1 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar w-auto max-w-full flex-shrink-0 relative"
+            className="inline-flex items-center gap-1.5 p-1.5 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar w-auto max-w-full flex-shrink-0 relative"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {([
@@ -399,7 +399,7 @@ export default function HomePage() {
 
           {/* Quick Soundstage Telemetry & Library Portals */}
           <div
-            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto md:justify-end flex-shrink-0"
+            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3 -my-2 px-1 w-full md:w-auto md:justify-end flex-shrink-0"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {/* Liked Songs */}

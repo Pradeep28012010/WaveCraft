@@ -60,7 +60,7 @@ function GenreBrowser({
 
         {/* Filter Pills */}
         <div
-          className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border-0 backdrop-blur-xl self-start sm:self-auto overflow-x-auto overflow-y-hidden no-scrollbar max-w-full relative"
+          className="flex items-center gap-1.5 p-1.5 rounded-full bg-white/[0.05] border-0 backdrop-blur-xl self-start sm:self-auto overflow-x-auto no-scrollbar max-w-full relative"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {(
