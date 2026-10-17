@@ -222,17 +222,17 @@ export default function InteractiveEQ() {
                 triggerAndroidHaptic('light');
                 setEqualizerPreset(presetName);
               }}
-              className="relative px-3 py-1 rounded-full text-xs font-bold transition-colors flex-shrink-0 cursor-pointer select-none"
+              className="relative px-3 py-1 rounded-full text-xs font-bold flex-shrink-0 cursor-pointer select-none"
             >
               {isSelected && (
                 <motion.div
                   layoutId="interactive-eq-preset-pill"
-                  transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                  className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500/80 via-blue-600/80 to-cyan-500/80 shadow-[0_4px_16px_rgba(6,182,212,0.35)] -z-0 pointer-events-none"
+                  transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                  className="absolute inset-0 rounded-full liquid-sliding-pill-cyan -z-0 pointer-events-none"
                 />
               )}
-              <span className={`relative z-10 transition-colors duration-200 ${
-                isSelected ? 'text-white font-extrabold' : 'text-white/70 hover:text-white'
+              <span className={`relative z-10 transition-colors duration-150 ${
+                isSelected ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/70 hover:text-white'
               }`}>
                 {presetName}
               </span>

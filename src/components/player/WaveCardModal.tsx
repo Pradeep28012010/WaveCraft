@@ -544,17 +544,17 @@ export default function WaveCardModal({
                     triggerAndroidHaptic('light');
                     setAspectMode('story');
                   }}
-                  className="relative px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-colors select-none"
+                  className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
                 >
                   {aspectMode === 'story' && (
                     <motion.div
                       layoutId="wavecard-aspect-mode-pill"
-                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                      className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                      transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                      className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                     />
                   )}
-                  <span className={`relative z-10 transition-colors duration-200 ${
-                    aspectMode === 'story' ? 'text-white font-extrabold' : 'text-white/60 hover:text-white'
+                  <span className={`relative z-10 transition-colors duration-150 ${
+                    aspectMode === 'story' ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
                   }`}>
                     9:16 Story (1080×1920)
                   </span>
@@ -565,17 +565,17 @@ export default function WaveCardModal({
                     triggerAndroidHaptic('light');
                     setAspectMode('feed');
                   }}
-                  className="relative px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-colors select-none"
+                  className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
                 >
                   {aspectMode === 'feed' && (
                     <motion.div
                       layoutId="wavecard-aspect-mode-pill"
-                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                      className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                      transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                      className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                     />
                   )}
-                  <span className={`relative z-10 transition-colors duration-200 ${
-                    aspectMode === 'feed' ? 'text-white font-extrabold' : 'text-white/60 hover:text-white'
+                  <span className={`relative z-10 transition-colors duration-150 ${
+                    aspectMode === 'feed' ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
                   }`}>
                     4:5 Feed (1080×1350)
                   </span>

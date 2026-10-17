@@ -295,11 +295,10 @@ const TrackRow = memo(({
           layoutId="wavecraft-track-row-hover-pill"
           transition={{
             type: 'spring',
-            stiffness: 460,
-            damping: 36,
-            mass: 0.48
+            bounce: 0.15,
+            duration: 0.28
           }}
-          className="absolute inset-0 rounded-2xl liquid-glass border-0 pointer-events-none z-0 shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
+          className="absolute inset-0 rounded-2xl liquid-sliding-pill border-0 pointer-events-none z-0 shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
         />
       )}
 

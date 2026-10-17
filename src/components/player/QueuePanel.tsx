@@ -462,17 +462,17 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       triggerAndroidHaptic('light');
                       setActiveTab('upnext');
                     }}
-                    className="relative px-3.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 select-none"
+                    className="relative px-3.5 py-1 rounded-full text-[11px] font-bold cursor-pointer flex items-center gap-1.5 select-none"
                   >
                     {activeTab === 'upnext' && (
                       <motion.div
                         layoutId="queue-panel-tab-pill"
-                        transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                        className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                        transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                        className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                       />
                     )}
-                    <span className={`relative z-10 transition-colors duration-200 ${
-                      activeTab === 'upnext' ? 'text-white font-extrabold' : 'text-white/60 hover:text-white'
+                    <span className={`relative z-10 transition-colors duration-150 ${
+                      activeTab === 'upnext' ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
                     }`}>
                       Up Next
                     </span>
@@ -483,17 +483,17 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       triggerAndroidHaptic('light');
                       setActiveTab('history');
                     }}
-                    className="relative px-3.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 select-none"
+                    className="relative px-3.5 py-1 rounded-full text-[11px] font-bold cursor-pointer flex items-center gap-1.5 select-none"
                   >
                     {activeTab === 'history' && (
                       <motion.div
                         layoutId="queue-panel-tab-pill"
-                        transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                        className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                        transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                        className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                       />
                     )}
-                    <span className={`relative z-10 transition-colors duration-200 ${
-                      activeTab === 'history' ? 'text-white font-extrabold' : 'text-white/60 hover:text-white'
+                    <span className={`relative z-10 transition-colors duration-150 ${
+                      activeTab === 'history' ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
                     }`}>
                       Played
                     </span>

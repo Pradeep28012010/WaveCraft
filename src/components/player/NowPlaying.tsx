@@ -573,20 +573,20 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           triggerAndroidHaptic('light');
                           setDeckMode('cover');
                         }}
-                        className="relative px-3.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer app-region-no-drag select-none"
+                        className="relative px-3.5 py-1 rounded-full text-[11px] font-bold cursor-pointer app-region-no-drag select-none"
                       >
                         {deckMode === 'cover' && (
                           <motion.div
                             layoutId="nowplaying-deck-mode-pill"
-                            transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                            className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                            transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                            className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                           />
                         )}
                         <span
-                          className={`relative z-10 transition-colors duration-200 ${
+                          className={`relative z-10 transition-colors duration-150 ${
                             deckMode === 'cover'
-                              ? 'text-white font-extrabold'
-                              : 'text-white/70 hover:text-white'
+                              ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                              : 'text-white/60 hover:text-white'
                           }`}
                         >
                           Cover
@@ -597,20 +597,20 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           triggerAndroidHaptic('light');
                           setDeckMode('vinyl');
                         }}
-                        className="relative px-3.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer app-region-no-drag select-none"
+                        className="relative px-3.5 py-1 rounded-full text-[11px] font-bold cursor-pointer app-region-no-drag select-none"
                       >
                         {deckMode === 'vinyl' && (
                           <motion.div
                             layoutId="nowplaying-deck-mode-pill"
-                            transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                            className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                            transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                            className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                           />
                         )}
                         <span
-                          className={`relative z-10 transition-colors duration-200 ${
+                          className={`relative z-10 transition-colors duration-150 ${
                             deckMode === 'vinyl'
-                              ? 'text-white font-extrabold'
-                              : 'text-white/70 hover:text-white'
+                              ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                              : 'text-white/60 hover:text-white'
                           }`}
                         >
                           Vinyl Deck
@@ -1297,20 +1297,20 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         triggerAndroidHaptic('light');
                         setVisualizerStyle(m.id);
                       }}
-                      className="relative px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer select-none"
+                      className="relative px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer select-none"
                     >
                       {isSelected && (
                         <motion.div
                           layoutId="nowplaying-zen-visualizer-pill"
-                          transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                          className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                          className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                         />
                       )}
                       <span
-                        className={`relative z-10 transition-colors duration-200 ${
+                        className={`relative z-10 transition-colors duration-150 ${
                           isSelected
-                            ? 'text-white font-extrabold'
-                            : 'text-white/65 hover:text-white'
+                            ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                            : 'text-white/60 hover:text-white'
                         }`}
                       >
                         {m.label}
@@ -1543,7 +1543,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         title="Click to switch to Spinning Vinyl Turntable"
                         initial={{ scale: 0.88, opacity: 0.7 }}
                         animate={{ scale: isPlaying ? 1 : 0.95, opacity: 1 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 26, mass: 0.7 }}
+                        transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
                         className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border-0 flex-shrink-0 cursor-pointer will-change-transform ${
                           showLyrics
                             ? 'w-[min(24vh,190px)] h-[min(24vh,190px)] sm:w-[min(28vh,230px)] sm:h-[min(28vh,230px)]'

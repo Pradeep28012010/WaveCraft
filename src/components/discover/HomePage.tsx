@@ -374,20 +374,20 @@ export default function HomePage() {
                     triggerAndroidHaptic('light');
                     setActiveFilter(chip.id);
                   }}
-                  className="relative px-3.5 sm:px-4.5 py-1.5 rounded-full text-xs font-bold transition-colors duration-200 whitespace-nowrap flex items-center justify-center cursor-pointer flex-shrink-0 select-none"
+                  className="relative px-3.5 sm:px-4.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex items-center justify-center cursor-pointer flex-shrink-0 select-none"
                 >
                   {isSelected && (
                     <motion.div
                       layoutId="home-category-active-pill"
-                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                      className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                      transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                      className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                     />
                   )}
                   <span
-                    className={`relative z-10 transition-colors duration-200 ${
+                    className={`relative z-10 transition-colors duration-150 ${
                       isSelected
-                        ? 'text-white font-extrabold'
-                        : 'text-white/70 hover:text-white'
+                        ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                        : 'text-white/60 hover:text-white'
                     }`}
                   >
                     {chip.label}

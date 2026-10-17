@@ -109,19 +109,19 @@ function TrendingSection({
                 key={cat.key}
                 type="button"
                 onClick={() => onSelectCategory(cat.key)}
-                className="relative px-3.5 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 select-none"
+                className="relative px-3.5 py-1.5 rounded-full text-xs whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 select-none"
               >
                 {isSelected && (
                   <motion.div
                     layoutId="trending-category-pill"
-                    transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500/30 via-teal-500/25 to-emerald-500/20 shadow-[0_4px_16px_rgba(16,185,129,0.3)] border border-emerald-400/40 -z-0 pointer-events-none"
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                    className="absolute inset-0 rounded-full liquid-sliding-pill-emerald -z-0 pointer-events-none"
                   />
                 )}
                 <span className="relative z-10 text-xs">{cat.icon}</span>
                 <span
-                  className={`relative z-10 font-bold transition-colors duration-200 ${
-                    isSelected ? 'text-emerald-200 font-extrabold' : 'text-white/70 hover:text-white'
+                  className={`relative z-10 font-bold transition-colors duration-150 ${
+                    isSelected ? 'text-emerald-200 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/70 hover:text-white'
                   }`}
                 >
                   {cat.name}

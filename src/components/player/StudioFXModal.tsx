@@ -521,7 +521,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 {isActive && (
                   <motion.div
                     layoutId="studio-active-tab-pill"
-                    transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
                     className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/[0.18] via-white/[0.12] to-white/[0.06] border-0 shadow-[0_4px_16px_rgba(0,0,0,0.4)] pointer-events-none"
                   />
                 )}

@@ -385,8 +385,8 @@ export default function Sidebar() {
                             {isActive && (
                               <motion.div
                                 layoutId="sidebar-active-pill-mobile"
-                                transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                                className="absolute inset-0 rounded-xl glass-button-primary shadow-md pointer-events-none z-0"
+                                transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                                className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0"
                               />
                             )}
                             <div className="relative z-10 flex items-center gap-3 min-w-0">
@@ -554,7 +554,7 @@ export default function Sidebar() {
                       {isActive && (
                         <motion.div
                           layoutId="sidebar-active-pill-desktop"
-                          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
                           style={{ position: 'absolute', inset: 0 }}
                           className="rounded-xl bg-gradient-to-r from-white/[0.14] via-white/[0.08] to-white/[0.03] backdrop-blur-xl border-0 shadow-[0_8px_24px_rgba(0,0,0,0.4)] pointer-events-none z-0 overflow-hidden"
                         >

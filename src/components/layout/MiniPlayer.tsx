@@ -353,7 +353,7 @@ export default function MiniPlayer() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ type: 'spring', stiffness: 360, damping: 26 }}
+                  transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
                   src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
                   alt={currentTrack.title}
                   onError={(e) => {
@@ -501,7 +501,7 @@ export default function MiniPlayer() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ type: 'spring', stiffness: 360, damping: 26 }}
+                transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
                 whileHover={{ scale: 1.06, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group shadow-lg border-0 will-change-transform"

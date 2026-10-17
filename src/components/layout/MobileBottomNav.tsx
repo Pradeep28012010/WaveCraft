@@ -81,7 +81,7 @@ function MobileBottomNav() {
               setMobileDrawerOpen(false);
             }}
             className={({ isActive }) =>
-              `relative flex flex-col items-center justify-center flex-1 h-12 rounded-2xl transition-all cursor-pointer ${
+              `relative flex flex-col items-center justify-center flex-1 h-12 rounded-2xl transition-colors duration-150 cursor-pointer ${
                 isActive ? 'text-white' : 'text-white/50 hover:text-white/80 active:scale-95'
               }`
             }
@@ -91,8 +91,8 @@ function MobileBottomNav() {
                 {isActive && (
                   <motion.div
                     layoutId="mobile-bottom-nav-pill"
-                    transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                    className="absolute inset-x-1.5 inset-y-1 rounded-2xl bg-gradient-to-b from-white/[0.18] to-white/[0.06] border-0 shadow-[0_4px_16px_rgba(250,45,72,0.2)] pointer-events-none"
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                    className="absolute inset-x-1.5 inset-y-1 rounded-2xl liquid-sliding-pill pointer-events-none"
                   />
                 )}
                 <div
@@ -103,8 +103,8 @@ function MobileBottomNav() {
                   {tab.icon}
                 </div>
                 <span
-                  className={`relative z-10 text-[10px] tracking-tight mt-0.5 transition-colors ${
-                    isActive ? 'font-extrabold text-white' : 'font-semibold text-white/55'
+                  className={`relative z-10 text-[10px] tracking-tight mt-0.5 font-bold transition-colors ${
+                    isActive ? 'text-white' : 'text-white/55'
                   }`}
                 >
                   {tab.name}

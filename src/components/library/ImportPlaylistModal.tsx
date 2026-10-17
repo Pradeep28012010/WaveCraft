@@ -551,7 +551,7 @@ export default function ImportPlaylistModal({
                 {isActive && (
                   <motion.div
                     layoutId="import-modal-tab-pill"
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
                     className={`absolute inset-0 rounded-lg shadow-md border ${
                       m.id === 'live'
                         ? 'bg-emerald-500/30 border-emerald-400/40'
