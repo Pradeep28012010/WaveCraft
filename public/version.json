@@ -1,14 +1,15 @@
 {
-  "version": "5.0.4",
-  "versionCode": 9,
-  "releaseDate": "2026-10-14",
+  "version": "5.1.0",
+  "versionCode": 10,
+  "releaseDate": "2026-10-17",
   "downloadUrl": "https://wavecraft-alpha.vercel.app/WaveCraft.apk",
-  "title": "WaveCraft Pro v5.0.4 (Instant Lockscreen Media Updates & Reliable Offline Vault)",
+  "title": "WaveCraft Pro v5.1.0 (Zero-Vibration Liquid Glass & Apple Spring Physics)",
   "releaseNotes": [
-    "Instant Lockscreen Updates: Android notification & lock-screen media player repaints immediately 100% of the time on song changes",
-    "Restored Direct Audio & Offline Downloads: Full 320kbps streams restored for reliable offline vault saving and uninterrupted background playback",
-    "Auto-Prune Unplayable Tracks: Automatically discards dead tracks from queue so playback never freezes",
-    "Seekbar Reset: Corrected notification scrub bar position on new track start"
+    "Zero-Vibration Liquid Glass Glides: Critically damped Apple spring physics (bounce: 0.15, duration: 0.32) eliminate all vibration, stutter, and layout reflow between tabs and pills.",
+    "Hardware-Accelerated Sliding Indicators: 120fps GPU compositing and fixed font weights prevent text bounding box reflow during rapid switching.",
+    "Butter-Smooth Mobile Bottom Navigation & MiniPlayer: Fluid morphing and high-performance transitions across all mobile viewports.",
+    "High-Speed Infinite Scrolling: Smooth viewport rendering with zero latency or blank screen hiccups when scrolling rapidly.",
+    "Smart Audio Buffering & Instant Sync: Bulletproof background audio engine, automatic stream failover, and synchronized live lyrics."
   ],
   "forceUpdate": false
 }
