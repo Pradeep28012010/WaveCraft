@@ -456,7 +456,7 @@ export default function HomePage() {
       {(activeFilter === 'all' || activeFilter === 'music') && spotlightTrack && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
           <div
-            className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)]"
+            className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0"
           >
             {/* Top Specular Rim Reflection */}
             <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none z-10" />
@@ -687,13 +687,18 @@ export default function HomePage() {
                   <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/12 to-transparent pointer-events-none" />
 
                   <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.4)] bg-white/5">
+                    <div className="absolute inset-0 flex items-center justify-center text-white/15 pointer-events-none">
+                      <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                      </svg>
+                    </div>
                     <img
                       src={track.thumbnail || DEFAULT_THUMBNAIL}
                       alt={track.title}
-                      loading="lazy"
+                      loading="eager"
                       decoding="async"
                       onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                      className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 relative z-[1]"
                     />
 
                     {/* Active Live Equalizer Mini Badge in corner */}
@@ -741,7 +746,7 @@ export default function HomePage() {
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
           <div
-            className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0 isolate [transform:translateZ(0)]"
+            className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0"
           >
             {/* Top Specular Rim Reflection */}
             <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none z-10" />
@@ -851,16 +856,22 @@ export default function HomePage() {
                 <div className={`aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 ring-1 ring-white/10 group-hover:ring-white/20 ${
                   isPlayingThis ? 'shadow-[0_8px_25px_rgba(250,45,72,0.25)] ring-[var(--color-accent)]/50' : ''
                 }`}>
+                  {/* Subtle Music Note Placeholder */}
+                  <div className="absolute inset-0 flex items-center justify-center text-white/10 pointer-events-none">
+                    <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                    </svg>
+                  </div>
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                     alt={track.title}
-                    loading="lazy"
+                    loading={i < 8 ? 'eager' : 'lazy'}
                     decoding="async"
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                    className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
+                    className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out relative z-[1]"
                   />
                   {/* Top Specular Sheen */}
-                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none z-[2]" />
 
                   {/* Active Live Equalizer Mini Badge */}
                   {isPlayingThis && isPlaying ? (
@@ -930,7 +941,7 @@ export default function HomePage() {
       {/* ================= FEATURED ARTISTS ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <HorizontalScroll title="Featured Artists" subtitle="Top icons and creators defining music today">
-          {FEATURED_ARTISTS.map((artist) => (
+          {FEATURED_ARTISTS.map((artist, i) => (
             <div
               key={artist.id}
               onClick={() => {
@@ -940,15 +951,20 @@ export default function HomePage() {
               className="min-w-[130px] max-w-[130px] sm:min-w-[155px] sm:max-w-[155px] flex-shrink-0 snap-start flex flex-col items-center text-center group cursor-pointer"
             >
               <div className="w-28 h-28 sm:w-34 sm:h-34 rounded-full overflow-hidden mb-2.5 relative bg-white/10 shadow-lg border-0 ring-2 ring-white/10 group-hover:ring-[var(--color-accent)]/60 group-hover:shadow-[0_0_25px_rgba(250,45,72,0.35)] transition-all duration-300">
+                <div className="absolute inset-0 flex items-center justify-center text-white/15 pointer-events-none">
+                  <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                  </svg>
+                </div>
                 <img
                   src={artist.avatar}
                   alt={artist.name}
-                  loading="lazy"
+                  loading={i < 8 ? 'eager' : 'lazy'}
                   decoding="async"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                   }}
-                  className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
+                  className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out relative z-[1]"
                 />
                 <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="w-10 h-10 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-lg scale-90 group-hover:scale-100 transition-transform">
@@ -1055,7 +1071,7 @@ export default function HomePage() {
             <h2 className="text-xl sm:text-2xl font-extrabold text-white mb-1">Top Albums & Releases</h2>
             <p className="text-xs text-white/50 mb-4">Latest studio releases and chart toppers</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {newReleases.map((album) => (
+              {newReleases.map((album, i) => (
                 <div
                   key={album.id}
                   className="flex flex-col group cursor-pointer"
@@ -1065,15 +1081,20 @@ export default function HomePage() {
                   }}
                 >
                   <div className="aspect-square rounded-2xl overflow-hidden mb-2 relative bg-white/5 shadow-md">
+                    <div className="absolute inset-0 flex items-center justify-center text-white/10 pointer-events-none">
+                      <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
+                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                      </svg>
+                    </div>
                     <img
                       src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                       alt={album.title || album.name}
-                      loading="lazy"
+                      loading={i < 8 ? 'eager' : 'lazy'}
                       decoding="async"
                       referrerPolicy="no-referrer"
                       crossOrigin="anonymous"
                       onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover relative z-[1]"
                     />
                     <button
                       onClick={(e) => handlePlayAlbum(album, e)}
@@ -1107,7 +1128,7 @@ export default function HomePage() {
                       <Skeleton className="w-1/2 h-3 rounded" />
                     </div>
                   ))
-              : newReleases.map((album) => (
+              : newReleases.map((album, i) => (
                   <div
                     key={album.id}
                     className="min-w-[150px] max-w-[150px] sm:min-w-[180px] sm:max-w-[180px] flex-shrink-0 snap-start group cursor-pointer"
@@ -1117,18 +1138,24 @@ export default function HomePage() {
                     }}
                   >
                     <div className="aspect-square rounded-2xl overflow-hidden mb-2.5 relative bg-white/5 shadow-md group-hover:shadow-2xl transition-all duration-300 ring-1 ring-white/10 group-hover:ring-white/20">
+                      {/* Subtle Music Note Placeholder */}
+                      <div className="absolute inset-0 flex items-center justify-center text-white/10 pointer-events-none">
+                        <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
+                          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                        </svg>
+                      </div>
                       <img
                         src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                         alt={album.title || album.name}
-                        loading="lazy"
+                        loading={i < 8 ? 'eager' : 'lazy'}
                         decoding="async"
                         referrerPolicy="no-referrer"
                         crossOrigin="anonymous"
                         onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                        className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
+                        className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out relative z-[1]"
                       />
                       {/* Top Specular Sheen */}
-                      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+                      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none z-[2]" />
 
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                         <button

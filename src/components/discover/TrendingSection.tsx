@@ -188,15 +188,22 @@ function TrendingSection({
                       </svg>
                     </button>
 
+                    {/* Subtle Music Note Placeholder */}
+                    <div className="absolute inset-0 flex items-center justify-center text-white/10 pointer-events-none">
+                      <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
+                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                      </svg>
+                    </div>
+
                     <img
                       src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                       alt={track.title}
-                      loading="lazy"
+                      loading={i < 8 ? 'eager' : 'lazy'}
                       decoding="async"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                       }}
-                      className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out"
+                      className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out relative z-[1]"
                     />
 
                     {/* Active Equalizer Mini-Badge */}
