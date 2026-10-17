@@ -105,6 +105,7 @@ interface StudioState {
   ambientVolumes: Record<AmbientLayerId, number>;
   isStudioModalOpen: boolean;
   isCommandPaletteOpen: boolean;
+  studioActiveTab: 'eq' | 'spatial' | 'mastering' | 'atmosphere';
 
   // Focus Pomodoro Timer
   pomodoroActive: boolean;
@@ -137,6 +138,8 @@ interface StudioState {
   applyAmbientPreset: (preset: Partial<Record<AmbientLayerId, number>>) => void;
   stopAllAmbient: () => void;
   setStudioModalOpen: (open: boolean) => void;
+  setStudioActiveTab: (tab: 'eq' | 'spatial' | 'mastering' | 'atmosphere') => void;
+  openStudioWithTab: (tab: 'eq' | 'spatial' | 'mastering' | 'atmosphere') => void;
   setCommandPaletteOpen: (open: boolean) => void;
 
   startPomodoro: (mode?: 'focus' | 'break') => void;
@@ -279,6 +282,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   },
   isStudioModalOpen: false,
   isCommandPaletteOpen: false,
+  studioActiveTab: 'eq',
 
   pomodoroActive: false,
   pomodoroMode: 'focus',
@@ -415,6 +419,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   },
 
   setStudioModalOpen: (isStudioModalOpen) => set({ isStudioModalOpen }),
+  setStudioActiveTab: (studioActiveTab) => set({ studioActiveTab }),
+  openStudioWithTab: (tab) => set({ isStudioModalOpen: true, studioActiveTab: tab }),
   setCommandPaletteOpen: (isCommandPaletteOpen) => set({ isCommandPaletteOpen }),
 
   startPomodoro: (mode = 'focus') => {
