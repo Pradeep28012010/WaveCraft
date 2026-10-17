@@ -299,7 +299,7 @@ export default function PlaylistView() {
               <button
                 type="button"
                 onClick={() => setShowFolderDropdown(!showFolderDropdown)}
-                className="px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-white/80 hover:text-white border border-white/[0.08] text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                className="px-2.5 py-0.5 rounded-full glass-button text-white/80 hover:text-white text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
               >
                 <span>{currentFolder ? currentFolder.icon || '📁' : '📁'}</span>
                 <span>{currentFolder ? currentFolder.name : 'Add to Folder'}</span>
@@ -307,8 +307,8 @@ export default function PlaylistView() {
               </button>
 
               {showFolderDropdown && (
-                <div className="absolute top-full left-0 mt-1.5 w-52 rounded-2xl bg-[#12131e]/95 backdrop-blur-2xl border border-white/10 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-30">
-                  <div className="px-2 py-1 text-[10px] font-bold text-white/40 uppercase">
+                <div className="absolute top-full left-0 mt-1.5 w-56 rounded-2xl glass-heavy liquid-glass border-0 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] z-50 space-y-0.5">
+                  <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white/40">
                     Select Folder
                   </div>
                   <button
@@ -317,10 +317,10 @@ export default function PlaylistView() {
                       movePlaylistToFolder(playlist.id, undefined);
                       setShowFolderDropdown(false);
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors ${
+                    className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
                       !playlist.folderId
-                        ? 'bg-white/15 text-white'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        ? 'glass-button-primary text-white shadow-sm'
+                        : 'text-white/75 hover:bg-white/[0.08] hover:text-white'
                     }`}
                   >
                     <span>📁</span> <span>None (Unorganized)</span>
@@ -333,10 +333,10 @@ export default function PlaylistView() {
                         movePlaylistToFolder(playlist.id, f.id);
                         setShowFolderDropdown(false);
                       }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
                         playlist.folderId === f.id
-                          ? 'bg-white/15 text-white'
-                          : 'text-white/70 hover:bg-white/10 hover:text-white'
+                          ? 'glass-button-primary text-white shadow-sm'
+                          : 'text-white/75 hover:bg-white/[0.08] hover:text-white'
                       }`}
                     >
                       <span>{f.icon || '📁'}</span> <span className="truncate">{f.name}</span>
@@ -468,16 +468,11 @@ export default function PlaylistView() {
         <button
           onClick={handleShuffleAll}
           disabled={tracks.length === 0}
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/[0.06] hover:bg-white/[0.12] text-white/80 hover:text-white transition-all cursor-pointer active:scale-90 border border-white/[0.08] disabled:opacity-40 flex-shrink-0"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center glass-button text-white/80 hover:text-white transition-all cursor-pointer active:scale-90 disabled:opacity-40 flex-shrink-0"
           title="Shuffle"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-            />
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
           </svg>
         </button>
 
@@ -486,12 +481,12 @@ export default function PlaylistView() {
           type="button"
           onClick={handleDownloadAll}
           disabled={tracks.length === 0 || isCurrentDownloading}
-          className={`h-10 sm:h-11 px-3.5 sm:px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border flex-shrink-0 ${
+          className={`h-10 sm:h-11 px-3.5 sm:px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer flex-shrink-0 ${
             isCurrentDownloading
-              ? 'bg-cyan-500/20 text-cyan-200 border-cyan-500/30 shadow-[0_0_16px_rgba(6,182,212,0.3)]'
+              ? 'glass-button text-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.3)]'
               : isAllOffline
-              ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30'
-              : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/85 hover:text-white border-white/[0.08]'
+              ? 'glass-button-emerald text-emerald-200'
+              : 'glass-button text-white/85 hover:text-white'
           }`}
           title={
             isAllOffline
@@ -550,7 +545,7 @@ export default function PlaylistView() {
             type="button"
             onClick={handleManualSync}
             disabled={isSyncing}
-            className="h-10 sm:h-11 px-3 sm:px-3.5 rounded-full text-xs font-bold bg-white/[0.06] hover:bg-white/[0.12] text-emerald-300 hover:text-white border border-white/[0.08] flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all flex-shrink-0"
+            className="h-10 sm:h-11 px-3 sm:px-3.5 rounded-full text-xs font-bold glass-button text-emerald-300 hover:text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all flex-shrink-0"
             title={`Sync with original ${playlist.sourcePlatform || 'playlist'}`}
           >
             <span className={isSyncing ? 'animate-spin inline-block' : ''}>↻</span>
@@ -562,10 +557,10 @@ export default function PlaylistView() {
         <button
           type="button"
           onClick={() => togglePin(playlist.id)}
-          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all cursor-pointer border flex-shrink-0 ${
+          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
             playlist.isPinned
-              ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-              : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white border-white/[0.08]'
+              ? 'glass-button-primary text-amber-300'
+              : 'glass-button text-white/70 hover:text-white'
           }`}
           title={playlist.isPinned ? 'Unpin from top' : 'Pin to top of library'}
         >
@@ -578,7 +573,7 @@ export default function PlaylistView() {
         <div className="relative z-40 flex-shrink-0">
           <button
             onClick={() => setShowOptionsMenu((v) => !v)}
-            className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/[0.06] hover:bg-white/[0.12] text-white/75 hover:text-white transition-all cursor-pointer border border-white/[0.08]"
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center glass-button text-white/75 hover:text-white transition-all cursor-pointer active:scale-90"
             title="More options"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -595,7 +590,7 @@ export default function PlaylistView() {
                 animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                 exit={{ opacity: 0, y: -4, scale: 0.96, filter: 'blur(8px)' }}
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute right-0 top-12 z-50 w-64 rounded-2xl bg-[#12131e]/98 backdrop-blur-2xl border border-white/10 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.95)] space-y-1 text-xs"
+                className="absolute right-0 top-12 z-50 w-64 rounded-2xl glass-heavy liquid-glass border-0 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] space-y-0.5 text-xs"
                 onClick={() => setShowOptionsMenu(false)}
               >
                 {/* Live Sync Management in Menu */}
@@ -605,7 +600,7 @@ export default function PlaylistView() {
                       type="button"
                       onClick={handleManualSync}
                       disabled={isSyncing}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
                     >
                       <span className={isSyncing ? 'animate-spin' : ''}>↻</span>
                       <div className="min-w-0 flex-1">
@@ -621,7 +616,7 @@ export default function PlaylistView() {
                           syncStrategy: playlist.syncStrategy === 'mirror' ? 'append' : 'mirror'
                         })
                       }
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
                     >
                       <span>🔄</span>
                       <div className="min-w-0 flex-1">
@@ -643,7 +638,7 @@ export default function PlaylistView() {
                           isLiveSync: !playlist.isLiveSync
                         })
                       }
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
                     >
                       <span>{playlist.isLiveSync ? '🟢' : '⚪'}</span>
                       <div className="min-w-0 flex-1">
@@ -654,14 +649,14 @@ export default function PlaylistView() {
                       </div>
                     </button>
 
-                    <div className="h-[1px] bg-white/10 my-1" />
+                    <div className="h-[1px] bg-white/[0.08] my-1" />
                   </>
                 ) : (
                   <>
                     <button
                       type="button"
                       onClick={() => setShowAttachSource(true)}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
                     >
                       <span>🔗</span>
                       <div className="min-w-0 flex-1">
@@ -669,14 +664,14 @@ export default function PlaylistView() {
                         <div className="text-[10px] text-emerald-400/60">Link Spotify or YouTube playlist</div>
                       </div>
                     </button>
-                    <div className="h-[1px] bg-white/10 my-1" />
+                    <div className="h-[1px] bg-white/[0.08] my-1" />
                   </>
                 )}
 
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
-                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
                 >
                   <span className="text-base flex-shrink-0">✏️</span>
                   <div className="min-w-0 flex-1">
@@ -688,7 +683,7 @@ export default function PlaylistView() {
                 <button
                   type="button"
                   onClick={() => exportToM3U8(playlist)}
-                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
                 >
                   <span className="text-base flex-shrink-0">🎵</span>
                   <div className="min-w-0 flex-1">
@@ -700,7 +695,7 @@ export default function PlaylistView() {
                 <button
                   type="button"
                   onClick={() => exportToJSON(playlist)}
-                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
                 >
                   <span className="text-base flex-shrink-0">📦</span>
                   <div className="min-w-0 flex-1">
@@ -712,7 +707,7 @@ export default function PlaylistView() {
                 <button
                   type="button"
                   onClick={handleCopyTrackList}
-                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
                 >
                   <span className="text-base flex-shrink-0">📋</span>
                   <div className="min-w-0 flex-1">
@@ -723,7 +718,7 @@ export default function PlaylistView() {
                   </div>
                 </button>
 
-                <div className="h-[1px] bg-white/10 my-1" />
+                <div className="h-[1px] bg-white/[0.08] my-1" />
 
                 <button
                   type="button"
