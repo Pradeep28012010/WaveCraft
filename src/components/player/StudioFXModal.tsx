@@ -81,16 +81,14 @@ const STUDIO_PANEL_VARIANTS = {
   initial: {
     opacity: 0,
     scale: 0.95,
-    y: 20,
-    filter: 'blur(16px)'
+    y: 20
   },
   animate: {
     opacity: 1,
     scale: 1,
     y: 0,
-    filter: 'blur(0px)',
     transition: {
-      duration: 0.36,
+      duration: 0.3,
       ease: [0.16, 1, 0.3, 1] as const
     }
   },
@@ -98,9 +96,8 @@ const STUDIO_PANEL_VARIANTS = {
     opacity: 0,
     scale: 0.97,
     y: 14,
-    filter: 'blur(10px)',
     transition: {
-      duration: 0.2,
+      duration: 0.18,
       ease: [0.16, 1, 0.3, 1] as const
     }
   }
@@ -1434,7 +1431,14 @@ export default function StudioFXModal() {
   return createPortal(
     <AnimatePresence>
       {isStudioModalOpen && (
-        <div className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none">
+        <motion.div
+          key="studio-fx-portal-wrapper"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, pointerEvents: 'none' }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="fixed inset-0 z-[9995] pointer-events-none flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none"
+        >
           {/* Frosted Modal Backdrop */}
           <motion.div
             key="studio-fx-backdrop"
@@ -1443,7 +1447,7 @@ export default function StudioFXModal() {
             exit={{ opacity: 0 }}
             transition={STUDIO_BACKDROP_TRANSITION}
             onClick={handleClose}
-            className="absolute inset-0 modal-backdrop-blur bg-black/75 cursor-pointer"
+            className="absolute inset-0 pointer-events-auto modal-backdrop-blur bg-black/75 cursor-pointer"
             aria-hidden="true"
           />
 
@@ -1458,13 +1462,13 @@ export default function StudioFXModal() {
             animate="animate"
             exit="exit"
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/92 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
+            className="relative z-10 pointer-events-auto w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/92 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
           >
             <StudioFXErrorBoundary onClose={handleClose}>
               <StudioFXModalContent onClose={handleClose} />
             </StudioFXErrorBoundary>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>,
     document.body

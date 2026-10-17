@@ -80,14 +80,21 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9995] flex items-center justify-center p-4 sm:p-6">
+        <motion.div
+          key="glass-modal-portal-wrapper"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, pointerEvents: 'none' }}
+          transition={MODAL_TRANSITION}
+          className="fixed inset-0 z-[9995] pointer-events-none flex items-center justify-center p-4 sm:p-6"
+        >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={MODAL_TRANSITION}
             onClick={onClose}
-            className="absolute inset-0 modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
+            className="absolute inset-0 pointer-events-auto modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
           />
           <motion.div
             ref={modalRef}
@@ -99,7 +106,7 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={MODAL_TRANSITION}
             onClick={(e) => e.stopPropagation()}
-            className={`relative z-10 ${widthClass} max-h-[90vh] flex flex-col overflow-hidden p-6 sm:p-7 modal-glass-panel backdrop-blur-2xl backdrop-saturate-150`}
+            className={`relative z-10 pointer-events-auto ${widthClass} max-h-[90vh] flex flex-col overflow-hidden p-6 sm:p-7 modal-glass-panel backdrop-blur-2xl backdrop-saturate-150`}
           >
             {title && (
               <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-0 flex-shrink-0">
@@ -119,7 +126,7 @@ const GlassModal = ({ isOpen, onClose, title, children, size = 'md' }: GlassModa
             )}
             <div className="overflow-y-auto no-scrollbar px-2 py-1 -mx-2 -my-1">{children}</div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>,
     document.body
