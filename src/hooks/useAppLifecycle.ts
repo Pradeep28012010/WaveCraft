@@ -5,10 +5,8 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useMediaSession } from './useMediaSession';
-import { searchTracks, getTrending } from '../services/youtube';
-import { getNewReleases } from '../services/itunes';
-import { preloadTrackArtworks, preloadAlbumCovers, preloadImages } from '../utils/imagePreloader';
-import { FEATURED_ARTISTS, FALLBACK_TRENDING_TRACKS } from '../utils/constants';
+import { searchTracks } from '../services/youtube';
+import { prewarmCoreRoutes } from '../utils/routePreloader';
 import { initNativeAndroid } from '../services/nativeAndroid';
 
 /**
@@ -49,43 +47,13 @@ export function useAppLifecycle(): void {
     }
   }, []);
 
-  // Initialize stores from IndexedDB on mount + eagerly pre-warm data & artworks before scroll
+  // Initialize stores from IndexedDB on mount + pre-warm core route chunks during idle
   useEffect(() => {
     loadLibrary();
     loadSettings();
 
-    // Immediately pre-cache fallback artwork and featured artist images into browser memory
-    preloadTrackArtworks(FALLBACK_TRENDING_TRACKS);
-    preloadImages(FEATURED_ARTISTS.map((a) => a.avatar));
-
-    // Immediately fetch and pre-cache live trending tracks & new releases before user scrolls
-    getTrending('global')
-      .then((tracks) => preloadTrackArtworks(tracks))
-      .catch(() => {});
-
-    getNewReleases()
-      .then((releases) => preloadAlbumCovers(releases))
-      .catch(() => {});
-
-    // Pre-warm core navigation route chunks
-    const prewarmRoutes = () => {
-      import('../components/library/LibraryPage').catch(() => {});
-      import('../components/search/SearchResults').catch(() => {});
-      import('../components/library/LikedSongs').catch(() => {});
-    };
-
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const id = (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
-        .requestIdleCallback(prewarmRoutes, { timeout: 1500 });
-      return () => {
-        if ('cancelIdleCallback' in window) {
-          (window as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(id);
-        }
-      };
-    } else {
-      const timer = setTimeout(prewarmRoutes, 600);
-      return () => clearTimeout(timer);
-    }
+    // Pre-warm top navigation route chunks and fullscreen player during idle time
+    prewarmCoreRoutes();
   }, [loadLibrary, loadSettings]);
 
   // Handle shared WaveCard deep-link (?play=Song+Artist)

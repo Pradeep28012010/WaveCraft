@@ -1,4 +1,4 @@
-import { Component, Suspense, type ErrorInfo, type ReactNode, useEffect, useRef } from 'react';
+import { Component, Suspense, lazy, type ErrorInfo, type ReactNode, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -6,11 +6,7 @@ import TopBar from './TopBar';
 import WindowsTitleBar from './WindowsTitleBar';
 import MiniPlayer from './MiniPlayer';
 import MobileBottomNav from './MobileBottomNav';
-import CommandPalette from './CommandPalette';
-import StudioFXModal from '../player/StudioFXModal';
 import ContextMenu from '../ui/ContextMenu';
-import FeedbackModal from '../feedback/FeedbackModal';
-import UpdateModal from '../updater/UpdateModal';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
@@ -18,6 +14,25 @@ import AnimatedBackground from '../ui/AnimatedBackground';
 import YouTubeEmbed from '../player/YouTubeEmbed';
 import { useColorExtract } from '../../hooks/useColorExtract';
 import GlobalDownloadIndicator from '../ui/GlobalDownloadIndicator';
+
+const CommandPalette = lazy(() => import('./CommandPalette'));
+const StudioFXModal = lazy(() => import('../player/StudioFXModal'));
+const FeedbackModal = lazy(() => import('../feedback/FeedbackModal'));
+const UpdateModal = lazy(() => import('../updater/UpdateModal'));
+
+function RouteLoadingFallback() {
+  return (
+    <div className="w-full pt-2 space-y-6 animate-pulse opacity-60">
+      <div className="h-8 w-44 rounded-xl bg-white/10" />
+      <div className="h-40 w-full rounded-2xl bg-white/5 border border-white/10" />
+      <div className="space-y-3 pt-2">
+        <div className="h-14 w-full rounded-xl bg-white/5" />
+        <div className="h-14 w-full rounded-xl bg-white/5" />
+        <div className="h-14 w-full rounded-xl bg-white/5" />
+      </div>
+    </div>
+  );
+}
 
 class RouteErrorBoundary extends Component<
   { resetKey: string; children: ReactNode },
@@ -103,11 +118,13 @@ export default function MainLayout() {
       <YouTubeEmbed />
 
       {/* Global Ctrl+K Command Palette, Studio FX & Context Menu */}
-      <CommandPalette />
-      <StudioFXModal />
+      <Suspense fallback={null}>
+        <CommandPalette />
+        <StudioFXModal />
+        <FeedbackModal />
+        <UpdateModal />
+      </Suspense>
       <ContextMenu />
-      <FeedbackModal />
-      <UpdateModal />
 
       {/* Windows 11 Acrylic Frameless Title Bar (Desktop / Electron) */}
       <WindowsTitleBar />
@@ -137,7 +154,7 @@ export default function MainLayout() {
                     transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                     className="w-full min-w-0 will-change-transform"
                   >
-                    <Suspense fallback={null}>
+                    <Suspense fallback={<RouteLoadingFallback />}>
                       <Outlet />
                     </Suspense>
                   </motion.div>

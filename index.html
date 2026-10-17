@@ -15,6 +15,8 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
       // Keep background audio active when tab is switched, minimized, or screen locked
@@ -24,13 +26,14 @@
         window.addEventListener('visibilitychange', (e) => e.stopImmediatePropagation(), true);
       } catch (e) {}
     </script>
-    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
       body {
         margin: 0;
-        font-family: 'Inter', sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
         background-color: #06060b;
         color: #fff;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
       }
     </style>
   </head>

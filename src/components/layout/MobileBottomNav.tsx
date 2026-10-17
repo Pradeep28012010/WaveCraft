@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { preloadRoute } from '../../utils/routePreloader';
 
 function MobileBottomNav() {
   const { isPhone, setMobileDrawerOpen } = useDevicePreset();
@@ -73,6 +74,8 @@ function MobileBottomNav() {
             key={tab.path}
             to={tab.path}
             end={tab.path === '/'}
+            onMouseEnter={() => preloadRoute(tab.path)}
+            onTouchStart={() => preloadRoute(tab.path)}
             onClick={() => {
               triggerAndroidHaptic('light');
               setMobileDrawerOpen(false);

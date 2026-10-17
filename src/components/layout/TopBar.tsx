@@ -10,6 +10,7 @@ import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useSearchHistory } from '../../utils/searchHistory';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUpdateStore } from '../../stores/updateStore';
+import { preloadRoute } from '../../utils/routePreloader';
 
 const formatClock = (sec: number) => {
   const m = Math.floor(sec / 60);
@@ -390,9 +391,12 @@ export default function TopBar() {
                   onChange={handleSearchChange}
                   onKeyDown={handleKeyDown}
                   onFocus={() => {
+                    preloadRoute('/search');
                     isFocusedRef.current = true;
                     setShowSuggestions(true);
                   }}
+                  onMouseEnter={() => preloadRoute('/search')}
+                  onTouchStart={() => preloadRoute('/search')}
                   onBlur={() => {
                     isFocusedRef.current = false;
                   }}
@@ -685,9 +689,11 @@ export default function TopBar() {
               onChange={handleSearchChange}
               onKeyDown={handleKeyDown}
               onFocus={() => {
+                preloadRoute('/search');
                 isFocusedRef.current = true;
                 setShowSuggestions(true);
               }}
+              onMouseEnter={() => preloadRoute('/search')}
               onBlur={() => {
                 isFocusedRef.current = false;
               }}

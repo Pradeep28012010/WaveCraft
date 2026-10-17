@@ -333,60 +333,107 @@ export async function getAlbumArt(trackTitle: string, artistName: string): Promi
   return null;
 }
 
+let inFlightNewReleases: Promise<AlbumResult[]> | null = null;
+
 export async function getNewReleases(): Promise<AlbumResult[]> {
   if (cachedNewReleases && cachedNewReleases.length > 0) {
     return cachedNewReleases;
   }
 
-  try {
-    const endpoint = apiUrl('/api/music?action=new-releases');
-    let res = await fetch(endpoint, { signal: AbortSignal.timeout(5000) }).catch(() => null);
-    if (!res?.ok && !endpoint.startsWith('http')) {
-      res = await fetch(`${PROD_API_ORIGIN}/api/music?action=new-releases`, {
-        signal: AbortSignal.timeout(4500)
-      }).catch(() => null);
-    }
-    if (res?.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.releases) && data.releases.length > 0) {
-        cachedNewReleases = data.releases;
-        try {
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem(NEW_RELEASES_STORAGE_KEY, JSON.stringify(data.releases.slice(0, 25)));
-          }
-        } catch {}
-        return data.releases;
-      }
-    }
-  } catch (err) {
-    console.warn('API new-releases fetch error, trying direct Apple RSS:', err);
+  if (inFlightNewReleases) {
+    return inFlightNewReleases;
   }
 
-  // Client-side direct Apple RSS fallback
-  try {
-    const r = await fetch('https://itunes.apple.com/us/rss/topalbums/limit=25/json', {
-      signal: AbortSignal.timeout(4500)
-    });
-    if (r.ok) {
-      const data = await r.json();
-      const entries: RawItunesRssEntry[] = data.feed?.entry || [];
-      const releases: AlbumResult[] = entries.map((e, idx: number) => {
-        const rawCover = e['im:image']?.slice(-1)[0]?.label || DEFAULT_THUMBNAIL;
-        const highResCover = rawCover.replace('170x170bb', '600x600bb');
-        const title = e['im:name']?.label || 'Untitled Album';
-        const artist = e['im:artist']?.label || 'Various Artists';
-        return {
-          id: `rel_${idx}_${e.id?.attributes?.['im:id'] || idx}`,
-          name: title,
-          title: title,
-          artist: artist,
-          coverUrl: highResCover,
-          coverArt: highResCover,
-          thumbnail: highResCover,
-          year: new Date().getFullYear(),
-          trackCount: parseInt(e['im:itemCount']?.label || '10', 10)
-        };
+  const requestPromise = (async () => {
+    try {
+      const endpoint = apiUrl('/api/music?action=new-releases');
+      let res = await fetch(endpoint, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+      if (!res?.ok && !endpoint.startsWith('http')) {
+        res = await fetch(`${PROD_API_ORIGIN}/api/music?action=new-releases`, {
+          signal: AbortSignal.timeout(4500)
+        }).catch(() => null);
+      }
+      if (res?.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.releases) && data.releases.length > 0) {
+          cachedNewReleases = data.releases;
+          try {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(NEW_RELEASES_STORAGE_KEY, JSON.stringify(data.releases.slice(0, 25)));
+            }
+          } catch {}
+          return data.releases;
+        }
+      }
+    } catch (err) {
+      console.warn('API new-releases fetch error, trying direct Apple RSS:', err);
+    }
+
+    // Client-side direct Apple RSS fallback
+    try {
+      const r = await fetch('https://itunes.apple.com/us/rss/topalbums/limit=25/json', {
+        signal: AbortSignal.timeout(4500)
       });
+      if (r.ok) {
+        const data = await r.json();
+        const entries: RawItunesRssEntry[] = data.feed?.entry || [];
+        const releases: AlbumResult[] = entries.map((e, idx: number) => {
+          const rawCover = e['im:image']?.slice(-1)[0]?.label || DEFAULT_THUMBNAIL;
+          const highResCover = rawCover.replace('170x170bb', '600x600bb');
+          const title = e['im:name']?.label || 'Untitled Album';
+          const artist = e['im:artist']?.label || 'Various Artists';
+          return {
+            id: `rel_${idx}_${e.id?.attributes?.['im:id'] || idx}`,
+            name: title,
+            title: title,
+            artist: artist,
+            coverUrl: highResCover,
+            coverArt: highResCover,
+            thumbnail: highResCover,
+            year: new Date().getFullYear(),
+            trackCount: parseInt(e['im:itemCount']?.label || '10', 10)
+          };
+        });
+
+        if (releases.length > 0) {
+          cachedNewReleases = releases;
+          try {
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(NEW_RELEASES_STORAGE_KEY, JSON.stringify(releases.slice(0, 25)));
+            }
+          } catch {}
+          return releases;
+        }
+      }
+    } catch (err) {
+      console.warn('Direct Apple RSS fallback error:', err);
+    }
+
+    // Final fallback to trending
+    try {
+      const trending = (await getCachedTrending()) || (await getTrending());
+      const seen = new Set<string>();
+      const releases: AlbumResult[] = [];
+
+      for (const t of trending) {
+        const title = t.album && t.album !== 'WaveCraft Cloud' ? t.album : t.title;
+        const key = `${title}__${t.artist}`.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        releases.push({
+          id: `release_${t.youtubeId || t.id}`,
+          name: title,
+          title,
+          artist: t.artist,
+          thumbnail: t.thumbnail,
+          coverUrl: t.thumbnailLarge || t.thumbnail || DEFAULT_THUMBNAIL,
+          coverArt: t.thumbnailLarge || t.thumbnail || DEFAULT_THUMBNAIL,
+          year: new Date().getFullYear()
+        });
+
+        if (releases.length >= 16) break;
+      }
 
       if (releases.length > 0) {
         cachedNewReleases = releases;
@@ -397,51 +444,19 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
         } catch {}
         return releases;
       }
+      cachedNewReleases = FALLBACK_NEW_RELEASES;
+      return FALLBACK_NEW_RELEASES;
+    } catch (error) {
+      console.error('Error in getNewReleases:', error);
+      return FALLBACK_NEW_RELEASES;
     }
-  } catch (err) {
-    console.warn('Direct Apple RSS fallback error:', err);
-  }
+  })();
 
-  // Final fallback to trending
+  inFlightNewReleases = requestPromise;
   try {
-    const trending = (await getCachedTrending()) || (await getTrending());
-    const seen = new Set<string>();
-    const releases: AlbumResult[] = [];
-
-    for (const t of trending) {
-      const title = t.album && t.album !== 'WaveCraft Cloud' ? t.album : t.title;
-      const key = `${title}__${t.artist}`.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      releases.push({
-        id: `release_${t.youtubeId || t.id}`,
-        name: title,
-        title,
-        artist: t.artist,
-        thumbnail: t.thumbnail,
-        coverUrl: t.thumbnailLarge || t.thumbnail || DEFAULT_THUMBNAIL,
-        coverArt: t.thumbnailLarge || t.thumbnail || DEFAULT_THUMBNAIL,
-        year: new Date().getFullYear()
-      });
-
-      if (releases.length >= 16) break;
-    }
-
-    if (releases.length > 0) {
-      cachedNewReleases = releases;
-      try {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(NEW_RELEASES_STORAGE_KEY, JSON.stringify(releases.slice(0, 25)));
-        }
-      } catch {}
-      return releases;
-    }
-    cachedNewReleases = FALLBACK_NEW_RELEASES;
-    return FALLBACK_NEW_RELEASES;
-  } catch (error) {
-    console.error('Error in getNewReleases:', error);
-    return FALLBACK_NEW_RELEASES;
+    return await requestPromise;
+  } finally {
+    inFlightNewReleases = null;
   }
 }
 

@@ -4,12 +4,12 @@ import { MotionConfig } from 'framer-motion';
 
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './components/discover/HomePage';
-import GenreBrowser from './components/search/GenreBrowser';
 import { AppErrorBoundary } from './components/ui/AppErrorBoundary';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { useAppLifecycle } from './hooks/useAppLifecycle';
 
 // Code-split route components with resilient network-failure retry
+const GenreBrowser = lazyWithRetry(() => import('./components/search/GenreBrowser'));
 const SearchResults = lazyWithRetry(() => import('./components/search/SearchResults'));
 const LibraryPage = lazyWithRetry(() => import('./components/library/LibraryPage'));
 const LikedSongs = lazyWithRetry(() => import('./components/library/LikedSongs'));

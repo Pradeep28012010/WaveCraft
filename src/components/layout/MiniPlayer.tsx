@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, memo } from 'react';
+import { useState, useRef, useEffect, memo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -6,9 +6,15 @@ import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useTrackOfflineStatus } from '../../services/offlineVault';
-import NowPlaying from '../player/NowPlaying';
-import QueuePanel from '../player/QueuePanel';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+
+const NowPlaying = lazy(() => import('../player/NowPlaying'));
+const QueuePanel = lazy(() => import('../player/QueuePanel'));
+
+const prefetchPlayerPanels = () => {
+  import('../player/NowPlaying').catch(() => {});
+  import('../player/QueuePanel').catch(() => {});
+};
 import { formatTime } from '../../utils/formatTime';
 import HeartBurstButton from '../ui/HeartBurstButton';
 
@@ -315,7 +321,11 @@ export default function MiniPlayer() {
                 triggerAndroidHaptic('light');
                 setIsNowPlayingOpen(true);
               }}
-              onTouchStart={handleMiniPlayerTouchStart}
+              onMouseEnter={prefetchPlayerPanels}
+              onTouchStart={(e) => {
+                prefetchPlayerPanels();
+                handleMiniPlayerTouchStart(e);
+              }}
               onTouchEnd={handleMiniPlayerTouchEnd}
               className="h-15 liquid-glass bg-[#080812]/90 backdrop-blur-3xl rounded-[24px] flex items-center justify-between px-3 relative overflow-hidden shadow-[0_18px_48px_rgba(0,0,0,0.85)] border-0 cursor-pointer active:scale-[0.99] transition-transform"
             >
@@ -431,8 +441,16 @@ export default function MiniPlayer() {
         </motion.div>
       </div>
 
-      <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
-        <NowPlaying isOpen={isNowPlayingOpen} onClose={() => setIsNowPlayingOpen(false)} />
+      {isQueueOpen && (
+        <Suspense fallback={null}>
+          <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
+        </Suspense>
+      )}
+      {isNowPlayingOpen && (
+        <Suspense fallback={null}>
+          <NowPlaying isOpen={isNowPlayingOpen} onClose={() => setIsNowPlayingOpen(false)} />
+        </Suspense>
+      )}
       </>
     );
   }
@@ -454,7 +472,11 @@ export default function MiniPlayer() {
         }}
         className="px-4 pb-3 pt-1.5 relative z-30 gpu-layer"
       >
-        <div className="h-20 liquid-glass rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)] border-0">
+        <div
+          onMouseEnter={prefetchPlayerPanels}
+          onTouchStart={prefetchPlayerPanels}
+          className="h-20 liquid-glass rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)] border-0"
+        >
           {/* Isolated 120fps Progress Scrubber */}
           <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 
@@ -778,8 +800,16 @@ export default function MiniPlayer() {
         </div>
       </motion.div>
 
-      <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
-      <NowPlaying isOpen={isNowPlayingOpen} onClose={() => setIsNowPlayingOpen(false)} />
+      {isQueueOpen && (
+        <Suspense fallback={null}>
+          <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
+        </Suspense>
+      )}
+      {isNowPlayingOpen && (
+        <Suspense fallback={null}>
+          <NowPlaying isOpen={isNowPlayingOpen} onClose={() => setIsNowPlayingOpen(false)} />
+        </Suspense>
+      )}
     </>
   );
 }

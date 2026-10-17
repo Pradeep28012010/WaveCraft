@@ -630,6 +630,7 @@ export const SPOTIFY_TRENDING_CATEGORIES: SpotifyCategory[] = [
 ];
 
 const trendingCategoryCache = new Map<string, Track[]>();
+const inFlightTrending = new Map<string, Promise<Track[]>>();
 
 export async function getTrending(category = 'global'): Promise<Track[]> {
   const cached = trendingCategoryCache.get(category);
@@ -637,47 +638,61 @@ export async function getTrending(category = 'global'): Promise<Track[]> {
     return cached;
   }
 
-  try {
-    const endpoint = apiUrl(`/api/music?action=trending&category=${encodeURIComponent(category)}`);
-    let res = await fetch(endpoint, { signal: AbortSignal.timeout(6500) }).catch(() => null);
-    if (!res?.ok && !endpoint.startsWith('http')) {
-      res = await fetch(`${PROD_API_ORIGIN}/api/music?action=trending&category=${encodeURIComponent(category)}`, {
-        signal: AbortSignal.timeout(5500)
-      }).catch(() => null);
-    }
-    if (res?.ok) {
-      const data = await res.json();
-      const tracks: Track[] = data.tracks || data.youtube || [];
-      if (tracks.length > 0) {
-        trendingCategoryCache.set(category, tracks);
-        if (category === 'global') {
-          cachedTrending = tracks;
-          try {
-            if (typeof localStorage !== 'undefined') {
-              localStorage.setItem(TRENDING_STORAGE_KEY, JSON.stringify(tracks.slice(0, 30)));
-            }
-          } catch {}
-        }
-        return tracks;
-      }
-    }
-  } catch (err) {
-    console.warn('Trending fetch error, falling back to search:', err);
+  const existingInFlight = inFlightTrending.get(category);
+  if (existingInFlight) {
+    return existingInFlight;
   }
 
-  const fallback = await searchTracks('top global hits 2025');
-  if (fallback.length > 0) {
-    trendingCategoryCache.set(category, fallback);
-    if (category === 'global') {
-      cachedTrending = fallback;
-      try {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(TRENDING_STORAGE_KEY, JSON.stringify(fallback.slice(0, 30)));
+  const requestPromise = (async () => {
+    try {
+      const endpoint = apiUrl(`/api/music?action=trending&category=${encodeURIComponent(category)}`);
+      let res = await fetch(endpoint, { signal: AbortSignal.timeout(6500) }).catch(() => null);
+      if (!res?.ok && !endpoint.startsWith('http')) {
+        res = await fetch(`${PROD_API_ORIGIN}/api/music?action=trending&category=${encodeURIComponent(category)}`, {
+          signal: AbortSignal.timeout(5500)
+        }).catch(() => null);
+      }
+      if (res?.ok) {
+        const data = await res.json();
+        const tracks: Track[] = data.tracks || data.youtube || [];
+        if (tracks.length > 0) {
+          trendingCategoryCache.set(category, tracks);
+          if (category === 'global') {
+            cachedTrending = tracks;
+            try {
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem(TRENDING_STORAGE_KEY, JSON.stringify(tracks.slice(0, 30)));
+              }
+            } catch {}
+          }
+          return tracks;
         }
-      } catch {}
+      }
+    } catch (err) {
+      console.warn('Trending fetch error, falling back to search:', err);
     }
+
+    const fallback = await searchTracks('top global hits 2025');
+    if (fallback.length > 0) {
+      trendingCategoryCache.set(category, fallback);
+      if (category === 'global') {
+        cachedTrending = fallback;
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(TRENDING_STORAGE_KEY, JSON.stringify(fallback.slice(0, 30)));
+          }
+        } catch {}
+      }
+    }
+    return fallback;
+  })();
+
+  inFlightTrending.set(category, requestPromise);
+  try {
+    return await requestPromise;
+  } finally {
+    inFlightTrending.delete(category);
   }
-  return fallback;
 }
 
 export async function getVideoDetails(videoId: string): Promise<Track | null> {

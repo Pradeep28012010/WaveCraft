@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,9 +8,11 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useOfflineVault } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
-import CreatePlaylist from '../library/CreatePlaylist';
-import ImportPlaylistModal from '../library/ImportPlaylistModal';
+import { preloadRoute } from '../../utils/routePreloader';
 import type { Playlist } from '../../types';
+
+const CreatePlaylist = lazy(() => import('../library/CreatePlaylist'));
+const ImportPlaylistModal = lazy(() => import('../library/ImportPlaylistModal'));
 
 interface NavItem {
   name: string;
@@ -364,6 +366,8 @@ export default function Sidebar() {
                         key={item.name}
                         to={item.path}
                         end={item.path === '/'}
+                        onMouseEnter={() => preloadRoute(item.path)}
+                        onTouchStart={() => preloadRoute(item.path)}
                         onClick={() => {
                           triggerAndroidHaptic('light');
                           setMobileDrawerOpen(false);
@@ -525,6 +529,8 @@ export default function Sidebar() {
                   key={item.name}
                   to={item.path}
                   end={item.path === '/'}
+                  onMouseEnter={() => preloadRoute(item.path)}
+                  onTouchStart={() => preloadRoute(item.path)}
                   title={collapsed ? item.name : undefined}
                   className={({ isActive }) =>
                     `relative flex items-center justify-between gap-2 h-10 rounded-xl transition-all duration-200 group ${
@@ -680,8 +686,16 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      <CreatePlaylist isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
-      <ImportPlaylistModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />
+      {isCreateOpen && (
+        <Suspense fallback={null}>
+          <CreatePlaylist isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+        </Suspense>
+      )}
+      {isImportOpen && (
+        <Suspense fallback={null}>
+          <ImportPlaylistModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />
+        </Suspense>
+      )}
     </>
   );
 }
