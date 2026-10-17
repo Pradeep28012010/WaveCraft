@@ -14,6 +14,7 @@ import AnimatedBackground from '../ui/AnimatedBackground';
 import YouTubeEmbed from '../player/YouTubeEmbed';
 import { useColorExtract } from '../../hooks/useColorExtract';
 import GlobalDownloadIndicator from '../ui/GlobalDownloadIndicator';
+import { useIsKeyboardOpen } from '../../hooks/useIsKeyboardOpen';
 
 const CommandPalette = lazy(() => import('./CommandPalette'));
 const StudioFXModal = lazy(() => import('../player/StudioFXModal'));
@@ -82,6 +83,9 @@ export default function MainLayout() {
   const currentThumbnail = usePlayerStore((s) => s.currentTrack?.thumbnail);
   const { palette, colors } = useColorExtract(currentThumbnail);
   const { isPhone } = useDevicePreset();
+  const isKeyboardOpen = useIsKeyboardOpen();
+  const isSearch = location.pathname.startsWith('/search');
+  const hideMobileBars = isPhone && (isSearch || isKeyboardOpen);
 
   useEffect(() => {
     if (mainRef.current) {
@@ -109,7 +113,7 @@ export default function MainLayout() {
   return (
     <div
       onContextMenu={handleContextMenu}
-      className="h-[100dvh] w-screen flex flex-col overflow-hidden text-white bg-black"
+      className="h-screen h-[100lvh] w-screen flex flex-col overflow-hidden text-white bg-black"
     >
       {/* GPU-composited Ambient Background layer */}
       <AnimatedBackground colors={colors} palette={palette} />
@@ -143,7 +147,7 @@ export default function MainLayout() {
             >
               <div className={`flex-1 w-full max-w-7xl mx-auto min-w-0 ${
                 isPhone
-                  ? `px-3.5 pt-2 ${hasCurrentTrack ? 'pb-44' : 'pb-28'}`
+                  ? `px-3.5 pt-2 ${hideMobileBars ? 'pb-8' : (hasCurrentTrack ? 'pb-44' : 'pb-28')}`
                   : `px-6 lg:px-8 pt-4 ${hasCurrentTrack ? 'pb-32' : 'pb-24'}`
               }`}>
                 <RouteErrorBoundary resetKey={location.pathname}>
@@ -166,9 +170,9 @@ export default function MainLayout() {
         </div>
       </div>
 
-      {hasCurrentTrack && <MiniPlayer />}
+      {hasCurrentTrack && !hideMobileBars && <MiniPlayer />}
       <GlobalDownloadIndicator />
-      <MobileBottomNav />
+      {!hideMobileBars && <MobileBottomNav />}
     </div>
   );
 }

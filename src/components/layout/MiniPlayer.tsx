@@ -7,6 +7,8 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useTrackOfflineStatus } from '../../services/offlineVault';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { useLocation } from 'react-router-dom';
+import { useIsKeyboardOpen } from '../../hooks/useIsKeyboardOpen';
 
 const NowPlaying = lazy(() => import('../player/NowPlaying'));
 const QueuePanel = lazy(() => import('../player/QueuePanel'));
@@ -223,6 +225,9 @@ export default function MiniPlayer() {
   const isQueueOpen = usePlayerStore((s) => s.isQueueOpen);
   const setIsQueueOpen = usePlayerStore((s) => s.setIsQueueOpen);
   const { isPhone } = useDevicePreset();
+  const location = useLocation();
+  const isKeyboardOpen = useIsKeyboardOpen();
+  const isSearch = location.pathname.startsWith('/search');
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -293,6 +298,23 @@ export default function MiniPlayer() {
 
   // Phone UI Preset: Compact Native-Style Floating MiniPlayer Pill with Swipe-to-Skip & Drag-to-Expand
   if (isPhone) {
+    if (isSearch || isKeyboardOpen) {
+      return (
+        <>
+          {isQueueOpen && (
+            <Suspense fallback={null}>
+              <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
+            </Suspense>
+          )}
+          {isNowPlayingOpen && (
+            <Suspense fallback={null}>
+              <NowPlaying isOpen={isNowPlayingOpen} onClose={() => setIsNowPlayingOpen(false)} />
+            </Suspense>
+          )}
+        </>
+      );
+    }
+
     return (
       <>
         <div

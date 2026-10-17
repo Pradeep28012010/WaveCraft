@@ -1,14 +1,18 @@
 import { memo } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { preloadRoute } from '../../utils/routePreloader';
+import { useIsKeyboardOpen } from '../../hooks/useIsKeyboardOpen';
 
 function MobileBottomNav() {
   const { isPhone, setMobileDrawerOpen } = useDevicePreset();
+  const location = useLocation();
+  const isKeyboardOpen = useIsKeyboardOpen();
+  const isSearch = location.pathname.startsWith('/search');
 
-  if (!isPhone) return null;
+  if (!isPhone || isSearch || isKeyboardOpen) return null;
 
   const tabs = [
     {
