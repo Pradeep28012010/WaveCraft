@@ -47,6 +47,16 @@ export default function Sidebar() {
   const { isPhone, isMobileDrawerOpen, setMobileDrawerOpen } = useDevicePreset();
   const { isInstalled } = usePWAInstall();
 
+  // Close mobile navigation drawer on Escape
+  useEffect(() => {
+    if (!isMobileDrawerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileDrawerOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileDrawerOpen, setMobileDrawerOpen]);
+
   // Save collapsed state preference
   const handleToggleCollapse = () => {
     setCollapsed((prev) => {

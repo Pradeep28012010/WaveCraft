@@ -67,6 +67,16 @@ export default function WaveCardModal({
 
   const activeTheme = CARD_THEMES.find((t) => t.id === themeId) || CARD_THEMES[0];
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Fetch lyrics when opened so user can pick any line
   useEffect(() => {
     if (!isOpen || !track) return;

@@ -262,11 +262,18 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
         setShowToolsMenu(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowToolsMenu(false);
+      }
+    };
     window.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('touchstart', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('touchstart', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [showToolsMenu]);
 
@@ -596,7 +603,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 app-region-no-drag relative" ref={toolsMenuRef}>
+                <div className="flex items-center gap-2 app-region-no-drag relative">
                   {/* Atmosphere Soundscape Mixer Button */}
                   <button
                     onClick={() => setIsAtmosphereOpen(true)}
@@ -642,35 +649,35 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </span>
                   </button>
 
-                  {/* Single Sleek ••• Tools Menu Button */}
-                  <motion.button
-                    whileTap={{ scale: 0.96 }}
-                    onClick={() => setShowToolsMenu((prev) => !prev)}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer app-region-no-drag ${
-                      showToolsMenu
-                        ? 'glass-button-primary text-white shadow-lg'
-                        : 'glass-button text-white/80 hover:text-white'
-                    }`}
-                    title="Tools & Playback Options"
-                    aria-label="Tools menu"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="12" cy="5" r="2" />
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="12" cy="19" r="2" />
-                    </svg>
-                  </motion.button>
+                  {/* Single Sleek ••• Tools Menu Button & Popover */}
+                  <div ref={toolsMenuRef} className="relative">
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => setShowToolsMenu((prev) => !prev)}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer app-region-no-drag ${
+                        showToolsMenu
+                          ? 'glass-button-primary text-white shadow-lg'
+                          : 'glass-button text-white/80 hover:text-white'
+                      }`}
+                      title="Tools & Playback Options"
+                      aria-label="Tools menu"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="2" />
+                        <circle cx="12" cy="12" r="2" />
+                        <circle cx="12" cy="19" r="2" />
+                      </svg>
+                    </motion.button>
 
-                  {/* Frosted-glass ••• Tools Menu Popover */}
-                  <AnimatePresence>
-                    {showToolsMenu && (
-                      <motion.div
-                        ref={toolsMenuRef}
-                        initial={{ opacity: 0, y: -6, scale: 0.92, filter: 'blur(12px)' }}
-                        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, y: -6, scale: 0.95, filter: 'blur(8px)' }}
-                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                        className="absolute right-0 top-12 w-72 max-h-[82vh] overflow-y-auto no-scrollbar rounded-[22px] border-0 glass-bloom-menu p-2 z-50 text-xs shadow-[0_24px_50px_rgba(0,0,0,0.7)] flex flex-col gap-1"
+                    {/* Frosted-glass ••• Tools Menu Popover */}
+                    <AnimatePresence>
+                      {showToolsMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -6, scale: 0.92, filter: 'blur(12px)' }}
+                          animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                          exit={{ opacity: 0, y: -6, scale: 0.95, filter: 'blur(8px)' }}
+                          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                          className="absolute right-0 top-12 w-72 max-h-[82vh] overflow-y-auto no-scrollbar rounded-[22px] border-0 glass-bloom-menu p-2 z-50 text-xs shadow-[0_24px_50px_rgba(0,0,0,0.7)] flex flex-col gap-1"
                       >
                         {/* Feedback Toast */}
                         {toolsToast && (
@@ -1242,6 +1249,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       </motion.div>
                     )}
                   </AnimatePresence>
+                </div>
 
                 </div>
               </>

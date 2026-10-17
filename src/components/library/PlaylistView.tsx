@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -46,6 +46,61 @@ export default function PlaylistView() {
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
+
+  const folderDropdownRef = useRef<HTMLDivElement>(null);
+  const optionsMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close folder dropdown on click outside or Escape
+  useEffect(() => {
+    if (!showFolderDropdown) return;
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (folderDropdownRef.current && !folderDropdownRef.current.contains(e.target as Node)) {
+        setShowFolderDropdown(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowFolderDropdown(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showFolderDropdown]);
+
+  // Close options menu on click outside or Escape
+  useEffect(() => {
+    if (!showOptionsMenu) return;
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(e.target as Node)) {
+        setShowOptionsMenu(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowOptionsMenu(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showOptionsMenu]);
+
+  // Close attach source modal on Escape
+  useEffect(() => {
+    if (!showAttachSource) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowAttachSource(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showAttachSource]);
 
   const playlist = playlists.find((p) => p.id === id);
   const currentFolder = playlist?.folderId ? folders.find((f) => f.id === playlist.folderId) : undefined;
@@ -295,7 +350,7 @@ export default function PlaylistView() {
               </span>
             )}
             {/* Folder Dropdown */}
-            <div className="relative">
+            <div ref={folderDropdownRef} className="relative">
               <button
                 type="button"
                 onClick={() => setShowFolderDropdown(!showFolderDropdown)}
@@ -404,6 +459,11 @@ export default function PlaylistView() {
                       setNewTagInput('');
                     }
                     setIsAddingTag(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setIsAddingTag(false);
+                    }
                   }}
                   className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-xs text-white placeholder:text-white/40 w-24 outline-none"
                 />
@@ -570,7 +630,7 @@ export default function PlaylistView() {
         <div className="flex-grow" />
 
         {/* Unified More Options (•••) Dropdown */}
-        <div className="relative z-40 flex-shrink-0">
+        <div ref={optionsMenuRef} className="relative z-40 flex-shrink-0">
           <button
             onClick={() => setShowOptionsMenu((v) => !v)}
             className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center glass-button text-white/75 hover:text-white transition-all cursor-pointer active:scale-90"
@@ -768,8 +828,16 @@ export default function PlaylistView() {
 
       {/* Connect Live Sync Modal Overlay */}
       {showAttachSource && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-3xl bg-[#12131e] border border-white/10 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200 cursor-pointer"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAttachSource(false);
+          }}
+        >
+          <div
+            className="w-full max-w-lg rounded-3xl bg-[#12131e] border border-white/10 p-6 shadow-2xl space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <span>🔗</span> Connect Live Sync URL

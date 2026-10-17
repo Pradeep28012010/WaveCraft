@@ -65,6 +65,16 @@ export default function FeedbackModal() {
     }
   }, [type]);
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeFeedback();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, closeFeedback]);
+
   if (!isOpen) return null;
 
   // Diagnostics payload

@@ -218,6 +218,14 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const toggleAutoplay = useSettingsStore((s) => s.toggleAutoplay);
   const { isPhone } = useDevicePreset();
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const [activeTab, setActiveTab] = useState<'upnext' | 'history'>('upnext');
   const [isAiFilling, setIsAiFilling] = useState(false);
   const [savedToast, setSavedToast] = useState(false);

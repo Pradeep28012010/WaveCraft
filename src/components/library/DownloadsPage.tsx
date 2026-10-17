@@ -68,6 +68,18 @@ export default function DownloadsPage() {
     refreshStorage();
   }, [offlineTracks.length]);
 
+  useEffect(() => {
+    if (!showClearConfirm && !showClearCacheConfirm) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isClearing) {
+        setShowClearConfirm(false);
+        setShowClearCacheConfirm(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showClearConfirm, showClearCacheConfirm, isClearing]);
+
   // Tab filtering
   const tabFilteredTracks = useMemo(() => {
     if (activeTab === 'manual') {
@@ -506,12 +518,18 @@ export default function DownloadsPage() {
       {/* Clear Storage Confirmation Modal */}
       <AnimatePresence>
         {showClearConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md cursor-pointer"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isClearing) setShowClearConfirm(false);
+            }}
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="max-w-md w-full p-6 rounded-3xl bg-[#0b0b14] border-0 text-white shadow-2xl space-y-4"
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-md w-full p-6 rounded-3xl bg-[#0b0b14] border-0 text-white shadow-2xl space-y-4 cursor-default"
             >
               <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border-0 flex items-center justify-center text-xl mx-auto">
                 🗑
@@ -546,12 +564,18 @@ export default function DownloadsPage() {
       {/* Clear Auto-Cache Confirmation Modal */}
       <AnimatePresence>
         {showClearCacheConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md cursor-pointer"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isClearing) setShowClearCacheConfirm(false);
+            }}
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="max-w-md w-full p-6 rounded-3xl bg-[#0b0b14] border-0 text-white shadow-2xl space-y-4"
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-md w-full p-6 rounded-3xl bg-[#0b0b14] border-0 text-white shadow-2xl space-y-4 cursor-default"
             >
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border-0 flex items-center justify-center text-xl mx-auto">
                 🧹
