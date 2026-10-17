@@ -140,17 +140,19 @@ export function parseLyrics(rawLyrics: string, totalDuration = 210): LyricLine[]
     if (!trimmed) continue;
     if (/^\[(ar|ti|al|au|length|by|re|ve):.*\]$/i.test(trimmed)) continue;
 
-    const timestampMatch = trimmed.match(/^\[(\d{1,2}):(\d{2}(?:\.\d{1,3})?)\](.*)/);
-    if (timestampMatch) {
+    const timestampMatches = [...trimmed.matchAll(/\[(\d{1,2}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+    if (timestampMatches.length > 0) {
       hasTimestamps = true;
-      const minutes = parseInt(timestampMatch[1], 10);
-      const seconds = parseFloat(timestampMatch[2]);
-      const text = timestampMatch[3].trim();
+      const text = trimmed.replace(/\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/g, '').trim();
       if (text) {
-        result.push({
-          time: minutes * 60 + seconds,
-          text
-        });
+        for (const m of timestampMatches) {
+          const minutes = parseInt(m[1], 10);
+          const seconds = parseFloat(m[2]);
+          result.push({
+            time: minutes * 60 + seconds,
+            text
+          });
+        }
       }
     } else {
       result.push({
@@ -158,6 +160,12 @@ export function parseLyrics(rawLyrics: string, totalDuration = 210): LyricLine[]
         text: trimmed
       });
     }
+  }
+
+  // Sort timestamps in strictly chronological order so playback sequence never jumps or loops
+  if (hasTimestamps) {
+    result.sort((a, b) => a.time - b.time);
+    return result;
   }
 
   // If plain lyrics without timestamps, distribute estimated times across song duration

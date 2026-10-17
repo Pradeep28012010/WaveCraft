@@ -10,7 +10,6 @@ import {
 } from '../../services/lyrics';
 import { usePlayerStore } from '../../stores/playerStore';
 import { romanizeIndicText, containsNonLatinScript } from '../../services/transliterate';
-import { SyllableGlowLine } from './SyllableGlowLine';
 import { formatTime } from '../../utils/formatTime';
 import type { LyricLine } from '../../types';
 
@@ -25,15 +24,12 @@ interface LyricsViewProps {
 
 const formatTimestamp = (seconds: number) => (seconds < 0 || isNaN(seconds) ? '' : formatTime(seconds));
 
-
-
 interface LyricRowProps {
   line: LyricLine;
   nextLineText?: string;
   index: number;
   activeIndex: number;
   nextLineTime: number;
-  userOffset: number;
   onSelectLine: (time: number) => void;
   onShareLine?: (quote: string) => void;
   onAlignToNow?: (time: number) => void;
@@ -51,7 +47,6 @@ const LyricRow = memo(
     index,
     activeIndex,
     nextLineTime,
-    userOffset,
     onSelectLine,
     onShareLine,
     onAlignToNow,
@@ -87,7 +82,7 @@ const LyricRow = memo(
       ? 'blur-[0.8px] hover:blur-none'
       : 'blur-[1.4px] hover:blur-none';
 
-    const isLongBridge = isCurrent && nextLineTime - line.time > 9;
+    const isLongBridge = isCurrent && nextLineTime - line.time >= 6;
 
     return (
       <div className="flex flex-col">
@@ -111,7 +106,7 @@ const LyricRow = memo(
             damping: 30,
             mass: 0.65
           }}
-          className={`group relative py-2.5 px-4 rounded-2xl cursor-pointer select-text origin-left will-change-transform ${depthBlurClass} ${
+          className={`group relative py-2.5 px-4 rounded-2xl cursor-pointer select-text origin-left ${depthBlurClass} ${
             isCurrent
               ? 'bg-white/[0.09] border-0 shadow-[0_12px_32px_rgba(0,0,0,0.35)]'
               : 'hover:bg-white/[0.04] border-0'
@@ -119,20 +114,15 @@ const LyricRow = memo(
         >
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
-              {isCurrent ? (
-                <SyllableGlowLine
-                  line={line}
-                  nextLineTime={nextLineTime}
-                  userOffset={userOffset}
-                  isCurrent={true}
-                  onSelectWord={onSelectLine}
-                  fontSizeClass="text-lg sm:text-2xl md:text-[26px]"
-                />
-              ) : (
-                <p className="text-lg sm:text-2xl md:text-[26px] font-extrabold leading-snug tracking-tight text-white/90">
-                  {line.text}
-                </p>
-              )}
+              <p
+                className={`text-lg sm:text-2xl md:text-[26px] font-extrabold leading-snug tracking-tight transition-all duration-200 ${
+                  isCurrent
+                    ? 'text-white drop-shadow-[0_2px_14px_rgba(255,255,255,0.4)]'
+                    : 'text-white/80 group-hover:text-white'
+                }`}
+              >
+                {line.text}
+              </p>
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -187,15 +177,13 @@ const LyricRow = memo(
               )}
             </div>
           </div>
-
-
         </motion.div>
 
         {isLongBridge && (
-          <div className="flex items-center gap-2.5 pl-6 py-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] animate-pulse [animation-delay:180ms]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] animate-pulse [animation-delay:360ms]" />
+          <div className="flex items-center gap-2 pl-6 py-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse [animation-delay:180ms]" />
+            <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse [animation-delay:360ms]" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/45 ml-1">
               Musical Interlude
             </span>
@@ -207,13 +195,11 @@ const LyricRow = memo(
   (prev, next) => {
     if (
       prev.line !== next.line ||
-      prev.index !== next.index ||
-      prev.userOffset !== next.userOffset
+      prev.index !== next.index
     ) {
       return false;
     }
     if (prev.activeIndex === next.activeIndex) return true;
-    // Only re-render if this row was or is within 3 lines of activeIndex!
     const prevDist = Math.min(Math.abs(prev.index - prev.activeIndex), 3);
     const nextDist = Math.min(Math.abs(next.index - next.activeIndex), 3);
     const prevPast = prev.index < prev.activeIndex;
@@ -354,12 +340,35 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
     return baseLines;
   }, [result, activeDuration, scriptPreference]);
 
-  // Subscribe ONLY to the computed `activeIndex` integer incorporating real-time userOffset!
+  // Intelligent auto-offset calibration for YouTube streaming vs studio master LRC
+  // When userOffset === 0 (user hasn't manually adjusted), compare candidate duration with active YouTube duration
+  const autoOffset = useMemo(() => {
+    if (userOffset !== 0) return 0;
+    const activeCand = result?.candidates?.find(
+      (c) => String(c.id) === String(result.activeCandidateId)
+    ) || result?.candidates?.[0];
+
+    if (activeCand && activeCand.duration && activeDuration > 30 && activeCand.duration > 30) {
+      const diff = activeDuration - activeCand.duration;
+      // If YouTube track duration is 1.5s to 12s longer than studio master,
+      // it typically has an intro preamble/logo delay.
+      if (diff >= 1.5 && diff <= 12) {
+        return -Math.round(diff * 0.45 * 10) / 10;
+      } else if (diff <= -1.5 && diff >= -12) {
+        return Math.round(Math.abs(diff) * 0.45 * 10) / 10;
+      }
+    }
+    return 0;
+  }, [result, activeDuration, userOffset]);
+
+  const effectiveOffset = userOffset !== 0 ? userOffset : autoOffset;
+
+  // Subscribe ONLY to the computed `activeIndex` integer incorporating real-time effectiveOffset!
   const activeIndex = usePlayerStore(
     useCallback(
       (s) => {
         if (lines.length === 0) return -1;
-        const syncTime = s.currentTime + userOffset + 0.25;
+        const syncTime = s.currentTime + effectiveOffset + 0.20;
         let idx = -1;
         for (let i = 0; i < lines.length; i++) {
           if (lines[i].time >= 0 && syncTime >= lines[i].time) {
@@ -370,7 +379,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
         }
         return idx;
       },
-      [lines, userOffset]
+      [lines, effectiveOffset]
     )
   );
 
@@ -420,8 +429,8 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
   const handleAlignToCurrentTime = useCallback(
     (lineTime: number) => {
       const currentAudioTime = usePlayerStore.getState().currentTime;
-      // syncTime = currentAudioTime + neededOffset + 0.25 = lineTime
-      const neededOffset = Math.round((lineTime - currentAudioTime - 0.25) * 10) / 10;
+      // syncTime = currentAudioTime + neededOffset + 0.20 = lineTime
+      const neededOffset = Math.round((lineTime - currentAudioTime - 0.20) * 10) / 10;
       const clamped = Math.max(-30, Math.min(30, neededOffset));
       setUserOffset(clamped);
       saveLyricsOffset(artist || '', title || '', clamped);
@@ -519,7 +528,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
   }, []);
 
   return (
-    <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border-0 shadow-[0_24px_80px_rgba(0,0,0,0.65)] gpu-layer">
+    <div className="relative w-full h-full flex flex-col liquid-glass rounded-3xl overflow-hidden border-0 shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
       {/* Clean Lyrics Header */}
       <div className="h-12 sm:h-14 px-4 sm:px-5 flex items-center justify-between gap-3 border-0 bg-white/[0.03] backdrop-blur-xl flex-shrink-0 z-20">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -561,7 +570,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {userOffset !== 0 && (
+          {(userOffset !== 0 || autoOffset !== 0) && (
             <span
               onClick={() => {
                 setShowSearchDrawer(true);
@@ -570,7 +579,9 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
               className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border-0 cursor-pointer hover:bg-amber-500/30 transition-colors"
               title="Lyrics sync timing offset (Click to calibrate)"
             >
-              {userOffset > 0 ? `+${userOffset.toFixed(1)}s` : `${userOffset.toFixed(1)}s`}
+              {userOffset !== 0
+                ? `${userOffset > 0 ? '+' : ''}${userOffset.toFixed(1)}s`
+                : `⚡ Auto ${autoOffset > 0 ? '+' : ''}${autoOffset.toFixed(1)}s`}
             </span>
           )}
 
@@ -642,18 +653,20 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                 <span className="font-extrabold text-white/90">Sync Timing:</span>
                 <span
                   className={`font-mono font-bold px-2 py-0.5 rounded-full tabular-nums text-[11px] ${
-                    userOffset === 0
-                      ? 'bg-white/10 text-white/70'
-                      : userOffset > 0
-                      ? 'bg-amber-500/25 text-amber-300 border-0'
-                      : 'bg-cyan-500/25 text-cyan-300 border-0'
+                    userOffset !== 0
+                      ? userOffset > 0
+                        ? 'bg-amber-500/25 text-amber-300 border-0'
+                        : 'bg-cyan-500/25 text-cyan-300 border-0'
+                      : autoOffset !== 0
+                      ? 'bg-emerald-500/25 text-emerald-200 border-0'
+                      : 'bg-white/10 text-white/70'
                   }`}
                 >
-                  {userOffset === 0
-                    ? '0.0s (In Sync)'
-                    : `${userOffset > 0 ? '+' : ''}${userOffset.toFixed(1)}s (${
-                        userOffset > 0 ? 'Advanced / Earlier' : 'Delayed / Later'
-                      })`}
+                  {userOffset !== 0
+                    ? `${userOffset > 0 ? '+' : ''}${userOffset.toFixed(1)}s (Manual Offset)`
+                    : autoOffset !== 0
+                    ? `⚡ ${autoOffset > 0 ? '+' : ''}${autoOffset.toFixed(1)}s (Intelligent Auto-Sync)`
+                    : '0.0s (In Sync)'}
                 </span>
                 <span className="text-[10px] text-white/50 hidden md:inline">
                   • Hover any line and tap "Sync Here" to snap timing in 1 click
@@ -900,7 +913,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
           maskImage:
             'linear-gradient(to bottom, transparent 0px, black 36px, black calc(100% - 48px), transparent 100%)'
         }}
-        className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 no-scrollbar relative will-change-scroll"
+        className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 no-scrollbar relative"
       >
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-white/60">
@@ -938,7 +951,6 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                   index={index}
                   activeIndex={activeIndex}
                   nextLineTime={nextLineTime}
-                  userOffset={userOffset}
                   onSelectLine={handleSelectLine}
                   onShareLine={onShareLyric}
                   onAlignToNow={handleAlignToCurrentTime}
