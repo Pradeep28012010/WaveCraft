@@ -456,34 +456,48 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
               {/* Segmented Tab Pill + Quick Actions */}
               <div className="flex items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass">
+                <div className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass relative">
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
                       setActiveTab('upnext');
                     }}
-                    className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      activeTab === 'upnext'
-                        ? 'glass-button-primary text-white shadow-sm'
-                        : 'text-white/60 hover:text-white'
-                    }`}
+                    className="relative px-3.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 select-none"
                   >
-                    <span>Up Next</span>
-                    <span className="text-[10px] opacity-80">({upcomingItems.length})</span>
+                    {activeTab === 'upnext' && (
+                      <motion.div
+                        layoutId="queue-panel-tab-pill"
+                        transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                        className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                      />
+                    )}
+                    <span className={`relative z-10 transition-colors duration-200 ${
+                      activeTab === 'upnext' ? 'text-white font-extrabold' : 'text-white/60 hover:text-white'
+                    }`}>
+                      Up Next
+                    </span>
+                    <span className="relative z-10 text-[10px] opacity-80">({upcomingItems.length})</span>
                   </button>
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
                       setActiveTab('history');
                     }}
-                    className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      activeTab === 'history'
-                        ? 'glass-button text-white shadow-sm'
-                        : 'text-white/60 hover:text-white'
-                    }`}
+                    className="relative px-3.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 select-none"
                   >
-                    <span>Played</span>
-                    <span className="text-[10px] opacity-80">({historyItems.length})</span>
+                    {activeTab === 'history' && (
+                      <motion.div
+                        layoutId="queue-panel-tab-pill"
+                        transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                        className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                      />
+                    )}
+                    <span className={`relative z-10 transition-colors duration-200 ${
+                      activeTab === 'history' ? 'text-white font-extrabold' : 'text-white/60 hover:text-white'
+                    }`}>
+                      Played
+                    </span>
+                    <span className="relative z-10 text-[10px] opacity-80">({historyItems.length})</span>
                   </button>
                 </div>
 

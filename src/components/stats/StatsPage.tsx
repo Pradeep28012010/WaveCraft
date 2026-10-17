@@ -9,6 +9,7 @@ import { formatListeningTime } from '../../utils/formatTime';
 import { searchTracks } from '../../services/youtube';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import GlassCard from '../ui/GlassCard';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 interface AchievementBadge {
   id: string;
@@ -618,37 +619,39 @@ export default function StatsPage() {
           </div>
 
           {/* Filter Pills */}
-          <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
-            <button
-              onClick={() => setBadgeFilter('all')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                badgeFilter === 'all'
-                  ? 'glass-button-primary text-white'
-                  : 'glass-button text-white/70 hover:text-white'
-              }`}
-            >
-              All ({badges.length})
-            </button>
-            <button
-              onClick={() => setBadgeFilter('unlocked')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                badgeFilter === 'unlocked'
-                  ? 'glass-button-emerald text-white'
-                  : 'glass-button text-white/70 hover:text-white'
-              }`}
-            >
-              Unlocked ({unlockedCount})
-            </button>
-            <button
-              onClick={() => setBadgeFilter('in-progress')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                badgeFilter === 'in-progress'
-                  ? 'glass-button-purple text-white'
-                  : 'glass-button text-white/70 hover:text-white'
-              }`}
-            >
-              In Progress ({inProgressCount})
-            </button>
+          <div className="flex items-center gap-1.5 p-1 rounded-full liquid-glass border-0 self-start sm:self-auto flex-shrink-0 relative">
+            {[
+              { id: 'all', label: `All (${badges.length})` },
+              { id: 'unlocked', label: `Unlocked (${unlockedCount})` },
+              { id: 'in-progress', label: `In Progress (${inProgressCount})` }
+            ].map((tab) => {
+              const isSelected = badgeFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    setBadgeFilter(tab.id as 'all' | 'unlocked' | 'in-progress');
+                  }}
+                  className="relative px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-colors cursor-pointer whitespace-nowrap flex-shrink-0 select-none"
+                >
+                  {isSelected && (
+                    <motion.div
+                      layoutId="stats-badge-filter-pill"
+                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                      className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                    />
+                  )}
+                  <span
+                    className={`relative z-10 transition-colors duration-200 ${
+                      isSelected ? 'text-white font-extrabold' : 'text-white/70 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

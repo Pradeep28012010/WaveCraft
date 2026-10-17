@@ -1,4 +1,5 @@
 import { useRef, useEffect, memo } from 'react';
+import { motion } from 'framer-motion';
 import type { Track } from '../../types';
 import Skeleton from '../ui/Skeleton';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -108,14 +109,23 @@ function TrendingSection({
                 key={cat.key}
                 type="button"
                 onClick={() => onSelectCategory(cat.key)}
-                className={`px-3.5 py-1.5 rounded-full text-xs transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
-                  isSelected
-                    ? 'bg-gradient-to-r from-emerald-500/25 to-teal-500/25 text-emerald-200 font-extrabold shadow-md scale-102 ring-1 ring-emerald-500/30'
-                    : 'glass-button text-white/70 hover:text-white font-semibold'
-                }`}
+                className="relative px-3.5 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer flex-shrink-0 select-none"
               >
-                <span>{cat.icon}</span>
-                <span>{cat.name}</span>
+                {isSelected && (
+                  <motion.div
+                    layoutId="trending-category-pill"
+                    transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500/30 via-teal-500/25 to-emerald-500/20 shadow-[0_4px_16px_rgba(16,185,129,0.3)] border border-emerald-400/40 -z-0 pointer-events-none"
+                  />
+                )}
+                <span className="relative z-10 text-xs">{cat.icon}</span>
+                <span
+                  className={`relative z-10 font-bold transition-colors duration-200 ${
+                    isSelected ? 'text-emerald-200 font-extrabold' : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  {cat.name}
+                </span>
               </button>
             );
           })}

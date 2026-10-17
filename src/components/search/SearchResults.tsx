@@ -588,7 +588,7 @@ export default function SearchResults() {
 
             {/* Segmented Filter Pills */}
             <div
-              className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar max-w-full"
+              className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar max-w-full relative"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {selectedAlbum ? (
@@ -599,22 +599,36 @@ export default function SearchResults() {
                   <span>← Back to “{query}”</span>
                 </button>
               ) : (
-                tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      setActiveTab(tab.id);
-                    }}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex-shrink-0 whitespace-nowrap ${
-                      activeTab === tab.id
-                        ? 'glass-button-primary text-white shadow-md'
-                        : 'text-white/65 hover:text-white hover:bg-white/[0.08]'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))
+                tabs.map((tab) => {
+                  const isSelected = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        setActiveTab(tab.id);
+                      }}
+                      className="relative px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer flex-shrink-0 whitespace-nowrap select-none"
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="search-filter-active-pill"
+                          transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                          className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                        />
+                      )}
+                      <span
+                        className={`relative z-10 transition-colors duration-200 ${
+                          isSelected
+                            ? 'text-white font-extrabold'
+                            : 'text-white/65 hover:text-white'
+                        }`}
+                      >
+                        {tab.label}
+                      </span>
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -356,7 +357,7 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 w-full min-w-0">
           {/* Category Filter Pills (Apple Music / Spotify Segmented Style) */}
           <div
-            className="inline-flex items-center gap-1.5 p-1 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar w-auto max-w-full flex-shrink-0"
+            className="inline-flex items-center gap-1.5 p-1 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar w-auto max-w-full flex-shrink-0 relative"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {([
@@ -373,13 +374,24 @@ export default function HomePage() {
                     triggerAndroidHaptic('light');
                     setActiveFilter(chip.id);
                   }}
-                  className={`px-3.5 sm:px-4.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center justify-center cursor-pointer flex-shrink-0 ${
-                    isSelected
-                      ? 'glass-button-primary text-white shadow-md'
-                      : 'text-white/70 hover:text-white hover:bg-white/[0.08]'
-                  }`}
+                  className="relative px-3.5 sm:px-4.5 py-1.5 rounded-full text-xs font-bold transition-colors duration-200 whitespace-nowrap flex items-center justify-center cursor-pointer flex-shrink-0 select-none"
                 >
-                  {chip.label}
+                  {isSelected && (
+                    <motion.div
+                      layoutId="home-category-active-pill"
+                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                      className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                    />
+                  )}
+                  <span
+                    className={`relative z-10 transition-colors duration-200 ${
+                      isSelected
+                        ? 'text-white font-extrabold'
+                        : 'text-white/70 hover:text-white'
+                    }`}
+                  >
+                    {chip.label}
+                  </span>
                 </button>
               );
             })}

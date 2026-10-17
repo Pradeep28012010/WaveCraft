@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useOfflineVault } from '../../services/offlineVault';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { computeSmartPlaylists, type SmartPlaylistDef } from '../../services/smartPlaylists';
 import { exportFullLibraryJSON } from '../../utils/playlistExport';
 import PlaylistCard from './PlaylistCard';
@@ -283,40 +285,63 @@ export default function LibraryPage() {
             )}
           </div>
           <div
-            className="flex items-center gap-2 overflow-x-auto overflow-y-hidden py-2 px-1 scrollbar-none no-scrollbar"
+            className="flex items-center gap-2 overflow-x-auto overflow-y-hidden py-2 px-1 scrollbar-none no-scrollbar relative"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             <button
               type="button"
-              onClick={() => setSelectedTagFilter('all')}
-              className={`px-3 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                selectedTagFilter === 'all'
-                  ? 'glass-button-primary text-white shadow-lg'
-                  : 'glass-button text-white/70 hover:text-white'
-              }`}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setSelectedTagFilter('all');
+              }}
+              className="relative px-3 py-1.5 rounded-full text-xs font-extrabold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 select-none"
             >
-              <span>All Mixes</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
+              {selectedTagFilter === 'all' && (
+                <motion.div
+                  layoutId="library-smart-tag-pill"
+                  transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                  className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                />
+              )}
+              <span className={`relative z-10 transition-colors duration-200 ${
+                selectedTagFilter === 'all' ? 'text-white font-extrabold' : 'text-white/70 hover:text-white'
+              }`}>
+                All Mixes
+              </span>
+              <span className="relative z-10 px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
                 {playlists.length}
               </span>
             </button>
-            {allTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? 'all' : tag)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  selectedTagFilter === tag
-                    ? 'glass-button-primary text-white shadow-lg'
-                    : 'glass-button text-white/80 hover:text-white'
-                }`}
-              >
-                <span>#{tag}</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-white/15 text-[10px] text-white/80">
-                  {tagCounts[tag]}
-                </span>
-              </button>
-            ))}
+            {allTags.map((tag) => {
+              const isSelected = selectedTagFilter === tag;
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    setSelectedTagFilter(selectedTagFilter === tag ? 'all' : tag);
+                  }}
+                  className="relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 select-none"
+                >
+                  {isSelected && (
+                    <motion.div
+                      layoutId="library-smart-tag-pill"
+                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                      className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                    />
+                  )}
+                  <span className={`relative z-10 transition-colors duration-200 ${
+                    isSelected ? 'text-white font-extrabold' : 'text-white/80 hover:text-white'
+                  }`}>
+                    #{tag}
+                  </span>
+                  <span className="relative z-10 px-1.5 py-0.2 rounded-full bg-white/15 text-[10px] text-white/80">
+                    {tagCounts[tag]}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -368,18 +393,26 @@ export default function LibraryPage() {
           </div>
 
           {/* View Mode Segmented Pill */}
-          <div className="inline-flex items-center p-0.5 rounded-xl bg-white/[0.06] border border-white/[0.08]">
+          <div className="inline-flex items-center p-0.5 rounded-xl bg-white/[0.06] border border-white/[0.08] relative">
             <button
               type="button"
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-white/20 text-white shadow-sm'
-                  : 'text-white/50 hover:text-white'
-              }`}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setViewMode('grid');
+              }}
+              className="relative p-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer select-none"
               title="Grid View"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              {viewMode === 'grid' && (
+                <motion.div
+                  layoutId="library-view-mode-pill"
+                  transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                  className="absolute inset-0 rounded-lg bg-white/20 shadow-sm border border-white/20 -z-0 pointer-events-none"
+                />
+              )}
+              <svg className={`relative z-10 w-4 h-4 transition-colors ${
+                viewMode === 'grid' ? 'text-white' : 'text-white/50 hover:text-white'
+              }`} viewBox="0 0 24 24" fill="currentColor">
                 <rect x="3" y="3" width="7" height="7" rx="1.5" />
                 <rect x="14" y="3" width="7" height="7" rx="1.5" />
                 <rect x="3" y="14" width="7" height="7" rx="1.5" />
@@ -388,15 +421,23 @@ export default function LibraryPage() {
             </button>
             <button
               type="button"
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-white/20 text-white shadow-sm'
-                  : 'text-white/50 hover:text-white'
-              }`}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setViewMode('list');
+              }}
+              className="relative p-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer select-none"
               title="List View"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              {viewMode === 'list' && (
+                <motion.div
+                  layoutId="library-view-mode-pill"
+                  transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                  className="absolute inset-0 rounded-lg bg-white/20 shadow-sm border border-white/20 -z-0 pointer-events-none"
+                />
+              )}
+              <svg className={`relative z-10 w-4 h-4 transition-colors ${
+                viewMode === 'list' ? 'text-white' : 'text-white/50 hover:text-white'
+              }`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="4" y1="6" x2="20" y2="6" />
                 <line x1="4" y1="12" x2="20" y2="12" />
                 <line x1="4" y1="18" x2="20" y2="18" />

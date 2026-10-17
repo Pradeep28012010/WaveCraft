@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Track, LyricLine } from '../../types';
 import { getLyricsData } from '../../services/lyrics';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 interface WaveCardModalProps {
   isOpen: boolean;
@@ -536,28 +537,48 @@ export default function WaveCardModal({
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center p-1 rounded-full liquid-glass border-0">
+              <div className="flex items-center p-1 rounded-full liquid-glass border-0 relative">
                 <button
                   type="button"
-                  onClick={() => setAspectMode('story')}
-                  className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
-                    aspectMode === 'story'
-                      ? 'glass-button-primary text-white shadow'
-                      : 'glass-button text-white/60 hover:text-white'
-                  }`}
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    setAspectMode('story');
+                  }}
+                  className="relative px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-colors select-none"
                 >
-                  9:16 Story (1080×1920)
+                  {aspectMode === 'story' && (
+                    <motion.div
+                      layoutId="wavecard-aspect-mode-pill"
+                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                      className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                    />
+                  )}
+                  <span className={`relative z-10 transition-colors duration-200 ${
+                    aspectMode === 'story' ? 'text-white font-extrabold' : 'text-white/60 hover:text-white'
+                  }`}>
+                    9:16 Story (1080×1920)
+                  </span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAspectMode('feed')}
-                  className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
-                    aspectMode === 'feed'
-                      ? 'glass-button-primary text-white shadow'
-                      : 'glass-button text-white/60 hover:text-white'
-                  }`}
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    setAspectMode('feed');
+                  }}
+                  className="relative px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-colors select-none"
                 >
-                  4:5 Feed (1080×1350)
+                  {aspectMode === 'feed' && (
+                    <motion.div
+                      layoutId="wavecard-aspect-mode-pill"
+                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                      className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                    />
+                  )}
+                  <span className={`relative z-10 transition-colors duration-200 ${
+                    aspectMode === 'feed' ? 'text-white font-extrabold' : 'text-white/60 hover:text-white'
+                  }`}>
+                    4:5 Feed (1080×1350)
+                  </span>
                 </button>
               </div>
               <button

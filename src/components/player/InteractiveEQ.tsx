@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { EQ_PRESETS } from '../../utils/constants';
 import { getAudioFrequencyData } from '../../services/audioEngine';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 export const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -207,7 +209,7 @@ export default function InteractiveEQ() {
 
       {/* Audiophile Preset Pills Bar */}
       <div
-        className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden no-scrollbar py-2 px-1"
+        className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden no-scrollbar py-2 px-1 relative"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {Object.keys(EQ_PRESETS).map((presetName) => {
@@ -216,14 +218,24 @@ export default function InteractiveEQ() {
             <button
               key={presetName}
               type="button"
-              onClick={() => setEqualizerPreset(presetName)}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition flex-shrink-0 cursor-pointer ${
-                isSelected
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/25'
-                  : 'liquid-glass text-white/70 hover:text-white'
-              }`}
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setEqualizerPreset(presetName);
+              }}
+              className="relative px-3 py-1 rounded-full text-xs font-bold transition-colors flex-shrink-0 cursor-pointer select-none"
             >
-              {presetName}
+              {isSelected && (
+                <motion.div
+                  layoutId="interactive-eq-preset-pill"
+                  transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                  className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500/80 via-blue-600/80 to-cyan-500/80 shadow-[0_4px_16px_rgba(6,182,212,0.35)] -z-0 pointer-events-none"
+                />
+              )}
+              <span className={`relative z-10 transition-colors duration-200 ${
+                isSelected ? 'text-white font-extrabold' : 'text-white/70 hover:text-white'
+              }`}>
+                {presetName}
+              </span>
             </button>
           );
         })}

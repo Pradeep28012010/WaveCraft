@@ -2,6 +2,7 @@ import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GENRE_LIST } from '../../utils/constants';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 interface GenreBrowserProps {
   onSelectGenre?: (query: string) => void;
@@ -59,7 +60,7 @@ function GenreBrowser({
 
         {/* Filter Pills */}
         <div
-          className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border-0 backdrop-blur-xl self-start sm:self-auto overflow-x-auto overflow-y-hidden no-scrollbar max-w-full"
+          className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border-0 backdrop-blur-xl self-start sm:self-auto overflow-x-auto overflow-y-hidden no-scrollbar max-w-full relative"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {(
@@ -69,19 +70,34 @@ function GenreBrowser({
               { id: 'global', label: 'Global Hits' },
               { id: 'chill', label: 'Chill & Ambient' }
             ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeFilter === tab.id
-                  ? 'glass-button-primary text-white shadow-md'
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          ).map((tab) => {
+            const isSelected = activeFilter === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setActiveFilter(tab.id);
+                }}
+                className="relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer whitespace-nowrap select-none"
+              >
+                {isSelected && (
+                  <motion.div
+                    layoutId="genre-browser-filter-pill"
+                    transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                    className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                  />
+                )}
+                <span
+                  className={`relative z-10 transition-colors duration-200 ${
+                    isSelected ? 'text-white font-extrabold' : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

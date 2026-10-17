@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -333,13 +334,22 @@ export default function SettingsPage() {
                   triggerAndroidHaptic('light');
                   setActiveCategory(cat.id as SettingsCategory);
                 }}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-[var(--color-accent)] text-white shadow-sm'
-                    : 'glass text-white/70 hover:text-white'
-                }`}
+                className="relative px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors cursor-pointer select-none"
               >
-                {cat.label}
+                {isActive && (
+                  <motion.div
+                    layoutId="settings-category-pill"
+                    transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                    className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                  />
+                )}
+                <span
+                  className={`relative z-10 transition-colors duration-200 ${
+                    isActive ? 'text-white font-extrabold' : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  {cat.label}
+                </span>
               </button>
             );
           })}
@@ -755,28 +765,40 @@ export default function SettingsPage() {
               label="Liquid Glass FPS Profile"
               description="Adjusts backdrop filter passes, aurora nodes, and particle counts"
             >
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 relative">
                 {[
                   { id: 'ultra', label: 'Ultra 120fps' },
                   { id: 'balanced', label: 'Balanced 60fps' },
                   { id: 'performance', label: 'Battery Saver' }
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      settings.setPerformanceProfile(item.id as PerformanceProfile);
-                    }}
-                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                      (settings.performanceProfile ?? 'ultra') === item.id
-                        ? 'bg-[var(--color-accent)] text-white shadow-md'
-                        : 'glass text-white/60 hover:text-white'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                ].map((item) => {
+                  const isSelected = (settings.performanceProfile ?? 'ultra') === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        settings.setPerformanceProfile(item.id as PerformanceProfile);
+                      }}
+                      className="relative px-3 py-1 rounded-full text-xs font-bold transition-colors cursor-pointer select-none"
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="settings-fps-profile-pill"
+                          transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                          className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                        />
+                      )}
+                      <span
+                        className={`relative z-10 transition-colors duration-200 ${
+                          isSelected ? 'text-white font-extrabold' : 'text-white/60 hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </InsetSettingRow>
 

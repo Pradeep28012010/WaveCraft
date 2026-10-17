@@ -373,23 +373,30 @@ export default function Sidebar() {
                           setMobileDrawerOpen(false);
                         }}
                         className={({ isActive }) =>
-                          `flex items-center justify-between gap-2 px-3 h-10.5 rounded-xl transition-all ${
+                          `relative flex items-center justify-between gap-2 px-3 h-10.5 rounded-xl transition-all ${
                             isActive
-                              ? 'glass-button-primary text-white font-bold shadow-md'
+                              ? 'text-white font-bold'
                               : 'text-white/70 hover:text-white hover:bg-white/[0.06] active:scale-98'
                           }`
                         }
                       >
                         {({ isActive }) => (
                           <>
-                            <div className="flex items-center gap-3 min-w-0">
+                            {isActive && (
+                              <motion.div
+                                layoutId="sidebar-active-pill-mobile"
+                                transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                                className="absolute inset-0 rounded-xl glass-button-primary shadow-md pointer-events-none z-0"
+                              />
+                            )}
+                            <div className="relative z-10 flex items-center gap-3 min-w-0">
                               <div className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-white/70'}`}>
                                 {item.icon(isActive)}
                               </div>
                               <span className="text-xs font-semibold truncate">{item.name}</span>
                             </div>
                             {item.badge !== undefined && (
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
+                              <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
                                 {item.badge}
                               </span>
                             )}

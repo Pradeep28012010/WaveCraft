@@ -567,26 +567,54 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                   {/* Cover vs Vinyl Turntable Switcher */}
                   {!zenMode && (
-                    <div className="hidden sm:flex items-center gap-1 p-1 rounded-full liquid-glass border-0 app-region-no-drag">
+                    <div className="hidden sm:flex items-center p-1 rounded-full liquid-glass border-0 app-region-no-drag relative">
                       <button
-                        onClick={() => setDeckMode('cover')}
-                        className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer app-region-no-drag ${
-                          deckMode === 'cover'
-                            ? 'glass-button-primary text-white'
-                            : 'glass-button bg-white/[0.04] text-white/70 hover:text-white'
-                        }`}
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setDeckMode('cover');
+                        }}
+                        className="relative px-3.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer app-region-no-drag select-none"
                       >
-                        Cover
+                        {deckMode === 'cover' && (
+                          <motion.div
+                            layoutId="nowplaying-deck-mode-pill"
+                            transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                            className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                          />
+                        )}
+                        <span
+                          className={`relative z-10 transition-colors duration-200 ${
+                            deckMode === 'cover'
+                              ? 'text-white font-extrabold'
+                              : 'text-white/70 hover:text-white'
+                          }`}
+                        >
+                          Cover
+                        </span>
                       </button>
                       <button
-                        onClick={() => setDeckMode('vinyl')}
-                        className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer app-region-no-drag ${
-                          deckMode === 'vinyl'
-                            ? 'glass-button-primary text-white'
-                            : 'glass-button bg-white/[0.04] text-white/70 hover:text-white'
-                        }`}
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setDeckMode('vinyl');
+                        }}
+                        className="relative px-3.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer app-region-no-drag select-none"
                       >
-                        Vinyl Deck
+                        {deckMode === 'vinyl' && (
+                          <motion.div
+                            layoutId="nowplaying-deck-mode-pill"
+                            transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                            className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                          />
+                        )}
+                        <span
+                          className={`relative z-10 transition-colors duration-200 ${
+                            deckMode === 'vinyl'
+                              ? 'text-white font-extrabold'
+                              : 'text-white/70 hover:text-white'
+                          }`}
+                        >
+                          Vinyl Deck
+                        </span>
                       </button>
                     </div>
                   )}
@@ -1259,20 +1287,37 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
           {/* ZEN MODE FLOATING 3D VISUALIZER HUD */}
           {zenMode ? (
             <div className="relative z-10 flex-1 flex flex-col justify-between p-6 sm:p-10">
-              <div className="flex flex-wrap items-center justify-center gap-2 mx-auto p-1.5 rounded-full liquid-glass border-0 shadow-2xl">
-                {VISUALIZER_MODES.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => setVisualizerStyle(m.id)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                      visualizerStyle === m.id
-                        ? 'glass-button-primary text-white'
-                        : 'text-white/65 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-center gap-1.5 mx-auto p-1.5 rounded-full liquid-glass border-0 shadow-2xl relative">
+                {VISUALIZER_MODES.map((m) => {
+                  const isSelected = visualizerStyle === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        setVisualizerStyle(m.id);
+                      }}
+                      className="relative px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer select-none"
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="nowplaying-zen-visualizer-pill"
+                          transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                          className="absolute inset-0 rounded-full glass-button-primary shadow-[0_4px_16px_rgba(250,45,72,0.35)] -z-0 pointer-events-none"
+                        />
+                      )}
+                      <span
+                        className={`relative z-10 transition-colors duration-200 ${
+                          isSelected
+                            ? 'text-white font-extrabold'
+                            : 'text-white/65 hover:text-white'
+                        }`}
+                      >
+                        {m.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="w-full max-w-2xl mx-auto rounded-3xl liquid-glass border-0 p-5 shadow-2xl">
