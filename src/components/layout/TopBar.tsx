@@ -131,6 +131,7 @@ export default function TopBar() {
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
   const sleepActive = useStudioStore((s) => s.sleepActive);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
+  const openStudioWithTab = useStudioStore((s) => s.openStudioWithTab);
 
   const hasActiveAmbient = Object.values(ambientVolumes).some((v) => v > 0.01);
   const activeFxLabel =
@@ -837,12 +838,12 @@ export default function TopBar() {
 
           {/* Active Focus Pomodoro Pill */}
           {pomodoroActive && (
-            <PomodoroTimerPill onOpenStudio={() => setStudioModalOpen(true)} />
+            <PomodoroTimerPill onOpenStudio={() => openStudioWithTab('atmosphere')} />
           )}
 
           {/* Unified Active Sleep Timer Pill */}
           {sleepActive && (
-            <SleepTimerPill onOpenStudio={() => setStudioModalOpen(true)} />
+            <SleepTimerPill onOpenStudio={() => openStudioWithTab('atmosphere')} />
           )}
 
           {/* Active Jam Room Pill */}

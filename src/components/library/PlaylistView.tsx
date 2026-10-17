@@ -615,20 +615,6 @@ export default function PlaylistView() {
           )}
         </button>
 
-        {/* Sync Now Button in Action Ribbon if live synced */}
-        {playlist.sourceUrl && (
-          <button
-            type="button"
-            onClick={handleManualSync}
-            disabled={isSyncing}
-            className="h-10 sm:h-11 px-3 sm:px-3.5 rounded-full text-xs font-bold glass-button text-emerald-300 hover:text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all flex-shrink-0"
-            title={`Sync with original ${playlist.sourcePlatform || 'playlist'}`}
-          >
-            <span className={isSyncing ? 'animate-spin inline-block' : ''}>↻</span>
-            <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>
-          </button>
-        )}
-
         {/* Toggle Pin to Top Button */}
         <button
           type="button"

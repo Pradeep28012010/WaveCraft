@@ -76,33 +76,6 @@ const MOOD_PRESETS: MoodPreset[] = [
   }
 ];
 
-const STUDIO_BACKDROP_TRANSITION = { duration: 0.32, ease: [0.16, 1, 0.3, 1] as const };
-const STUDIO_PANEL_VARIANTS = {
-  initial: {
-    opacity: 0,
-    scale: 0.95,
-    y: 20
-  },
-  animate: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: {
-      duration: 0.3,
-      ease: [0.16, 1, 0.3, 1] as const
-    }
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.97,
-    y: 14,
-    transition: {
-      duration: 0.18,
-      ease: [0.16, 1, 0.3, 1] as const
-    }
-  }
-};
-
 /**
  * Minimalist Apple-Grade Fluid Gesture Slider
  * Pill-shaped track with filled gradient, elevated white thumb, and formatted readout.
@@ -187,7 +160,7 @@ function AppleFluidSlider({
           onChange={(e) => {
             onChange(parseFloat(e.target.value));
           }}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer pointer-events-auto touch-pan-x"
         />
       </div>
     </div>
@@ -512,7 +485,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div onPointerDown={unlockAudioEngine} className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden select-none">
+    <div className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden pointer-events-auto">
       {/* iOS Drag Handle */}
       <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-2.5 sm:hidden flex-shrink-0" />
 
@@ -598,16 +571,12 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   triggerAndroidHaptic('light');
                   setActiveTab(tab.id as StudioTab);
                 }}
-                className={`relative flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer z-10 ${
+                className={`relative flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer z-10 pointer-events-auto ${
                   isActive ? 'text-white' : 'text-white/55 hover:text-white'
                 }`}
               >
                 {isActive && (
-                  <motion.div
-                    layoutId="studio-active-tab-pill"
-                    transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/[0.18] via-white/[0.12] to-white/[0.06] border-0 shadow-[0_4px_16px_rgba(0,0,0,0.4)] pointer-events-none"
-                  />
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/[0.18] via-white/[0.12] to-white/[0.06] border-0 shadow-[0_4px_16px_rgba(0,0,0,0.4)] pointer-events-none transition-all duration-200" />
                 )}
                 <span className="relative z-10 text-xs">{tab.icon}</span>
                 <span className="relative z-10 text-xs font-bold truncate">{tab.label}</span>
@@ -1136,7 +1105,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 step="0.02"
                 value={masterAverage}
                 onChange={(e) => handleMasterVolumeChange(parseFloat(e.target.value))}
-                className="w-full accent-emerald-400 cursor-pointer h-2 bg-white/15 rounded-lg"
+                className="w-full accent-emerald-400 cursor-pointer pointer-events-auto touch-pan-x h-2 bg-white/15 rounded-lg"
                 aria-label="Master Ambient Volume"
               />
               <div className="flex justify-between text-[10px] text-white/40">
@@ -1435,9 +1404,9 @@ export default function StudioFXModal() {
           key="studio-fx-portal-wrapper"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0, pointerEvents: 'none' }}
+          exit={{ opacity: 0 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="fixed inset-0 z-[9995] pointer-events-none flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none"
+          className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden pointer-events-auto"
         >
           {/* Frosted Modal Backdrop */}
           <motion.div
@@ -1445,7 +1414,7 @@ export default function StudioFXModal() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={STUDIO_BACKDROP_TRANSITION}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
             onClick={handleClose}
             className="absolute inset-0 pointer-events-auto modal-backdrop-blur bg-black/75 cursor-pointer"
             aria-hidden="true"
@@ -1457,12 +1426,12 @@ export default function StudioFXModal() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="studio-fx-modal-title"
-            variants={STUDIO_PANEL_VARIANTS}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 16 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 pointer-events-auto w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/92 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
+            className="relative z-10 pointer-events-auto w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/95 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
           >
             <StudioFXErrorBoundary onClose={handleClose}>
               <StudioFXModalContent onClose={handleClose} />
