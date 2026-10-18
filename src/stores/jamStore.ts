@@ -7,6 +7,7 @@ import { jamSyncEngine, type JamAudioAnchor } from '../services/jamSyncEngine';
 import { jamWebRtc, type WebRtcSignalPayload } from '../services/jamWebRtc';
 import { searchTracks } from '../services/youtube';
 import { apiUrl } from '../services/apiConfig';
+import { registerJamGuard } from '../services/jamAuthority';
 
 export interface JamReaction {
   id: string;
@@ -668,7 +669,39 @@ export const useJamStore = create<JamStore>((set, get) => {
     }
   };
 
+  let playerSubUnsubscribe: (() => void) | null = null;
+
+  const subscribePlayerStateForHost = () => {
+    if (playerSubUnsubscribe) return;
+    try {
+      playerSubUnsubscribe = usePlayerStore.subscribe((state, prevState) => {
+        if (isApplyingRemoteState) return;
+        const jam = useJamStore.getState();
+        if (!jam.roomCode || !jam.isHost) return;
+
+        const trackChanged = state.currentTrack?.id !== prevState.currentTrack?.id;
+        const playChanged = state.isPlaying !== prevState.isPlaying;
+        const timeJumped = Math.abs(state.currentTime - prevState.currentTime) > 1.2;
+        const queueChanged = state.queue.length !== prevState.queue.length;
+
+        if (trackChanged || playChanged || timeJumped || queueChanged) {
+          jam.pushHostState();
+        }
+      });
+    } catch {}
+  };
+
+  const unsubscribePlayerStateForHost = () => {
+    if (playerSubUnsubscribe) {
+      try {
+        playerSubUnsubscribe();
+      } catch {}
+      playerSubUnsubscribe = null;
+    }
+  };
+
   const stopRoomPolling = () => {
+    unsubscribePlayerStateForHost();
     if (pollInterval) {
       clearInterval(pollInterval);
       pollInterval = null;
@@ -685,6 +718,7 @@ export const useJamStore = create<JamStore>((set, get) => {
 
   const startRoomPolling = () => {
     stopRoomPolling();
+    subscribePlayerStateForHost();
 
     const currentCode = get().roomCode;
     if (currentCode) {
@@ -1254,18 +1288,19 @@ export const useJamStore = create<JamStore>((set, get) => {
   };
 });
 
-// Automatically push host playback changes immediately with precise audio anchor
-usePlayerStore.subscribe((state, prevState) => {
-  if (isApplyingRemoteState) return;
-  const jam = useJamStore.getState();
-  if (!jam.roomCode || !jam.isHost) return;
-
-  const trackChanged = state.currentTrack?.id !== prevState.currentTrack?.id;
-  const playChanged = state.isPlaying !== prevState.isPlaying;
-  const timeJumped = Math.abs(state.currentTime - prevState.currentTime) > 1.2;
-  const queueChanged = state.queue.length !== prevState.queue.length;
-
-  if (trackChanged || playChanged || timeJumped || queueChanged) {
-    jam.pushHostState();
-  }
+// Register authority guard for playerStore to prevent circular store dependencies
+registerJamGuard({
+  isGuestBlocked: () => {
+    const s = useJamStore.getState();
+    return Boolean(s.roomCode && !s.isHost);
+  },
+  onGuestPlayTrack: (track: Track) => {
+    const s = useJamStore.getState();
+    if (s.roomCode && !s.isHost) {
+      s.addTrackToJam(track, false);
+      return true;
+    }
+    return false;
+  },
+  isRemoteApplying: () => isApplyingRemoteState
 });
