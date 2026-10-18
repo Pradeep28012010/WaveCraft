@@ -1467,23 +1467,23 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
                       }`}
                     >
-                      {/* Shared Ambient Album Glow behind either Deck or Cover */}
+                      {/* Shared Ethereal Ambient Album Orb Glow (Circular, Unclipped, Smooth Gaussian Diffusion) */}
                       <div
-                        className="absolute inset-0 rounded-3xl pointer-events-none transition-all duration-1000 will-change-transform"
+                        className="absolute -inset-12 sm:-inset-16 rounded-full pointer-events-none blur-3xl transition-opacity duration-700 will-change-transform"
                         style={{
-                          background: `radial-gradient(circle, ${palette.primary}80 0%, ${palette.secondary}40 45%, transparent 70%)`,
-                          opacity: isPlaying ? 0.95 : 0.5
+                          background: `radial-gradient(circle at 50% 50%, ${palette.primary}90 0%, ${palette.secondary}45 35%, transparent 65%)`,
+                          opacity: isPlaying ? 0.92 : 0.45
                         }}
                       />
 
-                      <AnimatePresence mode="wait" initial={false}>
+                      <AnimatePresence mode="popLayout" initial={false}>
                         {deckMode === 'vinyl' ? (
                           <motion.div
                             key="nowplaying-deck-vinyl"
-                            initial={{ opacity: 0, scale: 0.88, filter: 'blur(6px)' }}
+                            initial={{ opacity: 0, scale: 0.92, filter: 'blur(6px)' }}
                             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                            exit={{ opacity: 0, scale: 0.88, filter: 'blur(6px)' }}
-                            transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.85 }}
+                            exit={{ opacity: 0, scale: 0.92, filter: 'blur(6px)' }}
+                            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                             onClick={() => {
                               triggerAndroidHaptic('light');
                               setDeckMode('cover');
@@ -1771,10 +1771,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         ) : (
                           <motion.div
                             key="nowplaying-deck-cover"
-                            initial={{ opacity: 0, scale: 0.85, rotate: 8, filter: 'blur(6px)' }}
-                            animate={{ opacity: 1, scale: isPlaying ? 1 : 0.95, rotate: 0, filter: 'blur(0px)' }}
-                            exit={{ opacity: 0, scale: 0.85, rotate: -8, filter: 'blur(6px)' }}
-                            transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.85 }}
+                            initial={{ opacity: 0, scale: 0.92, filter: 'blur(6px)' }}
+                            animate={{ opacity: 1, scale: isPlaying ? 1 : 0.95, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.92, filter: 'blur(6px)' }}
+                            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                             onClick={() => {
                               triggerAndroidHaptic('light');
                               setDeckMode('vinyl');
