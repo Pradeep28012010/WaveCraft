@@ -1508,16 +1508,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               />
                             </div>
 
-                            {/* 2. Speed Indicator & Direct Drive Pod (Bottom-Left Corner, Clean Clearance from Platter) */}
-                            <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 flex items-center gap-1.5 pointer-events-none z-10">
-                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/70 border border-white/10 shadow-inner">
-                                <span className={`w-1.5 h-1.5 rounded-full transition-colors ${isPlaying ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-zinc-600'}`} />
-                                <span className="text-[8.5px] sm:text-[9.5px] font-mono font-bold text-white/80">33</span>
-                                <span className="text-[7.5px] sm:text-[8px] font-mono tracking-[0.2em] text-white/40 uppercase hidden sm:inline ml-0.5">
-                                  DIRECT DRIVE
-                                </span>
-                              </div>
-                            </div>
 
                             {/* 3. Recessed Platter Bay & 180-Gram Spinning Vinyl (Centered Vertically with Generous Clearance) */}
                             <div className="absolute top-[10%] bottom-[10%] left-3.5 sm:left-5 aspect-square rounded-full flex items-center justify-center">
