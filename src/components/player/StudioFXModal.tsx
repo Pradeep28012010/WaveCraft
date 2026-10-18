@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useMemo, Component, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   useStudioStore,
   STUDIO_FX_MODES,
@@ -75,36 +74,6 @@ const MOOD_PRESETS: MoodPreset[] = [
     blend: { waves: 0.45, binaural: 0.45, vinyl: 0.2 }
   }
 ];
-
-const STUDIO_BACKDROP_TRANSITION = { duration: 0.32, ease: [0.16, 1, 0.3, 1] as const };
-const STUDIO_PANEL_VARIANTS = {
-  initial: {
-    opacity: 0,
-    scale: 0.95,
-    y: 20,
-    filter: 'blur(16px)'
-  },
-  animate: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: {
-      duration: 0.36,
-      ease: [0.16, 1, 0.3, 1] as const
-    }
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.97,
-    y: 14,
-    filter: 'blur(10px)',
-    transition: {
-      duration: 0.2,
-      ease: [0.16, 1, 0.3, 1] as const
-    }
-  }
-};
 
 /**
  * Minimalist Apple-Grade Fluid Gesture Slider
@@ -618,10 +587,8 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 }`}
               >
                 {isActive && (
-                  <motion.div
-                    layoutId="studio-active-tab-pill"
-                    transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/[0.18] via-white/[0.12] to-white/[0.06] border-0 shadow-[0_4px_16px_rgba(0,0,0,0.4)] pointer-events-none"
+                  <div
+                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/[0.18] via-white/[0.12] to-white/[0.06] border-0 shadow-[0_4px_16px_rgba(0,0,0,0.4)] pointer-events-none transition-all duration-200"
                   />
                 )}
                 <span className="relative z-10 text-xs">{tab.icon}</span>
@@ -1424,7 +1391,12 @@ export default function StudioFXModal() {
   const isStudioModalOpen = useStudioStore((s) => s.isStudioModalOpen);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
 
-  const handleClose = () => setStudioModalOpen(false);
+  const [isRendered, setIsRendered] = useState(isStudioModalOpen);
+  const [isVisible, setIsVisible] = useState(isStudioModalOpen);
+
+  const handleClose = () => {
+    setStudioModalOpen(false);
+  };
 
   useEffect(() => {
     if (!isStudioModalOpen) return;
@@ -1437,51 +1409,62 @@ export default function StudioFXModal() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isStudioModalOpen]);
 
-  if (typeof document === 'undefined') return null;
+  useEffect(() => {
+    if (isStudioModalOpen) {
+      setIsRendered(true);
+      const r1 = requestAnimationFrame(() => {
+        const r2 = requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
+        return () => cancelAnimationFrame(r2);
+      });
+      return () => cancelAnimationFrame(r1);
+    } else {
+      setIsVisible(false);
+      const timer = setTimeout(() => {
+        setIsRendered(false);
+      }, 240);
+      return () => clearTimeout(timer);
+    }
+  }, [isStudioModalOpen]);
+
+  if (typeof document === 'undefined' || !isRendered) return null;
 
   return createPortal(
-    <AnimatePresence>
-      {isStudioModalOpen && (
-        <motion.div
-          key="studio-fx-portal-wrapper"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[9995] pointer-events-none flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none"
-        >
-          {/* Frosted Modal Backdrop */}
-          <motion.div
-            key="studio-fx-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={STUDIO_BACKDROP_TRANSITION}
-            onClick={handleClose}
-            className="absolute inset-0 pointer-events-auto modal-backdrop-blur bg-black/75 cursor-pointer"
-            aria-hidden="true"
-          />
+    <div
+      key="studio-fx-portal-wrapper"
+      className={`fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none transition-opacity duration-200 ${
+        isVisible ? 'opacity-100 pointer-events-none' : 'opacity-0 pointer-events-none'
+      }`}
+    >
+      {/* Frosted Modal Backdrop */}
+      <div
+        key="studio-fx-backdrop"
+        onClick={handleClose}
+        className={`absolute inset-0 modal-backdrop-blur bg-black/75 cursor-pointer transition-opacity duration-200 ${
+          isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        aria-hidden="true"
+      />
 
-          {/* Minimalist Apple-Grade Floating Sheet Chassis */}
-          <motion.div
-            key="studio-fx-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="studio-fx-modal-title"
-            variants={STUDIO_PANEL_VARIANTS}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            onClick={(e) => e.stopPropagation()}
-            className="relative z-10 pointer-events-auto w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/92 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
-          >
-            <StudioFXErrorBoundary onClose={handleClose}>
-              <StudioFXModalContent onClose={handleClose} />
-            </StudioFXErrorBoundary>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
+      {/* Minimalist Apple-Grade Floating Sheet Chassis */}
+      <div
+        key="studio-fx-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="studio-fx-modal-title"
+        onClick={(e) => e.stopPropagation()}
+        className={`relative z-10 w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/92 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)] transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          isVisible
+            ? 'opacity-100 scale-100 translate-y-0 filter-none pointer-events-auto'
+            : 'opacity-0 scale-95 translate-y-4 blur-[10px] pointer-events-none'
+        }`}
+      >
+        <StudioFXErrorBoundary onClose={handleClose}>
+          <StudioFXModalContent onClose={handleClose} />
+        </StudioFXErrorBoundary>
+      </div>
+    </div>,
     document.body
   );
 }
