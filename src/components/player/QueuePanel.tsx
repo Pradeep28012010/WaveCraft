@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useJamStore } from '../../stores/jamStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
@@ -33,6 +34,7 @@ interface QueueTrackRowProps {
   canMoveUp: boolean;
   canMoveDown: boolean;
   queue: Track[];
+  isJamGuest?: boolean;
   onJumpToTrack: (track: Track, actualIndex: number) => void;
   onMoveToTop: (fromActualIndex: number) => void;
   onReorder: (from: number, to: number) => void;
@@ -47,6 +49,7 @@ const QueueTrackRow = memo(function QueueTrackRow({
   canMoveUp,
   canMoveDown,
   queue,
+  isJamGuest,
   onJumpToTrack,
   onMoveToTop,
   onReorder,
@@ -68,30 +71,37 @@ const QueueTrackRow = memo(function QueueTrackRow({
     >
       {/* Drag Grip Handle + Queue Order Number */}
       <div
-        className="w-6 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing text-white/35 group-hover:text-white/75 flex-shrink-0"
-        title="Drag to reorder"
+        data-no-drag={isJamGuest ? 'true' : undefined}
+        className={`w-6 flex flex-col items-center justify-center ${
+          isJamGuest ? 'text-white/35' : 'cursor-grab active:cursor-grabbing text-white/35 group-hover:text-white/75'
+        } flex-shrink-0`}
+        title={isJamGuest ? 'Host DJ Queue' : 'Drag to reorder'}
       >
-        <span className="text-[10px] font-bold group-hover:hidden tabular-nums">
+        <span className={`text-[10px] font-bold ${isJamGuest ? '' : 'group-hover:hidden'} tabular-nums`}>
           {idx + 1}
         </span>
-        <svg
-          className="w-3.5 h-3.5 hidden group-hover:block"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-        >
-          <line x1="4" y1="9" x2="20" y2="9" />
-          <line x1="4" y1="15" x2="20" y2="15" />
-        </svg>
+        {!isJamGuest && (
+          <svg
+            className="w-3.5 h-3.5 hidden group-hover:block"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          >
+            <line x1="4" y1="9" x2="20" y2="9" />
+            <line x1="4" y1="15" x2="20" y2="15" />
+          </svg>
+        )}
       </div>
 
       {/* Track Artwork with Play Overlay */}
       <div
         data-no-drag="true"
-        onClick={() => onJumpToTrack(track, actualIndex)}
-        className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer border-0"
+        onClick={isJamGuest ? undefined : () => onJumpToTrack(track, actualIndex)}
+        className={`relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 ${
+          isJamGuest ? 'cursor-default' : 'cursor-pointer'
+        } border-0`}
       >
         <img
           src={track.thumbnail || DEFAULT_THUMBNAIL}
@@ -102,18 +112,20 @@ const QueueTrackRow = memo(function QueueTrackRow({
           }}
           className="w-full h-full object-cover pointer-events-none"
         />
-        <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-          <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </div>
+        {!isJamGuest && (
+          <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+            <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        )}
       </div>
 
-      {/* Title & Artist (Click to Play Immediately) */}
+      {/* Title & Artist */}
       <div
         data-no-drag="true"
-        onClick={() => onJumpToTrack(track, actualIndex)}
-        className="min-w-0 flex-1 cursor-pointer"
+        onClick={isJamGuest ? undefined : () => onJumpToTrack(track, actualIndex)}
+        className={`min-w-0 flex-1 ${isJamGuest ? 'cursor-default' : 'cursor-pointer'}`}
       >
         <p className="text-xs font-bold text-white/90 group-hover:text-white truncate transition-colors">
           {track.title}
@@ -124,71 +136,73 @@ const QueueTrackRow = memo(function QueueTrackRow({
       </div>
 
       {/* Duration Readout */}
-      <span data-no-drag="true" className="text-[11px] font-medium text-white/60 tabular-nums group-hover:hidden pr-1">
+      <span data-no-drag="true" className={`text-[11px] font-medium text-white/60 tabular-nums ${isJamGuest ? '' : 'group-hover:hidden'} pr-1`}>
         {formatTime(track.duration || 210)}
       </span>
 
-      {/* Hover Action Dock */}
-      <div data-no-drag="true" className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
-        {idx > 0 && (
+      {/* Hover Action Dock (Host Only) */}
+      {!isJamGuest && (
+        <div data-no-drag="true" className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+          {idx > 0 && (
+            <button
+              type="button"
+              data-no-drag="true"
+              onClick={() => onMoveToTop(actualIndex)}
+              aria-label="Play Next (Move to Top)"
+              title="Play Next (Move to Top)"
+              className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-white/70 hover:text-[var(--color-accent)] flex items-center justify-center transition-all cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="17 11 12 6 7 11" />
+                <line x1="12" y1="6" x2="12" y2="18" />
+                <line x1="6" y1="3" x2="18" y2="3" />
+              </svg>
+            </button>
+          )}
+
           <button
             type="button"
             data-no-drag="true"
-            onClick={() => onMoveToTop(actualIndex)}
-            aria-label="Play Next (Move to Top)"
-            title="Play Next (Move to Top)"
-            className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-white/70 hover:text-[var(--color-accent)] flex items-center justify-center transition-all cursor-pointer"
+            onClick={() => canMoveUp && onReorder(actualIndex, actualIndex - 1)}
+            disabled={!canMoveUp}
+            aria-label="Move track up"
+            title="Move Up"
+            className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-white/70 hover:text-white disabled:opacity-25 flex items-center justify-center transition-all cursor-pointer"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="17 11 12 6 7 11" />
-              <line x1="12" y1="6" x2="12" y2="18" />
-              <line x1="6" y1="3" x2="18" y2="3" />
+              <polyline points="18 15 12 9 6 15" />
             </svg>
           </button>
-        )}
 
-        <button
-          type="button"
-          data-no-drag="true"
-          onClick={() => canMoveUp && onReorder(actualIndex, actualIndex - 1)}
-          disabled={!canMoveUp}
-          aria-label="Move track up"
-          title="Move Up"
-          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-white/70 hover:text-white disabled:opacity-25 flex items-center justify-center transition-all cursor-pointer"
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="18 15 12 9 6 15" />
-          </svg>
-        </button>
+          <button
+            type="button"
+            data-no-drag="true"
+            onClick={() => canMoveDown && onReorder(actualIndex, actualIndex + 1)}
+            disabled={!canMoveDown}
+            aria-label="Move track down"
+            title="Move Down"
+            className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-white/70 hover:text-white disabled:opacity-25 flex items-center justify-center transition-all cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
 
-        <button
-          type="button"
-          data-no-drag="true"
-          onClick={() => canMoveDown && onReorder(actualIndex, actualIndex + 1)}
-          disabled={!canMoveDown}
-          aria-label="Move track down"
-          title="Move Down"
-          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-white/70 hover:text-white disabled:opacity-25 flex items-center justify-center transition-all cursor-pointer"
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          data-no-drag="true"
-          onClick={() => onRemove(actualIndex)}
-          aria-label="Remove from Queue"
-          title="Remove from Queue"
-          className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-rose-300 hover:text-rose-200 flex items-center justify-center transition-all cursor-pointer"
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
+          <button
+            type="button"
+            data-no-drag="true"
+            onClick={() => onRemove(actualIndex)}
+            aria-label="Remove from Queue"
+            title="Remove from Queue"
+            className="w-7 h-7 sm:w-6 sm:h-6 rounded-lg glass-button text-rose-300 hover:text-rose-200 flex items-center justify-center transition-all cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 });
@@ -216,6 +230,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   );
   const autoplay = useSettingsStore((s) => s.autoplay);
   const toggleAutoplay = useSettingsStore((s) => s.toggleAutoplay);
+  const isJamGuest = useJamStore((s) => Boolean(s.roomCode && !s.isHost));
   const { isPhone } = useDevicePreset();
 
   useEffect(() => {
@@ -279,6 +294,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
   const handleReorderUpcoming = useCallback(
     (fromIdx: number, toIdx: number) => {
+      if (isJamGuest) return;
       const fromItem = upcomingItems[fromIdx];
       const toItem = upcomingItems[toIdx];
       if (fromItem && toItem && fromItem.actualIndex !== toItem.actualIndex) {
@@ -286,7 +302,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
         reorderQueue(fromItem.actualIndex, toItem.actualIndex);
       }
     },
-    [upcomingItems, reorderQueue]
+    [upcomingItems, reorderQueue, isJamGuest]
   );
 
   const historyItems =
@@ -304,18 +320,20 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   const totalUpcomingMins = Math.max(1, Math.round(totalUpcomingSeconds / 60));
 
   const handleJumpToTrack = useCallback((track: Track, actualIndex: number) => {
+    if (isJamGuest) return;
     playTrack(track, queue, actualIndex);
-  }, [playTrack, queue]);
+  }, [playTrack, queue, isJamGuest]);
 
   const handleMoveToTop = useCallback((fromActualIndex: number) => {
+    if (isJamGuest) return;
     const targetTopIndex = effectiveIndex >= 0 ? effectiveIndex + 1 : 0;
     if (fromActualIndex > targetTopIndex) {
       reorderQueue(fromActualIndex, targetTopIndex);
     }
-  }, [effectiveIndex, reorderQueue]);
+  }, [effectiveIndex, reorderQueue, isJamGuest]);
 
   const handleShuffleUpcoming = () => {
-    if (upcomingItems.length <= 1) return;
+    if (isJamGuest || upcomingItems.length <= 1) return;
     const beforeAndCurrent = effectiveIndex >= 0 ? queue.slice(0, effectiveIndex + 1) : [];
     const upcomingTracks: Track[] = upcomingItems.map((i: UpcomingQueueItem) => i.track);
     const shuffledUpcoming = shuffleArray(upcomingTracks) as Track[];
@@ -327,7 +345,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   };
 
   const handleClearUpcoming = () => {
-    if (upcomingItems.length === 0) return;
+    if (isJamGuest || upcomingItems.length === 0) return;
     const keepCurrent = effectiveIndex >= 0 ? queue.slice(0, effectiveIndex + 1) : [];
     usePlayerStore.setState({
       queue: keepCurrent,
@@ -418,7 +436,9 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                       </span>
                     </h2>
                     <p className="text-[11px] text-white/50 font-medium">
-                      {upcomingItems.length > 0
+                      {isJamGuest
+                        ? `~${totalUpcomingMins} min remaining • Host DJ in control (Add to Queue only)`
+                        : upcomingItems.length > 0
                         ? `~${totalUpcomingMins} min remaining • Drag or tap arrows to reorder`
                         : 'Add songs or use AI Smart Fill below'}
                     </p>
@@ -485,7 +505,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                   </button>
                 </div>
 
-                {activeTab === 'upnext' && upcomingItems.length > 0 && (
+                {activeTab === 'upnext' && upcomingItems.length > 0 && !isJamGuest && (
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
@@ -521,8 +541,8 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                 {/* Shuffle Upcoming */}
                 <button
                   onClick={handleShuffleUpcoming}
-                  disabled={upcomingItems.length <= 1}
-                  title="Shuffle Upcoming Tracks"
+                  disabled={isJamGuest || upcomingItems.length <= 1}
+                  title={isJamGuest ? 'Host controls queue order' : 'Shuffle Upcoming Tracks'}
                   className="w-7.5 h-7.5 rounded-xl glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer disabled:opacity-35 flex-shrink-0"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
@@ -532,10 +552,13 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
                 {/* Repeat Mode */}
                 <button
-                  onClick={cycleRepeat}
-                  title={`Repeat Mode: ${repeatMode.toUpperCase()}`}
+                  onClick={isJamGuest ? undefined : cycleRepeat}
+                  disabled={isJamGuest}
+                  title={isJamGuest ? 'Host controls playback mode' : `Repeat Mode: ${repeatMode.toUpperCase()}`}
                   className={`w-7.5 h-7.5 rounded-xl flex items-center justify-center transition-all cursor-pointer relative flex-shrink-0 ${
-                    repeatMode !== 'off'
+                    isJamGuest
+                      ? 'glass-button text-white/40 cursor-not-allowed'
+                      : repeatMode !== 'off'
                       ? 'glass-button-primary text-white'
                       : 'glass-button text-white/70 hover:text-white'
                   }`}
@@ -592,8 +615,10 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     className="p-3.5 rounded-2xl liquid-glass border-0 shadow-[0_12px_30px_rgba(0,0,0,0.45)] flex items-center gap-3.5"
                   >
                     <div
-                      onClick={togglePlay}
-                      className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group border-0 shadow-md"
+                      onClick={isJamGuest ? undefined : togglePlay}
+                      className={`relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 ${
+                        isJamGuest ? 'cursor-default' : 'cursor-pointer group'
+                      } border-0 shadow-md`}
                     >
                       <img
                         src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
@@ -649,22 +674,32 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                         </svg>
                       </button>
 
-                      <button
-                        onClick={togglePlay}
-                        aria-label={isPlaying ? 'Pause' : 'Play'}
-                        className="w-8 h-8 rounded-full glass-button-primary text-white flex items-center justify-center hover:scale-105 transition-transform cursor-pointer"
-                        title={isPlaying ? 'Pause' : 'Play'}
-                      >
-                        {isPlaying ? (
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        )}
-                      </button>
+                      {isJamGuest ? (
+                        <div
+                          title="Host DJ in Control • Synced"
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold select-none shadow-[0_0_8px_rgba(16,185,129,0.2)]"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" />
+                          <span>Synced</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={togglePlay}
+                          aria-label={isPlaying ? 'Pause' : 'Play'}
+                          className="w-8 h-8 rounded-full glass-button-primary text-white flex items-center justify-center hover:scale-105 transition-transform cursor-pointer"
+                          title={isPlaying ? 'Pause' : 'Play'}
+                        >
+                          {isPlaying ? (
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -677,7 +712,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/45">
                       Next Up in Queue ({upcomingItems.length})
                     </span>
-                    {upcomingItems.length > 0 && (
+                    {upcomingItems.length > 0 && !isJamGuest && (
                       <button
                         onClick={handleClearUpcoming}
                         className="text-[11px] font-bold text-white/45 hover:text-rose-400 transition-colors cursor-pointer"
@@ -703,7 +738,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                         gap={6}
                         dragTilt={6}
                         lift={1.025}
-                        onReorder={handleReorderUpcoming}
+                        onReorder={isJamGuest ? () => {} : handleReorderUpcoming}
                         renderItem={(item, idx, isDragging) => (
                           <QueueTrackRow
                             track={item.track}
@@ -713,6 +748,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                             canMoveUp={idx > 0}
                             canMoveDown={idx < upcomingItems.length - 1}
                             queue={queue}
+                            isJamGuest={isJamGuest}
                             onJumpToTrack={handleJumpToTrack}
                             onMoveToTop={handleMoveToTop}
                             onReorder={reorderQueue}

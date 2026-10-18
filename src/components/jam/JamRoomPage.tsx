@@ -50,7 +50,7 @@ function getAvatarGradient(name: string) {
   return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
 }
 
-const JamStageProgress = memo(() => {
+const JamStageProgress = memo<{ isHost: boolean }>(({ isHost }) => {
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
   const seekTo = usePlayerStore((s) => s.seekTo);
@@ -60,11 +60,14 @@ const JamStageProgress = memo(() => {
     <div className="mt-3 max-w-xl">
       <div
         onClick={(e) => {
+          if (!isHost) return;
           const rect = e.currentTarget.getBoundingClientRect();
           const r = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
           seekTo(r * (duration || 210));
         }}
-        className="h-2 bg-white/15 rounded-full cursor-pointer overflow-hidden border-0"
+        className={`h-2 bg-white/15 rounded-full overflow-hidden border-0 ${
+          isHost ? 'cursor-pointer' : 'cursor-default pointer-events-none'
+        }`}
       >
         <div
           className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-rose-500 rounded-full transition-all duration-150"
@@ -813,28 +816,35 @@ export default function JamRoomPage() {
                     </p>
 
                     {/* Live Room Progress Bar */}
-                    <JamStageProgress />
+                    <JamStageProgress isHost={isHost} />
                   </div>
 
-                  {/* Shared Stage Transport Controls */}
-                  <div className="flex items-center gap-2.5 flex-shrink-0">
-                    <motion.button
-                      whileHover={{ y: -1.5, scale: 1.03 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => togglePlayInJam()}
-                      className="px-5 py-2.5 rounded-full bg-white text-black font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-lg"
-                    >
-                      {isPlaying ? '⏸ Pause Room' : '▶ Play Room'}
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ y: -1.5, scale: 1.03 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => skipTrackInJam()}
-                      className="px-4 py-2.5 rounded-full glass-button text-white font-extrabold text-xs cursor-pointer"
-                    >
-                      Skip ⏭
-                    </motion.button>
-                  </div>
+                  {/* Shared Stage Transport Controls: Host has playback authority; Guests see locked sync indicator */}
+                  {isHost ? (
+                    <div className="flex items-center gap-2.5 flex-shrink-0">
+                      <motion.button
+                        whileHover={{ y: -1.5, scale: 1.03 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => togglePlayInJam()}
+                        className="px-5 py-2.5 rounded-full bg-white text-black font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-lg"
+                      >
+                        {isPlaying ? '⏸ Pause Room' : '▶ Play Room'}
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ y: -1.5, scale: 1.03 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => skipTrackInJam()}
+                        className="px-4 py-2.5 rounded-full glass-button text-white font-extrabold text-xs cursor-pointer"
+                      >
+                        Skip ⏭
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex-shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Host DJ in Control • Synced</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-sm text-white/65 py-4">
@@ -1039,15 +1049,17 @@ export default function JamRoomPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <motion.button
-                            whileHover={{ scale: 1.04 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => addTrackToJam(track, true)}
-                            title="Play immediately for everyone in the room"
-                            className="px-3 py-1.5 rounded-full bg-[var(--color-accent)] hover:brightness-110 text-white text-[11px] font-extrabold cursor-pointer shadow"
-                          >
-                            ▶ Play Now
-                          </motion.button>
+                          {isHost && (
+                            <motion.button
+                              whileHover={{ scale: 1.04 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => addTrackToJam(track, true)}
+                              title="Play immediately for everyone in the room"
+                              className="px-3 py-1.5 rounded-full bg-[var(--color-accent)] hover:brightness-110 text-white text-[11px] font-extrabold cursor-pointer shadow"
+                            >
+                              ▶ Play Now
+                            </motion.button>
+                          )}
                           <motion.button
                             whileHover={{ scale: 1.04 }}
                             whileTap={{ scale: 0.95 }}
@@ -1055,7 +1067,7 @@ export default function JamRoomPage() {
                             title="Add to Shared Room Queue"
                             className="px-3 py-1.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 border-0 text-emerald-300 text-[11px] font-extrabold cursor-pointer"
                           >
-                            + Queue
+                            + Add to Queue
                           </motion.button>
                         </div>
                       </div>
@@ -1126,7 +1138,7 @@ export default function JamRoomPage() {
                     </span>
                   </div>
                   <span className="text-xs text-white/45 font-medium hidden sm:inline">
-                    Click any track to spin for everyone
+                    {isHost ? 'Click any track to spin for everyone' : 'Host controls playback • Add songs below'}
                   </span>
                 </div>
 
@@ -1142,7 +1154,7 @@ export default function JamRoomPage() {
                         track={t}
                         index={idx + 1}
                         tracks={queue}
-                        onPlay={(selectedTrack) => playTrackInJam(selectedTrack)}
+                        onPlay={isHost ? (selectedTrack) => playTrackInJam(selectedTrack) : undefined}
                       />
                     ))}
                   </div>

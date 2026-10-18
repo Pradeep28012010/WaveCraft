@@ -71,6 +71,7 @@ export interface JamRoomSnapshot {
   rendezvousAt?: number;
   serverTime?: number;
   signal?: WebRtcSignalPayload;
+  isHost?: boolean;
 }
 
 interface JamStore {
@@ -126,10 +127,13 @@ let guestPingInterval: ReturnType<typeof setInterval> | null = null;
 let sseSource: EventSource | null = null;
 let serverSseSource: EventSource | null = null;
 let isApplyingRemoteState = false;
-let lastCollaborativeTrackSwitchAt = 0;
 let latestRemoteRoomSnapshot: JamRoomSnapshot | null = null;
 let syncSeq = 1;
 let lastRelayPulseAt = 0;
+
+export function isJamRemoteApplying(): boolean {
+  return isApplyingRemoteState;
+}
 
 function getRelayTopic(roomCode: string) {
   return `wavecraft_jam_v2_${roomCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')}`;
@@ -147,7 +151,22 @@ function publishRealtimeEvent(roomCode: string, eventPayload: JamRoomSnapshot) {
   } catch {}
 
   // 3. Local API server broadcast (via SSE to all room clients)
-  fetch(apiUrl(`/api/music?action=jam&op=sync&room=${encodeURIComponent(roomCode)}`), {
+  const op =
+    eventPayload.eventType === 'webrtc-signal'
+      ? 'signal'
+      : eventPayload.eventType === 'add-track'
+      ? 'add-track'
+      : eventPayload.eventType === 'play-track'
+      ? 'play-track'
+      : eventPayload.eventType === 'toggle-play'
+      ? 'toggle-play'
+      : eventPayload.eventType === 'react'
+      ? 'react'
+      : eventPayload.eventType === 'chat'
+      ? 'chat'
+      : 'sync';
+
+  fetch(apiUrl(`/api/music?action=jam&op=${encodeURIComponent(op)}&room=${encodeURIComponent(roomCode)}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(eventPayload)
@@ -238,6 +257,10 @@ export const useJamStore = create<JamStore>((set, get) => {
 
     // WebRTC Signal Forwarding
     if (room.eventType === 'webrtc-signal' && room.signal) {
+      const myId = get().userId;
+      if (room.signal.target && room.signal.target !== myId && room.signal.target !== (get().isHost ? 'host' : '')) {
+        return;
+      }
       jamWebRtc.handleRemoteSignal(room.signal);
       return;
     }
@@ -247,6 +270,7 @@ export const useJamStore = create<JamStore>((set, get) => {
       jamWebRtc.send({
         roomCode: activeRoomCode,
         eventType: 'p2p-pong',
+        targetGuestId: room.guestId || room.userId,
         clientSendEpoch: room.clientSendEpoch,
         hostReceiveEpoch: Date.now()
       });
@@ -254,6 +278,7 @@ export const useJamStore = create<JamStore>((set, get) => {
     }
 
     if (room.eventType === 'p2p-pong' && !get().isHost) {
+      if (room.targetGuestId && room.targetGuestId !== get().userId) return;
       if (typeof room.clientSendEpoch === 'number' && typeof room.hostReceiveEpoch === 'number') {
         jamSyncEngine.handlePingPongResponse(
           room.clientSendEpoch,
@@ -342,9 +367,9 @@ export const useJamStore = create<JamStore>((set, get) => {
       if (!exists) {
         player.addToQueue(addedTrack);
       }
-      if (!player.currentTrack || room.playNow) {
+      // ONLY the Host can trigger playNow on add-track!
+      if (room.playNow && room.isHost && !get().isHost) {
         isApplyingRemoteState = true;
-        lastCollaborativeTrackSwitchAt = Date.now();
         player.playTrack(
           addedTrack,
           exists ? player.queue : [...player.queue, addedTrack],
@@ -360,8 +385,10 @@ export const useJamStore = create<JamStore>((set, get) => {
     // 4. Collaborative "play-track" with synchronized rendezvous
     const playCurrentTrack = room.currentTrack;
     if (room.eventType === 'play-track' && playCurrentTrack) {
+      // HOST is the master authority. Host NEVER accepts play-track from any guest!
+      if (get().isHost) return;
+
       isApplyingRemoteState = true;
-      lastCollaborativeTrackSwitchAt = Date.now();
       const nextQueue =
         Array.isArray(room.queue) && room.queue.length > 0
           ? room.queue
@@ -389,10 +416,12 @@ export const useJamStore = create<JamStore>((set, get) => {
 
     // 5. Collaborative "toggle-play" with synchronized rendezvous
     if (room.eventType === 'toggle-play' && typeof room.isPlaying === 'boolean') {
-      isApplyingRemoteState = true;
-      lastCollaborativeTrackSwitchAt = Date.now();
+      // HOST is the master authority. Host is NEVER paused by any incoming toggle-play!
+      if (get().isHost) return;
 
-      if (room.syncAnchor && !get().isHost) {
+      isApplyingRemoteState = true;
+
+      if (room.syncAnchor) {
         jamSyncEngine.updateAnchor(room.syncAnchor);
       }
 
@@ -406,9 +435,7 @@ export const useJamStore = create<JamStore>((set, get) => {
           player.resume();
         } else if (!room.isPlaying && player.isPlaying) {
           player.pause();
-          if (!get().isHost) {
-            jamSyncEngine.stopPLL();
-          }
+          jamSyncEngine.stopPLL();
         }
       };
 
@@ -433,33 +460,13 @@ export const useJamStore = create<JamStore>((set, get) => {
       }
     }
 
-    // 7. Host overrides
-    const curTrack = room.currentTrack;
+    // 7. Host Authority Guard: Host playback is master and never overridden by remote snapshots!
     if (get().isHost) {
-      if (
-        curTrack &&
-        (!player.currentTrack ||
-          (room.trackOverrideAt &&
-            room.trackOverrideAt > lastCollaborativeTrackSwitchAt &&
-            Date.now() - room.trackOverrideAt < 6000 &&
-            player.currentTrack.id !== curTrack.id))
-      ) {
-        isApplyingRemoteState = true;
-        lastCollaborativeTrackSwitchAt = room.trackOverrideAt || Date.now();
-        const q =
-          Array.isArray(room.queue) && room.queue.length > 0
-            ? room.queue
-            : [curTrack];
-        const idx = Math.max(0, q.findIndex((t: Track) => t.id === curTrack.id));
-        player.playTrack(curTrack, q, idx);
-        setTimeout(() => {
-          isApplyingRemoteState = false;
-        }, 250);
-      }
       return;
     }
 
     // 8. Guest UltraSync Alignment with Host Anchor
+    const curTrack = room.currentTrack;
     if (!get().isHost && curTrack) {
       isApplyingRemoteState = true;
       try {
@@ -620,12 +627,14 @@ export const useJamStore = create<JamStore>((set, get) => {
     });
   };
 
+  let anchorPulseTick = 0;
   const broadcastHostAnchorPulse = () => {
     const { roomCode, isHost } = get();
     if (!roomCode || !isHost) return;
     const player = usePlayerStore.getState();
     if (!player.currentTrack || !player.isPlaying) return;
 
+    anchorPulseTick++;
     const precisePos = getPreciseAudioTime();
     const anchor: JamAudioAnchor = {
       trackId: player.currentTrack.id,
@@ -636,7 +645,7 @@ export const useJamStore = create<JamStore>((set, get) => {
       syncVersion: ++syncSeq
     };
 
-    // If P2P DataChannel is open, stream directly to peer with zero server overhead
+    // 1. High-frequency 60ms direct P2P audio anchor to all connected WebRTC peers (LAN / Wi-Fi)
     if (jamWebRtc.isConnected()) {
       jamWebRtc.send({
         roomCode,
@@ -644,15 +653,19 @@ export const useJamStore = create<JamStore>((set, get) => {
         syncAnchor: anchor,
         updatedAt: anchor.hostEpoch
       });
-      return;
     }
 
-    publishRealtimeEvent(roomCode, {
-      roomCode,
-      eventType: 'sync-anchor',
-      syncAnchor: anchor,
-      updatedAt: anchor.hostEpoch
-    });
+    // 2. Continuous 240ms anchor pulse via SSE & BroadcastChannel so 3rd, 4th, and non-WebRTC peers
+    // ALWAYS receive fresh audio anchors and sync in lockstep without audio cutouts!
+    if (anchorPulseTick % 4 === 0 || !jamWebRtc.isConnected()) {
+      publishRealtimeEvent(roomCode, {
+        roomCode,
+        eventType: 'sync-anchor',
+        syncAnchor: anchor,
+        updatedAt: anchor.hostEpoch,
+        isHost: true
+      });
+    }
   };
 
   const stopRoomPolling = () => {
@@ -975,6 +988,9 @@ export const useJamStore = create<JamStore>((set, get) => {
       const { roomCode, userId, userName, isHost } = get();
       const player = usePlayerStore.getState();
 
+      // Only host can force immediate playback; guests always append to queue
+      const playNow = isHost ? shouldPlay : false;
+
       let playableTrack = track;
       if (!playableTrack.audioUrl && !playableTrack.youtubeId && playableTrack.title) {
         try {
@@ -994,14 +1010,14 @@ export const useJamStore = create<JamStore>((set, get) => {
       const sysMsg: JamMessage = {
         id: `sys-add-${now}-${Math.random().toString(36).slice(2, 6)}`,
         sender: 'WaveJam',
-        text: `🎵 ${userName} ${shouldPlay ? 'started playing' : 'added'} "${playableTrack.title}"`,
+        text: `🎵 ${userName} ${playNow ? 'started playing' : 'added'} "${playableTrack.title}"`,
         isSystem: true,
         createdAt: now
       };
 
       set((s) => ({ messages: mergeMessages([...s.messages, sysMsg]) }));
 
-      if (shouldPlay) {
+      if (playNow) {
         await get().playTrackInJam(playableTrack);
         return;
       }
@@ -1015,8 +1031,9 @@ export const useJamStore = create<JamStore>((set, get) => {
         eventType: 'add-track',
         userId,
         userName,
+        isHost,
         addedTrack: playableTrack,
-        playNow: shouldPlay,
+        playNow: false,
         currentTrack: usePlayerStore.getState().currentTrack,
         isPlaying: usePlayerStore.getState().isPlaying,
         currentTime: getPreciseAudioTime(),
@@ -1031,7 +1048,7 @@ export const useJamStore = create<JamStore>((set, get) => {
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ track: playableTrack, playNow: shouldPlay, userId, userName })
+            body: JSON.stringify({ track: playableTrack, playNow: false, userId, userName, isHost })
           }
         );
       } catch {}
@@ -1043,7 +1060,14 @@ export const useJamStore = create<JamStore>((set, get) => {
 
     playTrackInJam: async (track) => {
       unlockAudioEngine();
-      const { roomCode, userId, userName } = get();
+      const { roomCode, userId, userName, isHost } = get();
+
+      // Guest devices cannot switch tracks; they add to queue instead
+      if (!isHost) {
+        await get().addTrackToJam(track, false);
+        return;
+      }
+
       const player = usePlayerStore.getState();
 
       // Resolve 320k direct stream if missing so both devices play on Web Audio
@@ -1062,7 +1086,6 @@ export const useJamStore = create<JamStore>((set, get) => {
         } catch {}
       }
 
-      lastCollaborativeTrackSwitchAt = Date.now();
       const nextQueue = player.queue.some((t) => t.id === playableTrack.id)
         ? player.queue
         : [...player.queue, playableTrack];
@@ -1103,6 +1126,7 @@ export const useJamStore = create<JamStore>((set, get) => {
         eventType: 'play-track',
         userId,
         userName,
+        isHost: true,
         currentTrack: playableTrack,
         isPlaying: true,
         currentTime: 0,
@@ -1121,7 +1145,11 @@ export const useJamStore = create<JamStore>((set, get) => {
 
     togglePlayInJam: async () => {
       unlockAudioEngine();
-      const { roomCode, userId, userName } = get();
+      const { roomCode, userId, userName, isHost } = get();
+
+      // Only host can pause or resume the room
+      if (!isHost) return;
+
       const player = usePlayerStore.getState();
       const nextPlaying = !player.isPlaying;
 
@@ -1145,15 +1173,12 @@ export const useJamStore = create<JamStore>((set, get) => {
         rendezvousAt: nextPlaying ? rendezvousAt : undefined
       };
 
-      if (!get().isHost) {
-        jamSyncEngine.updateAnchor(syncAnchor);
-      }
-
       publishRealtimeEvent(roomCode, {
         roomCode,
         eventType: 'toggle-play',
         userId,
         userName,
+        isHost: true,
         isPlaying: nextPlaying,
         currentTime: currentPos,
         rendezvousAt,
@@ -1174,6 +1199,11 @@ export const useJamStore = create<JamStore>((set, get) => {
 
     skipTrackInJam: async () => {
       unlockAudioEngine();
+      const { isHost } = get();
+
+      // Only host can skip tracks in the Jam Room
+      if (!isHost) return;
+
       const player = usePlayerStore.getState();
       const nextIdx =
         player.queueIndex + 1 < player.queue.length ? player.queueIndex + 1 : 0;

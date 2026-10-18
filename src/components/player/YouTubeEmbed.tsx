@@ -32,6 +32,7 @@ import {
   resetAutoMixerFilters
 } from '../../services/audioEngine';
 import { jamSyncEngine } from '../../services/jamSyncEngine';
+import { useJamStore } from '../../stores/jamStore';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { isAndroidNative, PROD_API_ORIGIN } from '../../services/apiConfig';
@@ -294,6 +295,11 @@ export default function YouTubeEmbed() {
 
     const onEnded = () => {
       if (getActiveEngine() !== 'audio') return;
+      const jam = useJamStore.getState();
+      if (jam.roomCode && !jam.isHost) {
+        // Guest in Jam room: wait for Host to command next track
+        return;
+      }
       const studio = useStudioStore.getState();
       if (studio.sleepActive && studio.sleepEndAtTrack) {
         studio.stopSleepTimer();
@@ -535,6 +541,11 @@ export default function YouTubeEmbed() {
             }
             const state = e.data;
             if (state === window.YT?.PlayerState?.ENDED) {
+              const jam = useJamStore.getState();
+              if (jam.roomCode && !jam.isHost) {
+                // Guest in Jam room: wait for Host to command next track
+                return;
+              }
               const studio = useStudioStore.getState();
               if (studio.sleepActive && studio.sleepEndAtTrack) {
                 studio.stopSleepTimer();

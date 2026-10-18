@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useJamStore } from '../../stores/jamStore';
 import { formatTime } from '../../utils/formatTime';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { getAudioFrequencyData } from '../../services/audioEngine';
@@ -167,6 +168,7 @@ export const WaveformScrubber = memo(({
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const seekTo = usePlayerStore((s) => s.seekTo);
+  const isJamGuest = useJamStore((s) => Boolean(s.roomCode && !s.isHost));
 
   const [isDragging, setIsDragging] = useState(false);
   const [isSnapping, setIsSnapping] = useState(false);
@@ -317,6 +319,7 @@ export const WaveformScrubber = memo(({
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isJamGuest) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     if (snapTimerRef.current) {
@@ -391,7 +394,7 @@ export const WaveformScrubber = memo(({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onMouseLeave={() => setHoverTime(null)}
-        className="relative cursor-pointer py-3 group flex flex-col justify-end touch-none h-14"
+        className={`relative ${isJamGuest ? 'pointer-events-none' : 'cursor-pointer'} py-3 group flex flex-col justify-end touch-none h-14`}
       >
         {/* Floating Scrubber Time Preview Capsule */}
         {(hoverTime !== null || isDragging) && (

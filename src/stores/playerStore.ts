@@ -5,6 +5,7 @@ import { seekToTime } from '../components/player/YouTubeEmbed';
 import { useSettingsStore } from './settingsStore';
 import { getSmartRecommendations } from '../services/recommendationEngine';
 import { getOfflineTracks } from '../services/offlineVault';
+import { useJamStore, isJamRemoteApplying } from './jamStore';
 
 const PLAYER_SESSION_KEY = 'wavecraft_player_session_v1';
 
@@ -161,6 +162,13 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   playTrack: (track, queue, startIndex) => {
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost && !isJamRemoteApplying()) {
+      // Guest picked a track; add to Jam queue instead of disrupting room playback
+      jam.addTrackToJam(track, false);
+      return;
+    }
+
     set((state) => {
       const targetQueue =
         queue && queue.length > 0
@@ -192,11 +200,26 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     savePlayerSessionSync(get());
   },
 
-  togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
-  pause: () => set({ isPlaying: false }),
-  resume: () => set({ isPlaying: true }),
+  togglePlay: () => {
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) return;
+    set((state) => ({ isPlaying: !state.isPlaying }));
+  },
+  pause: () => {
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost && !isJamRemoteApplying()) return;
+    set({ isPlaying: false });
+  },
+  resume: () => {
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost && !isJamRemoteApplying()) return;
+    set({ isPlaying: true });
+  },
 
   nextTrack: () => {
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) return;
+
     set((state) => {
       const { queue, queueIndex, repeatMode } = state;
       if (queue.length === 0) return {};
@@ -284,6 +307,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   prevTrack: () => {
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) return;
+
     set((state) => {
       const { queue, queueIndex, currentTime, repeatMode } = state;
 
@@ -322,6 +348,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   seekTo: (time) => {
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) return;
+
     const dur = get().duration || 1;
     seekToTime(time);
     set({ currentTime: time, progress: (time / dur) * 100 });

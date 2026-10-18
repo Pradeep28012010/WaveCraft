@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useJamStore } from '../../stores/jamStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
@@ -50,6 +51,7 @@ const VISUALIZER_MODES: Array<{ id: VisualizerStyle; label: string }> = [
  * Zero playback jitter, elastic resistance at bounds, tactile spring release & haptic feedback.
  */
 const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: number }) => {
+  const isJamGuest = useJamStore((s) => Boolean(s.roomCode && !s.isHost));
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
   const seekTo = usePlayerStore((s) => s.seekTo);
@@ -90,6 +92,7 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isJamGuest) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     if (snapTimerRef.current) {
@@ -160,7 +163,7 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onMouseLeave={() => setHoverTime(null)}
-        className="relative cursor-pointer py-2 group flex items-center touch-none"
+        className={`relative ${isJamGuest ? 'pointer-events-none' : 'cursor-pointer'} py-2 group flex items-center touch-none`}
       >
         {/* Hover / Scrub Floating Time Bubble */}
         {(hoverTime !== null || isDragging) && (
@@ -354,23 +357,30 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
     [ambientVolumes]
   );
 
+  const isJamGuest = useJamStore((s) => Boolean(s.roomCode && !s.isHost));
+
   const handleTogglePlay = () => {
+    if (isJamGuest) return;
     triggerAndroidHaptic('medium');
     togglePlay();
   };
   const handleNextTrack = () => {
+    if (isJamGuest) return;
     triggerAndroidHaptic('light');
     nextTrack();
   };
   const handlePrevTrack = () => {
+    if (isJamGuest) return;
     triggerAndroidHaptic('light');
     prevTrack();
   };
   const handleToggleShuffle = () => {
+    if (isJamGuest) return;
     triggerAndroidHaptic('light');
     toggleShuffle();
   };
   const handleCycleRepeat = () => {
+    if (isJamGuest) return;
     triggerAndroidHaptic('light');
     cycleRepeat();
   };
@@ -1358,48 +1368,58 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={prevTrack}
-                      aria-label="Previous track"
-                      title="Previous track"
-                      className="text-white/75 hover:text-white cursor-pointer"
+                  {isJamGuest ? (
+                    <div
+                      title="Live Jam: Host DJ in control"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold select-none shadow-[0_0_10px_rgba(16,185,129,0.2)]"
                     >
-                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={togglePlay}
-                      aria-label={isPlaying ? 'Pause' : 'Play'}
-                      title={isPlaying ? 'Pause' : 'Play'}
-                      className="w-12 h-12 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
-                    >
-                      {isPlaying ? (
-                        <svg className="w-6 h-6 block" viewBox="0 0 24 24" fill="currentColor">
-                          <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
-                          <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" />
+                      <span>Synced</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={prevTrack}
+                        aria-label="Previous track"
+                        title="Previous track"
+                        className="text-white/75 hover:text-white cursor-pointer"
+                      >
+                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                         </svg>
-                      ) : (
-                        <svg className="w-6 h-6 block" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={togglePlay}
+                        aria-label={isPlaying ? 'Pause' : 'Play'}
+                        title={isPlaying ? 'Pause' : 'Play'}
+                        className="w-12 h-12 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
+                      >
+                        {isPlaying ? (
+                          <svg className="w-6 h-6 block" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
+                            <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
+                          </svg>
+                        ) : (
+                          <svg className="w-6 h-6 block" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={nextTrack}
+                        aria-label="Next track"
+                        title="Next track"
+                        className="text-white/75 hover:text-white cursor-pointer"
+                      >
+                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                         </svg>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={nextTrack}
-                      aria-label="Next track"
-                      title="Next track"
-                      className="text-white/75 hover:text-white cursor-pointer"
-                    >
-                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                      </svg>
-                    </button>
-                  </div>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1875,111 +1895,123 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                   {/* Symmetric Centered Transport Buttons with Tactile Spring Physics */}
                   <div className="w-full flex items-center justify-center gap-5 sm:gap-6 mt-3">
-                    <motion.button
-                      whileTap={{ scale: 0.86 }}
-                      onClick={handleToggleShuffle}
-                      title={isShuffled ? 'Shuffle On' : 'Shuffle Off'}
-                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer ${
-                        isShuffled
-                          ? 'glass-button-primary text-white shadow-[0_0_12px_var(--color-accent)]'
-                          : 'glass-button text-white/60 hover:text-white'
-                      }`}
-                    >
-                      <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-                      </svg>
-                    </motion.button>
+                    {isJamGuest ? (
+                      <div
+                        title="Live Jam: Host DJ in control. All devices synchronized."
+                        className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/[0.06] border border-white/10 text-white/80 text-xs sm:text-sm font-semibold backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.4)] select-none my-1"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_#34d399]" />
+                        <span>Host DJ in Control • Synced with Jam Room</span>
+                      </div>
+                    ) : (
+                      <>
+                        <motion.button
+                          whileTap={{ scale: 0.86 }}
+                          onClick={handleToggleShuffle}
+                          title={isShuffled ? 'Shuffle On' : 'Shuffle Off'}
+                          className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer ${
+                            isShuffled
+                              ? 'glass-button-primary text-white shadow-[0_0_12px_var(--color-accent)]'
+                              : 'glass-button text-white/60 hover:text-white'
+                          }`}
+                        >
+                          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+                          </svg>
+                        </motion.button>
 
-                    <motion.button
-                      whileTap={{ scale: 0.88 }}
-                      onClick={handlePrevTrack}
-                      title="Previous Track"
-                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
-                    >
-                      <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-                      </svg>
-                    </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.88 }}
+                          onClick={handlePrevTrack}
+                          title="Previous Track"
+                          className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
+                        >
+                          <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                          </svg>
+                        </motion.button>
 
-                    <motion.button
-                      whileTap={{ scale: 0.90 }}
-                      whileHover={{ scale: 1.05 }}
-                      onClick={handleTogglePlay}
-                      title={isPlaying ? 'Pause' : 'Play'}
-                      className="w-16 h-16 p-0 flex items-center justify-center rounded-full glass-button-primary text-white transition-transform cursor-pointer shadow-[0_10px_32px_rgba(250,45,72,0.45)]"
-                    >
-                      {isPlaying ? (
-                        <svg className="w-7 h-7 block" viewBox="0 0 24 24" fill="currentColor">
-                          <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
-                          <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
-                        </svg>
-                      ) : (
-                        <svg className="w-7 h-7 block" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
-                        </svg>
-                      )}
-                    </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.90 }}
+                          whileHover={{ scale: 1.05 }}
+                          onClick={handleTogglePlay}
+                          title={isPlaying ? 'Pause' : 'Play'}
+                          className="w-16 h-16 p-0 flex items-center justify-center rounded-full glass-button-primary text-white transition-transform cursor-pointer shadow-[0_10px_32px_rgba(250,45,72,0.45)]"
+                        >
+                          {isPlaying ? (
+                            <svg className="w-7 h-7 block" viewBox="0 0 24 24" fill="currentColor">
+                              <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
+                              <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
+                            </svg>
+                          ) : (
+                            <svg className="w-7 h-7 block" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
+                            </svg>
+                          )}
+                        </motion.button>
 
-                    <motion.button
-                      whileTap={{ scale: 0.88 }}
-                      onClick={handleNextTrack}
-                      title="Next Track"
-                      className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
-                    >
-                      <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                      </svg>
-                    </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.88 }}
+                          onClick={handleNextTrack}
+                          title="Next Track"
+                          className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer"
+                        >
+                          <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                          </svg>
+                        </motion.button>
 
-                    <motion.button
-                      whileTap={{ scale: 0.86 }}
-                      onClick={handleCycleRepeat}
-                      title={
-                        repeatMode === 'one'
-                          ? 'Repeat One Track'
-                          : repeatMode === 'all'
-                          ? 'Repeat All'
-                          : 'Repeat Off'
-                      }
-                      aria-label={
-                        repeatMode === 'one'
-                          ? 'Repeat One Track'
-                          : repeatMode === 'all'
-                          ? 'Repeat All'
-                          : 'Repeat Off'
-                      }
-                      className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer relative ${
-                        repeatMode !== 'off'
-                          ? 'glass-button-primary text-white shadow-[0_0_12px_var(--color-accent)]'
-                          : 'glass-button text-white/60 hover:text-white'
-                      }`}
-                    >
-                      <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="17 1 21 5 17 9" />
-                        <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                        <polyline points="7 23 3 19 7 15" />
-                        <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                        {repeatMode === 'one' && (
-                          <text
-                            x="12"
-                            y="13"
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize="8"
-                            fill="currentColor"
-                            stroke="none"
-                            fontWeight="900"
-                          >
-                            1
-                          </text>
-                        )}
-                      </svg>
-                      {repeatMode === 'one' && (
-                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center shadow-sm border-0">
-                          1
-                        </span>
-                      )}
-                    </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.86 }}
+                          onClick={handleCycleRepeat}
+                          title={
+                            repeatMode === 'one'
+                              ? 'Repeat One Track'
+                              : repeatMode === 'all'
+                              ? 'Repeat All'
+                              : 'Repeat Off'
+                          }
+                          aria-label={
+                            repeatMode === 'one'
+                              ? 'Repeat One Track'
+                              : repeatMode === 'all'
+                              ? 'Repeat All'
+                              : 'Repeat Off'
+                          }
+                          className={`w-10 h-10 p-0 flex items-center justify-center rounded-full transition-all cursor-pointer relative ${
+                            repeatMode !== 'off'
+                              ? 'glass-button-primary text-white shadow-[0_0_12px_var(--color-accent)]'
+                              : 'glass-button text-white/60 hover:text-white'
+                          }`}
+                        >
+                          <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="17 1 21 5 17 9" />
+                            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                            <polyline points="7 23 3 19 7 15" />
+                            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                            {repeatMode === 'one' && (
+                              <text
+                                x="12"
+                                y="13"
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                fontSize="8"
+                                fill="currentColor"
+                                stroke="none"
+                                fontWeight="900"
+                              >
+                                1
+                              </text>
+                            )}
+                          </svg>
+                          {repeatMode === 'one' && (
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center shadow-sm border-0">
+                              1
+                            </span>
+                          )}
+                        </motion.button>
+                      </>
+                    )}
                   </div>
 
                   {/* Mobile Actions vs Desktop Volume & Feature Toggles */}

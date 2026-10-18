@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useJamStore } from '../../stores/jamStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useStudioStore } from '../../stores/studioStore';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -194,6 +195,13 @@ function ContextMenuInner() {
 
   const handlePlayNow = () => {
     if (!track) return;
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) {
+      jam.addTrackToJam(track, false);
+      showToast('Added to Jam Room queue');
+      closeMenu();
+      return;
+    }
     stopChorusPreview(false);
     unlockAudioEngine();
 
@@ -211,12 +219,24 @@ function ContextMenuInner() {
 
   const handlePlayNext = () => {
     if (!track) return;
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) {
+      jam.addTrackToJam(track, false);
+      showToast('Added to Jam Room queue');
+      return;
+    }
     usePlayerStore.getState().addNext(track);
     showToast('Queued to play next');
   };
 
   const handleAddToQueue = () => {
     if (!track) return;
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) {
+      jam.addTrackToJam(track, false);
+      showToast('Added to Jam Room queue');
+      return;
+    }
     usePlayerStore.getState().addToQueue(track);
     showToast('Added to queue');
   };

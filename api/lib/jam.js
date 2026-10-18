@@ -111,7 +111,7 @@ export async function handleJamRoomRequest(req, url, roomCode) {
 
   let room = jamRooms.get(roomCode);
   if (!room) {
-    const isCreatingOrSyncingHost = op === 'sync' || Boolean(body.hostName);
+    const isCreatingOrSyncingHost = op === 'sync' || Boolean(body.hostName) || Boolean(body.isHost);
     room = {
       roomCode,
       hostId: isCreatingOrSyncingHost ? userId || 'host' : 'host',
@@ -160,31 +160,34 @@ export async function handleJamRoomRequest(req, url, roomCode) {
   // Keep last 40 chat messages
   room.messages = (room.messages || []).slice(-40);
 
-  if (op === 'sync') {
-    if (body.hostName) room.hostName = body.hostName;
-    if (userId) room.hostId = userId;
+  // Authoritative host check: sender must be the designated room host
+  const isHostSender =
+    Boolean(body.isHost) &&
+    (room.hostId === 'host' || !room.hostId || room.hostId === userId || !userId);
 
-    // Only accept host currentTrack if a collaborative play-track didn't just override it in the last 4s
-    const recentOverride = room.trackOverrideAt && now - room.trackOverrideAt < 4000;
-    if (!recentOverride) {
+  if (op === 'sync') {
+    if (isHostSender) {
+      if (userId) room.hostId = userId;
+      if (body.hostName) room.hostName = body.hostName;
+
       if (body.currentTrack !== undefined && (body.currentTrack || !room.currentTrack)) {
         room.currentTrack = body.currentTrack;
       }
       if (typeof body.isPlaying === 'boolean') room.isPlaying = body.isPlaying;
       if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
       if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
-    }
 
-    if (Array.isArray(body.queue)) {
-      const merged = [...body.queue];
-      for (const gt of room.guestTracks || []) {
-        if (!merged.some((t) => t.id === gt.id)) {
-          merged.push(gt);
+      if (Array.isArray(body.queue)) {
+        const merged = [...body.queue];
+        for (const gt of room.guestTracks || []) {
+          if (!merged.some((t) => t.id === gt.id)) {
+            merged.push(gt);
+          }
         }
+        room.queue = merged.slice(0, 40);
       }
-      room.queue = merged.slice(0, 40);
+      room.updatedAt = now;
     }
-    room.updatedAt = now;
   } else if (op === 'react') {
     const emoji = body.emoji || url.searchParams.get('emoji') || '🔥';
     const sender = userName || 'Listener';
@@ -215,7 +218,8 @@ export async function handleJamRoomRequest(req, url, roomCode) {
     if (!room.guestTracks.some((t) => t.id === body.track.id)) {
       room.guestTracks.push(body.track);
     }
-    if (!room.currentTrack || body.playNow) {
+    // Only the Host can force immediate track switch via playNow
+    if (isHostSender && (body.playNow || !room.currentTrack)) {
       room.currentTrack = body.track;
       room.isPlaying = true;
       room.currentTime = 0;
@@ -226,7 +230,7 @@ export async function handleJamRoomRequest(req, url, roomCode) {
     room.messages.push({
       id: `sys-${now}-${Math.random().toString(36).slice(2, 6)}`,
       sender: 'WaveJam',
-      text: `🎵 ${userName || 'A listener'} ${body.playNow ? 'started playing' : 'queued'} "${body.track.title}"`,
+      text: `🎵 ${userName || 'A listener'} ${body.playNow && isHostSender ? 'started playing' : 'queued'} "${body.track.title}"`,
       isSystem: true,
       createdAt: now
     });
@@ -234,21 +238,35 @@ export async function handleJamRoomRequest(req, url, roomCode) {
     broadcastToRoom(roomCode, {
       eventType: 'webrtc-signal',
       roomCode,
-      signal: body.signal
+      signal: body.signal,
+      targetGuestId: body.targetGuestId || body.signal?.target,
+      guestId: body.guestId || body.signal?.from
     });
     return { ok: true };
   } else if (op === 'play-track' && body.track) {
-    if (!room.queue.some((t) => t.id === body.track.id)) {
-      room.queue.push(body.track);
+    // Only the Host can command play-track
+    if (isHostSender) {
+      if (!room.queue.some((t) => t.id === body.track.id)) {
+        room.queue.push(body.track);
+      }
+      room.currentTrack = body.track;
+      room.isPlaying = true;
+      room.currentTime = 0;
+      room.trackOverrideAt = now;
+      room.stateVersion = (room.stateVersion || 1) + 1;
+      room.updatedAt = now;
+      if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
+      if (body.rendezvousAt) room.rendezvousAt = body.rendezvousAt;
     }
-    room.currentTrack = body.track;
-    room.isPlaying = true;
-    room.currentTime = 0;
-    room.trackOverrideAt = now;
-    room.stateVersion = (room.stateVersion || 1) + 1;
-    room.updatedAt = now;
-    if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
-    if (body.rendezvousAt) room.rendezvousAt = body.rendezvousAt;
+  } else if (op === 'toggle-play' && typeof body.isPlaying === 'boolean') {
+    // Only the Host can command toggle-play
+    if (isHostSender) {
+      room.isPlaying = body.isPlaying;
+      if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
+      if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
+      if (body.rendezvousAt) room.rendezvousAt = body.rendezvousAt;
+      room.updatedAt = now;
+    }
   }
 
   const payload = {

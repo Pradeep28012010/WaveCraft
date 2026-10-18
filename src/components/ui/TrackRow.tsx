@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useId, memo } from 'react';
 import { motion } from 'framer-motion';
 import type { Track } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useJamStore } from '../../stores/jamStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { useTrackOfflineStatus } from '../../services/offlineVault';
@@ -212,6 +213,11 @@ const TrackRow = memo(({
     }
     triggerAndroidHaptic('light');
     stopChorusPreview(false);
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) {
+      jam.addTrackToJam(track, false);
+      return;
+    }
     const player = usePlayerStore.getState();
     if (isCurrentTrack) {
       player.togglePlay();

@@ -1,6 +1,7 @@
 import type { Track } from '../types';
 import { usePlayerStore } from '../stores/playerStore';
 import { useLibraryStore } from '../stores/libraryStore';
+import { useJamStore } from '../stores/jamStore';
 import { searchTracks } from './youtube';
 
 /**
@@ -480,6 +481,12 @@ export async function getSmartRecommendations(
  * with intelligent, taste-predicted recommendations of the EXACT same type.
  */
 export async function playTrackWithSmartQueue(seedTrack: Track): Promise<void> {
+  const jam = useJamStore.getState();
+  if (jam.roomCode && !jam.isHost) {
+    jam.addTrackToJam(seedTrack, false);
+    return;
+  }
+
   const player = usePlayerStore.getState();
   // Start playing the chosen song immediately with a clean 1-song queue
   player.playTrack(seedTrack, [seedTrack], 0);

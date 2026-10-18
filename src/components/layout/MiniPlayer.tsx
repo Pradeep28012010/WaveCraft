@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, memo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useJamStore } from '../../stores/jamStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
@@ -25,6 +26,7 @@ import HeartBurstButton from '../ui/HeartBurstButton';
  * Zero playback jitter, elastic boundary stretch with resistance, tactile spring release & haptic feedback.
  */
 const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: number }) => {
+  const isJamGuest = useJamStore((s) => Boolean(s.roomCode && !s.isHost));
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
   const seekTo = usePlayerStore((s) => s.seekTo);
@@ -72,6 +74,7 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isJamGuest) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     if (snapTimerRef.current) {
@@ -141,7 +144,9 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onMouseLeave={() => setHoverTime(null)}
-      className={`absolute top-0 left-4 right-4 cursor-pointer group z-20 select-none touch-none ${
+      className={`absolute top-0 left-4 right-4 ${
+        isJamGuest ? 'pointer-events-none' : 'cursor-pointer'
+      } group z-20 select-none touch-none ${
         isDragging ? 'h-3 -top-0.5' : 'h-1.5 hover:h-2.5'
       } transition-all duration-150`}
     >
@@ -224,6 +229,7 @@ export default function MiniPlayer() {
   const setIsNowPlayingOpen = usePlayerStore((s) => s.setIsNowPlayingOpen);
   const isQueueOpen = usePlayerStore((s) => s.isQueueOpen);
   const setIsQueueOpen = usePlayerStore((s) => s.setIsQueueOpen);
+  const isJamGuest = useJamStore((s) => Boolean(s.roomCode && !s.isHost));
   const { isPhone } = useDevicePreset();
   const location = useLocation();
   const isKeyboardOpen = useIsKeyboardOpen();
@@ -284,6 +290,7 @@ export default function MiniPlayer() {
     }
 
     if (Math.abs(deltaX) > 42 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      if (isJamGuest) return;
       if (deltaX < 0) {
         // Swiped left -> Skip forward
         triggerAndroidHaptic('medium');
@@ -426,38 +433,50 @@ export default function MiniPlayer() {
                 </svg>
               </button>
 
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  togglePlay();
-                }}
-                className="w-9 h-9 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-md active:scale-80 transition-transform cursor-pointer"
-              >
-                {isLoading ? (
-                  <div className="w-4 h-4 border-2 border-white/25 border-t-white rounded-full animate-spin" />
-                ) : isPlaying ? (
-                  <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
-                    <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
-                  </svg>
-                )}
-              </button>
+              {isJamGuest ? (
+                <div
+                  title="Host DJ in Control • Synced"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-semibold select-none shadow-[0_0_10px_rgba(16,185,129,0.2)] ml-1"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" />
+                  <span>Synced</span>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      togglePlay();
+                    }}
+                    className="w-9 h-9 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-md active:scale-80 transition-transform cursor-pointer"
+                  >
+                    {isLoading ? (
+                      <div className="w-4 h-4 border-2 border-white/25 border-t-white rounded-full animate-spin" />
+                    ) : isPlaying ? (
+                      <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
+                        <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
+                      </svg>
+                    )}
+                  </button>
 
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  nextTrack();
-                }}
-                className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white/85 active:scale-80 transition-transform cursor-pointer"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                </svg>
-              </button>
+                  <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      nextTrack();
+                    }}
+                    className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white/85 active:scale-80 transition-transform cursor-pointer"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                    </svg>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </motion.div>
@@ -616,116 +635,126 @@ export default function MiniPlayer() {
 
           {/* Center: Transport Controls */}
           <div className="w-1/3 flex flex-col items-center justify-center">
-            <div className="flex items-center justify-center gap-5">
-              <motion.button
-                whileHover={{ scale: 1.12 }}
-                whileTap={{ scale: 0.88 }}
-                onClick={toggleShuffle}
-                title="Shuffle"
-                className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
-                  isShuffled ? 'glass-button-primary text-white' : 'glass-button text-white/70 hover:text-white'
-                }`}
+            {isJamGuest ? (
+              <div
+                title="Live Jam: Host DJ in control. All devices synchronized."
+                className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/[0.06] border border-white/10 text-white/80 text-xs font-semibold backdrop-blur-md shadow-inner select-none"
               >
-                <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-                </svg>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.12, x: -1 }}
-                whileTap={{ scale: 0.88 }}
-                onClick={prevTrack}
-                title="Previous"
-                className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white transition-colors cursor-pointer"
-              >
-                <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-                </svg>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.09 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                onClick={togglePlay}
-                title={isPlaying ? 'Pause' : 'Play'}
-                className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button-primary text-white cursor-pointer will-change-transform"
-              >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : isPlaying ? (
-                  <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
-                    <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                <span>Host DJ in Control • Synced</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-5">
+                <motion.button
+                  whileHover={{ scale: 1.12 }}
+                  whileTap={{ scale: 0.88 }}
+                  onClick={toggleShuffle}
+                  title="Shuffle"
+                  className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
+                    isShuffled ? 'glass-button-primary text-white' : 'glass-button text-white/70 hover:text-white'
+                  }`}
+                >
+                  <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                   </svg>
-                ) : (
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.12, x: -1 }}
+                  whileTap={{ scale: 0.88 }}
+                  onClick={prevTrack}
+                  title="Previous"
+                  className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white transition-colors cursor-pointer"
+                >
                   <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
+                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                   </svg>
-                )}
-              </motion.button>
+                </motion.button>
 
-              <motion.button
-                whileHover={{ scale: 1.12, x: 1 }}
-                whileTap={{ scale: 0.88 }}
-                onClick={nextTrack}
-                title="Next"
-                className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white transition-colors cursor-pointer"
-              >
-                <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                </svg>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.12 }}
-                whileTap={{ scale: 0.88 }}
-                onClick={cycleRepeat}
-                title={
-                  repeatMode === 'one'
-                    ? 'Repeat One Track'
-                    : repeatMode === 'all'
-                    ? 'Repeat All'
-                    : 'Repeat Off'
-                }
-                aria-label={
-                  repeatMode === 'one'
-                    ? 'Repeat One Track'
-                    : repeatMode === 'all'
-                    ? 'Repeat All'
-                    : 'Repeat Off'
-                }
-                className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer relative ${
-                  repeatMode !== 'off' ? 'glass-button-primary text-white' : 'glass-button text-white/70 hover:text-white'
-                }`}
-              >
-                <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="17 1 21 5 17 9" />
-                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                  <polyline points="7 23 3 19 7 15" />
-                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                  {repeatMode === 'one' && (
-                    <text
-                      x="12"
-                      y="13"
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize="8"
-                      fill="currentColor"
-                      stroke="none"
-                      fontWeight="900"
-                    >
-                      1
-                    </text>
+                <motion.button
+                  whileHover={{ scale: 1.09 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  onClick={togglePlay}
+                  title={isPlaying ? 'Pause' : 'Play'}
+                  className="w-11 h-11 p-0 flex items-center justify-center rounded-full glass-button-primary text-white cursor-pointer will-change-transform"
+                >
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : isPlaying ? (
+                    <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
+                      <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
+                    </svg>
                   )}
-                </svg>
-                {repeatMode === 'one' && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-accent)] text-white text-[7px] font-black flex items-center justify-center shadow-sm border-0">
-                    1
-                  </span>
-                )}
-              </motion.button>
-            </div>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.12, x: 1 }}
+                  whileTap={{ scale: 0.88 }}
+                  onClick={nextTrack}
+                  title="Next"
+                  className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white transition-colors cursor-pointer"
+                >
+                  <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                  </svg>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.12 }}
+                  whileTap={{ scale: 0.88 }}
+                  onClick={cycleRepeat}
+                  title={
+                    repeatMode === 'one'
+                      ? 'Repeat One Track'
+                      : repeatMode === 'all'
+                      ? 'Repeat All'
+                      : 'Repeat Off'
+                  }
+                  aria-label={
+                    repeatMode === 'one'
+                      ? 'Repeat One Track'
+                      : repeatMode === 'all'
+                      ? 'Repeat All'
+                      : 'Repeat Off'
+                  }
+                  className={`w-8 h-8 p-0 flex items-center justify-center rounded-full transition-colors cursor-pointer relative ${
+                    repeatMode !== 'off' ? 'glass-button-primary text-white' : 'glass-button text-white/70 hover:text-white'
+                  }`}
+                >
+                  <svg className="w-4 h-4 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="17 1 21 5 17 9" />
+                    <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                    <polyline points="7 23 3 19 7 15" />
+                    <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                    {repeatMode === 'one' && (
+                      <text
+                        x="12"
+                        y="13"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize="8"
+                        fill="currentColor"
+                        stroke="none"
+                        fontWeight="900"
+                      >
+                        1
+                      </text>
+                    )}
+                  </svg>
+                  {repeatMode === 'one' && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-accent)] text-white text-[7px] font-black flex items-center justify-center shadow-sm border-0">
+                      1
+                    </span>
+                  )}
+                </motion.button>
+              </div>
+            )}
           </div>
 
           {/* Right: Isolated Time Readout, Queue, Volume, Expand */}
