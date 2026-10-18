@@ -481,56 +481,76 @@ export default function Sidebar() {
   return (
     <>
       <aside
-        className={`flex flex-col h-full liquid-glass bg-[#06060f]/80 backdrop-blur-3xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] transition-all duration-300 select-none z-30 flex-shrink-0 ${
+        className={`flex flex-col h-full liquid-glass bg-[#06060f]/85 backdrop-blur-3xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none z-30 flex-shrink-0 overflow-hidden ${
           collapsed ? 'w-20' : 'w-64'
         }`}
       >
         {/* Brand Header */}
-        <div className={`flex items-center h-18 flex-shrink-0 transition-all ${
-          collapsed ? 'justify-center px-0' : 'justify-between px-5'
-        }`}>
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="relative group cursor-pointer" onClick={() => handleToggleCollapse()}>
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25 flex-shrink-0 transition-transform group-hover:scale-105 active:scale-95">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                  <path d="M12 3v18M17 6v12M21 10v4M7 6v12M3 10v4" />
-                </svg>
+        <div className="flex items-center h-18 px-2 flex-shrink-0 overflow-hidden">
+          <div className="flex items-center w-full min-w-0">
+            {/* Logo Icon - Stays anchored */}
+            <div
+              className="w-16 h-18 flex items-center justify-center flex-shrink-0 cursor-pointer"
+              onClick={handleToggleCollapse}
+              title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            >
+              <div className="relative group">
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25 flex-shrink-0 transition-transform group-hover:scale-105 active:scale-95">
+                  <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                    <path d="M12 3v18M17 6v12M21 10v4M7 6v12M3 10v4" />
+                  </svg>
+                </div>
+                {collapsed && isPlaying && (
+                  <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-accent)] border-2 border-black animate-pulse" />
+                )}
               </div>
-              {collapsed && isPlaying && (
-                <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-accent)] border-2 border-black animate-pulse" />
-              )}
             </div>
 
-            {!collapsed && (
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-base font-extrabold tracking-tight text-white leading-none">
-                    WaveCraft
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 text-[8px] font-black tracking-widest text-[var(--color-accent)] uppercase border-0">
-                    PRO
-                  </span>
-                </div>
-                <span className="text-[10px] font-medium tracking-wider text-white/45 mt-1">
-                  Liquid Audio Studio
+            {/* Brand Text - Smoothly glides in/out */}
+            <div
+              className={`flex flex-col min-w-0 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                collapsed
+                  ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
+                  : 'opacity-100 max-w-[170px] translate-x-0 duration-300 delay-100'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className="text-base font-extrabold tracking-tight text-white leading-none">
+                  WaveCraft
+                </span>
+                <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 text-[8px] font-black tracking-widest text-[var(--color-accent)] uppercase border-0">
+                  PRO
                 </span>
               </div>
-            )}
+              <span className="text-[10px] font-medium tracking-wider text-white/45 mt-1 whitespace-nowrap">
+                Liquid Audio Studio
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Scrollable Grouped Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4 no-scrollbar">
+        <nav className="flex-1 overflow-y-auto px-2 py-2.5 space-y-3.5 no-scrollbar overflow-x-hidden">
           {navSections.map((section) => (
             <div key={section.id} className="space-y-1">
-              {!collapsed && (
-                <div className="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider text-white/40">
+              {/* Section Header or Collapsed Divider */}
+              <div className="relative h-6 flex items-center px-2 overflow-hidden">
+                <div
+                  className={`whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-white/40 transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    collapsed
+                      ? 'opacity-0 -translate-x-3 duration-150 delay-0 pointer-events-none'
+                      : 'opacity-100 translate-x-0 duration-300 delay-100'
+                  }`}
+                >
                   {section.title}
                 </div>
-              )}
-              {collapsed && (
-                <div className="h-px w-8 mx-auto my-2 bg-white/10" />
-              )}
+                <div
+                  className={`absolute inset-x-3 h-px bg-white/10 transition-opacity ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    collapsed ? 'opacity-100 duration-200 delay-100' : 'opacity-0 duration-150 delay-0 pointer-events-none'
+                  }`}
+                />
+              </div>
+
               {section.items.map((item) => (
                 <NavLink
                   key={item.name}
@@ -540,9 +560,7 @@ export default function Sidebar() {
                   onTouchStart={() => preloadRoute(item.path)}
                   title={collapsed ? item.name : undefined}
                   className={({ isActive }) =>
-                    `relative flex items-center justify-between gap-2 h-10 rounded-xl transition-all duration-200 group ${
-                      collapsed ? 'px-0 justify-center' : 'px-3.5'
-                    } ${
+                    `relative flex items-center h-10 rounded-xl transition-colors duration-200 group overflow-hidden ${
                       isActive
                         ? 'text-white font-semibold'
                         : 'text-white/60 hover:text-white hover:bg-white/[0.06] active:scale-98'
@@ -562,32 +580,41 @@ export default function Sidebar() {
                         </motion.div>
                       )}
 
-                      <div
-                        className={`relative z-10 flex items-center gap-3.5 min-w-0 transition-transform duration-200 group-hover:translate-x-0.5 ${
-                          collapsed ? 'mx-auto' : ''
-                        }`}
-                      >
+                      {/* Icon Slot - Anchored & Centered */}
+                      <div className="w-16 h-10 flex items-center justify-center flex-shrink-0 relative z-10">
                         <div
-                          className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${
+                          className={`w-5 h-5 flex items-center justify-center transition-transform duration-200 group-hover:scale-110 ${
                             isActive ? 'text-[var(--color-accent)]' : 'text-white/70'
                           }`}
                         >
                           {item.icon(isActive)}
                         </div>
-                        {!collapsed && (
-                          <span className="text-sm truncate font-medium">{item.name}</span>
+                      </div>
+
+                      {/* Text & Badge Container - Seamless Glide In / Out */}
+                      <div
+                        className={`relative z-10 flex items-center justify-between flex-1 min-w-0 pr-3 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                          collapsed
+                            ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
+                            : 'opacity-100 max-w-[170px] translate-x-0 duration-300 delay-100'
+                        }`}
+                      >
+                        <span className="text-sm truncate font-medium whitespace-nowrap">
+                          {item.name}
+                        </span>
+                        {item.badge !== undefined && (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border-0 flex-shrink-0 ml-2 whitespace-nowrap ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
+                            {item.badge}
+                          </span>
                         )}
                       </div>
 
-                      {!collapsed && item.badge !== undefined && (
-                        <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
-                          {item.badge}
-                        </span>
-                      )}
-
-                      {collapsed && item.badge !== undefined && (
-                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--color-accent)] border-0 shadow-sm" />
-                      )}
+                      {/* Collapsed Dot Badge */}
+                      <span
+                        className={`absolute top-2 right-2.5 w-2 h-2 rounded-full bg-[var(--color-accent)] border-0 shadow-sm transition-opacity duration-200 ${
+                          collapsed && item.badge !== undefined ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                        }`}
+                      />
                     </>
                   )}
                 </NavLink>
@@ -597,40 +624,30 @@ export default function Sidebar() {
 
           {/* Playlists Section */}
           <div className="pt-2 pb-1 space-y-1">
-            {!collapsed && (
-              <div className="flex items-center justify-between px-3 mb-2">
-                <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
-                  Playlists ({playlists.length})
-                </h3>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setIsImportOpen(true)}
-                    className="p-1 rounded-lg text-emerald-400/80 hover:text-emerald-300 hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-                    title="Import External Playlist (Spotify / Apple Music / YouTube)"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => setIsCreateOpen(true)}
-                    className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-                    title="Create New Playlist"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {collapsed && (
-              <div className="flex justify-center mb-1">
+            {/* Header when expanded */}
+            <div
+              className={`flex items-center justify-between px-2 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                collapsed
+                  ? 'opacity-0 max-h-0 pointer-events-none duration-150 delay-0'
+                  : 'opacity-100 max-h-8 mb-2 duration-300 delay-100'
+              }`}
+            >
+              <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-wider whitespace-nowrap">
+                Playlists ({playlists.length})
+              </h3>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => setIsImportOpen(true)}
+                  className="p-1 rounded-lg text-emerald-400/80 hover:text-emerald-300 hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
+                  title="Import External Playlist (Spotify / Apple Music / YouTube)"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </button>
                 <button
                   onClick={() => setIsCreateOpen(true)}
-                  className="w-9 h-9 rounded-xl glass-button flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer"
+                  className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
                   title="Create New Playlist"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -639,7 +656,27 @@ export default function Sidebar() {
                   </svg>
                 </button>
               </div>
-            )}
+            </div>
+
+            {/* Quick Create Button when collapsed */}
+            <div
+              className={`flex justify-center overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                collapsed
+                  ? 'opacity-100 max-h-10 mb-1 duration-200 delay-100'
+                  : 'opacity-0 max-h-0 pointer-events-none duration-150 delay-0'
+              }`}
+            >
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="w-9 h-9 rounded-xl glass-button flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer"
+                title="Create New Playlist"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+            </div>
 
             <div className="space-y-0.5">
               {(collapsed ? playlists.slice(0, 5) : playlists).map((playlist: Playlist) => (
@@ -648,21 +685,32 @@ export default function Sidebar() {
                   to={`/playlist/${playlist.id}`}
                   title={collapsed ? playlist.name : undefined}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 h-9.5 rounded-xl transition-all duration-200 ${
-                      collapsed ? 'justify-center px-0' : 'px-3.5'
-                    } ${
+                    `flex items-center h-9.5 rounded-xl transition-colors duration-200 overflow-hidden ${
                       isActive
                         ? 'bg-white/15 text-white font-medium shadow-sm'
                         : 'text-white/60 hover:text-white hover:bg-white/[0.05]'
                     }`
                   }
                 >
-                  <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${getPlaylistGradient(playlist.id)} flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-sm`}>
-                    {playlist.name.charAt(0).toUpperCase()}
+                  {/* Playlist Avatar slot - Anchored */}
+                  <div className="w-16 h-9.5 flex items-center justify-center flex-shrink-0">
+                    <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${getPlaylistGradient(playlist.id)} flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-sm`}>
+                      {playlist.name.charAt(0).toUpperCase()}
+                    </div>
                   </div>
-                  {!collapsed && (
-                    <span className="flex-1 truncate text-xs font-medium">{playlist.name}</span>
-                  )}
+
+                  {/* Playlist Name - Smooth Glide In / Out */}
+                  <div
+                    className={`flex-1 min-w-0 pr-3 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      collapsed
+                        ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
+                        : 'opacity-100 max-w-[170px] translate-x-0 duration-300 delay-100'
+                    }`}
+                  >
+                    <span className="truncate text-xs font-medium whitespace-nowrap block">
+                      {playlist.name}
+                    </span>
+                  </div>
                 </NavLink>
               ))}
             </div>
@@ -670,25 +718,37 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer Actions: Collapse Controls */}
-        <div className="p-2.5 pt-1 space-y-1.5 flex-shrink-0">
+        <div className="p-2 pt-1 space-y-1.5 flex-shrink-0 overflow-hidden">
           <button
             onClick={handleToggleCollapse}
             aria-label={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            className="flex items-center justify-center gap-2 w-full h-9 rounded-xl text-white/60 hover:text-white glass-button text-xs font-medium cursor-pointer active:scale-95 transition-all"
+            className="flex items-center w-full h-9 rounded-xl text-white/65 hover:text-white glass-button text-xs font-medium cursor-pointer active:scale-95 transition-colors overflow-hidden"
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
-            <svg
-              className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <div className="w-16 h-9 flex items-center justify-center flex-shrink-0">
+              <svg
+                className={`w-4 h-4 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  collapsed ? 'rotate-180' : ''
+                }`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </div>
+            <span
+              className={`truncate whitespace-nowrap transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                collapsed
+                  ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
+                  : 'opacity-100 max-w-[140px] translate-x-0 duration-300 delay-100'
+              }`}
             >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            {!collapsed && <span>Collapse Sidebar</span>}
+              Collapse Sidebar
+            </span>
           </button>
         </div>
       </aside>
