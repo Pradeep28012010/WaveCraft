@@ -85,15 +85,14 @@ test('Atmosphere Soundscapes & 3D Visualizer Architecture', async (t) => {
   });
 
   await t.test('Studio FX & Atmosphere Modal Drag Suppression Logic', () => {
-    const resolveDragSetting = (isStudioModalOpen, isAtmosphereOpen, showQueue, showWaveCard) => {
-      return isStudioModalOpen || isAtmosphereOpen || showQueue || showWaveCard ? false : 'y';
+    const resolveDragSetting = (isStudioModalOpen, showQueue, showWaveCard) => {
+      return isStudioModalOpen || showQueue || showWaveCard ? false : 'y';
     };
 
-    assert.equal(resolveDragSetting(false, false, false, false), 'y', 'Drag should be enabled when no modal is open');
-    assert.equal(resolveDragSetting(true, false, false, false), false, 'Drag must be disabled when Studio modal is open');
-    assert.equal(resolveDragSetting(false, true, false, false), false, 'Drag must be disabled when Atmosphere drawer is open');
-    assert.equal(resolveDragSetting(false, false, true, false), false, 'Drag must be disabled when Queue is open');
-    assert.equal(resolveDragSetting(false, false, false, true), false, 'Drag must be disabled when WaveCard is open');
+    assert.equal(resolveDragSetting(false, false, false), 'y', 'Drag should be enabled when no modal is open');
+    assert.equal(resolveDragSetting(true, false, false), false, 'Drag must be disabled when Atmosphere/Studio modal is open');
+    assert.equal(resolveDragSetting(false, true, false), false, 'Drag must be disabled when Queue is open');
+    assert.equal(resolveDragSetting(false, false, true), false, 'Drag must be disabled when WaveCard is open');
   });
 
   await t.test('Studio Store Atmosphere Tab Routing', () => {

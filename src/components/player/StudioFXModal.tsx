@@ -21,7 +21,60 @@ import {
 import InteractiveEQ from './InteractiveEQ';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
-type StudioTab = 'eq' | 'spatial' | 'mastering' | 'ambient';
+type StudioTab = 'eq' | 'spatial' | 'mastering' | 'atmosphere' | 'ambient';
+
+interface MoodPreset {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  blend: Partial<Record<AmbientLayerId, number>>;
+}
+
+const MOOD_PRESETS: MoodPreset[] = [
+  {
+    id: 'rainy-lofi',
+    name: 'Rainy Lo-Fi',
+    icon: '🌧️',
+    description: 'Window rain & vinyl dust',
+    blend: { rain: 0.65, vinyl: 0.35 }
+  },
+  {
+    id: 'midnight-cafe',
+    name: 'Midnight Café',
+    icon: '☕',
+    description: 'Warm cafe room & soft rain',
+    blend: { cafe: 0.7, rain: 0.3 }
+  },
+  {
+    id: 'hearth-fire',
+    name: 'Cozy Hearth',
+    icon: '🔥',
+    description: 'Crackling wood & vinyl warmth',
+    blend: { campfire: 0.8, vinyl: 0.25 }
+  },
+  {
+    id: 'ocean-slumber',
+    name: 'Ocean Slumber',
+    icon: '🌊',
+    description: 'Rhythmic surf & binaural wave',
+    blend: { waves: 0.75, binaural: 0.25 }
+  },
+  {
+    id: 'deep-focus',
+    name: 'Deep Focus',
+    icon: '🧠',
+    description: '40Hz gamma pad & rainfall',
+    blend: { binaural: 0.6, rain: 0.4 }
+  },
+  {
+    id: 'cosmic-calm',
+    name: 'Cosmic Calm',
+    icon: '🌌',
+    description: 'Ocean, focus tone & crackle',
+    blend: { waves: 0.45, binaural: 0.45, vinyl: 0.2 }
+  }
+];
 
 const STUDIO_BACKDROP_TRANSITION = { duration: 0.32, ease: [0.16, 1, 0.3, 1] as const };
 const STUDIO_PANEL_VARIANTS = {
@@ -194,7 +247,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
   // Active tab state
   const studioActiveTab = useStudioStore((s) => s.studioActiveTab);
   const [activeTab, setActiveTab] = useState<StudioTab>(() => {
-    if (studioActiveTab === 'ambient' || studioActiveTab === 'atmosphere') return 'ambient';
+    if (studioActiveTab === 'ambient' || studioActiveTab === 'atmosphere') return 'atmosphere';
     if (studioActiveTab === 'spatial' || studioActiveTab === 'mastering' || studioActiveTab === 'eq') {
       return studioActiveTab;
     }
@@ -204,7 +257,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (studioActiveTab === 'ambient' || studioActiveTab === 'atmosphere') {
-      setActiveTab('ambient');
+      setActiveTab('atmosphere');
     } else if (studioActiveTab === 'spatial' || studioActiveTab === 'mastering' || studioActiveTab === 'eq') {
       setActiveTab(studioActiveTab);
     }
@@ -440,10 +493,43 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     return Object.values(safeAmbientVolumes).filter((v) => v > 0.02).length;
   }, [safeAmbientVolumes]);
 
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+
+  const masterAverage = useMemo(() => {
+    const active = Object.values(safeAmbientVolumes).filter((v) => v > 0.02);
+    if (active.length === 0) return 0;
+    return active.reduce((acc, curr) => acc + curr, 0) / active.length;
+  }, [safeAmbientVolumes]);
+
+  const handleApplyPreset = (preset: MoodPreset) => {
+    triggerAndroidHaptic('medium');
+    setActivePresetId(preset.id);
+    applyAmbientPreset(preset.blend);
+  };
+
+  const handleMasterVolumeChange = (newMasterRatio: number) => {
+    if (activeAmbientCount === 0) {
+      setAmbientVolume('rain', newMasterRatio);
+      return;
+    }
+    const currentAvg = masterAverage || 0.5;
+    const scale = currentAvg > 0 ? newMasterRatio / currentAvg : 1;
+    (Object.keys(safeAmbientVolumes) as AmbientLayerId[]).forEach((id) => {
+      const current = safeAmbientVolumes[id] || 0;
+      if (current > 0.02) {
+        setAmbientVolume(id, Math.min(1, Math.max(0, current * scale)));
+      }
+    });
+  };
+
   return (
     <div onPointerDown={unlockAudioEngine} className="flex flex-col h-full max-h-[92vh] sm:max-h-[86vh] overflow-hidden select-none">
       {/* iOS Drag Handle */}
-      <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-2.5 sm:hidden flex-shrink-0" />
+      <div
+        className="w-10 h-1.5 rounded-full bg-white/20 mx-auto mt-2.5 sm:hidden flex-shrink-0 cursor-pointer active:opacity-60"
+        onClick={onClose}
+        title="Tap to close"
+      />
 
       {/* ── Top Apple Floating Window Header ── */}
       <div className="flex items-center justify-between px-5 py-3.5 border-0 flex-shrink-0 bg-white/[0.02]">
@@ -512,13 +598,13 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             { id: 'spatial', label: 'Spatial Audio', icon: '🪐' },
             { id: 'mastering', label: 'Analog Master', icon: '🎚️' },
             {
-              id: 'ambient',
-              label: 'Ambient & Timers',
+              id: 'atmosphere',
+              label: 'Atmosphere',
               icon: '🌧️',
               badge: activeAmbientCount > 0 ? `${activeAmbientCount}` : sleepActive ? '🌙' : null
             }
           ].map((tab) => {
-            const isActive = activeTab === tab.id;
+            const isActive = activeTab === tab.id || (tab.id === 'atmosphere' && activeTab === 'ambient');
             return (
               <button
                 key={tab.id}
@@ -969,14 +1055,26 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* ── TAB 4: AMBIENT & TIMERS ── */}
-        {activeTab === 'ambient' && (
-          <div className="space-y-4">
+        {/* ── TAB 4: ATMOSPHERE & TIMERS ── */}
+        {(activeTab === 'atmosphere' || activeTab === 'ambient') && (
+          <div className="space-y-5">
+            {/* Atmosphere Header */}
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-bold text-sm text-white">Procedural Ambient Soundscapes</div>
+                <div className="font-bold text-sm text-white flex items-center gap-2">
+                  <span>Atmosphere Soundscapes</span>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      activeAmbientCount > 0
+                        ? 'glass-button-emerald text-emerald-200'
+                        : 'glass-button text-white/50'
+                    }`}
+                  >
+                    {activeAmbientCount > 0 ? `${activeAmbientCount} Active` : 'Muted'}
+                  </span>
+                </div>
                 <div className="text-[11px] text-white/50">
-                  Real-time procedural Web Audio soundscapes synthesized directly in your browser
+                  Blend real-time procedural Web Audio soundscapes seamlessly over your music
                 </div>
               </div>
               {activeAmbientCount > 0 && (
@@ -984,6 +1082,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   type="button"
                   onClick={() => {
                     triggerAndroidHaptic('light');
+                    setActivePresetId(null);
                     stopAllAmbient();
                   }}
                   className="px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-300 border-0 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer"
@@ -993,83 +1092,134 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
               )}
             </div>
 
-            {/* 6 Ambient Soundscape Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {AMBIENT_LAYERS.map((layer) => {
-                const vol = (safeAmbientVolumes && safeAmbientVolumes[layer.id]) || 0;
-                const isActive = vol > 0.02;
-                return (
-                  <div
-                    key={layer.id}
-                    className={`p-3.5 rounded-2xl border-0 transition-all ${
-                      isActive
-                        ? 'liquid-glass bg-emerald-500/10'
-                        : 'liquid-glass'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xl">{layer.icon}</span>
-                        <div>
-                          <div className="text-xs font-bold text-white">{layer.name}</div>
-                          <div className="text-[10px] text-white/50">{layer.subtitle}</div>
+            {/* 1. 1-Tap Mood Presets */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-white/60">
+                  1-Tap Mood Presets
+                </span>
+                <span className="text-[10px] text-white/40">Instant ambient blends</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {MOOD_PRESETS.map((preset) => {
+                  const isSelected = activePresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleApplyPreset(preset)}
+                      className={`p-3 rounded-2xl text-left transition-all cursor-pointer flex items-start gap-2.5 border-0 ${
+                        isSelected
+                          ? 'glass-button-emerald shadow-[0_0_16px_rgba(16,185,129,0.25)]'
+                          : 'liquid-glass hover:bg-white/[0.08] active:scale-[0.98]'
+                      }`}
+                    >
+                      <span className="text-2xl flex-shrink-0">{preset.icon}</span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white truncate">
+                          {preset.name}
+                        </div>
+                        <div className="text-[10px] text-white/50 truncate">
+                          {preset.description}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          triggerAndroidHaptic('light');
-                          setAmbientVolume(layer.id, isActive ? 0 : 0.5);
-                        }}
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition cursor-pointer ${
-                          isActive
-                            ? 'glass-button-emerald text-emerald-200'
-                            : 'glass-button text-white/70'
-                        }`}
-                      >
-                        {isActive ? `${Math.round(vol * 100)}%` : 'OFF'}
-                      </button>
-                    </div>
-
-                    <AppleFluidSlider
-                      label="Layer Volume"
-                      value={vol}
-                      min={0}
-                      max={1}
-                      step={0.02}
-                      formattedValue={`${Math.round(vol * 100)}%`}
-                      accentColor="emerald"
-                      onChange={(val) => setAmbientVolume(layer.id, val)}
-                    />
-                  </div>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Ambient Presets */}
-            <div className="pt-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-white/50 mb-2">
-                Atmospheric Mix Presets
+            {/* 2. Master Ambient Blend Slider */}
+            <div className="p-4 rounded-2xl liquid-glass border-0 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🎚️</span>
+                  <span className="text-xs font-bold text-white">Master Atmosphere Blend</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-emerald-300">
+                  {Math.round(masterAverage * 100)}%
+                </span>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {[
-                  { label: '🌧️ Rainy Study', preset: { rain: 0.65, binaural: 0.45 } },
-                  { label: '☕ Midnight Cafe', preset: { cafe: 0.5, vinyl: 0.35 } },
-                  { label: '🔥 Campfire Night', preset: { campfire: 0.6, rain: 0.25 } },
-                  { label: '🌊 Coastal Calm', preset: { waves: 0.7, vinyl: 0.2 } }
-                ].map((p) => (
-                  <button
-                    key={p.label}
-                    type="button"
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      applyAmbientPreset(p.preset as Partial<Record<AmbientLayerId, number>>);
-                    }}
-                    className="px-3 py-1.5 rounded-xl glass-button text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer"
-                  >
-                    {p.label}
-                  </button>
-                ))}
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.02"
+                value={masterAverage}
+                onChange={(e) => handleMasterVolumeChange(parseFloat(e.target.value))}
+                className="w-full accent-emerald-400 cursor-pointer h-2 bg-white/15 rounded-lg"
+                aria-label="Master Ambient Volume"
+              />
+              <div className="flex justify-between text-[10px] text-white/40">
+                <span>Subtle Whisper</span>
+                <span>Balanced Immersion</span>
+                <span>Deep Presence</span>
+              </div>
+            </div>
+
+            {/* 3. 6 Individual Soundscape Layers */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-white/60">
+                  Individual Soundscape Layers
+                </span>
+                <span className="text-[10px] text-white/40">Procedural Web Audio DSP</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {AMBIENT_LAYERS.map((layer) => {
+                  const vol = (safeAmbientVolumes && safeAmbientVolumes[layer.id]) || 0;
+                  const isActive = vol > 0.02;
+                  return (
+                    <div
+                      key={layer.id}
+                      className={`p-3.5 rounded-2xl border-0 transition-all ${
+                        isActive
+                          ? 'liquid-glass bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]'
+                          : 'liquid-glass'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-2xl">{layer.icon}</span>
+                          <div>
+                            <div className="text-xs font-bold text-white">{layer.name}</div>
+                            <div className="text-[10px] text-white/50">{layer.subtitle}</div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            setActivePresetId(null);
+                            setAmbientVolume(layer.id, isActive ? 0 : 0.6);
+                          }}
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full transition cursor-pointer ${
+                            isActive
+                              ? 'glass-button-emerald text-emerald-200'
+                              : 'glass-button text-white/70 hover:text-white'
+                          }`}
+                        >
+                          {isActive ? `${Math.round(vol * 100)}%` : 'OFF'}
+                        </button>
+                      </div>
+
+                      <AppleFluidSlider
+                        label="Layer Volume"
+                        value={vol}
+                        min={0}
+                        max={1}
+                        step={0.02}
+                        formattedValue={`${Math.round(vol * 100)}%`}
+                        accentColor="emerald"
+                        onChange={(val) => {
+                          setActivePresetId(null);
+                          setAmbientVolume(layer.id, val);
+                        }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -1187,6 +1337,21 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
             </div>
+
+            {/* 5. Standalone / Zero Network Info Banner */}
+            <div className="p-3.5 rounded-2xl liquid-glass border-0 flex items-start gap-3">
+              <span className="text-xl flex-shrink-0">✨</span>
+              <div className="text-[11px] text-white/60 space-y-1">
+                <div className="font-bold text-white/90">
+                  Standalone 100% Client-Side Synthesis
+                </div>
+                <p>
+                  All atmosphere textures are generated mathematically on your device's audio
+                  chip. Zero internet data used, zero battery drain, and works completely offline
+                  even when main music is paused.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -1283,7 +1448,7 @@ export default function StudioFXModal() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none"
+          className="fixed inset-0 z-[9995] pointer-events-none flex items-end sm:items-center justify-center p-0 sm:p-5 overflow-hidden select-none"
         >
           {/* Frosted Modal Backdrop */}
           <motion.div
@@ -1293,7 +1458,7 @@ export default function StudioFXModal() {
             exit={{ opacity: 0 }}
             transition={STUDIO_BACKDROP_TRANSITION}
             onClick={handleClose}
-            className="absolute inset-0 modal-backdrop-blur bg-black/75 cursor-pointer"
+            className="absolute inset-0 pointer-events-auto modal-backdrop-blur bg-black/75 cursor-pointer"
             aria-hidden="true"
           />
 
@@ -1308,7 +1473,7 @@ export default function StudioFXModal() {
             animate="animate"
             exit="exit"
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/92 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
+            className="relative z-10 pointer-events-auto w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/92 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)]"
           >
             <StudioFXErrorBoundary onClose={handleClose}>
               <StudioFXModalContent onClose={handleClose} />
