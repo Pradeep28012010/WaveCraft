@@ -452,12 +452,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
           {(showVisualizer || zenMode) && (
             <div
               className={`absolute inset-0 pointer-events-none transition-opacity duration-500 z-0 ${
-                zenMode ? 'opacity-95' : 'opacity-45'
+                zenMode ? 'opacity-95' : 'opacity-85'
               }`}
             >
               <Visualizer
                 isActive={isPlaying}
-                style={(visualizerStyle || 'nebula') as VisualizerStyle}
+                style={(visualizerStyle || 'cyber-mesh') as VisualizerStyle}
                 fullScreen
               />
             </div>
@@ -1124,13 +1124,16 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               <button
                                 type="button"
                                 onClick={() => {
+                                  triggerAndroidHaptic('light');
                                   if (!showVisualizer) {
                                     setShowVisualizer(true);
-                                    setVisualizerStyle('nebula');
+                                    setVisualizerStyle(VISUALIZER_MODES[0].id);
                                     return;
                                   }
                                   const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
-                                  if (idx === VISUALIZER_MODES.length - 1) {
+                                  if (idx === -1) {
+                                    setVisualizerStyle(VISUALIZER_MODES[0].id);
+                                  } else if (idx === VISUALIZER_MODES.length - 1) {
                                     setShowVisualizer(false);
                                   } else {
                                     const next = VISUALIZER_MODES[idx + 1];
@@ -1149,10 +1152,37 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                   showVisualizer ? 'glass-button-cyan text-cyan-200' : 'glass-button text-white/50'
                                 }`}>
                                   {showVisualizer
-                                    ? (VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Nebula')
+                                    ? (VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || '3D Cyber Mesh')
                                     : 'Off'}
                                 </span>
                               </button>
+
+                              {/* Interactive Visualizer Mode Chips */}
+                              {showVisualizer && (
+                                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1 -mt-0.5 mb-1">
+                                  {VISUALIZER_MODES.map((m) => {
+                                    const isSel = visualizerStyle === m.id;
+                                    return (
+                                      <button
+                                        key={m.id}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          triggerAndroidHaptic('light');
+                                          setVisualizerStyle(m.id);
+                                        }}
+                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                                          isSel
+                                            ? 'glass-button-cyan text-cyan-100 shadow-[0_0_8px_rgba(6,182,212,0.4)] scale-105'
+                                            : 'glass-button text-white/60 hover:text-white hover:bg-white/10'
+                                        }`}
+                                      >
+                                        {m.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
 
                               {/* 3D Zen Mode */}
                               <button

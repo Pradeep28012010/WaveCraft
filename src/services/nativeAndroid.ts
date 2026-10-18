@@ -123,11 +123,18 @@ declare global {
       openInstallPermissionSettings?: () => void;
       downloadAndInstallUpdate?: (url: string) => void;
       triggerPendingInstall?: () => void;
+      startVoiceSearch?: () => void;
+      stopVoiceSearch?: () => void;
+      isVoiceSearchSupported?: () => boolean;
     };
     __wavecraft_media_action?: (action: string) => void;
     __wavecraft_update_progress?: (percent: number) => void;
     __wavecraft_update_status?: (status: string) => void;
     __wavecraft_update_error?: (error: string) => void;
+    __wavecraft_voice_status?: (status: string) => void;
+    __wavecraft_voice_result?: (transcript: string, isFinal: boolean) => void;
+    __wavecraft_voice_error?: (error: string) => void;
+    __wavecraft_voice_end?: () => void;
   }
 }
 

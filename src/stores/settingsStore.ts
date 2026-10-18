@@ -84,7 +84,7 @@ const defaultSettings: SettingsState = {
   crossfadeDuration: 0,
   audioQuality: 'high',
   showVisualizer: true,
-  visualizerStyle: 'nebula',
+  visualizerStyle: 'cyber-mesh',
   equalizerPreset: 'Flat',
   equalizerBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   autoplay: true,

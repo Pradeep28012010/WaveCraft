@@ -1,10 +1,15 @@
 package com.wavecraft.pro;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -21,10 +26,13 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 
 public class MainActivity extends BridgeActivity {
 
     public static MainActivity instance;
+    private SpeechRecognizer speechRecognizer;
+    private static final int REQUEST_RECORD_AUDIO = 202;
 
     public class AndroidAudioBridge {
         @JavascriptInterface
@@ -254,6 +262,21 @@ public class MainActivity extends BridgeActivity {
                 }
             });
         }
+
+        @JavascriptInterface
+        public void startVoiceSearch() {
+            startVoiceSearchInternal();
+        }
+
+        @JavascriptInterface
+        public void stopVoiceSearch() {
+            stopVoiceSearchInternal();
+        }
+
+        @JavascriptInterface
+        public boolean isVoiceSearchSupported() {
+            return SpeechRecognizer.isRecognitionAvailable(MainActivity.this);
+        }
     }
 
     public void promptInstallApk(File apkFile) {
@@ -331,6 +354,175 @@ public class MainActivity extends BridgeActivity {
             instance.runOnUiThread(() -> {
                 instance.bridge.getWebView().evaluateJavascript(
                     "window.__wavecraft_media_action && window.__wavecraft_media_action('" + action + "')",
+                    null
+                );
+            });
+        }
+    }
+
+    public void startVoiceSearchInternal() {
+        runOnUiThread(() -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO);
+                    return;
+                }
+            }
+
+            if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+                notifyVoiceError("Speech recognition is not available on this device.");
+                return;
+            }
+
+            try {
+                if (speechRecognizer != null) {
+                    try {
+                        speechRecognizer.destroy();
+                    } catch (Exception ignored) {}
+                    speechRecognizer = null;
+                }
+
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+                Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+                intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+                intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+
+                speechRecognizer.setRecognitionListener(new RecognitionListener() {
+                    @Override
+                    public void onReadyForSpeech(Bundle params) {
+                        notifyVoiceStatus("listening");
+                    }
+
+                    @Override
+                    public void onBeginningOfSpeech() {
+                        notifyVoiceStatus("recording");
+                    }
+
+                    @Override
+                    public void onRmsChanged(float rmsdB) {}
+
+                    @Override
+                    public void onBufferReceived(byte[] buffer) {}
+
+                    @Override
+                    public void onEndOfSpeech() {
+                        notifyVoiceStatus("processing");
+                    }
+
+                    @Override
+                    public void onError(int error) {
+                        String errMsg;
+                        switch (error) {
+                            case SpeechRecognizer.ERROR_AUDIO: errMsg = "Audio recording error"; break;
+                            case SpeechRecognizer.ERROR_CLIENT: errMsg = "Client error"; break;
+                            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS: errMsg = "Microphone permission required"; break;
+                            case SpeechRecognizer.ERROR_NETWORK: errMsg = "Network error"; break;
+                            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT: errMsg = "Network timeout"; break;
+                            case SpeechRecognizer.ERROR_NO_MATCH: errMsg = "No speech recognized"; break;
+                            case SpeechRecognizer.ERROR_RECOGNIZER_BUSY: errMsg = "Recognition service busy"; break;
+                            case SpeechRecognizer.ERROR_SERVER: errMsg = "Server error"; break;
+                            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT: errMsg = "No speech input detected"; break;
+                            default: errMsg = "Voice recognition error (" + error + ")"; break;
+                        }
+                        notifyVoiceError(errMsg);
+                    }
+
+                    @Override
+                    public void onResults(Bundle results) {
+                        ArrayList<String> matches = results != null ? results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) : null;
+                        if (matches != null && !matches.isEmpty()) {
+                            notifyVoiceResult(matches.get(0), true);
+                        } else {
+                            notifyVoiceEnd();
+                        }
+                    }
+
+                    @Override
+                    public void onPartialResults(Bundle partialResults) {
+                        ArrayList<String> matches = partialResults != null ? partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) : null;
+                        if (matches != null && !matches.isEmpty()) {
+                            notifyVoiceResult(matches.get(0), false);
+                        }
+                    }
+
+                    @Override
+                    public void onEvent(int eventType, Bundle params) {}
+                });
+
+                speechRecognizer.startListening(intent);
+                notifyVoiceStatus("listening");
+            } catch (Exception e) {
+                e.printStackTrace();
+                notifyVoiceError("Speech recognition error: " + e.getMessage());
+            }
+        });
+    }
+
+    public void stopVoiceSearchInternal() {
+        runOnUiThread(() -> {
+            if (speechRecognizer != null) {
+                try {
+                    speechRecognizer.stopListening();
+                } catch (Exception ignored) {}
+            }
+            notifyVoiceEnd();
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_RECORD_AUDIO) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startVoiceSearchInternal();
+            } else {
+                notifyVoiceError("Microphone permission was denied.");
+            }
+        }
+    }
+
+    private void notifyVoiceStatus(String status) {
+        if (bridge != null && bridge.getWebView() != null) {
+            runOnUiThread(() -> {
+                bridge.getWebView().evaluateJavascript(
+                    "window.__wavecraft_voice_status && window.__wavecraft_voice_status('" + status + "')",
+                    null
+                );
+            });
+        }
+    }
+
+    private void notifyVoiceResult(String transcript, boolean isFinal) {
+        if (bridge != null && bridge.getWebView() != null) {
+            runOnUiThread(() -> {
+                String safe = transcript != null ? transcript.replace("\\", "\\\\").replace("'", "\\'") : "";
+                bridge.getWebView().evaluateJavascript(
+                    "window.__wavecraft_voice_result && window.__wavecraft_voice_result('" + safe + "', " + isFinal + ")",
+                    null
+                );
+            });
+        }
+    }
+
+    private void notifyVoiceError(String error) {
+        if (bridge != null && bridge.getWebView() != null) {
+            runOnUiThread(() -> {
+                String safe = error != null ? error.replace("\\", "\\\\").replace("'", "\\'") : "";
+                bridge.getWebView().evaluateJavascript(
+                    "window.__wavecraft_voice_error && window.__wavecraft_voice_error('" + safe + "')",
+                    null
+                );
+            });
+        }
+    }
+
+    private void notifyVoiceEnd() {
+        if (bridge != null && bridge.getWebView() != null) {
+            runOnUiThread(() -> {
+                bridge.getWebView().evaluateJavascript(
+                    "window.__wavecraft_voice_end && window.__wavecraft_voice_end()",
                     null
                 );
             });
@@ -465,6 +657,12 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onDestroy() {
+        if (speechRecognizer != null) {
+            try {
+                speechRecognizer.destroy();
+            } catch (Exception ignored) {}
+            speechRecognizer = null;
+        }
         instance = null;
         super.onDestroy();
     }

@@ -743,7 +743,7 @@ export default function SettingsPage() {
               description="Selects the mathematical particle and shader model"
             >
               <GlassSelect
-                value={settings.visualizerStyle || 'nebula'}
+                value={settings.visualizerStyle || 'cyber-mesh'}
                 onChange={(val) => settings.setVisualizerStyle(val as VisualizerStyle)}
                 options={[
                   { value: 'cyber-mesh', label: '3D Cyber Wave Mesh' },

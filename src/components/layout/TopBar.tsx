@@ -199,13 +199,83 @@ export default function TopBar() {
     };
   }, []);
 
-  const toggleVoiceSearch = () => {
+  // Set up native Android voice recognizer bridge callbacks
+  useEffect(() => {
+    window.__wavecraft_voice_status = (status: string) => {
+      if (status === 'listening' || status === 'recording') {
+        setIsListeningVoice(true);
+      }
+    };
+
+    window.__wavecraft_voice_result = (transcript: string, isFinal: boolean) => {
+      const cleaned = transcript.trim();
+      if (cleaned) {
+        lastPushedQueryRef.current = cleaned;
+        setSearchQuery(cleaned);
+        navigate(`/search?q=${encodeURIComponent(cleaned)}`);
+      }
+      if (isFinal) {
+        setIsListeningVoice(false);
+      }
+    };
+
+    window.__wavecraft_voice_error = (errorMsg: string) => {
+      console.warn('Voice recognition:', errorMsg);
+      setIsListeningVoice(false);
+    };
+
+    window.__wavecraft_voice_end = () => {
+      setIsListeningVoice(false);
+    };
+
+    return () => {
+      delete window.__wavecraft_voice_status;
+      delete window.__wavecraft_voice_result;
+      delete window.__wavecraft_voice_error;
+      delete window.__wavecraft_voice_end;
+    };
+  }, [navigate]);
+
+  const toggleVoiceSearch = async () => {
+    triggerAndroidHaptic('medium');
+
     if (isListeningVoice) {
+      if (window.AndroidAudioBridge?.stopVoiceSearch) {
+        try {
+          window.AndroidAudioBridge.stopVoiceSearch();
+        } catch {}
+      }
       try {
         recognitionRef.current?.stop();
       } catch {}
       setIsListeningVoice(false);
       return;
+    }
+
+    // 1. If running inside native Android APK with AndroidAudioBridge
+    if (window.AndroidAudioBridge?.startVoiceSearch) {
+      setIsListeningVoice(true);
+      try {
+        window.AndroidAudioBridge.startVoiceSearch();
+      } catch (err) {
+        console.warn('Native voice search start failed:', err);
+        setIsListeningVoice(false);
+      }
+      return;
+    }
+
+    // 2. Mobile Browser / Web / PWA / Electron:
+    // Explicitly request microphone permission via getUserMedia so browser permission modal triggers on Android & iOS
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Release audio stream tracks immediately so SpeechRecognition can bind to the microphone
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (err) {
+        console.warn('Microphone permission denied or unavailable:', err);
+        setIsListeningVoice(false);
+        return;
+      }
     }
 
     type SpeechRecConstructor = new () => {
