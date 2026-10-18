@@ -465,17 +465,17 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.1.0',
-        versionCode: 10,
-        releaseDate: '2026-10-17',
+        version: '5.2.0',
+        versionCode: 11,
+        releaseDate: '2026-10-18',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
-        title: 'WaveCraft Pro v5.1.0 (Zero-Vibration Liquid Glass & Apple Spring Physics)',
+        title: 'WaveCraft Pro v5.2.0 (Multi-Device Jam Room & Bilateral Gradient Mesh Engine)',
         releaseNotes: [
-          'Zero-Vibration Liquid Glass Glides: Critically damped Apple spring physics (bounce: 0.15, duration: 0.32) eliminate all vibration, stutter, and layout reflow between tabs and pills.',
-          'Hardware-Accelerated Sliding Indicators: 120fps GPU compositing and fixed font weights prevent text bounding box reflow during rapid switching.',
-          'Butter-Smooth Mobile Bottom Navigation & MiniPlayer: Fluid morphing and high-performance transitions across all mobile viewports.',
-          'High-Speed Infinite Scrolling: Smooth viewport rendering with zero latency or blank screen hiccups when scrolling rapidly.',
-          'Smart Audio Buffering & Instant Sync: Bulletproof background audio engine, automatic stream failover, and synchronized live lyrics.'
+          'Multi-Device Star-Topology Live Jam Room: Supports 3+ devices syncing in real-time with independent connection isolation, zero cascade desync, and authoritative host playback guard.',
+          'Bilateral Gradient Mesh System: Fluid multi-point gradient mesh wings on both sides of the screen seamlessly blend the ambient palette across 100% of the viewport, eliminating all cutoff lines and seams.',
+          'Realistic Vinyl Turntable Plinth: Technics SL-1200 style corner dampener feet, target strobe tower with ambient lamp, and cast aluminum knurled rotating platter.',
+          'Guest Add-Only Queue Protection: Guests can contribute tracks to the collaborative session without overriding playback, scrubbing, or interrupting others.',
+          'Studio FX & Atmosphere Enhancement: Master atmosphere blend slider, 1-tap mood soundscapes, live 32-band spectrum analyzer, and spatial audio immersion.'
         ],
         forceUpdate: false
       });
