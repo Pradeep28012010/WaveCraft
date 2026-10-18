@@ -1633,145 +1633,150 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               <div className="absolute inset-0 rounded-full pointer-events-none border border-white/10 shadow-inner" />
                             </div>
 
-                            {/* 4. Precision Brushed-Aluminum Tonearm Collar (Bolted to Plinth Chassis, NOT a Disk) */}
-                            <div className="absolute top-3 right-3 sm:top-4 sm:right-4.5 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-b from-slate-400 via-zinc-600 to-zinc-800 border border-white/30 shadow-[0_3px_10px_rgba(0,0,0,0.8),inset_0_1px_2px_rgba(255,255,255,0.4)] flex items-center justify-center pointer-events-none">
-                              {/* Machined Aluminum Bevel */}
-                              <div className="w-7.5 h-7.5 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-zinc-700 via-zinc-800 to-zinc-900 border border-white/20 shadow-inner flex items-center justify-center">
-                                {/* Anti-Skate Dial Mini Calibration Knob */}
-                                <div className="absolute -bottom-1 -left-1 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-gradient-to-b from-zinc-300 to-zinc-600 border border-white/30 shadow-sm flex items-center justify-center">
-                                  <div className="w-0.5 h-1 bg-zinc-900 rounded-full" />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* 5. Tonearm Rest Post & Cradle (Positioned precisely under the parked tonearm) */}
-                            <div className="absolute top-[60%] right-5 sm:right-7 pointer-events-none flex flex-col items-center">
-                              {/* Arm cradle clip */}
-                              <div className="w-3.5 h-2.5 rounded-t-sm border-t-2 border-l-2 border-r-2 border-zinc-300 bg-zinc-800/90 shadow-sm" />
-                              <div className="w-1.5 h-3.5 bg-gradient-to-b from-zinc-300 via-zinc-400 to-zinc-600 shadow-sm rounded-b-xs" />
-                            </div>
-
-                            {/* 6. Precision Audiophile S-Shaped Tonearm (3 O'Clock Tracking & Perfect Length) */}
-                            <motion.div
-                              initial={{ opacity: 0, y: -10, rotate: -3 }}
-                              animate={{
-                                opacity: 1,
-                                y: 0,
-                                rotate: isPlaying ? 40 : 0
-                              }}
-                              exit={{ opacity: 0, y: -8, rotate: -2 }}
-                              transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.04 }}
-                              className="absolute top-2 right-2 sm:top-3 sm:right-3.5 w-22 h-38 sm:w-26 sm:h-46 pointer-events-none z-20"
-                              style={{
-                                transformOrigin: '68% 16.5%'
-                              }}
-                            >
-                              <svg
-                                viewBox="0 0 110 170"
-                                className="w-full h-full drop-shadow-[0_16px_28px_rgba(0,0,0,0.92)] pointer-events-none overflow-visible"
-                              >
+                            {/* 4. Precision Proportional Tonearm Bay (Scales 1:1 with plinth height, zero cutoff, zero fake disks) */}
+                            <div className="absolute top-0 right-0 w-[40%] h-full pointer-events-none select-none overflow-visible z-20">
+                              {/* A. Stationary Plinth-Mounted Arm Rest Post & Cradle at (85, 148) */}
+                              <svg viewBox="0 0 140 250" className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
                                 <defs>
-                                  {/* Chrome Tube Gradient */}
-                                  <linearGradient id="tonearm-tube-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                  <linearGradient id="cradle-post-grad" x1="0%" y1="0%" x2="100%" y2="0%">
                                     <stop offset="0%" stopColor="#475569" />
-                                    <stop offset="25%" stopColor="#cbd5e1" />
-                                    <stop offset="50%" stopColor="#ffffff" />
-                                    <stop offset="75%" stopColor="#94a3b8" />
+                                    <stop offset="50%" stopColor="#cbd5e1" />
                                     <stop offset="100%" stopColor="#334155" />
                                   </linearGradient>
-
-                                  {/* Gimbal Metallic Gradient */}
-                                  <radialGradient id="gimbal-grad" cx="45%" cy="38%" r="62%">
-                                    <stop offset="0%" stopColor="#f8fafc" />
-                                    <stop offset="40%" stopColor="#94a3b8" />
-                                    <stop offset="80%" stopColor="#334155" />
-                                    <stop offset="100%" stopColor="#0f172a" />
-                                  </radialGradient>
-
-                                  {/* Counterweight Gradient */}
-                                  <linearGradient id="counterweight-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stopColor="#334155" />
-                                    <stop offset="30%" stopColor="#e2e8f0" />
-                                    <stop offset="65%" stopColor="#64748b" />
-                                    <stop offset="100%" stopColor="#0f172a" />
-                                  </linearGradient>
-
-                                  {/* Cartridge Gold Accent */}
-                                  <linearGradient id="cartridge-gold" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stopColor="#fef08a" />
-                                    <stop offset="50%" stopColor="#eab308" />
-                                    <stop offset="100%" stopColor="#854d0e" />
-                                  </linearGradient>
                                 </defs>
-
-                                {/* A. Precision Gimbal Bearing Suspension (Machined Aluminum Hub & Chrome Jewel Screw) */}
-                                <circle cx="75" cy="28" r="9" fill="url(#gimbal-grad)" stroke="#1e293b" strokeWidth="0.9" />
-                                {/* Horizontal Gimbal Trunnion Pivot Ears */}
-                                <rect x="64" y="26.5" width="22" height="3" rx="1.5" fill="#64748b" stroke="#334155" strokeWidth="0.5" />
-                                {/* Center Jewel Pivot Screw */}
-                                <circle cx="75" cy="28" r="4.5" fill="#0f172a" stroke="#cbd5e1" strokeWidth="0.8" />
-                                <circle cx="75" cy="28" r="2" fill="url(#gimbal-grad)" />
-                                <circle cx="74" cy="27" r="0.8" fill="#ffffff" opacity="0.95" />
-
-                                {/* Chrome Cueing Lever */}
-                                <path d="M 85 33 L 93 37" stroke="#94a3b8" strokeWidth="1.6" strokeLinecap="round" />
-                                <circle cx="93" cy="37" r="1.5" fill="#334155" stroke="#94a3b8" strokeWidth="0.5" />
-
-                                {/* B. Threaded Machined Rear Counterweight with Gram Scale Ring */}
-                                <rect x="67" y="6" width="16" height="12" rx="2" fill="url(#counterweight-grad)" stroke="#1e293b" strokeWidth="0.8" />
-                                <line x1="67" y1="9" x2="83" y2="9" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
-                                <line x1="67" y1="12" x2="83" y2="12" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
-                                <line x1="67" y1="15" x2="83" y2="15" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
-                                <rect x="71" y="2" width="8" height="4" rx="1" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
-
-                                {/* C. Graceful S-Shaped Chrome Tonearm Tube */}
-                                <path
-                                  d="M 75 30 C 75 60, 64 82, 64 105 C 64 120, 54 130, 46 138"
-                                  fill="none"
-                                  stroke="rgba(0,0,0,0.4)"
-                                  strokeWidth="4"
-                                  strokeLinecap="round"
-                                />
-                                <path
-                                  d="M 75 30 C 75 60, 64 82, 64 105 C 64 120, 54 130, 46 138"
-                                  fill="none"
-                                  stroke="url(#tonearm-tube-grad)"
-                                  strokeWidth="2.8"
-                                  strokeLinecap="round"
-                                />
-                                <path
-                                  d="M 74.5 31 C 74.5 60, 63.5 82, 63.5 105 C 63.5 120, 53.5 130, 45.5 138"
-                                  fill="none"
-                                  stroke="#ffffff"
-                                  strokeWidth="0.8"
-                                  strokeLinecap="round"
-                                  opacity="0.85"
-                                />
-
-                                {/* D. Audiophile Headshell & Cartridge Assembly */}
-                                <g transform="translate(46, 138)">
-                                  {/* Chrome Finger Lift Hook */}
-                                  <path
-                                    d="M 5 -1 C 9 -4, 13 -1, 12 4 C 12 7, 9 8, 6 8"
-                                    fill="none"
-                                    stroke="#cbd5e1"
-                                    strokeWidth="1.3"
-                                    strokeLinecap="round"
-                                  />
-                                  {/* Matte Black Angled Headshell */}
-                                  <polygon points="-7,-3 7,-1 5,14 -5,12" fill="#09090e" stroke="#334155" strokeWidth="0.8" />
-                                  {/* Audiophile Red Stripe */}
-                                  <line x1="-6" y1="4.5" x2="6" y2="6.5" stroke="#fa2d48" strokeWidth="1.3" />
-                                  {/* Gold Stylus Cartridge */}
-                                  <polygon points="-4,11 4,12.5 3,18 -3,17" fill="url(#cartridge-gold)" stroke="#78350f" strokeWidth="0.5" />
-                                  {/* Diamond Stylus Tip Point */}
-                                  <circle cx="0" cy="19" r="1.2" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="0.4" />
-                                  {/* Stylus Needle Sparkle Reflection */}
-                                  <line x1="0" y1="17.5" x2="0" y2="20.5" stroke="#ffffff" strokeWidth="0.8" />
-                                  <line x1="-1.5" y1="19" x2="1.5" y2="19" stroke="#ffffff" strokeWidth="0.8" />
+                                <g>
+                                  {/* Base Mounting Flange on Plinth */}
+                                  <ellipse cx="85" cy="164" rx="5" ry="2" fill="#1e293b" stroke="#475569" strokeWidth="0.5" />
+                                  {/* Vertical Rest Post Stem */}
+                                  <rect x="83" y="148" width="4" height="16" rx="1" fill="url(#cradle-post-grad)" stroke="#334155" strokeWidth="0.5" />
+                                  {/* U-Shaped Arm Rest Cradle Clip */}
+                                  <path d="M 79 143 C 79 149, 91 149, 91 143" fill="none" stroke="#e2e8f0" strokeWidth="2.2" strokeLinecap="round" />
+                                  {/* Cradle Inner Rubber Damper */}
+                                  <path d="M 81 145 C 81 148, 89 148, 89 145" fill="none" stroke="#090d16" strokeWidth="1.2" strokeLinecap="round" />
                                 </g>
                               </svg>
-                            </motion.div>
+
+                              {/* B. Rotating Precision Audiophile Tonearm (Pivots smoothly around (85, 45) -> 60.7% 18%) */}
+                              <motion.div
+                                initial={{ opacity: 0, rotate: -3 }}
+                                animate={{
+                                  opacity: 1,
+                                  rotate: isPlaying ? 40 : 0
+                                }}
+                                exit={{ opacity: 0, rotate: -2 }}
+                                transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.04 }}
+                                className="absolute inset-0 w-full h-full pointer-events-none"
+                                style={{
+                                  transformOrigin: '60.7% 18%'
+                                }}
+                              >
+                                <svg
+                                  viewBox="0 0 140 250"
+                                  className="w-full h-full drop-shadow-[0_16px_28px_rgba(0,0,0,0.92)] pointer-events-none overflow-visible"
+                                >
+                                  <defs>
+                                    {/* Chrome Tube Gradient */}
+                                    <linearGradient id="tonearm-tube-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                      <stop offset="0%" stopColor="#475569" />
+                                      <stop offset="25%" stopColor="#cbd5e1" />
+                                      <stop offset="50%" stopColor="#ffffff" />
+                                      <stop offset="75%" stopColor="#94a3b8" />
+                                      <stop offset="100%" stopColor="#334155" />
+                                    </linearGradient>
+
+                                    {/* Gimbal Metallic Gradient */}
+                                    <radialGradient id="gimbal-grad" cx="45%" cy="38%" r="62%">
+                                      <stop offset="0%" stopColor="#f8fafc" />
+                                      <stop offset="40%" stopColor="#94a3b8" />
+                                      <stop offset="80%" stopColor="#334155" />
+                                      <stop offset="100%" stopColor="#0f172a" />
+                                    </radialGradient>
+
+                                    {/* Counterweight Gradient */}
+                                    <linearGradient id="counterweight-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                      <stop offset="0%" stopColor="#334155" />
+                                      <stop offset="30%" stopColor="#e2e8f0" />
+                                      <stop offset="65%" stopColor="#64748b" />
+                                      <stop offset="100%" stopColor="#0f172a" />
+                                    </linearGradient>
+
+                                    {/* Cartridge Gold Accent */}
+                                    <linearGradient id="cartridge-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+                                      <stop offset="0%" stopColor="#fef08a" />
+                                      <stop offset="50%" stopColor="#eab308" />
+                                      <stop offset="100%" stopColor="#854d0e" />
+                                    </linearGradient>
+                                  </defs>
+
+                                  {/* 1. Threaded Machined Rear Counterweight with Gram Scale Ring */}
+                                  <rect x="76" y="14" width="18" height="15" rx="2" fill="url(#counterweight-grad)" stroke="#1e293b" strokeWidth="0.8" />
+                                  <line x1="76" y1="18" x2="94" y2="18" stroke="#090d16" strokeWidth="0.8" opacity="0.6" />
+                                  <line x1="76" y1="21" x2="94" y2="21" stroke="#090d16" strokeWidth="0.8" opacity="0.6" />
+                                  <line x1="76" y1="24" x2="94" y2="24" stroke="#090d16" strokeWidth="0.8" opacity="0.6" />
+                                  <rect x="82" y="8" width="6" height="6" rx="1" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
+
+                                  {/* 2. Precision 4-Point Gimbal Bearing Pivot Assembly (Direct Plinth-Mounted, NOT a Disk) */}
+                                  <circle cx="85" cy="45" r="9" fill="url(#gimbal-grad)" stroke="#1e293b" strokeWidth="0.9" />
+                                  {/* Horizontal Gimbal Trunnion Bearing Ears */}
+                                  <rect x="73" y="43.5" width="24" height="3" rx="1.5" fill="#64748b" stroke="#334155" strokeWidth="0.5" />
+                                  {/* Center Jewel Bearing Pivot Screw */}
+                                  <circle cx="85" cy="45" r="4.2" fill="#0f172a" stroke="#cbd5e1" strokeWidth="0.8" />
+                                  <circle cx="85" cy="45" r="1.8" fill="url(#gimbal-grad)" />
+                                  <circle cx="84" cy="44" r="0.8" fill="#ffffff" opacity="0.95" />
+
+                                  {/* Polished Chrome Cueing Lever */}
+                                  <path d="M 94 48 L 102 52" stroke="#94a3b8" strokeWidth="1.6" strokeLinecap="round" />
+                                  <circle cx="102" cy="52" r="1.5" fill="#334155" stroke="#94a3b8" strokeWidth="0.5" />
+
+                                  {/* 3. Graceful S-Shaped Chrome Tonearm Tube (Passes exactly through cradle clip when parked) */}
+                                  <path
+                                    d="M 85 48 C 85 75, 77 95, 77 118 C 77 135, 85 142, 85 168"
+                                    fill="none"
+                                    stroke="rgba(0,0,0,0.5)"
+                                    strokeWidth="4.5"
+                                    strokeLinecap="round"
+                                  />
+                                  <path
+                                    d="M 85 48 C 85 75, 77 95, 77 118 C 77 135, 85 142, 85 168"
+                                    fill="none"
+                                    stroke="url(#tonearm-tube-grad)"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                  />
+                                  <path
+                                    d="M 84.5 49 C 84.5 75, 76.5 95, 76.5 118 C 76.5 135, 84.5 142, 84.5 168"
+                                    fill="none"
+                                    stroke="#ffffff"
+                                    strokeWidth="0.8"
+                                    strokeLinecap="round"
+                                    opacity="0.85"
+                                  />
+
+                                  {/* 4. Audiophile Headshell & Cartridge Assembly */}
+                                  <g transform="translate(85, 168)">
+                                    {/* Chrome Finger Lift Hook */}
+                                    <path
+                                      d="M 4 -1 C 8 -4, 12 -1, 11 4 C 11 7, 8 8, 5 8"
+                                      fill="none"
+                                      stroke="#cbd5e1"
+                                      strokeWidth="1.3"
+                                      strokeLinecap="round"
+                                    />
+                                    {/* Matte Black Angled Headshell */}
+                                    <polygon points="-7,-3 7,-1 5,14 -5,12" fill="#09090e" stroke="#334155" strokeWidth="0.8" />
+                                    {/* Audiophile Red Stripe */}
+                                    <line x1="-6" y1="4.5" x2="6" y2="6.5" stroke="#fa2d48" strokeWidth="1.3" />
+                                    {/* Gold Stylus Cartridge */}
+                                    <polygon points="-4,11 4,12.5 3,18 -3,17" fill="url(#cartridge-gold)" stroke="#78350f" strokeWidth="0.5" />
+                                    {/* Diamond Stylus Tip Point */}
+                                    <circle cx="0" cy="19" r="1.2" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="0.4" />
+                                    {/* Stylus Needle Sparkle Reflection */}
+                                    <line x1="0" y1="17.5" x2="0" y2="20.5" stroke="#ffffff" strokeWidth="0.8" />
+                                    <line x1="-1.5" y1="19" x2="1.5" y2="19" stroke="#ffffff" strokeWidth="0.8" />
+                                  </g>
+                                </svg>
+                              </motion.div>
+                            </div>
                           </motion.div>
                         ) : (
                           <motion.div
