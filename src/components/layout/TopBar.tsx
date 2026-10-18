@@ -838,12 +838,12 @@ export default function TopBar() {
 
           {/* Active Focus Pomodoro Pill */}
           {pomodoroActive && (
-            <PomodoroTimerPill onOpenStudio={() => openStudioWithTab('atmosphere')} />
+            <PomodoroTimerPill onOpenStudio={() => openStudioWithTab('ambient')} />
           )}
 
           {/* Unified Active Sleep Timer Pill */}
           {sleepActive && (
-            <SleepTimerPill onOpenStudio={() => openStudioWithTab('atmosphere')} />
+            <SleepTimerPill onOpenStudio={() => openStudioWithTab('ambient')} />
           )}
 
           {/* Active Jam Room Pill */}

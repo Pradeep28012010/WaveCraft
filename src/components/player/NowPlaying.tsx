@@ -10,6 +10,7 @@ import QueuePanel from './QueuePanel';
 import LyricsView from '../lyrics/LyricsView';
 import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
 import WaveCardModal from './WaveCardModal';
+import AtmosphereDrawer from './AtmosphereDrawer';
 import { toggleChorusPreview, isChorusPreviewActive } from '../../services/chorusPreview';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
@@ -348,6 +349,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
     setEndAtTrack
   } = useSleepTimer();
 
+  const [isAtmosphereOpen, setIsAtmosphereOpen] = useState(false);
   const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
   const isAmbientActive = useMemo(
     () => Object.values(ambientVolumes || {}).some((v) => v > 0.02),
@@ -391,7 +393,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: '100%', opacity: 0 }}
       transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.75 }}
-      drag={isStudioModalOpen || showQueue || showWaveCard ? false : 'y'}
+      drag={isStudioModalOpen || isAtmosphereOpen || showQueue || showWaveCard ? false : 'y'}
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={{ top: 0.04, bottom: 0.65 }}
       onDragEnd={(_, info) => {
@@ -500,22 +502,38 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
+                      setIsAtmosphereOpen(true);
+                    }}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-90 relative ${
+                      isAmbientActive
+                        ? 'glass-button-emerald text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                        : 'glass-button text-white/80 hover:text-white'
+                    }`}
+                    title="Atmosphere Soundscapes"
+                  >
+                    <span className="text-sm">🌧️</span>
+                    {isAmbientActive && (
+                      <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
                       setStudioModalOpen(true);
                     }}
                     className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-90 relative ${
                       fxMode !== 'normal'
                         ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(250,45,72,0.4)]'
-                        : isAmbientActive
-                        ? 'glass-button-emerald text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]'
                         : 'glass-button text-white/80 hover:text-white'
                     }`}
-                    title="Studio Audio FX & Atmosphere"
+                    title="Studio Audio FX"
                   >
                     <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                       <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
                     </svg>
-                    {(isAmbientActive || fxMode !== 'normal') && (
-                      <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${isAmbientActive && fxMode === 'normal' ? 'bg-emerald-400' : 'bg-rose-400'} animate-pulse`} />
+                    {fxMode !== 'normal' && (
+                      <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
                     )}
                   </button>
 
@@ -619,20 +637,38 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                 </div>
 
                 <div className="flex items-center gap-2 app-region-no-drag relative">
-                  {/* Studio Audio FX & Atmosphere Button */}
+                  {/* Atmosphere Soundscape Mixer Button */}
+                  <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setIsAtmosphereOpen(true);
+                    }}
+                    className={`px-3.5 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all app-region-no-drag ${
+                      isAmbientActive
+                        ? 'glass-button-emerald text-white shadow-[0_0_16px_rgba(16,185,129,0.35)]'
+                        : 'glass-button text-white/90 hover:text-white'
+                    }`}
+                    title="Atmosphere Soundscapes (Rain, Fire, Waves, Cafe)"
+                  >
+                    <span className="text-sm">🌧️</span>
+                    <span>Atmosphere</span>
+                    {isAmbientActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    )}
+                  </button>
+
+                  {/* Studio Audio FX Button (prominent) */}
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
                       setStudioModalOpen(true);
                     }}
-                    className={`px-4 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all app-region-no-drag relative ${
+                    className={`px-4 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all app-region-no-drag ${
                       fxMode !== 'normal'
                         ? 'glass-button-primary text-white shadow-[0_0_16px_rgba(250,45,72,0.35)]'
-                        : isAmbientActive
-                        ? 'glass-button-emerald text-white shadow-[0_0_16px_rgba(16,185,129,0.35)]'
                         : 'glass-button text-white/90 hover:text-white'
                     }`}
-                    title="Open Studio Audio FX & Atmosphere Soundscapes"
+                    title="Open Studio Audio FX & Workstation"
                   >
                     <svg className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="4" x2="4" y1="21" y2="14" />
@@ -650,12 +686,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
                         : 'Studio FX'}
                     </span>
-                    {isAmbientActive && (
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-full flex items-center gap-1 font-semibold">
-                        <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-                        🌧️
-                      </span>
-                    )}
                   </button>
 
                   {/* Single Sleek ••• Tools Menu Button & Popover */}
@@ -1060,7 +1090,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                 onClick={() => {
                                   triggerAndroidHaptic('light');
                                   setShowToolsMenu(false);
-                                  useStudioStore.getState().openStudioWithTab('atmosphere');
+                                  setIsAtmosphereOpen(true);
                                 }}
                                 className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                               >
@@ -1940,6 +1970,10 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             track={currentTrack}
             currentTime={usePlayerStore.getState().currentTime}
             initialQuote={waveCardQuote}
+          />
+          <AtmosphereDrawer
+            isOpen={isAtmosphereOpen}
+            onClose={() => setIsAtmosphereOpen(false)}
           />
     </motion.div>
   );
