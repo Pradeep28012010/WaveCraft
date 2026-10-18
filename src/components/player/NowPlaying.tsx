@@ -415,30 +415,53 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       {/* Windows 11 Acrylic Frameless Title Bar (Electron Desktop App ONLY) */}
       <WindowsTitleBar />
 
-          {/* Seamless Full-Bleed Ambient Album Art & Aurora Backdrop */}
+          {/* Seamless Full-Bleed Ambient Album Art & Dual-Wing Gradient Mesh Backdrop */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {/* Dynamic Mesh Aurora Orbs that pulse with the album palette */}
+            {/* 1. Left Side Gradient Mesh Wing (Luminosity & Primary Accent Flow) */}
             <div
-              className="absolute -top-24 -left-20 w-[48rem] h-[48rem] rounded-full blur-[100px] pointer-events-none transition-all duration-1000"
+              className="absolute -top-16 -left-28 sm:-left-36 w-[55vw] min-w-[360px] h-[48rem] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none transition-all duration-1000 will-change-transform"
               style={{
-                background: `radial-gradient(circle, ${palette.primary} 0%, transparent 68%)`,
-                opacity: zenMode ? 0.16 : 0.32
+                background: `radial-gradient(ellipse at 35% 35%, ${palette.primary} 0%, ${palette.accent || palette.primary}80 40%, transparent 75%)`,
+                opacity: zenMode ? 0.25 : isPlaying ? 0.58 : 0.38
               }}
             />
+
+            {/* 2. Right Side Gradient Mesh Wing (Harmonic Secondary & Tertiary Depth) */}
             <div
-              className="absolute top-[20%] -right-24 w-[52rem] h-[52rem] rounded-full blur-[110px] pointer-events-none transition-all duration-1000"
+              className="absolute -top-16 -right-28 sm:-right-36 w-[55vw] min-w-[360px] h-[48rem] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none transition-all duration-1000 will-change-transform"
               style={{
-                background: `radial-gradient(circle, ${palette.secondary} 0%, transparent 65%)`,
-                opacity: zenMode ? 0.14 : 0.28
+                background: `radial-gradient(ellipse at 65% 35%, ${palette.secondary} 0%, ${palette.tertiary || palette.secondary}80 40%, transparent 75%)`,
+                opacity: zenMode ? 0.22 : isPlaying ? 0.55 : 0.35
               }}
             />
+
+            {/* 3. Center Harmonizing Aurora Mesh (Bridges Left & Right across the Stage) */}
+            <div
+              className="absolute -top-12 left-1/2 -translate-x-1/2 w-[75vw] min-w-[500px] h-[44rem] rounded-full blur-[110px] sm:blur-[150px] pointer-events-none transition-all duration-1000 will-change-transform"
+              style={{
+                background: `radial-gradient(ellipse 110% 70% at 50% 40%, ${palette.primary}75 0%, ${palette.secondary}55 45%, ${palette.tertiary}30 70%, transparent 100%)`,
+                opacity: zenMode ? 0.20 : isPlaying ? 0.60 : 0.40
+              }}
+            />
+
+            {/* 4. Deep Foundation Floor Glow (Bottom Atmosphere) */}
             <div
               className="absolute -bottom-28 left-[25%] w-[56rem] h-[56rem] rounded-full blur-[120px] pointer-events-none transition-all duration-1000"
               style={{
                 background: `radial-gradient(circle, ${palette.tertiary} 0%, transparent 62%)`,
-                opacity: zenMode ? 0.10 : 0.22
+                opacity: zenMode ? 0.12 : 0.26
               }}
             />
+
+            {/* 5. Panoramic Under-Bar Horizon Light Bar (Evenly mixes light directly below TopBar) */}
+            <div
+              className="absolute top-8 inset-x-0 h-36 blur-[70px] pointer-events-none transition-all duration-1000 will-change-transform"
+              style={{
+                background: `linear-gradient(90deg, transparent 0%, ${palette.primary}50 20%, ${palette.accent || palette.primary}45 40%, ${palette.secondary}50 60%, ${palette.tertiary || palette.secondary}45 80%, transparent 100%)`,
+                opacity: zenMode ? 0.30 : isPlaying ? 0.70 : 0.45
+              }}
+            />
+
             {/* Diffused Art Layer */}
             <img
               src={artSrc}
@@ -450,10 +473,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                 zenMode ? 'opacity-15' : 'opacity-30'
               }`}
             />
+
+            {/* Smooth Cinematic Liquid Vignette (Preserves vibrant side mesh flow) */}
             <div
-              className="absolute inset-0 transition-colors duration-1000"
+              className="absolute inset-0 transition-colors duration-1000 pointer-events-none"
               style={{
-                background: `linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.62) 60%, ${palette.backgroundDark}dd 100%)`
+                background: `linear-gradient(to bottom, rgba(6,6,11,0.22) 0%, rgba(6,6,11,0.40) 45%, ${palette.backgroundDark}dd 100%)`
               }}
             />
           </div>
@@ -1428,6 +1453,34 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             <div
               className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-6 sm:pt-8 pb-4 overflow-y-auto no-scrollbar flex flex-col"
             >
+              {/* Full-Bleed Bilateral Gradient Mesh System (Evenly blends both sides with the center) */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 select-none">
+                {/* Left Side Gradient Mesh Wing */}
+                <div
+                  className="absolute -top-16 -left-24 sm:-left-36 w-[55vw] min-w-[340px] h-[36rem] rounded-full blur-[90px] sm:blur-[130px] pointer-events-none transition-all duration-1000 will-change-transform"
+                  style={{
+                    background: `radial-gradient(ellipse at 35% 45%, ${palette.primary}85 0%, ${palette.accent || palette.primary}45 42%, transparent 75%)`,
+                    opacity: isPlaying ? 0.78 : 0.42
+                  }}
+                />
+                {/* Right Side Gradient Mesh Wing */}
+                <div
+                  className="absolute -top-16 -right-24 sm:-right-36 w-[55vw] min-w-[340px] h-[36rem] rounded-full blur-[90px] sm:blur-[130px] pointer-events-none transition-all duration-1000 will-change-transform"
+                  style={{
+                    background: `radial-gradient(ellipse at 65% 45%, ${palette.secondary}85 0%, ${palette.tertiary || palette.secondary}45 42%, transparent 75%)`,
+                    opacity: isPlaying ? 0.78 : 0.42
+                  }}
+                />
+                {/* Center Harmonizer Mesh (Seamlessly bridges left and right across the turntable) */}
+                <div
+                  className="absolute -top-10 left-1/2 -translate-x-1/2 w-[75vw] min-w-[480px] h-[32rem] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none transition-all duration-1000 will-change-transform"
+                  style={{
+                    background: `radial-gradient(ellipse 110% 70% at 50% 45%, ${palette.primary}65 0%, ${palette.secondary}45 40%, ${palette.tertiary}25 70%, transparent 100%)`,
+                    opacity: isPlaying ? 0.72 : 0.38
+                  }}
+                />
+              </div>
+
               <div
                 className={`w-full max-w-6xl my-auto mx-auto ${
                   !isPhone && showLyrics
@@ -1487,12 +1540,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
                       }`}
                     >
-                      {/* Shared Ethereal Ambient Album Orb Glow (Circular, Unclipped, Smooth Gaussian Diffusion) */}
+                      {/* Shared Ethereal Ambient Album Glow (Ultra-Smooth Multi-Stop Ellipse that melts into the side meshes) */}
                       <div
-                        className="absolute -inset-12 sm:-inset-16 rounded-full pointer-events-none blur-3xl transition-opacity duration-700 will-change-transform"
+                        className="absolute -inset-x-24 sm:-inset-x-44 -inset-y-12 sm:-inset-y-16 rounded-full pointer-events-none blur-3xl sm:blur-[85px] transition-opacity duration-700 will-change-transform"
                         style={{
-                          background: `radial-gradient(circle at 50% 50%, ${palette.primary}90 0%, ${palette.secondary}45 35%, transparent 65%)`,
-                          opacity: isPlaying ? 0.92 : 0.45
+                          background: `radial-gradient(ellipse 110% 85% at 50% 50%, ${palette.primary}85 0%, ${palette.secondary}50 35%, ${palette.tertiary}25 65%, transparent 100%)`,
+                          opacity: isPlaying ? 0.85 : 0.45
                         }}
                       />
 
