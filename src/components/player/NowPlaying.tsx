@@ -1487,34 +1487,81 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             title="Click to switch to Album Cover"
                             className="relative w-full h-full flex items-center justify-center cursor-pointer select-none will-change-transform"
                           >
-                            {/* Pure circular radial-gradient aura */}
-                            <div
-                              className="absolute inset-0 rounded-full pointer-events-none"
-                              style={{
-                                background:
-                                  'radial-gradient(circle, rgba(0,0,0,0.7) 50%, rgba(0,0,0,0.25) 62%, transparent 70%)'
-                              }}
-                            />
+                            {/* 1. Cast Aluminum Heavy Platter Bezel with Strobe Dots Rim */}
+                            <div className="absolute -inset-2 sm:-inset-2.5 rounded-full pointer-events-none border border-white/10 shadow-[0_24px_64px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.06)] bg-gradient-to-b from-[#252530] via-[#121218] to-[#0a0a0e] flex items-center justify-center overflow-hidden">
+                              {/* Strobe dots knurled pattern around rotating platter edge */}
+                              <div
+                                className="absolute inset-0 rounded-full opacity-35"
+                                style={{
+                                  background:
+                                    'repeating-conic-gradient(from 0deg, #94a3b8 0deg 1.5deg, transparent 1.5deg 3deg)',
+                                  animation: 'spin 2.2s linear infinite',
+                                  animationPlayState: isPlaying ? 'running' : 'paused'
+                                }}
+                              />
+                              {/* Platter top chamfer highlight */}
+                              <div className="absolute inset-0 rounded-full border border-white/15 pointer-events-none" />
+                            </div>
 
-                            {/* Outer Vinyl Platter */}
+                            {/* 2. Target Strobe Light Tower (Technics SL-1200 Style) */}
+                            <div className="absolute -top-1.5 -left-1.5 w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.8)] flex items-center justify-center pointer-events-none z-10">
+                              <div
+                                className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-500 ${
+                                  isPlaying
+                                    ? 'bg-amber-300 shadow-[0_0_12px_#f59e0b,0_0_24px_rgba(245,158,11,0.6)]'
+                                    : 'bg-zinc-600'
+                                }`}
+                              />
+                            </div>
+
+                            {/* 3. Spinning 180-Gram Vinyl Record with Realistic Sound Bands */}
                             <div
-                              className="relative w-full h-full rounded-full border-0 flex items-center justify-center overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85)]"
+                              className="relative w-full h-full rounded-full border-0 flex items-center justify-center overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.95)]"
                               style={{
-                                background:
-                                  'repeating-radial-gradient(circle at center, #111116 0px, #111116 3px, #1d1d26 4px, #0d0d12 6px)',
-                                animation: 'spin 7s linear infinite',
+                                background: `
+                                  radial-gradient(circle at center,
+                                    transparent 0%,
+                                    transparent 34%,
+                                    #16161e 34.5%,
+                                    #0a0a0e 35%,
+                                    #1c1c26 36%,
+                                    #0e0e14 43%,
+                                    #060609 43.5%,
+                                    #161620 44%,
+                                    #0a0a0f 47.5%,
+                                    #181824 51.5%,
+                                    #0c0c12 55.5%,
+                                    #050508 56%,
+                                    #181824 56.5%,
+                                    #0b0b10 61%,
+                                    #1a1a26 66%,
+                                    #0d0d14 71.5%,
+                                    #050508 72%,
+                                    #191926 72.5%,
+                                    #0b0b10 78%,
+                                    #1c1c28 84%,
+                                    #0d0d14 90%,
+                                    #14141e 94.5%,
+                                    #08080c 96%,
+                                    #232330 98%,
+                                    #08080c 100%
+                                  )
+                                `,
+                                animation: 'spin 2.2s linear infinite',
                                 animationPlayState: isPlaying ? 'running' : 'paused'
                               }}
                             >
+                              {/* Fine Micro-Groove Audio Spirals */}
                               <div
-                                className="absolute inset-0 pointer-events-none opacity-30"
+                                className="absolute inset-0 rounded-full opacity-45 pointer-events-none"
                                 style={{
                                   background:
-                                    'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.35) 35deg, transparent 70deg, transparent 180deg, rgba(255,255,255,0.35) 215deg, transparent 250deg)'
+                                    'repeating-radial-gradient(circle at center, #181822 0px, #181822 1.5px, #0c0c12 2px, #08080c 3px)'
                                 }}
                               />
 
-                              <div className="w-[46%] h-[46%] rounded-full overflow-hidden border-0 shadow-inner relative">
+                              {/* Center Record Label with Album Art */}
+                              <div className="w-[38%] h-[38%] rounded-full overflow-hidden border border-white/10 shadow-[0_0_16px_rgba(0,0,0,0.9),inset_0_0_8px_rgba(0,0,0,0.6)] relative z-0 flex items-center justify-center">
                                 <img
                                   src={artSrc}
                                   alt={currentTrack.title}
@@ -1523,46 +1570,162 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                   }}
                                   className="w-full h-full object-cover"
                                 />
-                                <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#09090e] border-0 shadow-md" />
+                                {/* Vinyl pressing stamp indentation ring */}
+                                <div className="absolute inset-2 sm:inset-3 rounded-full border border-white/20 pointer-events-none" />
+                                {/* Center spindle hole brass bushing */}
+                                <div className="absolute inset-0 m-auto w-4.5 h-4.5 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-700 p-0.5 shadow-md flex items-center justify-center">
+                                  {/* Center spindle chrome pin */}
+                                  <div className="w-full h-full rounded-full bg-gradient-to-tr from-zinc-200 via-zinc-100 to-zinc-400 shadow-inner flex items-center justify-center">
+                                    <div className="w-1 h-1 rounded-full bg-zinc-950/70" />
+                                  </div>
+                                </div>
                               </div>
                             </div>
 
-                            {/* Animated Studio Tonearm */}
+                            {/* 4. Stationary Anisotropic Vinyl Glare (Shimmering Double Butterfly Cones) */}
+                            <div
+                              className="absolute inset-0 rounded-full pointer-events-none mix-blend-screen opacity-70"
+                              style={{
+                                background: `conic-gradient(
+                                  from -35deg at 50% 50%,
+                                  transparent 0deg,
+                                  rgba(255,255,255,0.02) 20deg,
+                                  rgba(255,255,255,0.18) 42deg,
+                                  rgba(255,255,255,0.32) 45deg,
+                                  rgba(255,255,255,0.18) 48deg,
+                                  rgba(255,255,255,0.02) 70deg,
+                                  transparent 90deg,
+                                  transparent 180deg,
+                                  rgba(255,255,255,0.02) 200deg,
+                                  rgba(255,255,255,0.18) 222deg,
+                                  rgba(255,255,255,0.32) 225deg,
+                                  rgba(255,255,255,0.18) 228deg,
+                                  rgba(255,255,255,0.02) 250deg,
+                                  transparent 270deg
+                                )`
+                              }}
+                            />
+
+                            {/* Outer Vinyl Gloss Edge Ring */}
+                            <div className="absolute inset-0 rounded-full pointer-events-none border border-white/10 shadow-inner" />
+
+                            {/* 5. Precision Audiophile S-Shaped Tonearm */}
                             <motion.div
                               initial={{ opacity: 0, y: -20, rotate: -10 }}
                               animate={{
                                 opacity: 1,
                                 y: 0,
-                                rotate: isPlaying ? 24 : 0
+                                rotate: isPlaying ? 22 : 0
                               }}
                               exit={{ opacity: 0, y: -15, rotate: -8 }}
-                              transition={{ type: 'spring', stiffness: 300, damping: 26, delay: 0.05 }}
-                              className="absolute -top-2 -right-2 sm:-right-3 w-16 h-36 sm:w-20 sm:h-44 pointer-events-none duration-500 origin-[75%_16%]"
+                              transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.04 }}
+                              className="absolute -top-3 -right-3 sm:-right-4 w-20 h-44 sm:w-24 sm:h-52 pointer-events-none z-20 origin-[72%_15%]"
                               style={{
-                                transformOrigin: '70% 14%'
+                                transformOrigin: '72% 15%'
                               }}
                             >
-                              <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-700 border-0 shadow-lg flex items-center justify-center">
-                                <div className="w-3 h-3 rounded-full bg-zinc-900" />
-                              </div>
-                              <svg viewBox="0 0 80 180" className="w-full h-full drop-shadow-xl">
+                              <svg
+                                viewBox="0 0 110 240"
+                                className="w-full h-full drop-shadow-[0_16px_28px_rgba(0,0,0,0.92)] pointer-events-none"
+                              >
+                                <defs>
+                                  {/* Chrome Tube Gradient */}
+                                  <linearGradient id="tonearm-tube-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stopColor="#475569" />
+                                    <stop offset="25%" stopColor="#cbd5e1" />
+                                    <stop offset="50%" stopColor="#ffffff" />
+                                    <stop offset="75%" stopColor="#94a3b8" />
+                                    <stop offset="100%" stopColor="#334155" />
+                                  </linearGradient>
+
+                                  {/* Gimbal Metallic Gradient */}
+                                  <radialGradient id="gimbal-grad" cx="45%" cy="38%" r="62%">
+                                    <stop offset="0%" stopColor="#f8fafc" />
+                                    <stop offset="40%" stopColor="#94a3b8" />
+                                    <stop offset="80%" stopColor="#334155" />
+                                    <stop offset="100%" stopColor="#0f172a" />
+                                  </radialGradient>
+
+                                  {/* Counterweight Gradient */}
+                                  <linearGradient id="counterweight-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#334155" />
+                                    <stop offset="30%" stopColor="#e2e8f0" />
+                                    <stop offset="65%" stopColor="#64748b" />
+                                    <stop offset="100%" stopColor="#0f172a" />
+                                  </linearGradient>
+
+                                  {/* Cartridge Gold Accent */}
+                                  <linearGradient id="cartridge-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#fef08a" />
+                                    <stop offset="50%" stopColor="#eab308" />
+                                    <stop offset="100%" stopColor="#854d0e" />
+                                  </linearGradient>
+                                </defs>
+
+                                {/* A. Gimbal Pivot Housing */}
+                                <circle cx="72" cy="36" r="18" fill="url(#gimbal-grad)" stroke="#1e293b" strokeWidth="1" />
+                                <circle cx="72" cy="36" r="13" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
+                                <circle cx="72" cy="36" r="8.5" fill="url(#gimbal-grad)" />
+                                <circle cx="72" cy="36" r="4" fill="#090d16" stroke="#e2e8f0" strokeWidth="0.8" />
+                                <circle cx="71" cy="35" r="1.2" fill="#ffffff" opacity="0.9" />
+
+                                {/* Cueing Lever Bar */}
+                                <path d="M 85 45 L 94 49" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round" />
+                                <circle cx="94" cy="49" r="2.5" fill="#fa2d48" />
+
+                                {/* B. Threaded Rear Counterweight */}
+                                <rect x="63" y="10" width="18" height="15" rx="3" fill="url(#counterweight-grad)" stroke="#1e293b" strokeWidth="0.8" />
+                                <line x1="63" y1="14" x2="81" y2="14" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
+                                <line x1="63" y1="17" x2="81" y2="17" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
+                                <line x1="63" y1="20" x2="81" y2="20" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
+                                <rect x="67" y="5" width="10" height="5" rx="1.5" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
+
+                                {/* C. Curved S-Shaped Chrome Tonearm Tube */}
                                 <path
-                                  d="M 56 24 L 56 115 L 34 152"
+                                  d="M 72 40 C 72 70, 58 95, 58 135 C 58 165, 46 182, 38 202"
                                   fill="none"
-                                  stroke="#d4d4d8"
-                                  strokeWidth="4.5"
+                                  stroke="rgba(0,0,0,0.5)"
+                                  strokeWidth="5.5"
                                   strokeLinecap="round"
-                                  strokeLinejoin="round"
                                 />
-                                <rect
-                                  x="25"
-                                  y="146"
-                                  width="14"
-                                  height="20"
-                                  rx="3"
-                                  transform="rotate(28 32 156)"
-                                  fill="#fa2d48"
+                                <path
+                                  d="M 72 40 C 72 70, 58 95, 58 135 C 58 165, 46 182, 38 202"
+                                  fill="none"
+                                  stroke="url(#tonearm-tube-grad)"
+                                  strokeWidth="4"
+                                  strokeLinecap="round"
                                 />
+                                <path
+                                  d="M 71.5 41 C 71.5 70, 57.5 95, 57.5 135 C 57.5 165, 45.5 182, 37.5 202"
+                                  fill="none"
+                                  stroke="#ffffff"
+                                  strokeWidth="1.1"
+                                  strokeLinecap="round"
+                                  opacity="0.8"
+                                />
+
+                                {/* D. Headshell & Cartridge Assembly */}
+                                <g transform="translate(38, 202)">
+                                  {/* Finger lift hook */}
+                                  <path
+                                    d="M 4 -2 C 9 -5, 14 -3, 14 3 C 14 7, 11 9, 8 9"
+                                    fill="none"
+                                    stroke="#cbd5e1"
+                                    strokeWidth="1.6"
+                                    strokeLinecap="round"
+                                  />
+                                  {/* Angled Headshell Body */}
+                                  <polygon points="-7,-4 7,-1 5,16 -5,14" fill="#09090e" stroke="#334155" strokeWidth="0.8" />
+                                  {/* Audiophile Red Stripe */}
+                                  <line x1="-6" y1="5" x2="6" y2="7.5" stroke="#fa2d48" strokeWidth="1.5" />
+                                  {/* Stylus Cartridge Body */}
+                                  <polygon points="-4,13 4,14.5 3,22 -3,21" fill="url(#cartridge-gold)" stroke="#78350f" strokeWidth="0.6" />
+                                  {/* Diamond Stylus Tip Point */}
+                                  <circle cx="0" cy="23" r="1.5" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="0.5" />
+                                  {/* Stylus Needle Sparkle */}
+                                  <line x1="0" y1="21.5" x2="0" y2="24.5" stroke="#ffffff" strokeWidth="0.8" />
+                                  <line x1="-1.5" y1="23" x2="1.5" y2="23" stroke="#ffffff" strokeWidth="0.8" />
+                                </g>
                               </svg>
                             </motion.div>
                           </motion.div>
