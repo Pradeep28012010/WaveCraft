@@ -1,14 +1,15 @@
 {
-  "version": "5.2.0",
-  "versionCode": 11,
+  "version": "5.2.1",
+  "versionCode": 12,
   "releaseDate": "2026-10-18",
   "downloadUrl": "https://wavecraft-alpha.vercel.app/WaveCraft.apk",
-  "title": "WaveCraft Pro v5.2.0 (Multi-Device Jam Room & Bilateral Gradient Mesh Engine)",
+  "title": "WaveCraft Pro v5.2.1 (Multi-Device Jam Room & Bilateral Gradient Mesh Engine)",
   "releaseNotes": [
     "Multi-Device Star-Topology Live Jam Room: Supports 3+ devices syncing in real-time with independent connection isolation, zero cascade desync, and authoritative host playback guard.",
     "Bilateral Gradient Mesh System: Fluid multi-point gradient mesh wings on both sides of the screen seamlessly blend the ambient palette across 100% of the viewport, eliminating all cutoff lines and seams.",
     "Realistic Vinyl Turntable Plinth: Technics SL-1200 style corner dampener feet, target strobe tower with ambient lamp, and cast aluminum knurled rotating platter.",
     "Guest Add-Only Queue Protection: Guests can contribute tracks to the collaborative session without overriding playback, scrubbing, or interrupting others.",
+    "Core Stability & Startup Reliability: Decoupled Jam store authority and eliminated startup TDZ initialization conflicts for instant launch on all devices.",
     "Studio FX & Atmosphere Enhancement: Master atmosphere blend slider, 1-tap mood soundscapes, live 32-band spectrum analyzer, and spatial audio immersion."
   ],
   "forceUpdate": false
