@@ -1460,8 +1460,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       className={`relative flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
                         deckMode === 'vinyl'
                           ? showLyrics
-                            ? 'w-[min(30vh,240px)] h-[min(24vh,190px)] sm:w-[min(36vh,290px)] sm:h-[min(28vh,230px)]'
-                            : 'w-[min(35vh,280px)] h-[min(28vh,220px)] sm:w-[min(44vh,350px)] sm:h-[min(34vh,270px)]'
+                            ? 'w-[min(34vh,280px)] h-[min(24vh,195px)] sm:w-[min(40vh,330px)] sm:h-[min(28vh,230px)]'
+                            : 'w-[min(38vh,315px)] h-[min(27vh,225px)] sm:w-[min(48vh,385px)] sm:h-[min(34vh,275px)]'
                           : showLyrics
                             ? 'w-[min(24vh,190px)] h-[min(24vh,190px)] sm:w-[min(28vh,230px)] sm:h-[min(28vh,230px)]'
                             : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
@@ -1489,16 +1489,16 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               setDeckMode('cover');
                             }}
                             title="Click to switch to Album Cover"
-                            className="relative w-full h-full rounded-[24px] sm:rounded-[30px] p-2 sm:p-2.5 bg-gradient-to-b from-[#21222c] via-[#15151c] to-[#0d0e14] border border-white/12 shadow-[0_24px_50px_rgba(0,0,0,0.88),inset_0_1px_1px_rgba(255,255,255,0.18)] flex items-center cursor-pointer select-none overflow-hidden will-change-transform"
+                            className="relative w-full h-full rounded-[24px] sm:rounded-[28px] bg-gradient-to-br from-[#1c1d26] via-[#13141b] to-[#0c0d12] border border-white/12 shadow-[0_24px_50px_rgba(0,0,0,0.88),inset_0_1px_1px_rgba(255,255,255,0.18)] cursor-pointer select-none overflow-hidden will-change-transform"
                           >
-                            {/* Plinth Subtle Corner Accents */}
-                            <div className="absolute top-2 left-2 w-1.5 h-1.5 rounded-full bg-zinc-600/50 border border-white/10 pointer-events-none" />
-                            <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-zinc-600/50 border border-white/10 pointer-events-none" />
-                            <div className="absolute bottom-2 left-2 w-1.5 h-1.5 rounded-full bg-zinc-600/50 border border-white/10 pointer-events-none" />
-                            <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-zinc-600/50 border border-white/10 pointer-events-none" />
+                            {/* Plinth Corner Dampener Feet Accents */}
+                            <div className="absolute top-2.5 left-2.5 w-1.5 h-1.5 rounded-full bg-zinc-500/40 border border-white/10 pointer-events-none" />
+                            <div className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-zinc-500/40 border border-white/10 pointer-events-none" />
+                            <div className="absolute bottom-2.5 left-2.5 w-1.5 h-1.5 rounded-full bg-zinc-500/40 border border-white/10 pointer-events-none" />
+                            <div className="absolute bottom-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-zinc-500/40 border border-white/10 pointer-events-none" />
 
-                            {/* 1. Target Strobe Light Tower (Technics SL-1200 Style, Mounted on Plinth) */}
-                            <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-zinc-600 via-zinc-800 to-zinc-950 border border-white/20 shadow-[0_4px_10px_rgba(0,0,0,0.8)] flex items-center justify-center pointer-events-none z-10">
+                            {/* 1. Target Strobe Light Tower (Technics SL-1200 Style, Top-Left) */}
+                            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-zinc-500 via-zinc-700 to-zinc-950 border border-white/20 shadow-[0_3px_8px_rgba(0,0,0,0.8)] flex items-center justify-center pointer-events-none z-10">
                               <div
                                 className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-500 ${
                                   isPlaying
@@ -1508,21 +1508,24 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               />
                             </div>
 
-                            {/* 2. Speed Indicator & Direct Drive Typography at bottom of plinth */}
-                            <div className="absolute bottom-2 left-3 sm:bottom-2.5 sm:left-3.5 flex items-center gap-2 pointer-events-none z-10">
-                              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/40 border border-white/5">
-                                <span className={`w-1 h-1 rounded-full transition-colors ${isPlaying ? 'bg-emerald-400 shadow-[0_0_6px_#10b981]' : 'bg-zinc-600'}`} />
-                                <span className="text-[8px] sm:text-[9px] font-mono font-bold text-white/70">33</span>
+                            {/* 2. Speed Indicator & Direct Drive Pod (Bottom-Left) */}
+                            <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 flex items-center gap-1.5 pointer-events-none z-10">
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 border border-white/10 shadow-inner">
+                                <span className={`w-1.5 h-1.5 rounded-full transition-colors ${isPlaying ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-zinc-600'}`} />
+                                <span className="text-[8.5px] sm:text-[9.5px] font-mono font-bold text-white/80">33</span>
+                                <span className="text-[7.5px] sm:text-[8px] font-mono tracking-[0.2em] text-white/40 uppercase hidden sm:inline ml-0.5">
+                                  DIRECT DRIVE
+                                </span>
                               </div>
-                              <span className="text-[7px] sm:text-[8px] font-mono tracking-[0.2em] text-white/30 uppercase hidden sm:inline">
-                                DIRECT DRIVE
-                              </span>
                             </div>
 
-                            {/* 3. Platter Bay & 180-Gram Spinning Vinyl (Positioned on Left) */}
-                            <div className="relative h-full aspect-square rounded-full flex-shrink-0 flex items-center justify-center">
+                            {/* 3. Recessed Platter Bay & 180-Gram Spinning Vinyl (Positioned on Left with Equal Margins) */}
+                            <div className="absolute top-2.5 bottom-2.5 left-2.5 sm:top-3.5 sm:bottom-3.5 sm:left-4 aspect-square rounded-full flex items-center justify-center">
+                              {/* Recessed Platter Well Shadow */}
+                              <div className="absolute inset-0 rounded-full bg-black/70 shadow-[inset_0_3px_10px_rgba(0,0,0,0.95)] border border-white/5 pointer-events-none" />
+
                               {/* Cast Aluminum Platter Bezel with Rotating Strobe Knurling */}
-                              <div className="absolute inset-0 rounded-full pointer-events-none border border-white/10 shadow-[0_16px_36px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.06)] bg-gradient-to-b from-[#252530] via-[#121218] to-[#0a0a0e] flex items-center justify-center overflow-hidden">
+                              <div className="absolute inset-0.5 rounded-full pointer-events-none border border-white/10 shadow-[0_12px_28px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.06)] bg-gradient-to-b from-[#252530] via-[#121218] to-[#0a0a0e] flex items-center justify-center overflow-hidden">
                                 <div
                                   className="absolute inset-0 rounded-full opacity-35"
                                   style={{
@@ -1630,37 +1633,38 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               <div className="absolute inset-0 rounded-full pointer-events-none border border-white/10 shadow-inner" />
                             </div>
 
-                            {/* 4. Circular Tonearm Mounting Base (Mounted on Plinth, OUTSIDE Platter) */}
-                            <div className="absolute top-2.5 sm:top-3.5 right-2.5 sm:right-4 w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 border border-white/20 shadow-md flex items-center justify-center pointer-events-none">
-                              {/* Anti-skating / height calibrated base ring */}
-                              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full border border-white/10 bg-zinc-900/90 flex items-center justify-center shadow-inner">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-white/15 bg-zinc-800" />
+                            {/* 4. Circular Tonearm Mounting Base (Mounted on Plinth with 30px+ CLEARANCE from Platter) */}
+                            <div className="absolute top-3.5 right-4 sm:top-5 sm:right-6 w-14 h-14 sm:w-17 sm:h-17 rounded-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.7)] flex items-center justify-center pointer-events-none">
+                              {/* Calibrated Anti-Skate Outer Ring */}
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-white/10 bg-zinc-900/90 flex items-center justify-center shadow-inner">
+                                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-white/15 bg-zinc-800/90" />
                               </div>
                             </div>
 
-                            {/* 5. Tonearm Rest Post (Cradle where arm rests when stopped) */}
-                            <div className="absolute bottom-4 sm:bottom-5 right-4 sm:right-6 pointer-events-none flex flex-col items-center">
-                              <div className="w-3 h-2 rounded-t-sm border-t-2 border-l-2 border-r-2 border-zinc-400 bg-zinc-800/80" />
-                              <div className="w-1.5 h-3 bg-gradient-to-b from-zinc-300 to-zinc-600 shadow-sm" />
+                            {/* 5. Tonearm Rest Post (Cradle where arm rests cleanly when stopped) */}
+                            <div className="absolute bottom-6 right-5 sm:bottom-7 sm:right-7 pointer-events-none flex flex-col items-center">
+                              {/* Arm cradle clip */}
+                              <div className="w-3.5 h-2.5 rounded-t-sm border-t-2 border-l-2 border-r-2 border-zinc-400 bg-zinc-800/90 shadow-sm" />
+                              <div className="w-1.5 h-4 bg-gradient-to-b from-zinc-300 via-zinc-400 to-zinc-600 shadow-sm rounded-b-xs" />
                             </div>
 
                             {/* 6. Precision Audiophile S-Shaped Tonearm */}
                             <motion.div
-                              initial={{ opacity: 0, y: -15, rotate: -6 }}
+                              initial={{ opacity: 0, y: -15, rotate: -4 }}
                               animate={{
                                 opacity: 1,
                                 y: 0,
-                                rotate: isPlaying ? 24 : 0
+                                rotate: isPlaying ? 22 : 0
                               }}
-                              exit={{ opacity: 0, y: -10, rotate: -4 }}
+                              exit={{ opacity: 0, y: -10, rotate: -2 }}
                               transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.04 }}
-                              className="absolute top-1 sm:top-2 right-1 sm:right-2 w-18 h-44 sm:w-22 sm:h-52 pointer-events-none z-20"
+                              className="absolute top-2 right-2 sm:top-3 sm:right-3.5 w-20 h-46 sm:w-24 sm:h-54 pointer-events-none z-20"
                               style={{
-                                transformOrigin: '55% 14%'
+                                transformOrigin: '59% 14%'
                               }}
                             >
                               <svg
-                                viewBox="0 0 100 240"
+                                viewBox="0 0 110 240"
                                 className="w-full h-full drop-shadow-[0_16px_28px_rgba(0,0,0,0.92)] pointer-events-none overflow-visible"
                               >
                                 <defs>
@@ -1697,67 +1701,67 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                   </linearGradient>
                                 </defs>
 
-                                {/* A. Gimbal Pivot Housing (Centered on Mounting Base) */}
-                                <circle cx="55" cy="34" r="16" fill="url(#gimbal-grad)" stroke="#1e293b" strokeWidth="1" />
-                                <circle cx="55" cy="34" r="11" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
-                                <circle cx="55" cy="34" r="7.5" fill="url(#gimbal-grad)" />
-                                <circle cx="55" cy="34" r="3.5" fill="#090d16" stroke="#e2e8f0" strokeWidth="0.8" />
-                                <circle cx="54" cy="33" r="1.1" fill="#ffffff" opacity="0.9" />
+                                {/* A. Gimbal Pivot Assembly (Centered on Mounting Base) */}
+                                <circle cx="65" cy="34" r="15" fill="url(#gimbal-grad)" stroke="#1e293b" strokeWidth="1" />
+                                <circle cx="65" cy="34" r="10.5" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
+                                <circle cx="65" cy="34" r="7" fill="url(#gimbal-grad)" />
+                                <circle cx="65" cy="34" r="3" fill="#090d16" stroke="#e2e8f0" strokeWidth="0.8" />
+                                <circle cx="64" cy="33" r="1" fill="#ffffff" opacity="0.9" />
 
-                                {/* Cueing Lever Bar */}
-                                <path d="M 68 42 L 77 46" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round" />
-                                <circle cx="77" cy="46" r="2.2" fill="#fa2d48" />
+                                {/* Subtle Chrome Cueing Lever */}
+                                <path d="M 77 40 L 86 44" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                                <circle cx="86" cy="44" r="2" fill="#334155" stroke="#94a3b8" strokeWidth="0.5" />
 
                                 {/* B. Threaded Rear Counterweight */}
-                                <rect x="47" y="10" width="16" height="13" rx="2.5" fill="url(#counterweight-grad)" stroke="#1e293b" strokeWidth="0.8" />
-                                <line x1="47" y1="13" x2="63" y2="13" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
-                                <line x1="47" y1="16" x2="63" y2="16" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
-                                <line x1="47" y1="19" x2="63" y2="19" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
-                                <rect x="51" y="5" width="8" height="5" rx="1.2" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
+                                <rect x="56" y="8" width="18" height="14" rx="2.5" fill="url(#counterweight-grad)" stroke="#1e293b" strokeWidth="0.8" />
+                                <line x1="56" y1="11" x2="74" y2="11" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
+                                <line x1="56" y1="14" x2="74" y2="14" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
+                                <line x1="56" y1="17" x2="74" y2="17" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
+                                <rect x="61" y="4" width="8" height="4" rx="1" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
 
-                                {/* C. Curved S-Shaped Chrome Tonearm Tube */}
+                                {/* C. Graceful S-Shaped Chrome Tonearm Tube */}
                                 <path
-                                  d="M 55 38 C 55 70, 42 95, 42 135 C 42 165, 30 182, 22 202"
+                                  d="M 65 36 C 65 72, 52 98, 52 138 C 52 172, 38 190, 26 210"
                                   fill="none"
-                                  stroke="rgba(0,0,0,0.5)"
-                                  strokeWidth="5.5"
+                                  stroke="rgba(0,0,0,0.4)"
+                                  strokeWidth="4.5"
                                   strokeLinecap="round"
                                 />
                                 <path
-                                  d="M 55 38 C 55 70, 42 95, 42 135 C 42 165, 30 182, 22 202"
+                                  d="M 65 36 C 65 72, 52 98, 52 138 C 52 172, 38 190, 26 210"
                                   fill="none"
                                   stroke="url(#tonearm-tube-grad)"
-                                  strokeWidth="4"
+                                  strokeWidth="3.2"
                                   strokeLinecap="round"
                                 />
                                 <path
-                                  d="M 54.5 39 C 54.5 70, 41.5 95, 41.5 135 C 41.5 165, 29.5 182, 21.5 202"
+                                  d="M 64.5 37 C 64.5 72, 51.5 98, 51.5 138 C 51.5 172, 37.5 190, 25.5 210"
                                   fill="none"
                                   stroke="#ffffff"
-                                  strokeWidth="1.1"
+                                  strokeWidth="0.9"
                                   strokeLinecap="round"
-                                  opacity="0.8"
+                                  opacity="0.85"
                                 />
 
-                                {/* D. Headshell & Cartridge Assembly */}
-                                <g transform="translate(22, 202)">
-                                  {/* Finger lift hook */}
+                                {/* D. Audiophile Headshell & Cartridge Assembly */}
+                                <g transform="translate(26, 210)">
+                                  {/* Chrome Finger Lift Hook */}
                                   <path
-                                    d="M 4 -2 C 9 -5, 14 -3, 14 3 C 14 7, 11 9, 8 9"
+                                    d="M 5 -1 C 10 -4, 15 -1, 14 5 C 14 8, 10 9, 7 9"
                                     fill="none"
                                     stroke="#cbd5e1"
-                                    strokeWidth="1.6"
+                                    strokeWidth="1.5"
                                     strokeLinecap="round"
                                   />
-                                  {/* Angled Headshell Body */}
-                                  <polygon points="-7,-4 7,-1 5,16 -5,14" fill="#09090e" stroke="#334155" strokeWidth="0.8" />
+                                  {/* Matte Black Angled Headshell */}
+                                  <polygon points="-8,-4 8,-1 6,17 -6,15" fill="#09090e" stroke="#334155" strokeWidth="0.8" />
                                   {/* Audiophile Red Stripe */}
-                                  <line x1="-6" y1="5" x2="6" y2="7.5" stroke="#fa2d48" strokeWidth="1.5" />
-                                  {/* Stylus Cartridge Body */}
-                                  <polygon points="-4,13 4,14.5 3,22 -3,21" fill="url(#cartridge-gold)" stroke="#78350f" strokeWidth="0.6" />
+                                  <line x1="-7" y1="5.5" x2="7" y2="8" stroke="#fa2d48" strokeWidth="1.4" />
+                                  {/* Gold Stylus Cartridge */}
+                                  <polygon points="-4.5,13.5 4.5,15 3.5,22 -3.5,20.5" fill="url(#cartridge-gold)" stroke="#78350f" strokeWidth="0.6" />
                                   {/* Diamond Stylus Tip Point */}
-                                  <circle cx="0" cy="23" r="1.5" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="0.5" />
-                                  {/* Stylus Needle Sparkle */}
+                                  <circle cx="0" cy="23" r="1.3" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="0.5" />
+                                  {/* Stylus Needle Sparkle Reflection */}
                                   <line x1="0" y1="21.5" x2="0" y2="24.5" stroke="#ffffff" strokeWidth="0.8" />
                                   <line x1="-1.5" y1="23" x2="1.5" y2="23" stroke="#ffffff" strokeWidth="0.8" />
                                 </g>
