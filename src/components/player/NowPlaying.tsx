@@ -1455,17 +1455,15 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         }}
                       />
                     </motion.div>
-                  ) : deckMode === 'vinyl' ? (
+                  ) : (
                     <div
-                      onClick={() => setDeckMode('cover')}
-                      title="Click to switch between Vinyl Turntable & Album Cover"
-                      className={`relative flex items-center justify-center cursor-pointer flex-shrink-0 ${
+                      className={`relative flex items-center justify-center flex-shrink-0 ${
                         showLyrics
                           ? 'w-[min(24vh,190px)] h-[min(24vh,190px)] sm:w-[min(28vh,230px)] sm:h-[min(28vh,230px)]'
                           : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
                       }`}
                     >
-                      {/* Dynamic Ambient Album Glow behind Turntable (Bounded to prevent overflow boundary line) */}
+                      {/* Shared Ambient Album Glow behind either Deck or Cover */}
                       <div
                         className="absolute inset-0 rounded-full pointer-events-none transition-all duration-1000 will-change-transform"
                         style={{
@@ -1474,110 +1472,125 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         }}
                       />
 
-                      {/* Pure circular radial-gradient aura */}
-                      <div
-                        className="absolute inset-0 rounded-full pointer-events-none"
-                        style={{
-                          background:
-                            'radial-gradient(circle, rgba(0,0,0,0.7) 50%, rgba(0,0,0,0.25) 62%, transparent 70%)'
-                        }}
-                      />
-
-                      {/* Outer Vinyl Platter */}
-                      <div
-                        className="relative w-full h-full rounded-full border-0 flex items-center justify-center overflow-hidden"
-                        style={{
-                          background:
-                            'repeating-radial-gradient(circle at center, #111116 0px, #111116 3px, #1d1d26 4px, #0d0d12 6px)',
-                          animation: 'spin 7s linear infinite',
-                          animationPlayState: isPlaying ? 'running' : 'paused'
-                        }}
-                      >
-                        <div
-                          className="absolute inset-0 pointer-events-none opacity-30"
-                          style={{
-                            background:
-                              'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.35) 35deg, transparent 70deg, transparent 180deg, rgba(255,255,255,0.35) 215deg, transparent 250deg)'
-                          }}
-                        />
-
-                        <div className="w-[46%] h-[46%] rounded-full overflow-hidden border-0 shadow-inner relative">
-                          <img
-                            src={artSrc}
-                            alt={currentTrack.title}
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                      <AnimatePresence mode="wait" initial={false}>
+                        {deckMode === 'vinyl' ? (
+                          <motion.div
+                            key="nowplaying-deck-vinyl"
+                            initial={{ opacity: 0, scale: 0.85, rotate: -12, filter: 'blur(6px)' }}
+                            animate={{ opacity: 1, scale: 1, rotate: 0, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.85, rotate: 12, filter: 'blur(6px)' }}
+                            transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.85 }}
+                            onClick={() => {
+                              triggerAndroidHaptic('light');
+                              setDeckMode('cover');
                             }}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#09090e] border-0 shadow-md" />
-                        </div>
-                      </div>
+                            title="Click to switch to Album Cover"
+                            className="relative w-full h-full flex items-center justify-center cursor-pointer select-none will-change-transform"
+                          >
+                            {/* Pure circular radial-gradient aura */}
+                            <div
+                              className="absolute inset-0 rounded-full pointer-events-none"
+                              style={{
+                                background:
+                                  'radial-gradient(circle, rgba(0,0,0,0.7) 50%, rgba(0,0,0,0.25) 62%, transparent 70%)'
+                              }}
+                            />
 
-                      {/* Animated Studio Tonearm */}
-                      <div
-                        className="absolute -top-2 -right-2 sm:-right-3 w-16 h-36 sm:w-20 sm:h-44 pointer-events-none transition-transform duration-500 origin-[75%_16%]"
-                        style={{
-                          transform: isPlaying ? 'rotate(24deg)' : 'rotate(0deg)',
-                          transformOrigin: '70% 14%'
-                        }}
-                      >
-                        <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-700 border-0 shadow-lg flex items-center justify-center">
-                          <div className="w-3 h-3 rounded-full bg-zinc-900" />
-                        </div>
-                        <svg viewBox="0 0 80 180" className="w-full h-full drop-shadow-xl">
-                          <path
-                            d="M 56 24 L 56 115 L 34 152"
-                            fill="none"
-                            stroke="#d4d4d8"
-                            strokeWidth="4.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <rect
-                            x="25"
-                            y="146"
-                            width="14"
-                            height="20"
-                            rx="3"
-                            transform="rotate(28 32 156)"
-                            fill="#fa2d48"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="relative flex items-center justify-center flex-shrink-0">
-                      {/* Dynamic Ambient Album Glow behind Album Cover (Bounded to prevent overflow boundary line) */}
-                      <div
-                        className="absolute inset-0 rounded-3xl pointer-events-none transition-all duration-1000 will-change-transform"
-                        style={{
-                          background: `radial-gradient(circle, ${palette.primary}75 0%, ${palette.secondary}35 50%, transparent 72%)`,
-                          opacity: isPlaying ? 0.9 : 0.45
-                        }}
-                      />
-                      <motion.div
-                        layoutId="album-art-hero"
-                        onClick={() => setDeckMode('vinyl')}
-                        title="Click to switch to Spinning Vinyl Turntable"
-                        initial={{ scale: 0.88, opacity: 0.7 }}
-                        animate={{ scale: isPlaying ? 1 : 0.95, opacity: 1 }}
-                        transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                        className={`relative aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border-0 flex-shrink-0 cursor-pointer will-change-transform ${
-                          showLyrics
-                            ? 'w-[min(24vh,190px)] h-[min(24vh,190px)] sm:w-[min(28vh,230px)] sm:h-[min(28vh,230px)]'
-                            : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
-                        }`}
-                      >
-                        <img
-                          src={artSrc}
-                          alt={currentTrack.title}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                          }}
-                          className="w-full h-full object-cover"
-                        />
-                      </motion.div>
+                            {/* Outer Vinyl Platter */}
+                            <div
+                              className="relative w-full h-full rounded-full border-0 flex items-center justify-center overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85)]"
+                              style={{
+                                background:
+                                  'repeating-radial-gradient(circle at center, #111116 0px, #111116 3px, #1d1d26 4px, #0d0d12 6px)',
+                                animation: 'spin 7s linear infinite',
+                                animationPlayState: isPlaying ? 'running' : 'paused'
+                              }}
+                            >
+                              <div
+                                className="absolute inset-0 pointer-events-none opacity-30"
+                                style={{
+                                  background:
+                                    'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.35) 35deg, transparent 70deg, transparent 180deg, rgba(255,255,255,0.35) 215deg, transparent 250deg)'
+                                }}
+                              />
+
+                              <div className="w-[46%] h-[46%] rounded-full overflow-hidden border-0 shadow-inner relative">
+                                <img
+                                  src={artSrc}
+                                  alt={currentTrack.title}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                                  }}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#09090e] border-0 shadow-md" />
+                              </div>
+                            </div>
+
+                            {/* Animated Studio Tonearm */}
+                            <motion.div
+                              initial={{ opacity: 0, y: -20, rotate: -10 }}
+                              animate={{
+                                opacity: 1,
+                                y: 0,
+                                rotate: isPlaying ? 24 : 0
+                              }}
+                              exit={{ opacity: 0, y: -15, rotate: -8 }}
+                              transition={{ type: 'spring', stiffness: 300, damping: 26, delay: 0.05 }}
+                              className="absolute -top-2 -right-2 sm:-right-3 w-16 h-36 sm:w-20 sm:h-44 pointer-events-none duration-500 origin-[75%_16%]"
+                              style={{
+                                transformOrigin: '70% 14%'
+                              }}
+                            >
+                              <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-700 border-0 shadow-lg flex items-center justify-center">
+                                <div className="w-3 h-3 rounded-full bg-zinc-900" />
+                              </div>
+                              <svg viewBox="0 0 80 180" className="w-full h-full drop-shadow-xl">
+                                <path
+                                  d="M 56 24 L 56 115 L 34 152"
+                                  fill="none"
+                                  stroke="#d4d4d8"
+                                  strokeWidth="4.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                <rect
+                                  x="25"
+                                  y="146"
+                                  width="14"
+                                  height="20"
+                                  rx="3"
+                                  transform="rotate(28 32 156)"
+                                  fill="#fa2d48"
+                                />
+                              </svg>
+                            </motion.div>
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="nowplaying-deck-cover"
+                            initial={{ opacity: 0, scale: 0.85, rotate: 8, filter: 'blur(6px)' }}
+                            animate={{ opacity: 1, scale: isPlaying ? 1 : 0.95, rotate: 0, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.85, rotate: -8, filter: 'blur(6px)' }}
+                            transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.85 }}
+                            onClick={() => {
+                              triggerAndroidHaptic('light');
+                              setDeckMode('vinyl');
+                            }}
+                            title="Click to switch to Spinning Vinyl Turntable"
+                            className="relative w-full h-full aspect-square rounded-3xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] border-0 flex-shrink-0 cursor-pointer select-none will-change-transform"
+                          >
+                            <img
+                              src={artSrc}
+                              alt={currentTrack.title}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                              }}
+                              className="w-full h-full object-cover"
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
 
