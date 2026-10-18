@@ -1406,7 +1406,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
           ) : (
             /* STANDARD / VINYL TURNTABLE STUDIO VIEW */
             <div
-              className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-1 sm:pt-2 pb-4 overflow-y-auto no-scrollbar flex flex-col"
+              className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-6 sm:pt-8 pb-4 overflow-y-auto no-scrollbar flex flex-col"
             >
               <div
                 className={`w-full max-w-6xl my-auto mx-auto ${
@@ -1504,7 +1504,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             </div>
 
                             {/* 2. Target Strobe Light Tower (Technics SL-1200 Style) */}
-                            <div className="absolute -top-1.5 -left-1.5 w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.8)] flex items-center justify-center pointer-events-none z-10">
+                            <div className="absolute top-0.5 left-0.5 w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.8)] flex items-center justify-center pointer-events-none z-10">
                               <div
                                 className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-500 ${
                                   isPlaying
@@ -1619,14 +1619,14 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               }}
                               exit={{ opacity: 0, y: -15, rotate: -8 }}
                               transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.04 }}
-                              className="absolute -top-3 -right-3 sm:-right-4 w-20 h-44 sm:w-24 sm:h-52 pointer-events-none z-20 origin-[72%_15%]"
+                              className="absolute top-0 right-0 sm:right-1 w-20 h-44 sm:w-24 sm:h-52 pointer-events-none z-20 origin-[65.5%_15%]"
                               style={{
-                                transformOrigin: '72% 15%'
+                                transformOrigin: '65.5% 15%'
                               }}
                             >
                               <svg
                                 viewBox="0 0 110 240"
-                                className="w-full h-full drop-shadow-[0_16px_28px_rgba(0,0,0,0.92)] pointer-events-none"
+                                className="w-full h-full drop-shadow-[0_16px_28px_rgba(0,0,0,0.92)] pointer-events-none overflow-visible"
                               >
                                 <defs>
                                   {/* Chrome Tube Gradient */}
