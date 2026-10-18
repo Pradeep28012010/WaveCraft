@@ -1457,15 +1457,19 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </motion.div>
                   ) : (
                     <div
-                      className={`relative flex items-center justify-center flex-shrink-0 ${
-                        showLyrics
-                          ? 'w-[min(24vh,190px)] h-[min(24vh,190px)] sm:w-[min(28vh,230px)] sm:h-[min(28vh,230px)]'
-                          : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
+                      className={`relative flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                        deckMode === 'vinyl'
+                          ? showLyrics
+                            ? 'w-[min(30vh,240px)] h-[min(24vh,190px)] sm:w-[min(36vh,290px)] sm:h-[min(28vh,230px)]'
+                            : 'w-[min(35vh,280px)] h-[min(28vh,220px)] sm:w-[min(44vh,350px)] sm:h-[min(34vh,270px)]'
+                          : showLyrics
+                            ? 'w-[min(24vh,190px)] h-[min(24vh,190px)] sm:w-[min(28vh,230px)] sm:h-[min(28vh,230px)]'
+                            : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
                       }`}
                     >
                       {/* Shared Ambient Album Glow behind either Deck or Cover */}
                       <div
-                        className="absolute inset-0 rounded-full pointer-events-none transition-all duration-1000 will-change-transform"
+                        className="absolute inset-0 rounded-3xl pointer-events-none transition-all duration-1000 will-change-transform"
                         style={{
                           background: `radial-gradient(circle, ${palette.primary}80 0%, ${palette.secondary}40 45%, transparent 70%)`,
                           opacity: isPlaying ? 0.95 : 0.5
@@ -1476,35 +1480,25 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         {deckMode === 'vinyl' ? (
                           <motion.div
                             key="nowplaying-deck-vinyl"
-                            initial={{ opacity: 0, scale: 0.85, rotate: -12, filter: 'blur(6px)' }}
-                            animate={{ opacity: 1, scale: 1, rotate: 0, filter: 'blur(0px)' }}
-                            exit={{ opacity: 0, scale: 0.85, rotate: 12, filter: 'blur(6px)' }}
+                            initial={{ opacity: 0, scale: 0.88, filter: 'blur(6px)' }}
+                            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.88, filter: 'blur(6px)' }}
                             transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.85 }}
                             onClick={() => {
                               triggerAndroidHaptic('light');
                               setDeckMode('cover');
                             }}
                             title="Click to switch to Album Cover"
-                            className="relative w-full h-full flex items-center justify-center cursor-pointer select-none will-change-transform"
+                            className="relative w-full h-full rounded-[24px] sm:rounded-[30px] p-2 sm:p-2.5 bg-gradient-to-b from-[#21222c] via-[#15151c] to-[#0d0e14] border border-white/12 shadow-[0_24px_50px_rgba(0,0,0,0.88),inset_0_1px_1px_rgba(255,255,255,0.18)] flex items-center cursor-pointer select-none overflow-hidden will-change-transform"
                           >
-                            {/* 1. Cast Aluminum Heavy Platter Bezel with Strobe Dots Rim */}
-                            <div className="absolute -inset-2 sm:-inset-2.5 rounded-full pointer-events-none border border-white/10 shadow-[0_24px_64px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.06)] bg-gradient-to-b from-[#252530] via-[#121218] to-[#0a0a0e] flex items-center justify-center overflow-hidden">
-                              {/* Strobe dots knurled pattern around rotating platter edge */}
-                              <div
-                                className="absolute inset-0 rounded-full opacity-35"
-                                style={{
-                                  background:
-                                    'repeating-conic-gradient(from 0deg, #94a3b8 0deg 1.5deg, transparent 1.5deg 3deg)',
-                                  animation: 'spin 2.2s linear infinite',
-                                  animationPlayState: isPlaying ? 'running' : 'paused'
-                                }}
-                              />
-                              {/* Platter top chamfer highlight */}
-                              <div className="absolute inset-0 rounded-full border border-white/15 pointer-events-none" />
-                            </div>
+                            {/* Plinth Subtle Corner Accents */}
+                            <div className="absolute top-2 left-2 w-1.5 h-1.5 rounded-full bg-zinc-600/50 border border-white/10 pointer-events-none" />
+                            <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-zinc-600/50 border border-white/10 pointer-events-none" />
+                            <div className="absolute bottom-2 left-2 w-1.5 h-1.5 rounded-full bg-zinc-600/50 border border-white/10 pointer-events-none" />
+                            <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-zinc-600/50 border border-white/10 pointer-events-none" />
 
-                            {/* 2. Target Strobe Light Tower (Technics SL-1200 Style) */}
-                            <div className="absolute top-0.5 left-0.5 w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 border border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.8)] flex items-center justify-center pointer-events-none z-10">
+                            {/* 1. Target Strobe Light Tower (Technics SL-1200 Style, Mounted on Plinth) */}
+                            <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-zinc-600 via-zinc-800 to-zinc-950 border border-white/20 shadow-[0_4px_10px_rgba(0,0,0,0.8)] flex items-center justify-center pointer-events-none z-10">
                               <div
                                 className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-500 ${
                                   isPlaying
@@ -1514,118 +1508,159 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                               />
                             </div>
 
-                            {/* 3. Spinning 180-Gram Vinyl Record with Realistic Sound Bands */}
-                            <div
-                              className="relative w-full h-full rounded-full border-0 flex items-center justify-center overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.95)]"
-                              style={{
-                                background: `
-                                  radial-gradient(circle at center,
-                                    transparent 0%,
-                                    transparent 34%,
-                                    #16161e 34.5%,
-                                    #0a0a0e 35%,
-                                    #1c1c26 36%,
-                                    #0e0e14 43%,
-                                    #060609 43.5%,
-                                    #161620 44%,
-                                    #0a0a0f 47.5%,
-                                    #181824 51.5%,
-                                    #0c0c12 55.5%,
-                                    #050508 56%,
-                                    #181824 56.5%,
-                                    #0b0b10 61%,
-                                    #1a1a26 66%,
-                                    #0d0d14 71.5%,
-                                    #050508 72%,
-                                    #191926 72.5%,
-                                    #0b0b10 78%,
-                                    #1c1c28 84%,
-                                    #0d0d14 90%,
-                                    #14141e 94.5%,
-                                    #08080c 96%,
-                                    #232330 98%,
-                                    #08080c 100%
-                                  )
-                                `,
-                                animation: 'spin 2.2s linear infinite',
-                                animationPlayState: isPlaying ? 'running' : 'paused'
-                              }}
-                            >
-                              {/* Fine Micro-Groove Audio Spirals */}
-                              <div
-                                className="absolute inset-0 rounded-full opacity-45 pointer-events-none"
-                                style={{
-                                  background:
-                                    'repeating-radial-gradient(circle at center, #181822 0px, #181822 1.5px, #0c0c12 2px, #08080c 3px)'
-                                }}
-                              />
+                            {/* 2. Speed Indicator & Direct Drive Typography at bottom of plinth */}
+                            <div className="absolute bottom-2 left-3 sm:bottom-2.5 sm:left-3.5 flex items-center gap-2 pointer-events-none z-10">
+                              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/40 border border-white/5">
+                                <span className={`w-1 h-1 rounded-full transition-colors ${isPlaying ? 'bg-emerald-400 shadow-[0_0_6px_#10b981]' : 'bg-zinc-600'}`} />
+                                <span className="text-[8px] sm:text-[9px] font-mono font-bold text-white/70">33</span>
+                              </div>
+                              <span className="text-[7px] sm:text-[8px] font-mono tracking-[0.2em] text-white/30 uppercase hidden sm:inline">
+                                DIRECT DRIVE
+                              </span>
+                            </div>
 
-                              {/* Center Record Label with Album Art */}
-                              <div className="w-[38%] h-[38%] rounded-full overflow-hidden border border-white/10 shadow-[0_0_16px_rgba(0,0,0,0.9),inset_0_0_8px_rgba(0,0,0,0.6)] relative z-0 flex items-center justify-center">
-                                <img
-                                  src={artSrc}
-                                  alt={currentTrack.title}
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                            {/* 3. Platter Bay & 180-Gram Spinning Vinyl (Positioned on Left) */}
+                            <div className="relative h-full aspect-square rounded-full flex-shrink-0 flex items-center justify-center">
+                              {/* Cast Aluminum Platter Bezel with Rotating Strobe Knurling */}
+                              <div className="absolute inset-0 rounded-full pointer-events-none border border-white/10 shadow-[0_16px_36px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.06)] bg-gradient-to-b from-[#252530] via-[#121218] to-[#0a0a0e] flex items-center justify-center overflow-hidden">
+                                <div
+                                  className="absolute inset-0 rounded-full opacity-35"
+                                  style={{
+                                    background:
+                                      'repeating-conic-gradient(from 0deg, #94a3b8 0deg 1.5deg, transparent 1.5deg 3deg)',
+                                    animation: 'spin 2.2s linear infinite',
+                                    animationPlayState: isPlaying ? 'running' : 'paused'
                                   }}
-                                  className="w-full h-full object-cover"
                                 />
-                                {/* Vinyl pressing stamp indentation ring */}
-                                <div className="absolute inset-2 sm:inset-3 rounded-full border border-white/20 pointer-events-none" />
-                                {/* Center spindle hole brass bushing */}
-                                <div className="absolute inset-0 m-auto w-4.5 h-4.5 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-700 p-0.5 shadow-md flex items-center justify-center">
-                                  {/* Center spindle chrome pin */}
-                                  <div className="w-full h-full rounded-full bg-gradient-to-tr from-zinc-200 via-zinc-100 to-zinc-400 shadow-inner flex items-center justify-center">
-                                    <div className="w-1 h-1 rounded-full bg-zinc-950/70" />
+                                <div className="absolute inset-0 rounded-full border border-white/15 pointer-events-none" />
+                              </div>
+
+                              {/* Spinning 180-Gram Vinyl Record with Realistic Sound Bands */}
+                              <div
+                                className="relative w-[92%] h-[92%] rounded-full border-0 flex items-center justify-center overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.95)]"
+                                style={{
+                                  background: `
+                                    radial-gradient(circle at center,
+                                      transparent 0%,
+                                      transparent 34%,
+                                      #16161e 34.5%,
+                                      #0a0a0e 35%,
+                                      #1c1c26 36%,
+                                      #0e0e14 43%,
+                                      #060609 43.5%,
+                                      #161620 44%,
+                                      #0a0a0f 47.5%,
+                                      #181824 51.5%,
+                                      #0c0c12 55.5%,
+                                      #050508 56%,
+                                      #181824 56.5%,
+                                      #0b0b10 61%,
+                                      #1a1a26 66%,
+                                      #0d0d14 71.5%,
+                                      #050508 72%,
+                                      #191926 72.5%,
+                                      #0b0b10 78%,
+                                      #1c1c28 84%,
+                                      #0d0d14 90%,
+                                      #14141e 94.5%,
+                                      #08080c 96%,
+                                      #232330 98%,
+                                      #08080c 100%
+                                    )
+                                  `,
+                                  animation: 'spin 2.2s linear infinite',
+                                  animationPlayState: isPlaying ? 'running' : 'paused'
+                                }}
+                              >
+                                {/* Fine Micro-Groove Audio Spirals */}
+                                <div
+                                  className="absolute inset-0 rounded-full opacity-45 pointer-events-none"
+                                  style={{
+                                    background:
+                                      'repeating-radial-gradient(circle at center, #181822 0px, #181822 1.5px, #0c0c12 2px, #08080c 3px)'
+                                  }}
+                                />
+
+                                {/* Center Record Label with Album Art */}
+                                <div className="w-[38%] h-[38%] rounded-full overflow-hidden border border-white/10 shadow-[0_0_16px_rgba(0,0,0,0.9),inset_0_0_8px_rgba(0,0,0,0.6)] relative z-0 flex items-center justify-center">
+                                  <img
+                                    src={artSrc}
+                                    alt={currentTrack.title}
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                                    }}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  {/* Vinyl pressing stamp indentation ring */}
+                                  <div className="absolute inset-2 sm:inset-3 rounded-full border border-white/20 pointer-events-none" />
+                                  {/* Center spindle hole brass bushing */}
+                                  <div className="absolute inset-0 m-auto w-4.5 h-4.5 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-700 p-0.5 shadow-md flex items-center justify-center">
+                                    <div className="w-full h-full rounded-full bg-gradient-to-tr from-zinc-200 via-zinc-100 to-zinc-400 shadow-inner flex items-center justify-center">
+                                      <div className="w-1 h-1 rounded-full bg-zinc-950/70" />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
+
+                              {/* Stationary Anisotropic Vinyl Glare (Double Butterfly Cones) */}
+                              <div
+                                className="absolute inset-0 rounded-full pointer-events-none mix-blend-screen opacity-70"
+                                style={{
+                                  background: `conic-gradient(
+                                    from -35deg at 50% 50%,
+                                    transparent 0deg,
+                                    rgba(255,255,255,0.02) 20deg,
+                                    rgba(255,255,255,0.18) 42deg,
+                                    rgba(255,255,255,0.32) 45deg,
+                                    rgba(255,255,255,0.18) 48deg,
+                                    rgba(255,255,255,0.02) 70deg,
+                                    transparent 90deg,
+                                    transparent 180deg,
+                                    rgba(255,255,255,0.02) 200deg,
+                                    rgba(255,255,255,0.18) 222deg,
+                                    rgba(255,255,255,0.32) 225deg,
+                                    rgba(255,255,255,0.18) 228deg,
+                                    rgba(255,255,255,0.02) 250deg,
+                                    transparent 270deg
+                                  )`
+                                }}
+                              />
+
+                              {/* Outer Vinyl Gloss Edge Ring */}
+                              <div className="absolute inset-0 rounded-full pointer-events-none border border-white/10 shadow-inner" />
                             </div>
 
-                            {/* 4. Stationary Anisotropic Vinyl Glare (Shimmering Double Butterfly Cones) */}
-                            <div
-                              className="absolute inset-0 rounded-full pointer-events-none mix-blend-screen opacity-70"
-                              style={{
-                                background: `conic-gradient(
-                                  from -35deg at 50% 50%,
-                                  transparent 0deg,
-                                  rgba(255,255,255,0.02) 20deg,
-                                  rgba(255,255,255,0.18) 42deg,
-                                  rgba(255,255,255,0.32) 45deg,
-                                  rgba(255,255,255,0.18) 48deg,
-                                  rgba(255,255,255,0.02) 70deg,
-                                  transparent 90deg,
-                                  transparent 180deg,
-                                  rgba(255,255,255,0.02) 200deg,
-                                  rgba(255,255,255,0.18) 222deg,
-                                  rgba(255,255,255,0.32) 225deg,
-                                  rgba(255,255,255,0.18) 228deg,
-                                  rgba(255,255,255,0.02) 250deg,
-                                  transparent 270deg
-                                )`
-                              }}
-                            />
+                            {/* 4. Circular Tonearm Mounting Base (Mounted on Plinth, OUTSIDE Platter) */}
+                            <div className="absolute top-2.5 sm:top-3.5 right-2.5 sm:right-4 w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 border border-white/20 shadow-md flex items-center justify-center pointer-events-none">
+                              {/* Anti-skating / height calibrated base ring */}
+                              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full border border-white/10 bg-zinc-900/90 flex items-center justify-center shadow-inner">
+                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-white/15 bg-zinc-800" />
+                              </div>
+                            </div>
 
-                            {/* Outer Vinyl Gloss Edge Ring */}
-                            <div className="absolute inset-0 rounded-full pointer-events-none border border-white/10 shadow-inner" />
+                            {/* 5. Tonearm Rest Post (Cradle where arm rests when stopped) */}
+                            <div className="absolute bottom-4 sm:bottom-5 right-4 sm:right-6 pointer-events-none flex flex-col items-center">
+                              <div className="w-3 h-2 rounded-t-sm border-t-2 border-l-2 border-r-2 border-zinc-400 bg-zinc-800/80" />
+                              <div className="w-1.5 h-3 bg-gradient-to-b from-zinc-300 to-zinc-600 shadow-sm" />
+                            </div>
 
-                            {/* 5. Precision Audiophile S-Shaped Tonearm */}
+                            {/* 6. Precision Audiophile S-Shaped Tonearm */}
                             <motion.div
-                              initial={{ opacity: 0, y: -20, rotate: -10 }}
+                              initial={{ opacity: 0, y: -15, rotate: -6 }}
                               animate={{
                                 opacity: 1,
                                 y: 0,
-                                rotate: isPlaying ? 22 : 0
+                                rotate: isPlaying ? 24 : 0
                               }}
-                              exit={{ opacity: 0, y: -15, rotate: -8 }}
+                              exit={{ opacity: 0, y: -10, rotate: -4 }}
                               transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.04 }}
-                              className="absolute top-0 right-0 sm:right-1 w-20 h-44 sm:w-24 sm:h-52 pointer-events-none z-20 origin-[65.5%_15%]"
+                              className="absolute top-1 sm:top-2 right-1 sm:right-2 w-18 h-44 sm:w-22 sm:h-52 pointer-events-none z-20"
                               style={{
-                                transformOrigin: '65.5% 15%'
+                                transformOrigin: '55% 14%'
                               }}
                             >
                               <svg
-                                viewBox="0 0 110 240"
+                                viewBox="0 0 100 240"
                                 className="w-full h-full drop-shadow-[0_16px_28px_rgba(0,0,0,0.92)] pointer-events-none overflow-visible"
                               >
                                 <defs>
@@ -1662,41 +1697,41 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                   </linearGradient>
                                 </defs>
 
-                                {/* A. Gimbal Pivot Housing */}
-                                <circle cx="72" cy="36" r="18" fill="url(#gimbal-grad)" stroke="#1e293b" strokeWidth="1" />
-                                <circle cx="72" cy="36" r="13" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
-                                <circle cx="72" cy="36" r="8.5" fill="url(#gimbal-grad)" />
-                                <circle cx="72" cy="36" r="4" fill="#090d16" stroke="#e2e8f0" strokeWidth="0.8" />
-                                <circle cx="71" cy="35" r="1.2" fill="#ffffff" opacity="0.9" />
+                                {/* A. Gimbal Pivot Housing (Centered on Mounting Base) */}
+                                <circle cx="55" cy="34" r="16" fill="url(#gimbal-grad)" stroke="#1e293b" strokeWidth="1" />
+                                <circle cx="55" cy="34" r="11" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
+                                <circle cx="55" cy="34" r="7.5" fill="url(#gimbal-grad)" />
+                                <circle cx="55" cy="34" r="3.5" fill="#090d16" stroke="#e2e8f0" strokeWidth="0.8" />
+                                <circle cx="54" cy="33" r="1.1" fill="#ffffff" opacity="0.9" />
 
                                 {/* Cueing Lever Bar */}
-                                <path d="M 85 45 L 94 49" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round" />
-                                <circle cx="94" cy="49" r="2.5" fill="#fa2d48" />
+                                <path d="M 68 42 L 77 46" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round" />
+                                <circle cx="77" cy="46" r="2.2" fill="#fa2d48" />
 
                                 {/* B. Threaded Rear Counterweight */}
-                                <rect x="63" y="10" width="18" height="15" rx="3" fill="url(#counterweight-grad)" stroke="#1e293b" strokeWidth="0.8" />
-                                <line x1="63" y1="14" x2="81" y2="14" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
-                                <line x1="63" y1="17" x2="81" y2="17" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
-                                <line x1="63" y1="20" x2="81" y2="20" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
-                                <rect x="67" y="5" width="10" height="5" rx="1.5" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
+                                <rect x="47" y="10" width="16" height="13" rx="2.5" fill="url(#counterweight-grad)" stroke="#1e293b" strokeWidth="0.8" />
+                                <line x1="47" y1="13" x2="63" y2="13" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
+                                <line x1="47" y1="16" x2="63" y2="16" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
+                                <line x1="47" y1="19" x2="63" y2="19" stroke="#090d16" strokeWidth="0.8" opacity="0.65" />
+                                <rect x="51" y="5" width="8" height="5" rx="1.2" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
 
                                 {/* C. Curved S-Shaped Chrome Tonearm Tube */}
                                 <path
-                                  d="M 72 40 C 72 70, 58 95, 58 135 C 58 165, 46 182, 38 202"
+                                  d="M 55 38 C 55 70, 42 95, 42 135 C 42 165, 30 182, 22 202"
                                   fill="none"
                                   stroke="rgba(0,0,0,0.5)"
                                   strokeWidth="5.5"
                                   strokeLinecap="round"
                                 />
                                 <path
-                                  d="M 72 40 C 72 70, 58 95, 58 135 C 58 165, 46 182, 38 202"
+                                  d="M 55 38 C 55 70, 42 95, 42 135 C 42 165, 30 182, 22 202"
                                   fill="none"
                                   stroke="url(#tonearm-tube-grad)"
                                   strokeWidth="4"
                                   strokeLinecap="round"
                                 />
                                 <path
-                                  d="M 71.5 41 C 71.5 70, 57.5 95, 57.5 135 C 57.5 165, 45.5 182, 37.5 202"
+                                  d="M 54.5 39 C 54.5 70, 41.5 95, 41.5 135 C 41.5 165, 29.5 182, 21.5 202"
                                   fill="none"
                                   stroke="#ffffff"
                                   strokeWidth="1.1"
@@ -1705,7 +1740,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                 />
 
                                 {/* D. Headshell & Cartridge Assembly */}
-                                <g transform="translate(38, 202)">
+                                <g transform="translate(22, 202)">
                                   {/* Finger lift hook */}
                                   <path
                                     d="M 4 -2 C 9 -5, 14 -3, 14 3 C 14 7, 11 9, 8 9"
