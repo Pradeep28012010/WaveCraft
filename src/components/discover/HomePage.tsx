@@ -10,7 +10,16 @@ import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from '../search/GenreBrowser';
 import TrendingSection from './TrendingSection';
-import { MOOD_PLAYLISTS, DEFAULT_THUMBNAIL, FEATURED_ARTISTS, FALLBACK_TRENDING_TRACKS } from '../../utils/constants';
+import {
+  MOOD_PLAYLISTS,
+  getCurrentTimePhase,
+  type MoodPlaylist,
+  DEFAULT_THUMBNAIL,
+  FEATURED_ARTISTS,
+  FALLBACK_TRENDING_TRACKS
+} from '../../utils/constants';
+import { MoodCard } from './MoodCard';
+import { shuffleArray } from '../../utils/shuffle';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import type { Track, AlbumResult } from '../../types';
 
@@ -85,10 +94,12 @@ HorizontalScroll.displayName = 'HorizontalScroll';
 export default function HomePage() {
   const navigate = useNavigate();
   const playTrack = usePlayerStore((state) => state.playTrack);
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
   const currentTrackId = usePlayerStore((state) => state.currentTrack?.id);
   const isPlaying = usePlayerStore((state) => state.isPlaying);
   const togglePlay = usePlayerStore((state) => state.togglePlay);
   const addToQueue = usePlayerStore((state) => state.addToQueue);
+  const [activeMoodId, setActiveMoodId] = useState<string | null>(null);
 
   const recentlyPlayed = useLibraryStore((state) => state.recentlyPlayed);
   const likedSongs = useLibraryStore((state) => state.likedSongs);
@@ -293,20 +304,210 @@ export default function HomePage() {
     return STUDIO_FX_MODES.find((m) => m.id === fxMode) || STUDIO_FX_MODES[0];
   }, [fxMode]);
 
-  const handlePlayMood = useCallback(async (moodId: string, moodQuery: string) => {
-    triggerAndroidHaptic('light');
-    setLoadingMoodId(moodId);
-    try {
-      const tracks = await searchTracks(moodQuery);
-      if (tracks.length > 0) {
-        playTrack(tracks[0], tracks, 0);
-      }
-    } catch (err) {
-      console.error('Failed to play mood:', err);
-    } finally {
-      setLoadingMoodId(null);
+  // Contextual Relativity & Personalization Engine for Moods & Activities
+  const timePhase = useMemo(() => getCurrentTimePhase(), []);
+
+  const timePhaseSubtitle = useMemo(() => {
+    switch (timePhase) {
+      case 'morning':
+        return 'Curated for your morning flow • Instant liquid glass mixes';
+      case 'afternoon':
+        return 'Tuned for peak focus & midday energy • Instant curated mixes';
+      case 'evening':
+        return 'Tailored for your evening groove & wind-down • Liquid glass mixes';
+      case 'late_night':
+        return 'Crafted for late night synthesis & calm • Deep curated mixes';
     }
-  }, [playTrack]);
+  }, [timePhase]);
+
+  const moodCardsData = useMemo(() => {
+    const currentTitleLower = (currentTrack?.title || '').toLowerCase();
+    const currentArtistLower = (currentTrack?.artist || '').toLowerCase();
+
+    // Extract distinct favorite library artists
+    const favoriteArtists: string[] = [];
+    const seenArtists = new Set<string>();
+
+    for (const item of recentlyPlayed) {
+      const artist = item?.track?.artist?.trim();
+      if (artist && !seenArtists.has(artist.toLowerCase())) {
+        seenArtists.add(artist.toLowerCase());
+        favoriteArtists.push(artist);
+      }
+    }
+    for (const track of likedSongs) {
+      const artist = track?.artist?.trim();
+      if (artist && !seenArtists.has(artist.toLowerCase())) {
+        seenArtists.add(artist.toLowerCase());
+        favoriteArtists.push(artist);
+      }
+    }
+
+    const scored = MOOD_PLAYLISTS.map((mood) => {
+      let score = 0;
+      let isNowPlayingMatch = false;
+      let contextBadge: string | null = null;
+
+      // 1. Time-of-day match (+40 pts)
+      if (mood.bestTimeSlots.includes(timePhase)) {
+        score += 40;
+        contextBadge = mood.timePhaseLabel[timePhase] || null;
+      }
+
+      // 2. Now Playing Acoustic Match (+55 pts)
+      if (currentTrack) {
+        const matchesKeyword = mood.seedKeywords.some(
+          (kw) => currentTitleLower.includes(kw) || currentArtistLower.includes(kw)
+        );
+        if (matchesKeyword) {
+          score += 55;
+          isNowPlayingMatch = true;
+          contextBadge = '🎶 Matches Current Track';
+        }
+      }
+
+      // 3. User taste personalization (+25 pts)
+      let matchedArtist: string | null = null;
+      for (const fav of favoriteArtists) {
+        const favLower = fav.toLowerCase();
+        if (
+          mood.seedKeywords.some((kw) => favLower.includes(kw) || kw.includes(favLower)) ||
+          mood.query.toLowerCase().includes(favLower)
+        ) {
+          matchedArtist = fav;
+          break;
+        }
+      }
+
+      if (matchedArtist) {
+        score += 25;
+      } else if (favoriteArtists.length > 0) {
+        // Sample top favorite artist to personalize query
+        matchedArtist = favoriteArtists[0];
+        score += 10;
+      }
+
+      // Compose personalized query
+      const personalizedQuery = matchedArtist
+        ? `${matchedArtist} ${mood.query}`
+        : mood.query || mood.searchQuery;
+
+      return {
+        mood,
+        relativityScore: score,
+        isTopRecommendation: false,
+        contextBadge,
+        personalizedQuery,
+        personalizedArtist: matchedArtist,
+        isNowPlayingMatch
+      };
+    });
+
+    // Sort by relativity score descending so top contextual matches appear first
+    const sorted = [...scored].sort((a, b) => b.relativityScore - a.relativityScore);
+    if (sorted.length > 0 && sorted[0].relativityScore > 0) {
+      sorted[0].isTopRecommendation = true;
+      if (!sorted[0].contextBadge) {
+        sorted[0].contextBadge = '✨ Top Pick for You';
+      }
+    }
+
+    return sorted;
+  }, [currentTrack, likedSongs, recentlyPlayed, timePhase]);
+
+  const handlePlayMood = useCallback(
+    async (mood: MoodPlaylist, customQuery?: string) => {
+      unlockAudioEngine();
+      triggerAndroidHaptic('medium');
+
+      // If already playing this mood, toggle play/pause smoothly
+      if (activeMoodId === mood.id) {
+        togglePlay();
+        showToast(isPlaying ? `Paused ${mood.name}` : `Resumed ${mood.name}`);
+        return;
+      }
+
+      setLoadingMoodId(mood.id);
+      try {
+        const q = customQuery || mood.query || mood.searchQuery;
+        const tracks = await searchTracks(q);
+        if (tracks.length > 0) {
+          setActiveMoodId(mood.id);
+          playTrack(tracks[0], tracks, 0);
+          showToast(`Now Playing ${mood.name} Mix 🎶`);
+        } else {
+          showToast(`No tracks found for ${mood.name}`);
+        }
+      } catch (err) {
+        console.error('Failed to play mood:', err);
+        showToast(`Failed to load ${mood.name}`);
+      } finally {
+        setLoadingMoodId(null);
+      }
+    },
+    [activeMoodId, isPlaying, togglePlay, playTrack]
+  );
+
+  const handleQueueMood = useCallback(
+    async (mood: MoodPlaylist, customQuery: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      unlockAudioEngine();
+      triggerAndroidHaptic('light');
+
+      setLoadingMoodId(mood.id);
+      try {
+        const q = customQuery || mood.query || mood.searchQuery;
+        const tracks = await searchTracks(q);
+        if (tracks.length > 0) {
+          tracks.forEach((t) => addToQueue(t));
+          showToast(`Added ${tracks.length} tracks from ${mood.name} to Up Next ➕`);
+        } else {
+          showToast(`Could not add ${mood.name} to queue`);
+        }
+      } catch (err) {
+        console.error('Failed to queue mood:', err);
+      } finally {
+        setLoadingMoodId(null);
+      }
+    },
+    [addToQueue]
+  );
+
+  const handleShuffleMood = useCallback(
+    async (mood: MoodPlaylist, customQuery: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      unlockAudioEngine();
+      triggerAndroidHaptic('medium');
+
+      setLoadingMoodId(mood.id);
+      try {
+        const q = customQuery || mood.query || mood.searchQuery;
+        const tracks = await searchTracks(q);
+        if (tracks.length > 0) {
+          const shuffled = shuffleArray(tracks);
+          setActiveMoodId(mood.id);
+          playTrack(shuffled[0], shuffled, 0);
+          showToast(`Shuffled & playing ${mood.name} 🔀`);
+        }
+      } catch (err) {
+        console.error('Failed to shuffle mood:', err);
+      } finally {
+        setLoadingMoodId(null);
+      }
+    },
+    [playTrack]
+  );
+
+  const handleOpenVibeStudio = useCallback(
+    (mood: MoodPlaylist, e: React.MouseEvent) => {
+      e.stopPropagation();
+      triggerAndroidHaptic('light');
+      navigate(
+        `/vibe?prompt=${encodeURIComponent(`${mood.name} - ${mood.sub}`)}&mood=${mood.id}`
+      );
+    },
+    [navigate]
+  );
 
   const handlePlayAlbum = useCallback(async (album: AlbumResult, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1079,73 +1280,62 @@ export default function HomePage() {
       {(activeFilter === 'all' || activeFilter === 'moods') && (
         activeFilter === 'moods' ? (
           <section className="mb-10 px-1">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">All Moods & Activities</h2>
-                <p className="text-xs text-white/55 mt-0.5 font-medium">Tap any vibe to launch an instant endless curated mix</p>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  <span>All Moods & Activities</span>
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-white/10 text-white/70 border border-white/15 font-semibold">
+                    Personalized Mixes
+                  </span>
+                </h2>
+                <p className="text-xs text-white/55 mt-0.5 font-medium">{timePhaseSubtitle}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
-              {MOOD_PLAYLISTS.map((mood) => {
-                const isMoodLoading = loadingMoodId === mood.id;
-                return (
-                  <div
-                    key={mood.id}
-                    onClick={() => handlePlayMood(mood.id, mood.query || mood.searchQuery)}
-                    className={`relative rounded-2xl overflow-hidden p-5 transition-all duration-300 cursor-pointer group active:scale-[0.98] shadow-md hover:shadow-2xl hover:-translate-y-1 ${mood.colorClass}`}
-                  >
-                    {/* Top Specular Sheen */}
-                    <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
-                    
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-3xl sm:text-4xl drop-shadow-lg group-hover:scale-115 transition-transform duration-300">{mood.emoji}</span>
-                      <div className="w-9 h-9 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-all">
-                        {isMoodLoading ? (
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <h3 className="font-black text-sm sm:text-base text-white tracking-tight">{mood.name}</h3>
-                    <p className="text-[11px] text-white/75 mt-0.5 font-medium">{mood.sub || 'Play instant mix'}</p>
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {moodCardsData.map((data) => (
+                <MoodCard
+                  key={data.mood.id}
+                  mood={data.mood}
+                  relativityScore={data.relativityScore}
+                  isTopRecommendation={data.isTopRecommendation}
+                  contextBadge={data.contextBadge}
+                  personalizedQuery={data.personalizedQuery}
+                  personalizedArtist={data.personalizedArtist}
+                  isNowPlayingMatch={data.isNowPlayingMatch}
+                  isMoodLoading={loadingMoodId === data.mood.id}
+                  isMoodActive={activeMoodId === data.mood.id}
+                  isPlaying={isPlaying}
+                  onPlay={handlePlayMood}
+                  onQueue={handleQueueMood}
+                  onShuffle={handleShuffleMood}
+                  onOpenVibeStudio={handleOpenVibeStudio}
+                  isGrid={true}
+                />
+              ))}
             </div>
           </section>
         ) : (
-          <HorizontalScroll title="Moods & Activities" subtitle="Instant curated mixes tailored to your vibe">
-            {MOOD_PLAYLISTS.map((mood) => {
-              const isMoodLoading = loadingMoodId === mood.id;
-              return (
-                <div
-                  key={mood.id}
-                  onClick={() => handlePlayMood(mood.id, mood.query || mood.searchQuery)}
-                  className={`min-w-[190px] max-w-[190px] sm:min-w-[215px] sm:max-w-[215px] flex-shrink-0 snap-start relative rounded-2xl overflow-hidden p-5 transition-all duration-300 cursor-pointer group active:scale-[0.98] shadow-md hover:shadow-2xl hover:-translate-y-1 ${mood.colorClass}`}
-                >
-                  {/* Top Specular Sheen */}
-                  <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
-
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-3xl sm:text-4xl drop-shadow-lg group-hover:scale-115 transition-transform duration-300">{mood.emoji}</span>
-                    <div className="w-9 h-9 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-all">
-                      {isMoodLoading ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                  <h3 className="font-black text-sm sm:text-base text-white tracking-tight">{mood.name}</h3>
-                  <p className="text-[11px] text-white/75 mt-0.5 font-medium">{mood.sub || 'Play instant mix'}</p>
-                </div>
-              );
-            })}
+          <HorizontalScroll title="Moods & Activities" subtitle={timePhaseSubtitle}>
+            {moodCardsData.map((data) => (
+              <MoodCard
+                key={data.mood.id}
+                mood={data.mood}
+                relativityScore={data.relativityScore}
+                isTopRecommendation={data.isTopRecommendation}
+                contextBadge={data.contextBadge}
+                personalizedQuery={data.personalizedQuery}
+                personalizedArtist={data.personalizedArtist}
+                isNowPlayingMatch={data.isNowPlayingMatch}
+                isMoodLoading={loadingMoodId === data.mood.id}
+                isMoodActive={activeMoodId === data.mood.id}
+                isPlaying={isPlaying}
+                onPlay={handlePlayMood}
+                onQueue={handleQueueMood}
+                onShuffle={handleShuffleMood}
+                onOpenVibeStudio={handleOpenVibeStudio}
+                isGrid={false}
+              />
+            ))}
           </HorizontalScroll>
         )
       )}

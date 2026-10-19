@@ -30,13 +30,205 @@ export const GENRE_LIST = [
   { id: 'ambient', name: 'Ambient & Deep Sleep', sub: 'Binaural Waves & Pure Meditation', query: 'ambient space sleep meditation music', colors: ['#475569', '#0f172a'], colorClass: 'bg-gradient-to-br from-slate-600/85 via-indigo-900/75 to-black/85', emoji: '🌌' },
 ];
 
-export const MOOD_PLAYLISTS = [
-  { id: 'chill', name: 'Chill Vibes', sub: 'Unwind & relax in glass', query: 'chill vibes relax hits', searchQuery: 'chill vibes relax hits', gradient: ['#4facfe', '#00f2fe'], colorClass: 'bg-gradient-to-br from-sky-500/30 via-blue-600/20 to-indigo-900/40 border-0', emoji: '😌' },
-  { id: 'workout', name: 'Beast Mode', sub: 'High energy gym anthems', query: 'workout gym motivation Phonk hits', searchQuery: 'workout gym motivation hits', gradient: ['#f093fb', '#f5576c'], colorClass: 'bg-gradient-to-br from-rose-500/30 via-orange-600/20 to-red-900/40 border-0', emoji: '💪' },
-  { id: 'focus', name: 'Deep Focus', sub: 'Flow state & coding beats', query: 'lofi study focus instrumental beats', searchQuery: 'lofi study focus instrumental', gradient: ['#43e97b', '#38f9d7'], colorClass: 'bg-gradient-to-br from-emerald-500/30 via-teal-600/20 to-cyan-900/40 border-0', emoji: '🧠' },
-  { id: 'party', name: 'Night Drive', sub: 'Late night synth & bass', query: 'night drive synthwave weeknd after hours', searchQuery: 'night drive weeknd hits', gradient: ['#fa709a', '#fee140'], colorClass: 'bg-gradient-to-br from-purple-500/30 via-fuchsia-600/20 to-pink-900/40 border-0', emoji: '🌃' },
-  { id: 'party-hits', name: 'Party Anthems', sub: 'Turn up the liquid bass', query: 'party dance club hits', searchQuery: 'party dance club hits', gradient: ['#f59e0b', '#ec4899'], colorClass: 'bg-gradient-to-br from-amber-500/30 via-pink-600/20 to-rose-900/40 border-0', emoji: '🎉' },
-  { id: 'romantic', name: 'Golden Hour', sub: 'Warm acoustic & love songs', query: 'romantic acoustic love songs hits', searchQuery: 'romantic love songs hits', gradient: ['#fb7185', '#e11d48'], colorClass: 'bg-gradient-to-br from-pink-500/30 via-rose-500/20 to-amber-900/40 border-0', emoji: '🌅' },
+export type TimePhase = 'morning' | 'afternoon' | 'evening' | 'late_night';
+
+export interface MoodPlaylist {
+  id: string;
+  name: string;
+  sub: string;
+  query: string;
+  searchQuery: string;
+  gradient: [string, string];
+  colorClass: string;
+  emoji: string;
+  glowColor: string;
+  accentColor: string;
+  bgGradient: string;
+  bpmRange: string;
+  telemetryTag: string;
+  bestTimeSlots: TimePhase[];
+  timePhaseLabel: Partial<Record<TimePhase, string>>;
+  seedKeywords: string[];
+}
+
+export function getCurrentTimePhase(): TimePhase {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 18) return 'afternoon';
+  if (hour >= 18 && hour < 22) return 'evening';
+  return 'late_night';
+}
+
+export const MOOD_PLAYLISTS: MoodPlaylist[] = [
+  {
+    id: 'chill',
+    name: 'Chill Vibes',
+    sub: 'Unwind & relax in pure glass',
+    query: 'chill vibes relax hits',
+    searchQuery: 'chill vibes relax hits',
+    gradient: ['#06b6d4', '#3b82f6'],
+    colorClass: 'from-cyan-950/80 via-blue-950/70 to-slate-950/90 border-cyan-500/25',
+    emoji: '😌',
+    glowColor: '#06b6d4',
+    accentColor: '#38bdf8',
+    bgGradient: 'linear-gradient(135deg, rgba(6,182,212,0.24) 0%, rgba(37,99,235,0.18) 50%, rgba(15,23,42,0.85) 100%)',
+    bpmRange: '70–85 BPM',
+    telemetryTag: 'Lo-Fi Flow',
+    bestTimeSlots: ['morning', 'evening', 'late_night'],
+    timePhaseLabel: {
+      morning: '☀️ Morning Wind-Down',
+      evening: '🌆 Evening Unwind',
+      late_night: '🌙 Midnight Chill'
+    },
+    seedKeywords: ['chill', 'relax', 'lofi', 'rnb', 'ambient', 'acoustic', 'unwind']
+  },
+  {
+    id: 'focus',
+    name: 'Deep Focus',
+    sub: 'Flow state, binaural & coding beats',
+    query: 'lofi study focus instrumental beats',
+    searchQuery: 'lofi study focus instrumental',
+    gradient: ['#10b981', '#06b6d4'],
+    colorClass: 'from-emerald-950/80 via-teal-950/70 to-slate-950/90 border-emerald-500/25',
+    emoji: '🧠',
+    glowColor: '#10b981',
+    accentColor: '#34d399',
+    bgGradient: 'linear-gradient(135deg, rgba(16,185,129,0.24) 0%, rgba(13,148,136,0.18) 50%, rgba(15,23,42,0.85) 100%)',
+    bpmRange: '80–105 BPM',
+    telemetryTag: 'Theta 432Hz',
+    bestTimeSlots: ['morning', 'afternoon'],
+    timePhaseLabel: {
+      morning: '☕ Morning Focus',
+      afternoon: '🧠 Peak Flow State'
+    },
+    seedKeywords: ['focus', 'study', 'coding', 'beats', 'instrumental', 'piano', 'lofi']
+  },
+  {
+    id: 'workout',
+    name: 'Beast Mode',
+    sub: 'High-octane gym motivation & phonk',
+    query: 'workout gym motivation Phonk hits',
+    searchQuery: 'workout gym motivation hits',
+    gradient: ['#ef4444', '#f97316'],
+    colorClass: 'from-rose-950/80 via-red-950/70 to-zinc-950/90 border-rose-500/25',
+    emoji: '💪',
+    glowColor: '#ef4444',
+    accentColor: '#f87171',
+    bgGradient: 'linear-gradient(135deg, rgba(239,68,68,0.26) 0%, rgba(225,29,72,0.20) 50%, rgba(24,24,27,0.85) 100%)',
+    bpmRange: '140–175 BPM',
+    telemetryTag: 'High Adrenaline',
+    bestTimeSlots: ['morning', 'afternoon', 'evening'],
+    timePhaseLabel: {
+      morning: '⚡ Dawn Workout',
+      afternoon: '🔥 Midday Boost',
+      evening: '💥 Evening Iron'
+    },
+    seedKeywords: ['workout', 'gym', 'phonk', 'hip hop', 'trap', 'rock', 'motivation', 'beast']
+  },
+  {
+    id: 'party',
+    name: 'Night Drive',
+    sub: 'Late night synth, neon bass & echoes',
+    query: 'night drive synthwave weeknd after hours',
+    searchQuery: 'night drive weeknd hits',
+    gradient: ['#a855f7', '#ec4899'],
+    colorClass: 'from-purple-950/80 via-fuchsia-950/70 to-slate-950/90 border-purple-500/25',
+    emoji: '🌃',
+    glowColor: '#a855f7',
+    accentColor: '#c084fc',
+    bgGradient: 'linear-gradient(135deg, rgba(168,85,247,0.26) 0%, rgba(217,70,239,0.20) 50%, rgba(15,23,42,0.85) 100%)',
+    bpmRange: '105–125 BPM',
+    telemetryTag: 'Retro Synth',
+    bestTimeSlots: ['evening', 'late_night'],
+    timePhaseLabel: {
+      evening: '🌆 Sunset Drive',
+      late_night: '🌙 Midnight Highway'
+    },
+    seedKeywords: ['synthwave', 'synth', 'retro', 'electronic', 'weeknd', 'night drive', 'cyberpunk']
+  },
+  {
+    id: 'party-hits',
+    name: 'Party Anthems',
+    sub: 'Turn up the club bass & floor hits',
+    query: 'party dance club hits',
+    searchQuery: 'party dance club hits',
+    gradient: ['#f59e0b', '#ef4444'],
+    colorClass: 'from-amber-950/80 via-orange-950/70 to-zinc-950/90 border-amber-500/25',
+    emoji: '🎉',
+    glowColor: '#f59e0b',
+    accentColor: '#fbbf24',
+    bgGradient: 'linear-gradient(135deg, rgba(245,158,11,0.26) 0%, rgba(234,88,12,0.20) 50%, rgba(24,24,27,0.85) 100%)',
+    bpmRange: '124–130 BPM',
+    telemetryTag: 'Club Bass',
+    bestTimeSlots: ['evening', 'late_night'],
+    timePhaseLabel: {
+      evening: '✨ Weekend Vibe',
+      late_night: '🔥 Peak Club Energy'
+    },
+    seedKeywords: ['party', 'dance', 'club', 'edm', 'house', 'festival', 'bass']
+  },
+  {
+    id: 'romantic',
+    name: 'Golden Hour',
+    sub: 'Warm acoustic guitars & indie love',
+    query: 'romantic acoustic love songs hits',
+    searchQuery: 'romantic love songs hits',
+    gradient: ['#fb7185', '#f97316'],
+    colorClass: 'from-rose-950/80 via-pink-950/70 to-zinc-950/90 border-rose-400/25',
+    emoji: '🌅',
+    glowColor: '#fb7185',
+    accentColor: '#fda4af',
+    bgGradient: 'linear-gradient(135deg, rgba(251,113,133,0.24) 0%, rgba(244,63,94,0.18) 50%, rgba(24,24,27,0.85) 100%)',
+    bpmRange: '90–115 BPM',
+    telemetryTag: 'Acoustic Warmth',
+    bestTimeSlots: ['morning', 'evening'],
+    timePhaseLabel: {
+      morning: '☀️ Sunrise Acoustic',
+      evening: '🌅 Sunset Glow'
+    },
+    seedKeywords: ['acoustic', 'romantic', 'love', 'guitar', 'unplugged', 'indie', 'golden hour']
+  },
+  {
+    id: 'coffee',
+    name: 'Cozy Coffeehouse',
+    sub: 'Acoustic folk, jazz cafe & rain',
+    query: 'cozy coffee shop acoustic jazz rain beats',
+    searchQuery: 'coffee shop acoustic chill',
+    gradient: ['#d97706', '#78350f'],
+    colorClass: 'from-amber-950/80 via-stone-900/70 to-stone-950/90 border-amber-600/25',
+    emoji: '☕',
+    glowColor: '#d97706',
+    accentColor: '#fde68a',
+    bgGradient: 'linear-gradient(135deg, rgba(217,119,6,0.24) 0%, rgba(120,53,15,0.18) 50%, rgba(28,25,23,0.85) 100%)',
+    bpmRange: '75–95 BPM',
+    telemetryTag: 'Unplugged Folk',
+    bestTimeSlots: ['morning', 'afternoon'],
+    timePhaseLabel: {
+      morning: '☕ Morning Brew',
+      afternoon: '📖 Afternoon Reading'
+    },
+    seedKeywords: ['coffee', 'acoustic', 'jazz', 'folk', 'cafe', 'rain', 'unplugged']
+  },
+  {
+    id: 'ambient',
+    name: 'Deep Ambient',
+    sub: 'Binaural soundscapes & delta sleep',
+    query: 'deep sleep ambient binaural delta waves meditation',
+    searchQuery: 'deep ambient sleep meditation',
+    gradient: ['#6366f1', '#1e1b4b'],
+    colorClass: 'from-indigo-950/80 via-slate-900/70 to-black/90 border-indigo-500/25',
+    emoji: '🌌',
+    glowColor: '#6366f1',
+    accentColor: '#a5b4fc',
+    bgGradient: 'linear-gradient(135deg, rgba(99,102,241,0.24) 0%, rgba(30,27,75,0.20) 50%, rgba(0,0,0,0.90) 100%)',
+    bpmRange: '60–68 BPM',
+    telemetryTag: 'Delta 0.5Hz',
+    bestTimeSlots: ['late_night'],
+    timePhaseLabel: {
+      late_night: '🌌 Deep Sleep Induction'
+    },
+    seedKeywords: ['ambient', 'sleep', 'meditation', 'drone', 'binaural', 'delta']
+  }
 ];
 
 export const KEYBOARD_SHORTCUTS: Record<string, string> = {
