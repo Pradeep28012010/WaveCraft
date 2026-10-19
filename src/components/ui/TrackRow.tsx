@@ -59,13 +59,13 @@ function useSharedTrackHover(rowId: string): {
 
   const onMouseLeave = () => {
     if (hoverLeaveTimer) clearTimeout(hoverLeaveTimer);
-    // 70ms bridge across the 6px gap between adjacent track rows so the
+    // 100ms bridge across gaps between adjacent track rows so the
     // shared layoutId pill glides directly from row A -> row B without blinking
     hoverLeaveTimer = setTimeout(() => {
       if (activeHoveredRowId === rowId) {
         setSharedHoveredRow(null);
       }
-    }, 70);
+    }, 100);
   };
 
   return { isHovered, onMouseEnter, onMouseLeave };
@@ -295,17 +295,30 @@ const TrackRow = memo(({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {/* Shared 120fps Spring-Gliding Hover Backdrop Pill */}
+      {/* Shared 120fps Spring-Gliding Liquid Glass Hover Backdrop Pill */}
       {activeVisual && (
         <motion.div
-          layoutId="wavecraft-track-row-hover-pill"
+          layoutId="wavecraft-track-liquid-glass-pill"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{
             type: 'spring',
-            bounce: 0.15,
-            duration: 0.28
+            stiffness: 440,
+            damping: 32,
+            mass: 0.75
           }}
-          className="absolute inset-0 rounded-2xl liquid-sliding-pill border-0 pointer-events-none z-0 shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
-        />
+          className="absolute inset-0 track-liquid-glass-pill pointer-events-none z-0"
+        >
+          {/* Top Specular Rim Reflection - Liquid Glass Refraction Highlight */}
+          <div className="absolute inset-x-4 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/70 to-transparent pointer-events-none" />
+          {/* Subtle Ambient Liquid Glow */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-50"
+            style={{
+              background: 'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255, 255, 255, 0.12) 0%, transparent 80%)'
+            }}
+          />
+        </motion.div>
       )}
 
       {/* Single, Unified Track Row Surface */}
@@ -318,8 +331,10 @@ const TrackRow = memo(({
         onContextMenu={handleContextMenu}
         className={`relative flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl cursor-pointer select-none transition-all duration-200 z-10 ${
           isCurrentTrack
-            ? 'liquid-glass bg-[var(--color-accent)]/[0.12] shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
-            : 'liquid-glass hover:bg-white/[0.08] active:scale-[0.99]'
+            ? 'bg-[var(--color-accent)]/[0.14] border border-[var(--color-accent)]/30 shadow-[0_4px_20px_rgba(250,45,72,0.18)]'
+            : activeVisual
+            ? 'bg-transparent border border-transparent'
+            : 'bg-white/[0.02] border border-white/[0.04] active:scale-[0.99]'
         }`}
       >
         {/* Left: Index / Equalizer / Play on Hover */}
