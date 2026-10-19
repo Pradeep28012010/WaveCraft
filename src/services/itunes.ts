@@ -315,15 +315,36 @@ export async function searchAlbums(query: string): Promise<AlbumResult[]> {
 }
 
 export async function getAlbumArt(trackTitle: string, artistName: string): Promise<string | null> {
-  const cacheKey = `${trackTitle}-${artistName}`;
+  const cacheKey = `${trackTitle}-${artistName}`.toLowerCase().trim();
   if (artCache.has(cacheKey)) {
     return artCache.get(cacheKey) || null;
   }
 
+  // 1. Query iTunes Search API directly for official 600x600 uncompressed artwork
+  try {
+    const cleanTitle = trackTitle.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim();
+    const cleanArtist = artistName.replace(/\bfeat\.?.*$/i, '').trim();
+    const query = `${cleanTitle} ${cleanArtist}`.trim() || `${trackTitle} ${artistName}`.trim();
+    const res = await fetch(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=3`,
+      { signal: AbortSignal.timeout(4500) }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const first = data.results?.[0];
+      if (first?.artworkUrl100) {
+        const highRes = first.artworkUrl100.replace('100x100bb', '600x600bb');
+        artCache.set(cacheKey, highRes);
+        return highRes;
+      }
+    }
+  } catch {}
+
+  // 2. Resilient fallback to YouTube search
   try {
     const tracks = await searchTracks(`${trackTitle} ${artistName}`);
     if (tracks.length > 0 && tracks[0].thumbnail) {
-      const art = tracks[0].thumbnailLarge || tracks[0].thumbnail;
+      const art = tracks[0].thumbnail || tracks[0].thumbnailLarge;
       artCache.set(cacheKey, art);
       return art;
     }

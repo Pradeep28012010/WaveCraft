@@ -203,7 +203,7 @@ export async function fetchYouTubeSearch(query, limit = 25) {
 
       const { cleanTitle, cleanArtist, cleanAlbum } = parseTrackMetadata(rawTitle, rawAuthor);
       const thumb = `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
-      const thumbLarge = `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`;
+      const thumbLarge = `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`;
       const isInstrumentalOrBgm =
         BGM_OR_INSTRUMENTAL_REGEX.test(rawTitle) ||
         BGM_OR_INSTRUMENTAL_REGEX.test(cleanTitle || '') ||

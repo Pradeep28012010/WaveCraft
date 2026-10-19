@@ -5,7 +5,8 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import { getTrending, getCachedTrending, searchTracks } from '../../services/youtube';
-import { getNewReleases, getCachedNewReleases, getAlbumTracks, FALLBACK_NEW_RELEASES } from '../../services/itunes';
+import { getNewReleases, getCachedNewReleases, getAlbumTracks, getAlbumArt, FALLBACK_NEW_RELEASES } from '../../services/itunes';
+import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from '../search/GenreBrowser';
 import TrendingSection from './TrendingSection';
@@ -157,6 +158,37 @@ export default function HomePage() {
   const spotlightTrack = React.useMemo<Track | null>(() => {
     return trendingTracks[0] || quickMixTracks[0] || null;
   }, [trendingTracks, quickMixTracks]);
+
+  // High-Res Artwork Resolution & Fallback Engine
+  const [spotlightCoverArt, setSpotlightCoverArt] = useState<string | null>(null);
+  const [spotlightArtFailed, setSpotlightArtFailed] = useState(false);
+
+  useEffect(() => {
+    if (!spotlightTrack) {
+      setSpotlightCoverArt(null);
+      setSpotlightArtFailed(false);
+      return;
+    }
+
+    setSpotlightArtFailed(false);
+    // Prioritize reliable thumbnail over unverified maxresdefault
+    const initial = spotlightTrack.thumbnail || spotlightTrack.thumbnailLarge || null;
+    setSpotlightCoverArt(initial);
+
+    let active = true;
+    // Resolve official 600x600 uncompressed studio artwork via iTunes Search
+    getAlbumArt(spotlightTrack.title, spotlightTrack.artist)
+      .then((art) => {
+        if (active && art) {
+          setSpotlightCoverArt(art);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [spotlightTrack?.id, spotlightTrack?.title, spotlightTrack?.artist]);
 
   useEffect(() => {
     let isMounted = true;
@@ -466,22 +498,46 @@ export default function HomePage() {
 
       {/* ================= HERO SPOTLIGHT BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && spotlightTrack && (
-        <section className="mb-10 px-1 w-full min-w-0 max-w-full">
+        <section className="mb-10 px-1 w-full min-w-0 max-w-full relative">
+          {/* Atmospheric Horizon Ambient Glow - seamlessly blends upper greeting and spotlight banner without harsh cutoffs */}
+          <div
+            className="absolute -top-24 inset-x-2 h-56 pointer-events-none blur-3xl opacity-35 -z-10 rounded-full"
+            style={{
+              background: `radial-gradient(ellipse 80% 55% at 50% 20%, var(--color-accent, #fa243c) 0%, rgba(168, 85, 247, 0.45) 45%, transparent 75%)`
+            }}
+          />
+
           <div
             className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0"
+            style={{
+              maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.85) 14px, black 28px, black 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.85) 14px, black 28px, black 100%)'
+            }}
           >
-            {/* Top Specular Rim Reflection */}
-            <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none z-10" />
-
-            {/* Ambient Blurred Artwork Backdrop */}
+            {/* Ambient Blurred Artwork Backdrop with resilient fallback */}
             <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
-              <img
-                src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
-                alt=""
-                className="w-full h-full object-cover blur-3xl opacity-35 scale-125 transition-transform duration-1000 group-hover:scale-130"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/35 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] via-transparent to-black/20" />
+              {spotlightCoverArt && !spotlightArtFailed ? (
+                <img
+                  src={spotlightCoverArt}
+                  alt=""
+                  className="w-full h-full object-cover blur-3xl opacity-35 scale-125 transition-transform duration-1000 group-hover:scale-130"
+                  onError={() => {
+                    if (spotlightTrack.thumbnail && spotlightCoverArt !== spotlightTrack.thumbnail) {
+                      setSpotlightCoverArt(spotlightTrack.thumbnail);
+                    } else {
+                      setSpotlightArtFailed(true);
+                    }
+                  }}
+                />
+              ) : (
+                <div
+                  className="w-full h-full opacity-35 blur-3xl"
+                  style={{
+                    background: 'radial-gradient(ellipse 90% 80% at 30% 40%, var(--color-accent, #fa243c) 0%, #a855f7 45%, #06b6d4 100%)'
+                  }}
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/25 to-transparent" />
             </div>
 
             <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 sm:gap-6 w-full min-w-0">
@@ -497,14 +553,30 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* Primary Front Album Art Sleeve */}
-                  <div className="relative z-10 w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden shadow-[0_16px_36px_rgba(0,0,0,0.7)] border-0 group-hover/cover:scale-[1.03] transition-transform duration-500">
-                    <img
-                      src={spotlightTrack.thumbnailLarge || spotlightTrack.thumbnail || DEFAULT_THUMBNAIL}
-                      alt={spotlightTrack.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
-                    />
+                  {/* Primary Front Album Art Sleeve with guaranteed fallback */}
+                  <div className="relative z-10 w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden shadow-[0_16px_36px_rgba(0,0,0,0.7)] border-0 group-hover/cover:scale-[1.03] transition-transform duration-500 bg-black/40">
+                    {spotlightCoverArt && !spotlightArtFailed ? (
+                      <img
+                        src={spotlightCoverArt}
+                        alt={spotlightTrack.title}
+                        className="w-full h-full object-cover"
+                        onError={() => {
+                          if (spotlightTrack.thumbnail && spotlightCoverArt !== spotlightTrack.thumbnail) {
+                            setSpotlightCoverArt(spotlightTrack.thumbnail);
+                          } else {
+                            setSpotlightArtFailed(true);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-rose-500/85 via-purple-600/85 to-indigo-700/85 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.25),_transparent_70%)]" />
+                        <span className="text-3xl sm:text-4xl mb-1 filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">🎵</span>
+                        <span className="text-[10px] sm:text-xs font-black text-white/90 line-clamp-1 drop-shadow-md">
+                          {spotlightTrack.artist}
+                        </span>
+                      </div>
+                    )}
                     {/* Subtle Top-Light Specular Sleeve Sheen */}
                     <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
 
@@ -537,9 +609,10 @@ export default function HomePage() {
                   <h2
                     onClick={() => {
                       triggerAndroidHaptic('medium');
+                      unlockAudioEngine();
                       playTrack(spotlightTrack, trendingTracks, 0);
                     }}
-                    className="text-2xl sm:text-3xl lg:text-4xl font-black text-white truncate tracking-tight leading-tight group-hover:text-[var(--color-accent)] transition-colors cursor-pointer block max-w-full"
+                    className="text-2xl sm:text-3xl lg:text-4xl font-black text-white truncate tracking-tight leading-tight hover:text-white/90 active:scale-[0.99] transition-all cursor-pointer block max-w-full drop-shadow-sm"
                   >
                     {spotlightTrack.title}
                   </h2>
@@ -567,6 +640,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => {
                     triggerAndroidHaptic('medium');
+                    unlockAudioEngine();
                     playTrack(spotlightTrack, trendingTracks, 0);
                   }}
                   className="flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-full glass-button-primary text-white font-black text-sm flex items-center justify-center gap-2 shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
