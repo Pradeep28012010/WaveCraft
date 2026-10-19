@@ -154,4 +154,25 @@ describe('UI Enhancements & Gestures Validation', () => {
       assert.strictEqual(getParticleCount('ultra'), 120);
     });
   });
+
+  describe('TrackRow Like Button Visibility Logic', () => {
+    function getLikeButtonVisibilityClass(liked, activeVisual, isPhone) {
+      if (liked) return 'opacity-100';
+      if (activeVisual || isPhone) return 'opacity-100';
+      return 'opacity-70 hover:opacity-100';
+    }
+
+    test('Like button is displayed with subtle opacity even when not hovered and unliked', () => {
+      const cls = getLikeButtonVisibilityClass(false, false, false);
+      assert.strictEqual(cls, 'opacity-70 hover:opacity-100');
+      assert.ok(!cls.includes('opacity-0'));
+      assert.ok(!cls.includes('pointer-events-none'));
+    });
+
+    test('Like button is fully visible when hovered or liked', () => {
+      assert.strictEqual(getLikeButtonVisibilityClass(true, false, false), 'opacity-100');
+      assert.strictEqual(getLikeButtonVisibilityClass(false, true, false), 'opacity-100');
+      assert.strictEqual(getLikeButtonVisibilityClass(false, false, true), 'opacity-100');
+    });
+  });
 });

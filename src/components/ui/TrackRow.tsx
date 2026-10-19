@@ -445,16 +445,14 @@ const TrackRow = memo(({
 
         {/* Right: Clean, consistent controls (Like, Duration, More Actions •••) */}
         <div className="relative z-10 flex items-center gap-2 sm:gap-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          {/* 1. Like Button with HeartBurst physics */}
+          {/* 1. Like Button with HeartBurst physics (Always displayed, even when not hovered) */}
           <div
             className={`transition-all duration-200 flex-shrink-0 ${
               liked
                 ? 'opacity-100'
-                : isPhone
-                ? 'opacity-80 hover:opacity-100'
-                : activeVisual
+                : activeVisual || isPhone
                 ? 'opacity-100'
-                : 'opacity-0 pointer-events-none'
+                : 'opacity-70 hover:opacity-100'
             }`}
           >
             <HeartBurstButton
