@@ -1,7 +1,7 @@
 {
   "name": "wavecraft",
   "private": true,
-  "version": "5.2.1",
+  "version": "5.2.2",
   "description": "Next-generation spatial glass music streaming platform with Web Audio DSP, AI Vibe DJ, Syllable-Synced Live Lyrics, 1-Tap Offline Vault, and Native Android & Windows desktop support.",
   "author": "Pradeep",
   "license": "MIT",

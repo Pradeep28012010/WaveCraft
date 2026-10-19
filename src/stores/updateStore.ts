@@ -87,7 +87,7 @@ const resolveApkDownloadUrl = (rawUrl?: string): string => {
 
 export const useUpdateStore = create<UpdateState>((set, get) => {
   const detectedCurrent =
-    (typeof window !== 'undefined' && getNativeAppVersion()) || '5.2.1';
+    (typeof window !== 'undefined' && getNativeAppVersion()) || '5.2.2';
 
   return {
     currentVersion: detectedCurrent,
@@ -186,7 +186,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
             hasUpdate: updateNeeded,
             status: updateNeeded ? 'available' : 'up-to-date',
             lastCheckedTime: Date.now(),
-            currentVersion: current
+            currentVersion: current,
+            isModalOpen: updateNeeded ? true : get().isModalOpen
           });
           return updateNeeded;
         } else {

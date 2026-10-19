@@ -465,18 +465,18 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.2.1',
-        versionCode: 12,
-        releaseDate: '2026-10-18',
+        version: '5.2.2',
+        versionCode: 13,
+        releaseDate: '2026-10-19',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
-        title: 'WaveCraft Pro v5.2.1 (Multi-Device Jam Room & Bilateral Gradient Mesh Engine)',
+        title: 'WaveCraft Pro v5.2.2 (Seamless Ambient Blend & Full-Bleed Studio Stage)',
         releaseNotes: [
+          'Seamless Ambient Blend: Eliminated the horizontal cutoff line below the TopBar. Center stage ambient lighting now harmoniously melts into dual-side gradient mesh wings across the entire full-bleed canvas.',
+          'Bilateral Gradient Mesh System: Fluid multi-point gradient mesh wings on both sides of the screen seamlessly blend the ambient palette across 100% of the viewport with zero clipping boundaries.',
           'Multi-Device Star-Topology Live Jam Room: Supports 3+ devices syncing in real-time with independent connection isolation, zero cascade desync, and authoritative host playback guard.',
-          'Bilateral Gradient Mesh System: Fluid multi-point gradient mesh wings on both sides of the screen seamlessly blend the ambient palette across 100% of the viewport, eliminating all cutoff lines and seams.',
-          'Realistic Vinyl Turntable Plinth: Technics SL-1200 style corner dampener feet, target strobe tower with ambient lamp, and cast aluminum knurled rotating platter.',
-          'Guest Add-Only Queue Protection: Guests can contribute tracks to the collaborative session without overriding playback, scrubbing, or interrupting others.',
-          'Core Stability & Startup Reliability: Decoupled Jam store authority and eliminated startup TDZ initialization conflicts for instant launch on all devices.',
-          'Studio FX & Atmosphere Enhancement: Master atmosphere blend slider, 1-tap mood soundscapes, live 32-band spectrum analyzer, and spatial audio immersion.'
+          'Guest Add-Only Queue Protection: Guests can contribute tracks to collaborative sessions without overriding playback or interrupting other listeners.',
+          'Ultra-Fast Track Resolver: Instant 1200ms playback transition and concurrent audio stream racing for zero buffering dropouts.',
+          'Realistic Vinyl Turntable Plinth: Technics SL-1200 style corner dampener feet, target strobe tower with ambient lamp, and cast aluminum knurled rotating platter.'
         ],
         forceUpdate: false
       });

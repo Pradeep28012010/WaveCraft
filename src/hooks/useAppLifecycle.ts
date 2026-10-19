@@ -8,6 +8,7 @@ import { useMediaSession } from './useMediaSession';
 import { searchTracks } from '../services/youtube';
 import { prewarmCoreRoutes } from '../utils/routePreloader';
 import { initNativeAndroid } from '../services/nativeAndroid';
+import { useUpdateStore } from '../stores/updateStore';
 
 /**
  * Encapsulates global platform lifecycle hooks:
@@ -79,4 +80,12 @@ export function useAppLifecycle(): void {
 
   // Hardware Media Keys & OS Lock Screen integration
   useMediaSession();
+
+  // Background check for latest mobile app updates shortly after startup
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      useUpdateStore.getState().checkForUpdates(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
 }
