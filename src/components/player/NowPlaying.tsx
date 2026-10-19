@@ -415,32 +415,32 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       {/* Windows 11 Acrylic Frameless Title Bar (Electron Desktop App ONLY) */}
       <WindowsTitleBar />
 
-          {/* Seamless Full-Bleed Ambient Album Art & Dual-Wing Gradient Mesh Backdrop */}
+          {/* Seamless Full-Bleed Ambient Album Art & Dual-Wing Gradient Mesh Backdrop (Uniform Across Upper & Lower Screen) */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {/* 1. Left Side Gradient Mesh Wing (Luminosity & Primary Accent Flow) */}
+            {/* 1. Left Side Gradient Mesh Wing (Luminosity & Primary Accent Flow across Upper & Lower Canvas) */}
             <div
-              className="absolute -top-16 -left-28 sm:-left-36 w-[55vw] min-w-[360px] h-[48rem] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none transition-all duration-1000 will-change-transform"
+              className="absolute -top-24 -left-24 sm:-left-36 w-[60vw] min-w-[380px] h-[55rem] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none transition-all duration-1000 will-change-transform"
               style={{
-                background: `radial-gradient(ellipse at 35% 35%, ${palette.primary} 0%, ${palette.accent || palette.primary}80 40%, transparent 75%)`,
-                opacity: zenMode ? 0.25 : isPlaying ? 0.58 : 0.38
+                background: `radial-gradient(ellipse at 35% 30%, ${palette.primary}90 0%, ${palette.accent || palette.primary}60 45%, transparent 75%)`,
+                opacity: zenMode ? 0.30 : isPlaying ? 0.82 : 0.50
               }}
             />
 
-            {/* 2. Right Side Gradient Mesh Wing (Harmonic Secondary & Tertiary Depth) */}
+            {/* 2. Right Side Gradient Mesh Wing (Harmonic Secondary & Tertiary Depth across Upper & Lower Canvas) */}
             <div
-              className="absolute -top-16 -right-28 sm:-right-36 w-[55vw] min-w-[360px] h-[48rem] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none transition-all duration-1000 will-change-transform"
+              className="absolute -top-24 -right-24 sm:-right-36 w-[60vw] min-w-[380px] h-[55rem] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none transition-all duration-1000 will-change-transform"
               style={{
-                background: `radial-gradient(ellipse at 65% 35%, ${palette.secondary} 0%, ${palette.tertiary || palette.secondary}80 40%, transparent 75%)`,
-                opacity: zenMode ? 0.22 : isPlaying ? 0.55 : 0.35
+                background: `radial-gradient(ellipse at 65% 30%, ${palette.secondary}90 0%, ${palette.tertiary || palette.secondary}60 45%, transparent 75%)`,
+                opacity: zenMode ? 0.28 : isPlaying ? 0.80 : 0.48
               }}
             />
 
-            {/* 3. Center Harmonizing Aurora Mesh (Bridges Left & Right across the Stage) */}
+            {/* 3. Center Harmonizing Aurora Mesh (Bridges Left & Right across the Entire Screen from Top to Bottom) */}
             <div
-              className="absolute -top-12 left-1/2 -translate-x-1/2 w-[75vw] min-w-[500px] h-[44rem] rounded-full blur-[110px] sm:blur-[150px] pointer-events-none transition-all duration-1000 will-change-transform"
+              className="absolute -top-24 left-1/2 -translate-x-1/2 w-[80vw] min-w-[540px] h-[50rem] rounded-full blur-[110px] sm:blur-[150px] pointer-events-none transition-all duration-1000 will-change-transform"
               style={{
-                background: `radial-gradient(ellipse 110% 70% at 50% 40%, ${palette.primary}75 0%, ${palette.secondary}55 45%, ${palette.tertiary}30 70%, transparent 100%)`,
-                opacity: zenMode ? 0.20 : isPlaying ? 0.60 : 0.40
+                background: `radial-gradient(ellipse 110% 70% at 50% 30%, ${palette.primary}80 0%, ${palette.secondary}60 45%, ${palette.tertiary}35 70%, transparent 100%)`,
+                opacity: zenMode ? 0.25 : isPlaying ? 0.78 : 0.48
               }}
             />
 
@@ -453,12 +453,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               }}
             />
 
-            {/* 5. Panoramic Under-Bar Horizon Light Bar (Evenly mixes light directly below TopBar) */}
+            {/* 5. Panoramic Upper Horizon Ambient Light Bar (Uniform luminous wash through the upper area & TopBar) */}
             <div
-              className="absolute top-8 inset-x-0 h-36 blur-[70px] pointer-events-none transition-all duration-1000 will-change-transform"
+              className="absolute -top-12 inset-x-0 h-52 blur-[80px] pointer-events-none transition-all duration-1000 will-change-transform"
               style={{
-                background: `linear-gradient(90deg, transparent 0%, ${palette.primary}50 20%, ${palette.accent || palette.primary}45 40%, ${palette.secondary}50 60%, ${palette.tertiary || palette.secondary}45 80%, transparent 100%)`,
-                opacity: zenMode ? 0.30 : isPlaying ? 0.70 : 0.45
+                background: `linear-gradient(90deg, transparent 0%, ${palette.primary}65 20%, ${palette.accent || palette.primary}60 40%, ${palette.secondary}65 60%, ${palette.tertiary || palette.secondary}60 80%, transparent 100%)`,
+                opacity: zenMode ? 0.35 : isPlaying ? 0.82 : 0.52
               }}
             />
 
@@ -474,11 +474,11 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               }`}
             />
 
-            {/* Smooth Cinematic Liquid Vignette (Preserves vibrant side mesh flow) */}
+            {/* Smooth Cinematic Liquid Vignette (Preserves vibrant upper mesh flow and prevents dark upper cutoff) */}
             <div
               className="absolute inset-0 transition-colors duration-1000 pointer-events-none"
               style={{
-                background: `linear-gradient(to bottom, rgba(6,6,11,0.22) 0%, rgba(6,6,11,0.40) 45%, ${palette.backgroundDark}dd 100%)`
+                background: `linear-gradient(to bottom, transparent 0%, transparent 35%, rgba(6,6,11,0.18) 70%, ${palette.backgroundDark}dd 100%)`
               }}
             />
           </div>
@@ -1453,33 +1453,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             <div
               className="relative z-10 flex-1 min-h-0 px-4 sm:px-12 pt-6 sm:pt-8 pb-4 overflow-y-auto no-scrollbar flex flex-col"
             >
-              {/* Full-Bleed Bilateral Gradient Mesh System (Evenly blends both sides with the center) */}
-              <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 select-none">
-                {/* Left Side Gradient Mesh Wing */}
-                <div
-                  className="absolute -top-16 -left-24 sm:-left-36 w-[55vw] min-w-[340px] h-[36rem] rounded-full blur-[90px] sm:blur-[130px] pointer-events-none transition-all duration-1000 will-change-transform"
-                  style={{
-                    background: `radial-gradient(ellipse at 35% 45%, ${palette.primary}85 0%, ${palette.accent || palette.primary}45 42%, transparent 75%)`,
-                    opacity: isPlaying ? 0.78 : 0.42
-                  }}
-                />
-                {/* Right Side Gradient Mesh Wing */}
-                <div
-                  className="absolute -top-16 -right-24 sm:-right-36 w-[55vw] min-w-[340px] h-[36rem] rounded-full blur-[90px] sm:blur-[130px] pointer-events-none transition-all duration-1000 will-change-transform"
-                  style={{
-                    background: `radial-gradient(ellipse at 65% 45%, ${palette.secondary}85 0%, ${palette.tertiary || palette.secondary}45 42%, transparent 75%)`,
-                    opacity: isPlaying ? 0.78 : 0.42
-                  }}
-                />
-                {/* Center Harmonizer Mesh (Seamlessly bridges left and right across the turntable) */}
-                <div
-                  className="absolute -top-10 left-1/2 -translate-x-1/2 w-[75vw] min-w-[480px] h-[32rem] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none transition-all duration-1000 will-change-transform"
-                  style={{
-                    background: `radial-gradient(ellipse 110% 70% at 50% 45%, ${palette.primary}65 0%, ${palette.secondary}45 40%, ${palette.tertiary}25 70%, transparent 100%)`,
-                    opacity: isPlaying ? 0.72 : 0.38
-                  }}
-                />
-              </div>
 
               <div
                 className={`w-full max-w-6xl my-auto mx-auto ${
