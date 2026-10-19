@@ -718,8 +718,14 @@ export default function YouTubeEmbed() {
       audio.src = '';
     }
     const ytPlayer = getPlayer();
-    if (!ytPlayer || !window.ytPlayerReady) {
+    if (!ytPlayer || (!window.ytPlayerReady && typeof ytPlayer.loadVideoById !== 'function')) {
       activeLoadedYtIdRef.current = effectiveYtId;
+      setTimeout(() => {
+        const retryPlayer = getPlayer();
+        if (retryPlayer && (window.ytPlayerReady || typeof retryPlayer.loadVideoById === 'function')) {
+          fallbackToYouTube(_track, effectiveYtId, shouldPlay);
+        }
+      }, 350);
       return;
     }
 
@@ -845,6 +851,7 @@ export default function YouTubeEmbed() {
           console.warn('[WaveCraft] Native audio play issue:', err);
           setIsLoading(false);
           const cur = usePlayerStore.getState().currentTrack;
+          if (cur) cur.audioUrl = undefined;
           const effectiveYtId =
             cur?.youtubeId ||
             (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
@@ -992,8 +999,50 @@ export default function YouTubeEmbed() {
         (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
         (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
-      // 3. Proactively resolve direct audio stream (320kbps Studio Audio)
-      resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
+      // 3. If YouTube video ID is already known, give 320kbps resolution a fast 1200ms window.
+      // If 320kbps direct stream resolves fast, use native audiophile DSP; otherwise start YouTube immediately!
+      if (effectiveYtId) {
+        const directAudioPromise = resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId);
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200));
+
+        Promise.race([directAudioPromise, timeoutPromise])
+          .then((directAudioUrl) => {
+            if (resolveToken !== resolvingTokenRef.current) return;
+            if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+
+            if (directAudioUrl) {
+              track.audioUrl = directAudioUrl;
+              track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+              usePlayerStore.setState((s) => ({
+                currentTrack:
+                  s.currentTrack?.id === track.id
+                    ? { ...s.currentTrack, audioUrl: directAudioUrl, quality: track.quality }
+                    : s.currentTrack,
+                queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directAudioUrl, quality: track.quality } : t))
+              }));
+              playNativeAudio(directAudioUrl, shouldPlay);
+            } else {
+              // Start YouTube stream immediately without blocking
+              fallbackToYouTube(track, effectiveYtId, shouldPlay);
+
+              // Allow background caching if direct audio resolves later
+              directAudioPromise.then((bgUrl) => {
+                if (bgUrl && resolveToken === resolvingTokenRef.current) {
+                  track.audioUrl = bgUrl;
+                  track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                }
+              }).catch(() => {});
+            }
+          })
+          .catch(() => {
+            if (resolveToken !== resolvingTokenRef.current) return;
+            fallbackToYouTube(track, effectiveYtId, shouldPlay);
+          });
+        return;
+      }
+
+      // External imported track without YouTube ID: resolve direct audio or query YouTube
+      resolveDirectAudio(track.title, track.artist, track.duration)
         .then((directAudioUrl) => {
           if (resolveToken !== resolvingTokenRef.current) return;
           if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
@@ -1009,19 +1058,13 @@ export default function YouTubeEmbed() {
               queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directAudioUrl, quality: track.quality } : t))
             }));
             playNativeAudio(directAudioUrl, shouldPlay);
-          } else if (effectiveYtId) {
-            fallbackToYouTube(track, effectiveYtId, shouldPlay);
           } else {
             searchAndPlayYouTube(track, shouldPlay);
           }
         })
         .catch(() => {
           if (resolveToken !== resolvingTokenRef.current) return;
-          if (effectiveYtId) {
-            fallbackToYouTube(track, effectiveYtId, shouldPlay);
-          } else {
-            searchAndPlayYouTube(track, shouldPlay);
-          }
+          searchAndPlayYouTube(track, shouldPlay);
         });
     }
   };

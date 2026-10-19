@@ -279,14 +279,14 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
     querySet.add(`${cleanTitle} ${cleanArtist}`.trim());
   }
 
-  const candidateQueries = Array.from(querySet).filter((q) => q.length > 1);
+  const candidateQueries = Array.from(querySet).filter((q) => q.length > 1).slice(0, 2);
 
   const ipHeader =
     clientIp && clientIp !== 'unknown' && !clientIp.startsWith('127.') && !clientIp.startsWith('192.168.') && !clientIp.startsWith('::1')
       ? clientIp
       : '103.212.156.1';
 
-  for (const q of candidateQueries) {
+  const queryPromises = candidateQueries.map(async (q) => {
     try {
       const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
       const res = await fetchWithTimeout(
@@ -299,7 +299,7 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
             'X-Real-IP': ipHeader
           }
         },
-        3500
+        2500
       );
       if (res.ok) {
         const data = await res.json();
@@ -325,6 +325,12 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
         }
       }
     } catch {}
+    return null;
+  });
+
+  const queryResults = await Promise.all(queryPromises);
+  for (const match of queryResults) {
+    if (match) return match;
   }
 
   return null;

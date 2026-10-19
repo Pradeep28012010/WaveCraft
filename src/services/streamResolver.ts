@@ -237,8 +237,10 @@ export async function resolveDirectAudio(
     return streamCache.get(cacheKey)!;
   }
 
+  const topQueries = candidateQueries.slice(0, 2);
+
   // 1. Android Native Network Bridge (Instant zero-CORS resolution directly on mobile)
-  for (const q of candidateQueries) {
+  for (const q of topQueries) {
     try {
       const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
       const rawJson = fetchAndroidNativeUrl(saavnUrl);
@@ -277,22 +279,18 @@ export async function resolveDirectAudio(
     });
     if (videoId) apiQuery.set('videoId', videoId);
 
-    let res: Response | null = null;
-    try {
-      res = await fetch(apiUrl(`/api/music?${apiQuery.toString()}`), {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(4500)
-      });
-    } catch {}
+    const primaryEndpoint = apiUrl(`/api/music?${apiQuery.toString()}`);
+    let res: Response | null = await fetch(primaryEndpoint, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(2200)
+    }).catch(() => null);
 
-    // Fallback to direct PROD_API_ORIGIN if local fetch failed
-    if (!res || !res.ok) {
-      try {
-        res = await fetch(`${PROD_API_ORIGIN}/api/music?${apiQuery.toString()}`, {
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(4500)
-        });
-      } catch {}
+    // Fallback to direct PROD_API_ORIGIN if relative endpoint failed on native/Capacitor
+    if (!res?.ok && !primaryEndpoint.startsWith('http')) {
+      res = await fetch(`${PROD_API_ORIGIN}/api/music?${apiQuery.toString()}`, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(2200)
+      }).catch(() => null);
     }
 
     if (res && res.ok) {
@@ -308,18 +306,19 @@ export async function resolveDirectAudio(
     }
   } catch {}
 
-  // 3. Backend Proxy Fallback (/api/music?action=proxy-stream) for web browsers to bypass CORS
-  for (const q of candidateQueries) {
+  // 3. Backend Proxy Fallback (/api/music?action=proxy-stream) for top query
+  if (topQueries.length > 0) {
     try {
+      const q = topQueries[0];
       const saavnTarget = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
       const proxyEndpoint = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`);
       let res = await fetch(proxyEndpoint, {
-        signal: AbortSignal.timeout(4000)
+        signal: AbortSignal.timeout(2000)
       }).catch(() => null);
 
-      if (!res?.ok) {
+      if (!res?.ok && !proxyEndpoint.startsWith('http')) {
         res = await fetch(`${PROD_API_ORIGIN}/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`, {
-          signal: AbortSignal.timeout(4000)
+          signal: AbortSignal.timeout(2000)
         }).catch(() => null);
       }
 
@@ -349,15 +348,16 @@ export async function resolveDirectAudio(
     } catch {}
   }
 
-  // 4. Client-side direct fetch (if supported by environment)
-  for (const q of candidateQueries) {
+  // 4. Client-side direct fetch fallback
+  if (topQueries.length > 0) {
     try {
+      const q = topQueries[0];
       const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
       const res = await fetch(saavnUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(3000)
-      });
-      if (res.ok) {
+        signal: AbortSignal.timeout(1800)
+      }).catch(() => null);
+      if (res && res.ok) {
         const data = await res.json();
         const results = data?.results || [];
         if (Array.isArray(results) && results.length > 0) {
@@ -381,41 +381,6 @@ export async function resolveDirectAudio(
         }
       }
     } catch {}
-  }
-
-  // 5. Invidious direct audio stream extraction fallback (when videoId exists)
-  if (videoId) {
-    const invidiousMirrors = [
-      `https://inv.nadeko.net/api/v1/videos/${videoId}`,
-      `https://invidious.nerdvpn.de/api/v1/videos/${videoId}`,
-      `https://vid.puffyan.us/api/v1/videos/${videoId}`
-    ];
-    for (const mirrorUrl of invidiousMirrors) {
-      try {
-        const res = await fetch(mirrorUrl, {
-          signal: AbortSignal.timeout(3500)
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const adaptive = data?.adaptiveFormats || [];
-          const audioFormats = adaptive.filter(
-            (f: any) => f?.type && f.type.startsWith('audio/') && f.url && typeof f.url === 'string'
-          );
-          if (audioFormats.length > 0) {
-            audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate || '0', 10) || 0) - (parseInt(a.bitrate || '0', 10) || 0));
-            const bestAudio = audioFormats[0].url;
-            if (bestAudio && typeof bestAudio === 'string' && bestAudio.startsWith('https://')) {
-              if (streamCache.size >= MAX_CACHE_ENTRIES) {
-                const first = streamCache.keys().next().value;
-                if (first) streamCache.delete(first);
-              }
-              streamCache.set(cacheKey, bestAudio);
-              return bestAudio;
-            }
-          }
-        }
-      } catch {}
-    }
   }
 
   return null;

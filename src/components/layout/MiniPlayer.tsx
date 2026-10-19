@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, memo, lazy, Suspense } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useJamStore } from '../../stores/jamStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -375,37 +375,27 @@ export default function MiniPlayer() {
                 );
               }}
             >
-              <AnimatePresence mode="wait">
-                <motion.img
-                  layoutId="album-art-hero"
-                  key={currentTrack.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                  src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
-                  alt={currentTrack.title}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                  }}
-                  className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border-0 shadow-md"
-                />
-              </AnimatePresence>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentTrack.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ type: 'spring', stiffness: 360, damping: 28 }}
-                  className="min-w-0 flex-1"
-                >
-                  <h4 className="text-xs font-extrabold text-white truncate">
-                    {currentTrack.title}
-                  </h4>
-                  <p className="text-[11px] text-white/60 truncate">{currentTrack.artist}</p>
-                </motion.div>
-              </AnimatePresence>
+              <motion.img
+                key={currentTrack.id}
+                initial={{ opacity: 0.7 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+                src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
+                alt={currentTrack.title}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                }}
+                className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border-0 shadow-md"
+              />
+              <div
+                key={currentTrack.id}
+                className="min-w-0 flex-1"
+              >
+                <h4 className="text-xs font-extrabold text-white truncate">
+                  {currentTrack.title}
+                </h4>
+                <p className="text-[11px] text-white/60 truncate">{currentTrack.artist}</p>
+              </div>
             </div>
 
             {/* Right: Thumb-friendly Like, Play/Pause, Next */}
@@ -535,63 +525,53 @@ export default function MiniPlayer() {
               );
             }}
           >
-            <AnimatePresence mode="wait">
-              <motion.div
-                layoutId="album-art-hero"
-                key={currentTrack.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                whileHover={{ scale: 1.06, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group shadow-lg border-0 will-change-transform"
-                onClick={() => setIsNowPlayingOpen(true)}
-              >
-                <img
-                  src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
-                  alt={currentTrack.title}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                  }}
-                  className={`w-full h-full object-cover transition-transform duration-500 ${
-                    isPlaying ? 'scale-105' : 'scale-100'
-                  }`}
-                />
-                <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                  <svg
-                    className="w-5 h-5 text-white"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                  >
-                    <polyline points="18 15 12 9 6 15" />
-                  </svg>
-                </div>
-              </motion.div>
-            </AnimatePresence>
+            <motion.div
+              key={`art-${currentTrack.id}`}
+              initial={{ opacity: 0.7 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              whileHover={{ scale: 1.06, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group shadow-lg border-0 will-change-transform"
+              onClick={() => setIsNowPlayingOpen(true)}
+            >
+              <img
+                src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
+                alt={currentTrack.title}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                }}
+                className={`w-full h-full object-cover transition-transform duration-500 ${
+                  isPlaying ? 'scale-105' : 'scale-100'
+                }`}
+              />
+              <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <svg
+                  className="w-5 h-5 text-white"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                >
+                  <polyline points="18 15 12 9 6 15" />
+                </svg>
+              </div>
+            </motion.div>
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentTrack.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ type: 'spring', stiffness: 360, damping: 28 }}
-                className="min-w-0 flex-1 will-change-transform"
-              >
-                <div className="flex items-center gap-2">
-                  <h4
-                    className="text-sm font-bold text-white truncate cursor-pointer hover:text-[var(--color-accent)] transition-colors"
-                    onClick={() => setIsNowPlayingOpen(true)}
-                  >
-                    {currentTrack.title}
-                  </h4>
-                </div>
-                <p className="text-xs text-white/60 truncate mt-0.5">{currentTrack.artist}</p>
-              </motion.div>
-            </AnimatePresence>
+            <div
+              key={`info-${currentTrack.id}`}
+              className="min-w-0 flex-1 will-change-transform"
+            >
+              <div className="flex items-center gap-2">
+                <h4
+                  className="text-sm font-bold text-white truncate cursor-pointer hover:text-[var(--color-accent)] transition-colors"
+                  onClick={() => setIsNowPlayingOpen(true)}
+                >
+                  {currentTrack.title}
+                </h4>
+              </div>
+              <p className="text-xs text-white/60 truncate mt-0.5">{currentTrack.artist}</p>
+            </div>
 
             <motion.button
               whileHover={{ scale: 1.15 }}
