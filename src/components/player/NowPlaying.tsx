@@ -462,6 +462,15 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               }}
             />
 
+            {/* 6. Center Stage Ambient Core Spotlight (Seamlessly integrated behind turntable / cover across upper & lower canvas) */}
+            <div
+              className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[72vw] min-w-[420px] max-w-[850px] h-[36rem] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none transition-all duration-1000 will-change-transform"
+              style={{
+                background: `radial-gradient(ellipse 100% 85% at 50% 50%, ${palette.primary}80 0%, ${palette.secondary}50 38%, ${palette.tertiary}22 68%, transparent 100%)`,
+                opacity: zenMode ? 0.22 : isPlaying ? 0.82 : 0.44
+              }}
+            />
+
             {/* Diffused Art Layer */}
             <img
               src={artSrc}
@@ -1513,15 +1522,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                             : 'w-[min(28vh,220px)] h-[min(28vh,220px)] sm:w-[min(34vh,270px)] sm:h-[min(34vh,270px)]'
                       }`}
                     >
-                      {/* Shared Ethereal Ambient Album Glow (Ultra-Smooth Multi-Stop Ellipse that melts into the side meshes) */}
-                      <div
-                        className="absolute -inset-x-24 sm:-inset-x-44 -inset-y-12 sm:-inset-y-16 rounded-full pointer-events-none blur-3xl sm:blur-[85px] transition-opacity duration-700 will-change-transform"
-                        style={{
-                          background: `radial-gradient(ellipse 110% 85% at 50% 50%, ${palette.primary}85 0%, ${palette.secondary}50 35%, ${palette.tertiary}25 65%, transparent 100%)`,
-                          opacity: isPlaying ? 0.85 : 0.45
-                        }}
-                      />
-
                       <AnimatePresence mode="popLayout" initial={false}>
                         {deckMode === 'vinyl' ? (
                           <motion.div
