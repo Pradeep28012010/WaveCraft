@@ -59,13 +59,13 @@ function useSharedTrackHover(rowId: string): {
 
   const onMouseLeave = () => {
     if (hoverLeaveTimer) clearTimeout(hoverLeaveTimer);
-    // 100ms bridge across gaps between adjacent track rows so the
+    // 130ms bridge across gaps between adjacent track rows so the
     // shared layoutId pill glides directly from row A -> row B without blinking
     hoverLeaveTimer = setTimeout(() => {
       if (activeHoveredRowId === rowId) {
         setSharedHoveredRow(null);
       }
-    }, 100);
+    }, 130);
   };
 
   return { isHovered, onMouseEnter, onMouseLeave };
@@ -299,23 +299,36 @@ const TrackRow = memo(({
       {activeVisual && (
         <motion.div
           layoutId="wavecraft-track-liquid-glass-pill"
-          initial={{ opacity: 0, scale: 0.98 }}
+          initial={{ opacity: 0, scale: 0.985 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{
-            type: 'spring',
-            stiffness: 440,
-            damping: 32,
-            mass: 0.75
+            layout: {
+              type: 'spring',
+              stiffness: 380,
+              damping: 30,
+              mass: 0.58,
+              restDelta: 0.5
+            },
+            opacity: {
+              duration: 0.16,
+              ease: [0.16, 1, 0.3, 1]
+            },
+            scale: {
+              duration: 0.2,
+              ease: [0.16, 1, 0.3, 1]
+            }
           }}
           className="absolute inset-0 track-liquid-glass-pill pointer-events-none z-0"
         >
           {/* Top Specular Rim Reflection - Liquid Glass Refraction Highlight */}
-          <div className="absolute inset-x-4 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/70 to-transparent pointer-events-none" />
-          {/* Subtle Ambient Liquid Glow */}
+          <div className="absolute inset-x-3 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none" />
+          {/* Bottom Refraction Rim Hairline */}
+          <div className="absolute inset-x-6 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
+          {/* Soft Liquid Glass Ambient Bloom */}
           <div
-            className="absolute inset-0 pointer-events-none opacity-50"
+            className="absolute inset-0 pointer-events-none opacity-60"
             style={{
-              background: 'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255, 255, 255, 0.12) 0%, transparent 80%)'
+              background: 'radial-gradient(ellipse 90% 70% at 50% 40%, rgba(255, 255, 255, 0.16) 0%, transparent 80%)'
             }}
           />
         </motion.div>
