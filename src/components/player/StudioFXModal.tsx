@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo, Component, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import {
   useStudioStore,
   STUDIO_FX_MODES,
@@ -583,13 +584,15 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   triggerAndroidHaptic('light');
                   setActiveTab(tab.id as StudioTab);
                 }}
-                className={`relative flex-1 py-1.5 px-1 sm:px-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer z-10 min-w-0 ${
-                  isActive ? 'text-white' : 'text-white/55 hover:text-white'
+                className={`relative flex-1 py-1.5 px-1 sm:px-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer z-10 min-w-0 select-none ${
+                  isActive ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
                 }`}
               >
                 {isActive && (
-                  <div
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/[0.18] via-white/[0.12] to-white/[0.06] border-0 shadow-[0_4px_16px_rgba(0,0,0,0.4)] pointer-events-none transition-all duration-200"
+                  <motion.div
+                    layoutId="studio-fx-liquid-glass-tab-pill"
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                    className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none -z-0"
                   />
                 )}
                 <span className="relative z-10 text-xs flex-shrink-0">{tab.icon}</span>

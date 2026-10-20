@@ -2010,50 +2010,44 @@ export default function SonicGalaxyPage() {
             </p>
           </div>
 
-          {/* 3-Way Formation Switcher */}
-          <div className="flex items-center p-1 rounded-2xl bg-white/[0.05] border-0 backdrop-blur-xl shadow-inner self-start md:self-center">
-            <button
-              type="button"
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setGalaxyLayout('quadrants');
-              }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                galaxyLayout === 'quadrants'
-                  ? 'glass-button-purple text-white shadow-md'
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              🪐 Constellations
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setGalaxyLayout('rings');
-              }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                galaxyLayout === 'rings'
-                  ? 'glass-button-cyan text-white shadow-md'
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              🎯 Taste Radar
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setGalaxyLayout('spiral');
-              }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                galaxyLayout === 'spiral'
-                  ? 'glass-button-primary text-white shadow-md'
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              🌀 Spiral Galaxy
-            </button>
+          {/* 3-Way Formation Switcher with Liquid Glass Sliding Pill */}
+          <div className="flex items-center p-1 rounded-2xl bg-white/[0.05] border-0 backdrop-blur-xl shadow-inner self-start md:self-center relative">
+            {[
+              { id: 'quadrants', label: 'Constellations', icon: '🪐' },
+              { id: 'rings', label: 'Taste Radar', icon: '🎯' },
+              { id: 'spiral', label: 'Spiral Galaxy', icon: '🌀' }
+            ].map((fmt) => {
+              const isSelected = galaxyLayout === fmt.id;
+              return (
+                <button
+                  key={fmt.id}
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    setGalaxyLayout(fmt.id as any);
+                  }}
+                  className="relative px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap select-none"
+                >
+                  {isSelected && (
+                    <motion.div
+                      layoutId="galaxy-formation-liquid-pill"
+                      transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                      className="absolute inset-0 rounded-xl liquid-sliding-pill -z-0 pointer-events-none"
+                    />
+                  )}
+                  <span
+                    className={`relative z-10 flex items-center gap-1.5 transition-colors duration-150 ${
+                      isSelected
+                        ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    <span>{fmt.icon}</span>
+                    <span>{fmt.label}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -2375,58 +2369,47 @@ export default function SonicGalaxyPage() {
           padding="md"
           className="lg:col-span-5 flex flex-col justify-between border-0 h-[520px] sm:h-[620px] lg:h-[700px] overflow-hidden"
         >
-          {/* Top Inspector Navigation Tabs */}
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-black/50 border-0 mb-3 flex-shrink-0 w-full min-w-0 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setInspectorTab('dna');
-              }}
-              title="4D Acoustic DNA & Radar Spider"
-              className={`py-2 px-1 sm:px-2 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
-                inspectorTab === 'dna'
-                  ? 'glass-button-primary text-white shadow-md'
-                  : 'text-white/65 hover:text-white'
-              }`}
-            >
-              <span>🧬</span>
-              <span className="truncate">4D DNA</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setInspectorTab('neighbors');
-              }}
-              title="Harmonic Cosmic Neighbors"
-              className={`py-2 px-1 sm:px-2 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
-                inspectorTab === 'neighbors'
-                  ? 'glass-button-purple text-white shadow-md'
-                  : 'text-white/65 hover:text-white'
-              }`}
-            >
-              <span>🔗</span>
-              <span className="truncate">Harmonic</span>
-              <span className="text-[10px] opacity-75 tabular-nums">({harmonicNeighbors.length})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setInspectorTab('roster');
-              }}
-              title="Star Roster"
-              className={`py-2 px-1 sm:px-2 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
-                inspectorTab === 'roster'
-                  ? 'glass-button-cyan text-white shadow-md'
-                  : 'text-white/65 hover:text-white'
-              }`}
-            >
-              <span>📋</span>
-              <span className="truncate">Roster</span>
-              <span className="text-[10px] opacity-75 tabular-nums">({filteredRosterStars.length})</span>
-            </button>
+          {/* Top Inspector Navigation Tabs with Liquid Glass Sliding Pill */}
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-black/50 border-0 mb-3 flex-shrink-0 w-full min-w-0 overflow-hidden relative">
+            {[
+              { id: 'dna', label: '4D DNA', icon: '🧬', count: null },
+              { id: 'neighbors', label: 'Harmonic', icon: '🔗', count: harmonicNeighbors.length },
+              { id: 'roster', label: 'Roster', icon: '📋', count: filteredRosterStars.length }
+            ].map((tab) => {
+              const isSelected = inspectorTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    setInspectorTab(tab.id as any);
+                  }}
+                  className="relative py-2 px-1 sm:px-2 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 select-none"
+                >
+                  {isSelected && (
+                    <motion.div
+                      layoutId="galaxy-inspector-liquid-pill"
+                      transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                      className="absolute inset-0 rounded-xl liquid-sliding-pill -z-0 pointer-events-none"
+                    />
+                  )}
+                  <span
+                    className={`relative z-10 flex items-center justify-center gap-1 truncate transition-colors duration-150 ${
+                      isSelected
+                        ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                        : 'text-white/65 hover:text-white'
+                    }`}
+                  >
+                    <span>{tab.icon}</span>
+                    <span className="truncate">{tab.label}</span>
+                    {tab.count !== null && (
+                      <span className="text-[10px] opacity-75 tabular-nums">({tab.count})</span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Scrollable Inspector Body */}

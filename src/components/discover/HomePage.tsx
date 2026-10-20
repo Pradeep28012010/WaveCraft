@@ -1033,16 +1033,21 @@ export default function HomePage() {
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full">
           <div
-            className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0"
+            className="relative rounded-3xl liquid-glass border border-white/10 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0"
           >
             {/* Top Specular Rim Reflection */}
             <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none z-10" />
 
-            {/* Deep Galactic Gradient Background */}
+            {/* Seamless Liquid Glass Backdrop (blends harmoniously with ambient background without edge lines) */}
             <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-950/40 via-indigo-950/25 to-blue-950/35" />
-              <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-violet-600/20 blur-3xl" />
-              <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-cyan-600/20 blur-3xl" />
+              <div className="absolute inset-0 bg-black/25 backdrop-blur-2xl" />
+              <div className="absolute inset-0 bg-gradient-to-r from-white/[0.04] via-transparent to-white/[0.04]" />
+              <div
+                className="absolute inset-0 opacity-60"
+                style={{
+                  background: 'radial-gradient(ellipse 65% 55% at 20% 50%, rgba(139, 92, 246, 0.16) 0%, transparent 70%), radial-gradient(ellipse 65% 55% at 80% 50%, rgba(6, 182, 212, 0.14) 0%, transparent 70%)'
+                }}
+              />
             </div>
 
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 w-full min-w-0">
@@ -1058,7 +1063,7 @@ export default function HomePage() {
                   </span>
                 </div>
 
-                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:via-violet-200 group-hover:to-cyan-200 transition-all">
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight transition-transform duration-200 group-hover:translate-x-0.5">
                   Navigate Your Music Universe in 3D Space
                 </h2>
 

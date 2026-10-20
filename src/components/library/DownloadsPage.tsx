@@ -397,44 +397,43 @@ export default function DownloadsPage() {
 
       {/* Tabs, Search & Sort Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        {/* Category Tabs */}
+        {/* Category Tabs with Liquid Glass Sliding Pill */}
         <div
-          className="flex items-center gap-1.5 bg-white/[0.05] p-1.5 rounded-2xl border-0 overflow-x-auto no-scrollbar"
+          className="flex items-center gap-1.5 bg-white/[0.05] p-1.5 rounded-2xl border-0 overflow-x-auto no-scrollbar relative"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          <button
-            type="button"
-            onClick={() => setActiveTab('all')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
-              activeTab === 'all'
-                ? 'bg-white/20 text-white shadow-md'
-                : 'text-white/60 hover:text-white'
-            }`}
-          >
-            All Tracks ({offlineTracks.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('manual')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
-              activeTab === 'manual'
-                ? 'bg-emerald-500/25 text-emerald-300 border-0 shadow-md'
-                : 'text-white/60 hover:text-white'
-            }`}
-          >
-            Playlists & Liked ({storageBreakdown.manualCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('auto-cache')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
-              activeTab === 'auto-cache'
-                ? 'bg-cyan-500/25 text-cyan-300 border-0 shadow-md'
-                : 'text-white/60 hover:text-white'
-            }`}
-          >
-            Smart Cache ({storageBreakdown.autoCacheCount})
-          </button>
+          {[
+            { id: 'all' as const, label: `All Tracks (${offlineTracks.length})` },
+            { id: 'manual' as const, label: `Playlists & Liked (${storageBreakdown.manualCount})` },
+            { id: 'auto-cache' as const, label: `Smart Cache (${storageBreakdown.autoCacheCount})` }
+          ].map((tab) => {
+            const isSelected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className="relative px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap select-none"
+              >
+                {isSelected && (
+                  <motion.div
+                    layoutId="downloads-filter-liquid-pill"
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                    className="absolute inset-0 rounded-xl liquid-sliding-pill -z-0 pointer-events-none"
+                  />
+                )}
+                <span
+                  className={`relative z-10 transition-colors duration-150 ${
+                    isSelected
+                      ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Sort & Search Controls */}

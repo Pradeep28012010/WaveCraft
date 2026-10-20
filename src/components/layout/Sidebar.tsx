@@ -569,14 +569,17 @@ export default function Sidebar() {
                 >
                   {({ isActive }) => (
                     <>
+                      {/* Smooth Liquid Glass Glint Sheen Animation on Hover */}
+                      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/12 to-transparent pointer-events-none z-0" />
+
                       {isActive && (
                         <motion.div
                           layoutId="sidebar-active-pill-desktop"
                           transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                          style={{ position: 'absolute', inset: 0 }}
-                          className="rounded-xl bg-gradient-to-r from-white/[0.14] via-white/[0.08] to-white/[0.03] backdrop-blur-xl border-0 shadow-[0_8px_24px_rgba(0,0,0,0.4)] pointer-events-none z-0 overflow-hidden"
+                          className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0 overflow-hidden"
                         >
-                          <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_10px_var(--color-accent)]" />
+                          <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-transparent pointer-events-none" />
                         </motion.div>
                       )}
 
