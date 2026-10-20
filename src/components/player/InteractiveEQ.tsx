@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { EQ_PRESETS } from '../../utils/constants';
 import { getAudioFrequencyData } from '../../services/audioEngine';
@@ -224,8 +225,10 @@ export default function InteractiveEQ() {
               className="relative px-3 py-1 rounded-full text-xs font-bold flex-shrink-0 cursor-pointer select-none"
             >
               {isSelected && (
-                <div
-                  className="absolute inset-0 rounded-full liquid-sliding-pill-cyan -z-0 pointer-events-none transition-all duration-200"
+                <motion.div
+                  layoutId="interactive-eq-preset-pill"
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  className="absolute inset-0 rounded-full liquid-sliding-pill-cyan -z-0 pointer-events-none"
                 />
               )}
               <span className={`relative z-10 transition-colors duration-150 ${

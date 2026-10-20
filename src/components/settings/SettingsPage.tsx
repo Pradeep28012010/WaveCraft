@@ -389,7 +389,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Preset Pills */}
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl bg-white/[0.03] relative">
             {Object.keys(EQ_PRESETS).map((presetName) => {
               const active = (settings.eqPreset || 'Flat') === presetName;
               return (
@@ -400,13 +400,24 @@ export default function SettingsPage() {
                     triggerAndroidHaptic('light');
                     settings.setEqPreset(presetName);
                   }}
-                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                    active
-                      ? 'bg-[var(--color-accent)] text-white shadow-md'
-                      : 'glass text-white/65 hover:text-white'
-                  }`}
+                  className="relative px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer select-none"
                 >
-                  {presetName}
+                  {active && (
+                    <motion.div
+                      layoutId="settings-eq-preset-liquid-pill"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                    />
+                  )}
+                  <span
+                    className={`relative z-10 transition-colors duration-150 ${
+                      active
+                        ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                        : 'text-white/65 hover:text-white'
+                    }`}
+                  >
+                    {presetName}
+                  </span>
                 </button>
               );
             })}
@@ -671,25 +682,42 @@ export default function SettingsPage() {
                 label="Ambient Aura Radiance"
                 description="Controls atmospheric diffusion and brightness of the backdrop mesh"
               >
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 p-1 rounded-full bg-white/[0.03] relative">
                   {[
                     { id: 'subtle', label: 'Subtle' },
                     { id: 'vibrant', label: 'Radiant' },
                     { id: 'aurora', label: 'Aurora Mesh' }
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => settings.setAmbientGlowIntensity(item.id as AmbientGlowIntensity)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                        (settings.ambientGlowIntensity ?? 'vibrant') === item.id
-                          ? 'bg-[var(--color-accent)] text-white shadow-md'
-                          : 'glass text-white/60 hover:text-white'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                  ].map((item) => {
+                    const isSelected = (settings.ambientGlowIntensity ?? 'vibrant') === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          settings.setAmbientGlowIntensity(item.id as AmbientGlowIntensity);
+                        }}
+                        className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
+                      >
+                        {isSelected && (
+                          <motion.div
+                            layoutId="settings-aura-intensity-pill"
+                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                            className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                          />
+                        )}
+                        <span
+                          className={`relative z-10 transition-colors duration-150 ${
+                            isSelected
+                              ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                              : 'text-white/60 hover:text-white'
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </InsetSettingRow>
             )}
@@ -864,29 +892,43 @@ export default function SettingsPage() {
               label="Lyrics Typography Scale"
               description="Adjusts the readable font size of karaoke lines"
             >
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 p-1 rounded-full bg-white/[0.03] relative">
                 {[
                   { id: 'compact', label: 'Compact' },
                   { id: 'normal', label: 'Standard' },
                   { id: 'large', label: 'Large' },
                   { id: 'massive', label: 'Cinema' }
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      settings.setLyricsFontSize(item.id as any);
-                    }}
-                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                      (settings.lyricsFontSize ?? 'normal') === item.id
-                        ? 'bg-[var(--color-accent)] text-white shadow-md'
-                        : 'glass text-white/60 hover:text-white'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                ].map((item) => {
+                  const isSelected = (settings.lyricsFontSize ?? 'normal') === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        settings.setLyricsFontSize(item.id as any);
+                      }}
+                      className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="settings-lyrics-font-size-pill"
+                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                          className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                        />
+                      )}
+                      <span
+                        className={`relative z-10 transition-colors duration-150 ${
+                          isSelected
+                            ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                            : 'text-white/60 hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </InsetSettingRow>
 
@@ -1073,21 +1115,38 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-white/80">Max Cache Size</span>
-                  <div className="flex gap-1">
-                    {[512, 1024, 2048, 4096].map((mb) => (
-                      <button
-                        key={mb}
-                        type="button"
-                        onClick={() => settings.setMaxCacheSizeMb(mb)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                          (settings.maxCacheSizeMb ?? 1024) === mb
-                            ? 'bg-[var(--color-accent)] text-white'
-                            : 'glass text-white/50 hover:text-white'
-                        }`}
-                      >
-                        {mb >= 1024 ? `${mb / 1024}GB` : `${mb}MB`}
-                      </button>
-                    ))}
+                  <div className="flex gap-1 p-1 rounded-xl bg-white/[0.03] relative">
+                    {[512, 1024, 2048, 4096].map((mb) => {
+                      const isSelected = (settings.maxCacheSizeMb ?? 1024) === mb;
+                      return (
+                        <button
+                          key={mb}
+                          type="button"
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            settings.setMaxCacheSizeMb(mb);
+                          }}
+                          className="relative px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer select-none"
+                        >
+                          {isSelected && (
+                            <motion.div
+                              layoutId="settings-max-cache-pill"
+                              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                              className="absolute inset-0 rounded-lg liquid-sliding-pill -z-0 pointer-events-none"
+                            />
+                          )}
+                          <span
+                            className={`relative z-10 transition-colors duration-150 ${
+                              isSelected
+                                ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                                : 'text-white/50 hover:text-white'
+                            }`}
+                          >
+                            {mb >= 1024 ? `${mb / 1024}GB` : `${mb}MB`}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

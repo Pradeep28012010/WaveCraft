@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
@@ -355,7 +355,8 @@ export default function Sidebar() {
               </div>
 
               {/* Scrollable Navigation Body */}
-              <nav className="flex-1 overflow-y-auto px-3.5 py-3 space-y-4 no-scrollbar">
+              <LayoutGroup id="sidebar-mobile-nav">
+                <nav className="flex-1 overflow-y-auto px-3.5 py-3 space-y-4 no-scrollbar">
                 {navSections.map((section) => (
                   <div key={section.id} className="space-y-1">
                     <div className="px-2 pb-1 text-[10px] font-black uppercase tracking-wider text-white/40">
@@ -462,7 +463,8 @@ export default function Sidebar() {
                   </div>
                 </div>
               </nav>
-            </motion.aside>
+            </LayoutGroup>
+          </motion.aside>
           </motion.div>
         )}
       </AnimatePresence>
@@ -530,69 +532,67 @@ export default function Sidebar() {
         </div>
 
         {/* Scrollable Grouped Navigation */}
-        <nav className="flex-1 overflow-y-auto px-2 py-2.5 space-y-3.5 no-scrollbar overflow-x-hidden">
-          {navSections.map((section) => (
-            <div key={section.id} className="space-y-1">
-              {/* Section Header or Collapsed Divider */}
-              <div className="relative h-6 flex items-center px-2 overflow-hidden">
-                <div
-                  className={`whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-white/40 transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                    collapsed
-                      ? 'opacity-0 -translate-x-3 duration-150 delay-0 pointer-events-none'
-                      : 'opacity-100 translate-x-0 duration-300 delay-100'
-                  }`}
-                >
-                  {section.title}
+        <LayoutGroup id="sidebar-desktop-nav">
+          <nav className="flex-1 overflow-y-auto px-2 py-2.5 space-y-3.5 no-scrollbar overflow-x-hidden">
+            {navSections.map((section) => (
+              <div key={section.id} className="space-y-1">
+                {/* Section Header or Collapsed Divider */}
+                <div className="relative h-6 flex items-center px-2 overflow-hidden">
+                  <div
+                    className={`whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-white/40 transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      collapsed
+                        ? 'opacity-0 -translate-x-3 duration-150 delay-0 pointer-events-none'
+                        : 'opacity-100 translate-x-0 duration-300 delay-100'
+                    }`}
+                  >
+                    {section.title}
+                  </div>
+                  <div
+                    className={`absolute inset-x-3 h-px bg-white/10 transition-opacity ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      collapsed ? 'opacity-100 duration-200 delay-100' : 'opacity-0 duration-150 delay-0 pointer-events-none'
+                    }`}
+                  />
                 </div>
-                <div
-                  className={`absolute inset-x-3 h-px bg-white/10 transition-opacity ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                    collapsed ? 'opacity-100 duration-200 delay-100' : 'opacity-0 duration-150 delay-0 pointer-events-none'
-                  }`}
-                />
-              </div>
 
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.name}
-                  to={item.path}
-                  end={item.path === '/'}
-                  onMouseEnter={() => preloadRoute(item.path)}
-                  onTouchStart={() => preloadRoute(item.path)}
-                  title={collapsed ? item.name : undefined}
-                  className={({ isActive }) =>
-                    `relative flex items-center h-10 rounded-xl transition-colors duration-200 group overflow-hidden ${
-                      isActive
-                        ? 'text-white font-semibold'
-                        : 'text-white/60 hover:text-white hover:bg-white/[0.06] active:scale-98'
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {/* Smooth Liquid Glass Glint Sheen Animation on Hover */}
-                      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/12 to-transparent pointer-events-none z-0" />
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.name}
+                    to={item.path}
+                    end={item.path === '/'}
+                    onMouseEnter={() => preloadRoute(item.path)}
+                    onTouchStart={() => preloadRoute(item.path)}
+                    title={collapsed ? item.name : undefined}
+                    className={({ isActive }) =>
+                      `relative flex items-center h-10 rounded-xl transition-colors duration-150 overflow-hidden ${
+                        isActive
+                          ? 'text-white font-semibold'
+                          : 'text-white/60 hover:text-white hover:bg-white/[0.06]'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {isActive && (
+                          <motion.div
+                            layoutId="sidebar-active-pill-desktop"
+                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                            className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0 overflow-hidden"
+                          >
+                            <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-transparent pointer-events-none" />
+                          </motion.div>
+                        )}
 
-                      {isActive && (
-                        <motion.div
-                          layoutId="sidebar-active-pill-desktop"
-                          transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                          className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0 overflow-hidden"
-                        >
-                          <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
-                          <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-transparent pointer-events-none" />
-                        </motion.div>
-                      )}
-
-                      {/* Icon Slot - Anchored & Centered */}
-                      <div className="w-16 h-10 flex items-center justify-center flex-shrink-0 relative z-10">
-                        <div
-                          className={`w-5 h-5 flex items-center justify-center transition-transform duration-200 group-hover:scale-110 ${
-                            isActive ? 'text-[var(--color-accent)]' : 'text-white/70'
-                          }`}
-                        >
-                          {item.icon(isActive)}
+                        {/* Icon Slot - Anchored & Centered */}
+                        <div className="w-16 h-10 flex items-center justify-center flex-shrink-0 relative z-10">
+                          <div
+                            className={`w-5 h-5 flex items-center justify-center transition-colors duration-150 ${
+                              isActive ? 'text-[var(--color-accent)]' : 'text-white/70'
+                            }`}
+                          >
+                            {item.icon(isActive)}
+                          </div>
                         </div>
-                      </div>
 
                       {/* Text & Badge Container - Seamless Glide In / Out */}
                       <div
@@ -719,6 +719,7 @@ export default function Sidebar() {
             </div>
           </div>
         </nav>
+      </LayoutGroup>
 
         {/* Footer Actions: Collapse Controls */}
         <div className="p-2 pt-1 space-y-1.5 flex-shrink-0 overflow-hidden">
