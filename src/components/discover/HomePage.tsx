@@ -739,6 +739,9 @@ export default function HomePage() {
                 />
               )}
               <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/25 to-transparent" />
+              {/* Internal Left & Right Gradient Blur Diffusion Layers */}
+              <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-black/45 via-black/15 to-transparent blur-md pointer-events-none" />
+              <div className="absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-black/45 via-black/15 to-transparent blur-md pointer-events-none" />
             </div>
 
             <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 sm:gap-6 w-full min-w-0">
@@ -813,7 +816,7 @@ export default function HomePage() {
                       unlockAudioEngine();
                       playTrack(spotlightTrack, trendingTracks, 0);
                     }}
-                    className="text-2xl sm:text-3xl lg:text-4xl font-black text-white truncate tracking-tight leading-tight hover:text-white/90 active:scale-[0.99] transition-all cursor-pointer block max-w-full drop-shadow-sm"
+                    className="text-2xl sm:text-3xl lg:text-4xl font-black text-white truncate tracking-tight leading-tight active:scale-[0.99] transition-transform cursor-pointer block max-w-full drop-shadow-sm"
                   >
                     {spotlightTrack.title}
                   </h2>
@@ -1031,14 +1034,22 @@ export default function HomePage() {
 
       {/* ================= 3D SONIC GALAXY OBSERVATORY PORTAL BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
-        <section className="mb-10 px-1 w-full min-w-0 max-w-full">
-          <div
-            className="relative rounded-3xl liquid-glass border border-white/10 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0"
-          >
-            {/* Top Specular Rim Reflection */}
-            <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none z-10" />
+        <section className="mb-10 px-1 w-full min-w-0 max-w-full relative">
+          {/* Ambient External Gradient Blur Diffusers flanking both sides of the card boundary */}
+          <div className="absolute inset-y-2 -left-3 w-16 bg-gradient-to-r from-transparent via-violet-600/15 to-transparent blur-xl pointer-events-none -z-10" />
+          <div className="absolute inset-y-2 -right-3 w-16 bg-gradient-to-l from-transparent via-cyan-600/15 to-transparent blur-xl pointer-events-none -z-10" />
 
-            {/* Seamless Liquid Glass Backdrop (blends harmoniously with ambient background without edge lines) */}
+          <div
+            className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0"
+            style={{
+              maskImage: 'linear-gradient(to right, transparent 0px, black 28px, black calc(100% - 28px), transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to right, transparent 0px, black 28px, black calc(100% - 28px), transparent 100%)'
+            }}
+          >
+            {/* Top Specular Rim Reflection - fading smoothly well before corners */}
+            <div className="absolute inset-x-12 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none z-10" />
+
+            {/* Seamless Liquid Glass Backdrop with dual gradient blur edge-mixers */}
             <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
               <div className="absolute inset-0 bg-black/25 backdrop-blur-2xl" />
               <div className="absolute inset-0 bg-gradient-to-r from-white/[0.04] via-transparent to-white/[0.04]" />
@@ -1048,6 +1059,9 @@ export default function HomePage() {
                   background: 'radial-gradient(ellipse 65% 55% at 20% 50%, rgba(139, 92, 246, 0.16) 0%, transparent 70%), radial-gradient(ellipse 65% 55% at 80% 50%, rgba(6, 182, 212, 0.14) 0%, transparent 70%)'
                 }}
               />
+              {/* Internal Left & Right Gradient Blur Diffusion Layers (smoothly feather color mixing at both sides of the line) */}
+              <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-black/40 via-black/15 to-transparent blur-md pointer-events-none" />
+              <div className="absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-black/40 via-black/15 to-transparent blur-md pointer-events-none" />
             </div>
 
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 w-full min-w-0">
@@ -1063,7 +1077,7 @@ export default function HomePage() {
                   </span>
                 </div>
 
-                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight transition-transform duration-200 group-hover:translate-x-0.5">
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
                   Navigate Your Music Universe in 3D Space
                 </h2>
 

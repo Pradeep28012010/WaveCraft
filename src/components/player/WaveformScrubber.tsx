@@ -177,7 +177,6 @@ export const WaveformScrubber = memo(({
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverX, setHoverX] = useState<number>(0);
   const [realAudioPulse, setRealAudioPulse] = useState(1);
-  const [recordedBars, setRecordedBars] = useState<Record<number, number>>({});
 
   const trackRef = useRef<HTMLDivElement>(null);
   const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -188,22 +187,14 @@ export const WaveformScrubber = memo(({
   const activeArtist = trackArtist || currentTrack?.artist || '';
   const activeTrackId = trackId || currentTrack?.id || 'default';
 
-  // Load any previously recorded real audio waveform for this track from localStorage
+  // Clean up any legacy recorded waveforms from localStorage to ensure pure authentic waveform envelopes
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(`wavecraft_real_waveform_${activeTrackId}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (typeof parsed === 'object' && parsed !== null) {
-          setRecordedBars(parsed);
-          return;
-        }
-      }
+      localStorage.removeItem(`wavecraft_real_waveform_${activeTrackId}`);
     } catch {}
-    setRecordedBars({});
   }, [activeTrackId]);
 
-  // Live real-time audio sampling from Web Audio API AnalyserNode
+  // Live real-time audio sampling from Web Audio API AnalyserNode for active playhead pulse
   useEffect(() => {
     if (!isPlaying) {
       if (liveSampleTimerRef.current) {
@@ -226,37 +217,8 @@ export const WaveformScrubber = memo(({
         const rms = Math.sqrt(sum / freqBuffer.length) / 255;
         const normalizedLiveEnergy = Math.max(0.18, Math.min(1.0, Math.pow(rms * 2.1, 0.72)));
 
-        // Pulse the active bar at current playback time
+        // Pulse the active bar at current playback time with authentic beat responsiveness
         setRealAudioPulse(1 + normalizedLiveEnergy * 0.35);
-
-        // Record the real amplitude into the corresponding bar index
-        if (activeDuration > 0 && currentTime > 0) {
-          const currentBarIndex = Math.min(
-            BAR_COUNT - 1,
-            Math.max(0, Math.floor((currentTime / activeDuration) * BAR_COUNT))
-          );
-          setRecordedBars((prev) => {
-            const currentVal = prev[currentBarIndex] || 0;
-            // Smoothly update with peak amplitude
-            if (normalizedLiveEnergy > currentVal || currentVal === 0) {
-              const updated = {
-                ...prev,
-                [currentBarIndex]: Math.max(currentVal, normalizedLiveEnergy)
-              };
-              // Periodically persist real waveform
-              if (Math.random() < 0.12) {
-                try {
-                  localStorage.setItem(
-                    `wavecraft_real_waveform_${activeTrackId}`,
-                    JSON.stringify(updated)
-                  );
-                } catch {}
-              }
-              return updated;
-            }
-            return prev;
-          });
-        }
       } else {
         setRealAudioPulse(1);
       }
@@ -268,7 +230,7 @@ export const WaveformScrubber = memo(({
         liveSampleTimerRef.current = null;
       }
     };
-  }, [isPlaying, currentTime, activeDuration, activeTrackId]);
+  }, [isPlaying]);
 
   useEffect(() => {
     return () => {
@@ -284,18 +246,10 @@ export const WaveformScrubber = memo(({
   const activeDisplayTime = isDragging ? dragRatio * activeDuration : currentTime;
 
   // Generate unique acoustic waveform fingerprint tailored specifically to this song
-  const baseWaveformBars = useMemo(
+  const waveformBars = useMemo(
     () => generateSongAcousticWaveform(activeTrackId, activeTitle, activeArtist, activeDuration, BAR_COUNT),
     [activeTrackId, activeTitle, activeArtist, activeDuration]
   );
-
-  // Combine song-specific envelope with live measured real audio data
-  const waveformBars = useMemo(() => {
-    return baseWaveformBars.map((baseVal, i) => {
-      const realVal = recordedBars[i];
-      return realVal !== undefined && realVal > 0 ? realVal : baseVal;
-    });
-  }, [baseWaveformBars, recordedBars]);
 
   const calculateRatioAndOffset = (clientX: number) => {
     if (!trackRef.current) return { ratio: 0, offset: 0 };

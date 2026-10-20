@@ -1203,7 +1203,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
                               {/* Interactive Visualizer Mode Chips */}
                               {showVisualizer && (
-                                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1 -mt-0.5 mb-1">
+                                <div className="grid grid-cols-2 gap-1.5 p-1.5 rounded-xl bg-white/[0.03] my-1 overflow-visible">
                                   {VISUALIZER_MODES.map((m) => {
                                     const isSel = visualizerStyle === m.id;
                                     return (
@@ -1215,9 +1215,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                           triggerAndroidHaptic('light');
                                           setVisualizerStyle(m.id);
                                         }}
-                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${
                                           isSel
-                                            ? 'glass-button-cyan text-cyan-100 shadow-[0_0_8px_rgba(6,182,212,0.4)] scale-105'
+                                            ? 'glass-button-cyan text-cyan-100 shadow-[0_0_10px_rgba(6,182,212,0.45)]'
                                             : 'glass-button text-white/60 hover:text-white hover:bg-white/10'
                                         }`}
                                       >
