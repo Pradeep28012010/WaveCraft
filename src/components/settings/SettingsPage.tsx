@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -12,6 +12,7 @@ import { useOfflineVault } from '../../services/offlineVault';
 import { getSearchHistory, clearSearchHistory } from '../../utils/searchHistory';
 import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
+import GlassModal from '../ui/GlassModal';
 import { EQ_PRESETS } from '../../utils/constants';
 import { resetAutoMixerFilters } from '../../services/audioEngine';
 import type {
@@ -205,21 +206,32 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleClearData = async () => {
-    if (
-      window.confirm(
-        'Reset everything and restore WaveCraft to a clean initial state? This clears your library, queue, search history, and settings.'
-      )
-    ) {
-      await clearAllData();
-      settings.resetSettings();
-      const pStore = usePlayerStore.getState();
-      pStore.clearQueue();
-      pStore.pause();
-      usePlayerStore.setState({ currentTrack: null, progress: 0, currentTime: 0, duration: 0 });
-      await library.loadFromStorage();
-      window.location.reload();
-    }
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [showClearVaultConfirm, setShowClearVaultConfirm] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    triggerAndroidHaptic('light');
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleClearData = () => {
+    triggerAndroidHaptic('light');
+    setShowClearAllConfirm(true);
+  };
+
+  const executeClearAllData = async () => {
+    triggerAndroidHaptic('medium');
+    setShowClearAllConfirm(false);
+    await clearAllData();
+    settings.resetSettings();
+    const pStore = usePlayerStore.getState();
+    pStore.clearQueue();
+    pStore.pause();
+    usePlayerStore.setState({ currentTrack: null, progress: 0, currentTime: 0, duration: 0 });
+    await library.loadFromStorage();
+    window.location.reload();
   };
 
   const presetOptions = Object.keys(EQ_PRESETS).map((k) => ({ value: k, label: k }));
@@ -234,7 +246,7 @@ export default function SettingsPage() {
       (t) => !offlineTracks.some((ot) => ot.id === t.id)
     );
     if (unCached.length === 0) {
-      alert('All liked songs are already saved in the Offline Vault!');
+      showToast('All liked songs are already saved in the Offline Vault!');
       return;
     }
     setIsBulkDownloading(true);
@@ -246,11 +258,19 @@ export default function SettingsPage() {
     setIsBulkDownloading(false);
   };
 
-  const handleClearOfflineVault = async () => {
-    if (!window.confirm(`Remove all ${offlineTracks.length} tracks from Offline Vault?`)) return;
+  const handleClearOfflineVault = () => {
+    if (offlineTracks.length === 0) return;
+    triggerAndroidHaptic('light');
+    setShowClearVaultConfirm(true);
+  };
+
+  const executeClearOfflineVault = async () => {
+    triggerAndroidHaptic('medium');
+    setShowClearVaultConfirm(false);
     for (const t of offlineTracks) {
       await removeTrackOffline(t.id);
     }
+    showToast('Offline Vault cleared safely.');
   };
 
   // Filter Helper for Sections
@@ -1307,6 +1327,80 @@ export default function SettingsPage() {
           </div>
         </section>
       )}
+
+      {/* Custom Liquid Glass Clear All Data Modal */}
+      <GlassModal
+        isOpen={showClearAllConfirm}
+        onClose={() => setShowClearAllConfirm(false)}
+        title="Reset All Studio Data"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
+            Reset everything and restore WaveCraft to a clean initial state?
+          </p>
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-300">
+            ⚠️ This will clear your custom library playlists, offline cache, queue, search history, and settings.
+          </div>
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <GlassButton size="sm" onClick={() => setShowClearAllConfirm(false)}>
+              Cancel
+            </GlassButton>
+            <button
+              type="button"
+              onClick={executeClearAllData}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-all cursor-pointer shadow-lg shadow-rose-600/30 active:scale-95"
+            >
+              Reset Everything
+            </button>
+          </div>
+        </div>
+      </GlassModal>
+
+      {/* Custom Liquid Glass Clear Offline Vault Modal */}
+      <GlassModal
+        isOpen={showClearVaultConfirm}
+        onClose={() => setShowClearVaultConfirm(false)}
+        title="Clear Offline Vault"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
+            Remove all <span className="font-bold text-white">{offlineTracks.length} tracks</span> from your Offline Vault?
+          </p>
+          <div className="p-3 rounded-xl bg-white/[0.04] border-0 text-[11px] text-white/60">
+            Cached audio blobs and offline album covers will be deleted from your browser storage.
+          </div>
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <GlassButton size="sm" onClick={() => setShowClearVaultConfirm(false)}>
+              Cancel
+            </GlassButton>
+            <button
+              type="button"
+              onClick={executeClearOfflineVault}
+              className="px-4 py-2 rounded-xl bg-rose-500/80 hover:bg-rose-500 text-white font-bold text-xs transition-all cursor-pointer shadow-lg shadow-rose-500/25 active:scale-95"
+            >
+              Clear Vault
+            </button>
+          </div>
+        </div>
+      </GlassModal>
+
+      {/* Custom Liquid Glass Notification Toast */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.94 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[99999] px-4 py-2.5 rounded-full liquid-glass bg-[#0c0e1a]/95 backdrop-blur-3xl text-xs font-bold text-white shadow-[0_16px_40px_rgba(0,0,0,0.85)] ring-1 ring-white/15 flex items-center gap-2 pointer-events-none"
+          >
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

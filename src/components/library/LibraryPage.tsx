@@ -13,6 +13,8 @@ import ImportPlaylistModal from './ImportPlaylistModal';
 import FolderModal from './FolderModal';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
+import GlassSelect from '../ui/GlassSelect';
+import GlassModal from '../ui/GlassModal';
 import type { PlaylistFolder, Playlist } from '../../types';
 
 export default function LibraryPage() {
@@ -125,13 +127,18 @@ export default function LibraryPage() {
     setIsFolderModalOpen(true);
   };
 
+  const [deletingFolder, setDeletingFolder] = useState<PlaylistFolder | null>(null);
+
   const handleDeleteFolder = (folder: PlaylistFolder) => {
-    if (
-      window.confirm(
-        `Delete folder "${folder.name}"? Playlists inside will be kept safely in your general library.`
-      )
-    ) {
-      deleteFolder(folder.id);
+    triggerAndroidHaptic('light');
+    setDeletingFolder(folder);
+  };
+
+  const confirmDeleteFolder = () => {
+    if (deletingFolder) {
+      triggerAndroidHaptic('medium');
+      deleteFolder(deletingFolder.id);
+      setDeletingFolder(null);
     }
   };
 
@@ -378,19 +385,18 @@ export default function LibraryPage() {
         {/* Right side: Sort + View Mode Segmented Switcher */}
         <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
           {/* Sort Selector */}
-          <div className="relative flex items-center">
-            <span className="text-[11px] font-bold text-white/40 mr-1.5 hidden md:inline">Sort:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-white/[0.06] hover:bg-white/[0.1] text-xs font-bold text-white/80 hover:text-white px-2.5 py-1.5 rounded-xl border border-white/[0.08] outline-none cursor-pointer"
-            >
-              <option value="recent" className="bg-[#12131e] text-white">Recently Added</option>
-              <option value="name" className="bg-[#12131e] text-white">Alphabetical (A–Z)</option>
-              <option value="tracks" className="bg-[#12131e] text-white">Most Tracks</option>
-              <option value="sync" className="bg-[#12131e] text-white">Live Synced First</option>
-            </select>
-          </div>
+          <GlassSelect
+            size="sm"
+            prefix="Sort:"
+            value={sortBy}
+            onChange={(val) => setSortBy(val as any)}
+            options={[
+              { value: 'recent', label: 'Recently Added' },
+              { value: 'name', label: 'Alphabetical (A–Z)' },
+              { value: 'tracks', label: 'Most Tracks' },
+              { value: 'sync', label: 'Live Synced First' }
+            ]}
+          />
 
           {/* View Mode Segmented Pill */}
           <div className="inline-flex items-center p-0.5 rounded-xl bg-white/[0.06] border border-white/[0.08] relative">
@@ -861,6 +867,36 @@ export default function LibraryPage() {
         onClose={() => setIsFolderModalOpen(false)}
         editFolder={editingFolder}
       />
+
+      {/* Custom Liquid Glass Folder Deletion Confirmation Modal */}
+      <GlassModal
+        isOpen={Boolean(deletingFolder)}
+        onClose={() => setDeletingFolder(null)}
+        title="Delete Shelf Folder"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
+            Are you sure you want to delete folder{' '}
+            <span className="font-bold text-white">"{deletingFolder?.name}"</span>?
+          </p>
+          <div className="p-3 rounded-xl bg-white/[0.04] border-0 text-[11px] text-white/60">
+            Playlists inside this shelf will be safely preserved in your general library.
+          </div>
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <GlassButton size="sm" onClick={() => setDeletingFolder(null)}>
+              Cancel
+            </GlassButton>
+            <button
+              type="button"
+              onClick={confirmDeleteFolder}
+              className="px-4 py-2 rounded-xl bg-rose-500/80 hover:bg-rose-500 text-white font-bold text-xs transition-all cursor-pointer shadow-lg shadow-rose-500/25 active:scale-95"
+            >
+              Delete Folder
+            </button>
+          </div>
+        </div>
+      </GlassModal>
     </div>
   );
 }

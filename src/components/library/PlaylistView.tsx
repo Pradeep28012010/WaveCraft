@@ -7,6 +7,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import type { Track } from '../../types';
 import TrackRow from '../ui/TrackRow';
 import GlassButton from '../ui/GlassButton';
+import GlassModal from '../ui/GlassModal';
 import CreatePlaylist from './CreatePlaylist';
 import { PlaylistArtwork } from './PlaylistCard';
 import { exportToM3U8, exportToJSON } from '../../utils/playlistExport';
@@ -47,6 +48,7 @@ export default function PlaylistView() {
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const folderDropdownRef = useRef<HTMLDivElement>(null);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
@@ -273,10 +275,16 @@ export default function PlaylistView() {
   );
 
   const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this playlist?')) {
-      deletePlaylist(playlist.id);
-      navigate('/library');
-    }
+    triggerAndroidHaptic('light');
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeletePlaylist = () => {
+    if (!playlist) return;
+    triggerAndroidHaptic('medium');
+    deletePlaylist(playlist.id);
+    setShowDeleteConfirm(false);
+    navigate('/library');
   };
 
   const totalDuration = tracks.reduce((acc, track) => acc + (track?.duration || 0), 0);
@@ -923,6 +931,36 @@ export default function PlaylistView() {
         onClose={() => setIsEditModalOpen(false)}
         editPlaylist={playlist}
       />
+
+      {/* Custom Liquid Glass Playlist Deletion Confirmation Modal */}
+      <GlassModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Delete Playlist"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
+            Are you sure you want to delete playlist{' '}
+            <span className="font-bold text-white">"{playlist?.name}"</span>?
+          </p>
+          <div className="p-3 rounded-xl bg-white/[0.04] border-0 text-[11px] text-white/60">
+            This action cannot be undone. Saved songs will remain in your general library and liked songs.
+          </div>
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <GlassButton size="sm" onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </GlassButton>
+            <button
+              type="button"
+              onClick={confirmDeletePlaylist}
+              className="px-4 py-2 rounded-xl bg-rose-500/80 hover:bg-rose-500 text-white font-bold text-xs transition-all cursor-pointer shadow-lg shadow-rose-500/25 active:scale-95"
+            >
+              Delete Playlist
+            </button>
+          </div>
+        </div>
+      </GlassModal>
     </div>
   );
 }

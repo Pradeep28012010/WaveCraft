@@ -10,6 +10,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
+import GlassSelect from '../ui/GlassSelect';
 import TrackRow from '../ui/TrackRow';
 import { formatTime } from '../../utils/formatTime';
 
@@ -353,20 +354,19 @@ export default function DownloadsPage() {
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Cache Limit Selector */}
-          <div className="flex items-center gap-1.5 text-xs text-white/70">
-            <span className="text-[11px] font-bold">Quota:</span>
-            <select
-              value={maxCacheSizeMb}
-              onChange={(e) => setMaxCacheSizeMb(Number(e.target.value))}
-              className="px-2.5 py-1.5 rounded-xl bg-white/10 border-0 text-white text-xs outline-none cursor-pointer"
-            >
-              <option value={500} className="bg-[#0c0d18] text-white">500 MB</option>
-              <option value={1024} className="bg-[#0c0d18] text-white">1 GB</option>
-              <option value={2048} className="bg-[#0c0d18] text-white">2 GB</option>
-              <option value={5120} className="bg-[#0c0d18] text-white">5 GB</option>
-              <option value={0} className="bg-[#0c0d18] text-white">Unlimited</option>
-            </select>
-          </div>
+          <GlassSelect
+            size="sm"
+            prefix="Quota:"
+            value={maxCacheSizeMb}
+            onChange={(val) => setMaxCacheSizeMb(Number(val))}
+            options={[
+              { value: 500, label: '500 MB' },
+              { value: 1024, label: '1 GB' },
+              { value: 2048, label: '2 GB' },
+              { value: 5120, label: '5 GB' },
+              { value: 0, label: 'Unlimited' }
+            ]}
+          />
 
           {/* Toggle Auto-Cache Button */}
           <button
@@ -439,19 +439,18 @@ export default function DownloadsPage() {
         {/* Sort & Search Controls */}
         <div className="flex items-center gap-3">
           {/* Sort Selector */}
-          <div className="flex items-center gap-1.5 text-xs text-white/60 flex-shrink-0">
-            <span>Sort:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="px-2.5 py-1.5 rounded-xl bg-white/10 border-0 text-white text-xs outline-none cursor-pointer"
-            >
-              <option value="recent" className="bg-[#0c0d18] text-white">Recently Saved</option>
-              <option value="title" className="bg-[#0c0d18] text-white">Title (A-Z)</option>
-              <option value="artist" className="bg-[#0c0d18] text-white">Artist</option>
-              <option value="size" className="bg-[#0c0d18] text-white">File Size</option>
-            </select>
-          </div>
+          <GlassSelect
+            size="sm"
+            prefix="Sort:"
+            value={sortBy}
+            onChange={(val) => setSortBy(val as SortOption)}
+            options={[
+              { value: 'recent', label: 'Recently Saved' },
+              { value: 'title', label: 'Title (A-Z)' },
+              { value: 'artist', label: 'Artist' },
+              { value: 'size', label: 'File Size' }
+            ]}
+          />
 
           {/* Search Input */}
           <div className="relative flex-1 sm:w-64">

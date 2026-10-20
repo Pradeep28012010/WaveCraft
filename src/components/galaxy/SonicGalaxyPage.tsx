@@ -6,6 +6,7 @@ import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { searchTracks } from '../../services/youtube';
 import { unlockAudioEngine, getAudioFrequencyData } from '../player/YouTubeEmbed';
 import GlassCard from '../ui/GlassCard';
+import GlassSelect from '../ui/GlassSelect';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
@@ -2716,15 +2717,17 @@ export default function SonicGalaxyPage() {
                           placeholder="Search star roster..."
                           className="flex-1 h-8 px-3 rounded-xl bg-white/[0.06] border-0 text-xs text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
                         />
-                        <select
+                        <GlassSelect
+                          size="sm"
                           value={rosterSort}
-                          onChange={(e) => setRosterSort(e.target.value as any)}
-                          className="h-8 px-2 rounded-xl bg-white/[0.06] border-0 text-[11px] text-white font-bold focus:outline-none cursor-pointer"
-                        >
-                          <option value="match" className="bg-[#0b0816] text-white">Sort: Match %</option>
-                          <option value="title" className="bg-[#0b0816] text-white">Sort: Title</option>
-                          <option value="artist" className="bg-[#0b0816] text-white">Sort: Artist</option>
-                        </select>
+                          onChange={(val) => setRosterSort(val as any)}
+                          options={[
+                            { value: 'match', label: 'Match %' },
+                            { value: 'title', label: 'Title' },
+                            { value: 'artist', label: 'Artist' }
+                          ]}
+                          prefix="Sort:"
+                        />
                       </div>
 
                       <div className="space-y-1.5">

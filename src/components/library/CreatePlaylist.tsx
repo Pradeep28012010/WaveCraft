@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
 import GlassModal from '../ui/GlassModal';
+import GlassSelect from '../ui/GlassSelect';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import type { Playlist } from '../../types';
 
@@ -273,23 +274,23 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
             <label className="block text-[10px] font-bold uppercase tracking-wider text-white/50 mb-1.5">
               Folder Shelf
             </label>
-            <select
+            <GlassSelect
+              className="w-full"
+              buttonClassName="w-full h-10 px-3.5 rounded-xl liquid-glass border-0 text-xs text-white cursor-pointer flex items-center justify-between"
               value={folderId}
-              onChange={(e) => {
+              onChange={(val) => {
                 triggerAndroidHaptic('light');
-                setFolderId(e.target.value);
+                setFolderId(String(val));
               }}
-              className="w-full h-10 px-3 rounded-xl liquid-glass bg-[#0d0f1b]/95 border-0 text-xs text-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400"
-            >
-              <option value="" className="bg-slate-900 text-white">
-                General Library (No Shelf)
-              </option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id} className="bg-slate-900 text-white">
-                  {f.icon || '📁'} {f.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'General Library (No Shelf)', icon: '📚' },
+                ...folders.map((f) => ({
+                  value: f.id,
+                  label: f.name,
+                  icon: f.icon || '📁'
+                }))
+              ]}
+            />
           </div>
         )}
 
