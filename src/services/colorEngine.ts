@@ -133,18 +133,29 @@ export function hslToHex(h: number, s: number, l: number): string {
 }
 
 /**
- * Elevates and normalizes raw album colors into luminous, radiant neon tones suitable for dark UI.
+ * Elevates and normalizes raw album colors into deep, moody, saturated tones suitable for dark UI.
+ * Explicitly avoids bright/washed-out/tan/yellow backgrounds by enforcing dark, rich luminance.
  */
 export function boostColorVibrancy(
   r: number,
   g: number,
   b: number,
-  targetL: number = 0.52
+  targetL: number = 0.36
 ): string {
   const [h, s] = rgbToHsl(r, g, b);
   // Ensure high vibrancy without muddy grayscale or washed-out white
-  const vibrantS = Math.max(0.68, Math.min(0.95, s * 1.35));
-  return hslToHex(h, vibrantS, targetL);
+  const vibrantS = Math.max(0.65, Math.min(0.92, s * 1.25));
+
+  // Warm hues (yellow, amber, brown, tan between 22° and 68°) appear perceptually much brighter
+  // to human vision; darken them deeply to prevent odd-looking bright/beige backgrounds
+  let darkL = targetL;
+  if (h >= 22 && h <= 68) {
+    darkL = Math.min(0.24, darkL);
+  } else {
+    darkL = Math.min(0.36, Math.max(0.20, darkL));
+  }
+
+  return hslToHex(h, vibrantS, darkL);
 }
 
 /**
@@ -160,11 +171,11 @@ export function generateGradientCss(
   const [r2, g2, b2] = hexToRgb(secondary);
   const [r3, g3, b3] = hexToRgb(tertiary);
 
-  let op1 = 0.28, op2 = 0.24, op3 = 0.18;
+  let op1 = 0.20, op2 = 0.17, op3 = 0.14;
   if (intensity === 'subtle') {
-    op1 = 0.16; op2 = 0.13; op3 = 0.10;
+    op1 = 0.12; op2 = 0.10; op3 = 0.08;
   } else if (intensity === 'aurora') {
-    op1 = 0.38; op2 = 0.32; op3 = 0.25;
+    op1 = 0.26; op2 = 0.22; op3 = 0.18;
   }
 
   return `radial-gradient(circle at 18% 22%, rgba(${r1}, ${g1}, ${b1}, ${op1}) 0%, transparent 52%), radial-gradient(circle at 82% 28%, rgba(${r2}, ${g2}, ${b2}, ${op2}) 0%, transparent 56%), radial-gradient(circle at 50% 82%, rgba(${r3}, ${g3}, ${b3}, ${op3}) 0%, transparent 60%), #06060b`;
@@ -172,14 +183,17 @@ export function generateGradientCss(
 
 /**
  * Procedurally synthesizes a harmonic palette from a base color or text query.
+ * Strictly encourages deep dark background aesthetics.
  */
 export function synthesizeHarmonicPalette(baseHex: string): AmbientPalette {
   const [h, s] = rgbToHsl(...hexToRgb(baseHex));
-  const primary = hslToHex(h, Math.max(0.75, s), 0.52);
-  const secondary = hslToHex((h + 42) % 360, Math.max(0.7, s), 0.54);
-  const tertiary = hslToHex((h + 195) % 360, Math.max(0.65, s), 0.48);
-  const accent = hslToHex((h + 12) % 360, 0.92, 0.58);
-  const backgroundDark = hslToHex(h, 0.35, 0.04);
+  // Warm hues darkened further to avoid bright tan/beige washes
+  const baseL = (h >= 22 && h <= 68) ? 0.25 : 0.36;
+  const primary = hslToHex(h, Math.max(0.70, s), baseL);
+  const secondary = hslToHex((h + 42) % 360, Math.max(0.65, s), baseL * 0.92);
+  const tertiary = hslToHex((h + 195) % 360, Math.max(0.60, s), baseL * 0.88);
+  const accent = hslToHex((h + 12) % 360, 0.88, 0.48);
+  const backgroundDark = hslToHex(h, 0.35, 0.035);
 
   return {
     primary,
@@ -188,7 +202,7 @@ export function synthesizeHarmonicPalette(baseHex: string): AmbientPalette {
     accent,
     backgroundDark,
     gradientCss: generateGradientCss(primary, secondary, tertiary, 'vibrant'),
-    glowCss: `0 0 50px -5px ${primary}44`,
+    glowCss: `0 0 50px -5px ${primary}33`,
     isDynamic: true
   };
 }
@@ -263,12 +277,12 @@ export async function extractPaletteFromImage(
           const c2 = scored[1]?.rgb || c1;
           const c3 = scored[2]?.rgb || c2;
 
-          const primary = boostColorVibrancy(c1[0], c1[1], c1[2], 0.52);
-          const secondary = boostColorVibrancy(c2[0], c2[1], c2[2], 0.50);
-          const tertiary = boostColorVibrancy(c3[0], c3[1], c3[2], 0.46);
-          const accent = boostColorVibrancy(c1[0], c1[1], c1[2], 0.60);
+          const primary = boostColorVibrancy(c1[0], c1[1], c1[2], 0.36);
+          const secondary = boostColorVibrancy(c2[0], c2[1], c2[2], 0.32);
+          const tertiary = boostColorVibrancy(c3[0], c3[1], c3[2], 0.28);
+          const accent = boostColorVibrancy(c1[0], c1[1], c1[2], 0.45);
           const [h1] = rgbToHsl(...c1);
-          const backgroundDark = hslToHex(h1, 0.4, 0.04);
+          const backgroundDark = hslToHex(h1, 0.35, 0.035);
 
           finish({
             primary,

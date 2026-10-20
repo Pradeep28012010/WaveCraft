@@ -735,6 +735,7 @@ export default function HomePage() {
                 />
               )}
               <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/25 to-transparent" />
+              <div className="absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-black/50 via-black/20 to-transparent blur-lg pointer-events-none" />
             </div>
 
             <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 sm:gap-6 w-full min-w-0">
@@ -1028,6 +1029,10 @@ export default function HomePage() {
       {/* ================= 3D SONIC GALAXY OBSERVATORY PORTAL BANNER ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <section className="mb-10 px-1 w-full min-w-0 max-w-full relative">
+          {/* Ambient Background Gradient Blur Diffusers - eliminates line transitions on both sides behind the card */}
+          <div className="absolute inset-y-0 -left-6 w-32 bg-gradient-to-r from-transparent via-[#06060b]/50 to-transparent blur-2xl pointer-events-none -z-10" />
+          <div className="absolute inset-y-0 -right-6 w-32 bg-gradient-to-l from-transparent via-[#06060b]/50 to-transparent blur-2xl pointer-events-none -z-10" />
+
           <div
             className="relative rounded-3xl liquid-glass border-0 p-5 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden group w-full min-w-0"
           >
@@ -1036,14 +1041,17 @@ export default function HomePage() {
 
             {/* Seamless Liquid Glass Backdrop (blur strictly applied to the background layer behind contents) */}
             <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none z-0">
-              <div className="absolute inset-0 bg-black/35 backdrop-blur-2xl" />
+              <div className="absolute inset-0 bg-[#06060b]/60 backdrop-blur-2xl" />
               <div className="absolute inset-0 bg-gradient-to-r from-white/[0.04] via-transparent to-white/[0.04]" />
               <div
-                className="absolute inset-0 opacity-50"
+                className="absolute inset-0 opacity-40 blur-xl"
                 style={{
-                  background: 'radial-gradient(ellipse 70% 60% at 20% 50%, rgba(139, 92, 246, 0.18) 0%, transparent 70%), radial-gradient(ellipse 70% 60% at 80% 50%, rgba(6, 182, 212, 0.15) 0%, transparent 70%)'
+                  background: 'radial-gradient(ellipse 70% 60% at 20% 50%, rgba(139, 92, 246, 0.16) 0%, transparent 70%), radial-gradient(ellipse 70% 60% at 80% 50%, rgba(6, 182, 212, 0.14) 0%, transparent 70%)'
                 }}
               />
+              {/* Bilateral Gradient Blur Diffusion Layers - smoothly feather color mixing across both sides of the line */}
+              <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-black/50 via-black/20 to-transparent blur-lg pointer-events-none" />
+              <div className="absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-black/50 via-black/20 to-transparent blur-lg pointer-events-none" />
             </div>
 
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 w-full min-w-0">
