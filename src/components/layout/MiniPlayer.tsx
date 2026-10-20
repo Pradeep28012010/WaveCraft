@@ -375,22 +375,17 @@ export default function MiniPlayer() {
                 );
               }}
             >
-              <motion.img
-                key={currentTrack.id}
-                initial={{ opacity: 0.7 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.2 }}
-                src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
-                alt={currentTrack.title}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                }}
-                className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border-0 shadow-md"
-              />
-              <div
-                key={currentTrack.id}
-                className="min-w-0 flex-1"
-              >
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 relative bg-white/10 shadow-md border-0">
+                <img
+                  src={currentTrack.thumbnail || DEFAULT_THUMBNAIL}
+                  alt={currentTrack.title}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                  }}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
                 <h4 className="text-xs font-extrabold text-white truncate">
                   {currentTrack.title}
                 </h4>
@@ -526,10 +521,6 @@ export default function MiniPlayer() {
             }}
           >
             <motion.div
-              key={`art-${currentTrack.id}`}
-              initial={{ opacity: 0.7 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
               whileHover={{ scale: 1.06, y: -2 }}
               whileTap={{ scale: 0.95 }}
               className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group shadow-lg border-0 will-change-transform"
@@ -559,7 +550,6 @@ export default function MiniPlayer() {
             </motion.div>
 
             <div
-              key={`info-${currentTrack.id}`}
               className="min-w-0 flex-1 will-change-transform"
             >
               <div className="flex items-center gap-2">
