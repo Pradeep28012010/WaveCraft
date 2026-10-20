@@ -363,12 +363,14 @@ export default function SettingsPage() {
         <section className="flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>🎛️ 10-Band Real-Time Studio Equalizer</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border-0">
-                  32Hz - 16kHz
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                  <span>🎛️ 10-Band Real-Time Studio Equalizer</span>
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border-0 whitespace-nowrap">
+                  32Hz – 16kHz
                 </span>
-              </h2>
+              </div>
               <p className="text-xs text-white/50">
                 Touch and drag vertical frequency faders (-12dB to +12dB) or choose audiophile presets
               </p>

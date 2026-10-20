@@ -513,16 +513,16 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
               <line x1="20" y1="12" x2="20" y2="3" />
             </svg>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 id="studio-fx-modal-title" className="text-base font-bold tracking-tight text-white">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 id="studio-fx-modal-title" className="text-sm sm:text-base font-bold tracking-tight text-white truncate">
                 Studio FX & Audio EQ
               </h2>
-              <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border-0 text-cyan-300 text-[9px] font-black tracking-wider uppercase">
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border-0 text-cyan-300 text-[9px] font-black tracking-wider uppercase whitespace-nowrap inline-flex items-center">
                 32-Bit Lossless DSP
               </span>
             </div>
-            <p className="text-[11px] text-white/50 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-white/50 font-medium truncate mt-0.5">
               360° Spatial Audio • Catmull-Rom Spline EQ • 12AX7 Tube Saturation
             </p>
           </div>
@@ -560,15 +560,16 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* ── Apple-Grade Segmented Tab Pills ── */}
-      <div className="px-5 pt-3 pb-1 flex-shrink-0">
-        <div className="flex items-center p-1 rounded-2xl liquid-glass bg-white/[0.04] border-0 relative">
+      <div className="px-3 sm:px-5 pt-3 pb-1 flex-shrink-0">
+        <div className="flex items-center p-1 rounded-2xl liquid-glass bg-white/[0.04] border-0 relative gap-0.5 sm:gap-1">
           {[
-            { id: 'eq', label: '10-Band EQ', icon: '📊' },
-            { id: 'spatial', label: 'Spatial Audio', icon: '🪐' },
-            { id: 'mastering', label: 'Analog Master', icon: '🎚️' },
+            { id: 'eq', label: '10-Band EQ', shortLabel: 'EQ', icon: '📊' },
+            { id: 'spatial', label: 'Spatial Audio', shortLabel: 'Spatial', icon: '🪐' },
+            { id: 'mastering', label: 'Analog Master', shortLabel: 'Master', icon: '🎚️' },
             {
               id: 'atmosphere',
               label: 'Atmosphere',
+              shortLabel: 'Ambiance',
               icon: '🌧️',
               badge: activeAmbientCount > 0 ? `${activeAmbientCount}` : sleepActive ? '🌙' : null
             }
@@ -582,7 +583,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                   triggerAndroidHaptic('light');
                   setActiveTab(tab.id as StudioTab);
                 }}
-                className={`relative flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer z-10 ${
+                className={`relative flex-1 py-1.5 px-1 sm:px-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer z-10 min-w-0 ${
                   isActive ? 'text-white' : 'text-white/55 hover:text-white'
                 }`}
               >
@@ -591,8 +592,11 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                     className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/[0.18] via-white/[0.12] to-white/[0.06] border-0 shadow-[0_4px_16px_rgba(0,0,0,0.4)] pointer-events-none transition-all duration-200"
                   />
                 )}
-                <span className="relative z-10 text-xs">{tab.icon}</span>
-                <span className="relative z-10 text-xs font-bold truncate">{tab.label}</span>
+                <span className="relative z-10 text-xs flex-shrink-0">{tab.icon}</span>
+                <span className="relative z-10 text-[11px] sm:text-xs font-bold truncate">
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.shortLabel}</span>
+                </span>
                 {tab.badge && (
                   <span className="relative z-10 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-cyan-400 text-black">
                     {tab.badge}

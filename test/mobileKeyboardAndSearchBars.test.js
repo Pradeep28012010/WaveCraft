@@ -2,9 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 test('Mobile Keyboard & Search Bottom Bars Behavior', async (t) => {
-  function computeHideMobileBars({ isPhone, pathname, isKeyboardOpen }) {
-    const isSearch = pathname.startsWith('/search');
-    return isPhone && (isSearch || isKeyboardOpen);
+  function computeHideMobileBars({ isPhone, isKeyboardOpen }) {
+    return isPhone && isKeyboardOpen;
   }
 
   function computeMainContentPadding({ isPhone, hideMobileBars, hasCurrentTrack }) {
@@ -14,22 +13,22 @@ test('Mobile Keyboard & Search Bottom Bars Behavior', async (t) => {
     return hideMobileBars ? 'pb-8' : hasCurrentTrack ? 'pb-44' : 'pb-28';
   }
 
-  await t.test('Hides bottom bars and now playing on mobile when navigating to /search', () => {
+  await t.test('Keeps bottom bars and mini player visible on mobile search when keyboard is closed', () => {
     const hidden = computeHideMobileBars({
       isPhone: true,
       pathname: '/search',
       isKeyboardOpen: false
     });
-    assert.equal(hidden, true, 'Bottom bars and mini player must be suppressed on mobile search page');
+    assert.equal(hidden, false, 'Bottom bars and mini player must stay visible when browsing search with keyboard closed');
   });
 
-  await t.test('Hides bottom bars on mobile when search has query params', () => {
+  await t.test('Keeps bottom bars on mobile search with query params when keyboard is closed', () => {
     const hidden = computeHideMobileBars({
       isPhone: true,
       pathname: '/search?q=anuv+jain',
       isKeyboardOpen: false
     });
-    assert.equal(hidden, true, 'Must stay hidden during active query browsing');
+    assert.equal(hidden, false, 'Must remain visible during query results review when keyboard is dismissed');
   });
 
   await t.test('Hides bottom bars on mobile whenever virtual keyboard is open on any route', () => {

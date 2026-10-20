@@ -8,7 +8,6 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useTrackOfflineStatus } from '../../services/offlineVault';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
-import { useLocation } from 'react-router-dom';
 import { useIsKeyboardOpen } from '../../hooks/useIsKeyboardOpen';
 
 const NowPlaying = lazy(() => import('../player/NowPlaying'));
@@ -231,9 +230,7 @@ export default function MiniPlayer() {
   const setIsQueueOpen = usePlayerStore((s) => s.setIsQueueOpen);
   const isJamGuest = useJamStore((s) => Boolean(s.roomCode && !s.isHost));
   const { isPhone } = useDevicePreset();
-  const location = useLocation();
   const isKeyboardOpen = useIsKeyboardOpen();
-  const isSearch = location.pathname.startsWith('/search');
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -305,7 +302,7 @@ export default function MiniPlayer() {
 
   // Phone UI Preset: Compact Native-Style Floating MiniPlayer Pill with Swipe-to-Skip & Drag-to-Expand
   if (isPhone) {
-    if (isSearch || isKeyboardOpen) {
+    if (isKeyboardOpen) {
       return (
         <>
           {isQueueOpen && (

@@ -1570,35 +1570,19 @@ export default function SonicGalaxyPage() {
           .slice(0, 4);
 
         ctx.save();
-        for (const { p, sim } of neighbors) {
+        for (const { p } of neighbors) {
           const grad = ctx.createLinearGradient(focusProj.sx, focusProj.sy, p.sx, p.sy);
           grad.addColorStop(0, focusProj.node.color);
           grad.addColorStop(1, p.node.color);
 
           ctx.strokeStyle = grad;
-          ctx.lineWidth = 2.2;
-          ctx.setLineDash([6, 6]);
-          ctx.lineDashOffset = -time * 38;
+          ctx.lineWidth = 1.4;
+          ctx.setLineDash([4, 6]);
+          ctx.lineDashOffset = -time * 28;
           ctx.beginPath();
           ctx.moveTo(focusProj.sx, focusProj.sy);
           ctx.lineTo(p.sx, p.sy);
           ctx.stroke();
-
-          // Midpoint Pill Badge with Live 4D DNA %
-          const mx = (focusProj.sx + p.sx) / 2;
-          const my = (focusProj.sy + p.sy) / 2;
-          ctx.fillStyle = 'rgba(8, 8, 16, 0.9)';
-          ctx.beginPath();
-          ctx.roundRect(mx - 28, my - 9, 56, 18, 9);
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          ctx.fillStyle = '#6ee7b7';
-          ctx.font = '800 9px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(`${sim}% DNA`, mx, my + 3.5);
         }
         ctx.restore();
       }
@@ -1787,12 +1771,12 @@ export default function SonicGalaxyPage() {
           ctx.restore();
         }
 
-        // Floating Title & Real Match % Pill
+        // Floating Title & Real Match % Pill - Minimal & Realistic
+        // Only render floating badges for the active/selected star, currently hovered star, or currently playing star
         if (
           activeMix > 0.05 ||
-          isPlayingNow ||
-          scale > 1.05 ||
-          node.sourceLabel === 'Liked Core'
+          hoverMix > 0.1 ||
+          isPlayingNow
         ) {
           const shortTitle =
             node.track.title.length > 20
@@ -1846,10 +1830,10 @@ export default function SonicGalaxyPage() {
       }
 
       // 9. Floating Celestial Compass / Minimap Radar
-      // Positioned cleanly at bottom-right above zoom controls to prevent overlap with top controls
-      const mmR = 26;
+      // Positioned cleanly on the right, dynamically adapting if a star card is selected to prevent overlap
+      const mmR = 24;
       const mmX = width - mmR - 16;
-      const mmY = height - mmR - 62;
+      const mmY = currentSelected ? Math.max(76, height - mmR - 140) : height - mmR - 58;
 
       ctx.save();
       ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
@@ -2272,7 +2256,7 @@ export default function SonicGalaxyPage() {
 
           {/* Bottom-Left Floating Selected Star Quick-Bar */}
           {selectedStar && (
-            <div className="absolute bottom-3.5 left-3.5 right-32 sm:right-auto sm:max-w-xs pointer-events-auto">
+            <div className="absolute bottom-3.5 left-3.5 right-36 sm:right-auto sm:max-w-xs pointer-events-auto">
               <div
                 onContextMenu={(e) => {
                   if (e.shiftKey) return;

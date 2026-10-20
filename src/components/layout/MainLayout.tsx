@@ -84,8 +84,7 @@ export default function MainLayout() {
   const { palette, colors } = useColorExtract(currentThumbnail);
   const { isPhone } = useDevicePreset();
   const isKeyboardOpen = useIsKeyboardOpen();
-  const isSearch = location.pathname.startsWith('/search');
-  const hideMobileBars = isPhone && (isSearch || isKeyboardOpen);
+  const hideMobileBars = isPhone && isKeyboardOpen;
 
   useEffect(() => {
     if (mainRef.current) {
