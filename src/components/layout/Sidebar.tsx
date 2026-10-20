@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -29,6 +29,7 @@ interface NavSection {
 }
 
 export default function Sidebar() {
+  const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('wavecraft_sidebar_collapsed') === 'true';
@@ -533,7 +534,7 @@ export default function Sidebar() {
 
         {/* Scrollable Grouped Navigation */}
         <LayoutGroup id="sidebar-desktop-nav">
-          <nav className="flex-1 overflow-y-auto px-2 py-2.5 space-y-3.5 no-scrollbar overflow-x-hidden">
+          <nav data-route={pathname} className="flex-1 overflow-y-auto px-2 py-2.5 space-y-3.5 no-scrollbar overflow-x-hidden">
             {navSections.map((section) => (
               <div key={section.id} className="space-y-1">
                 {/* Section Header or Collapsed Divider */}
@@ -563,7 +564,7 @@ export default function Sidebar() {
                     onTouchStart={() => preloadRoute(item.path)}
                     title={collapsed ? item.name : undefined}
                     className={({ isActive }) =>
-                      `relative flex items-center h-10 rounded-xl transition-colors duration-150 overflow-hidden ${
+                      `relative flex items-center h-10 rounded-xl transition-colors duration-150 select-none ${
                         isActive
                           ? 'text-white font-semibold'
                           : 'text-white/60 hover:text-white hover:bg-white/[0.06]'
@@ -575,7 +576,7 @@ export default function Sidebar() {
                         {isActive && (
                           <motion.div
                             layoutId="sidebar-active-pill-desktop"
-                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                            transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
                             className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0 overflow-hidden"
                           >
                             <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
