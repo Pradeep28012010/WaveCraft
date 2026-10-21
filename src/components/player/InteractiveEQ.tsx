@@ -40,6 +40,7 @@ export default function InteractiveEQ() {
   const setEqualizerBands = useSettingsStore((s) => s.setEqualizerBands);
 
   const [activeDraggingIdx, setActiveDraggingIdx] = useState<number | null>(null);
+  const [activeBandDraggingIdx, setActiveBandDraggingIdx] = useState<number | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [spectrumLevels, setSpectrumLevels] = useState<number[]>(() => Array(10).fill(0));
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -127,15 +128,20 @@ export default function InteractiveEQ() {
   const handlePointerDown = (idx: number, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    e.nativeEvent?.stopImmediatePropagation?.();
     setActiveDraggingIdx(idx);
     const target = e.currentTarget;
     if (typeof target.setPointerCapture === 'function') {
-      target.setPointerCapture(e.pointerId);
+      try {
+        target.setPointerCapture(e.pointerId);
+      } catch {}
     }
   };
 
   const handlePointerMove = (idx: number, e: React.PointerEvent) => {
     if (activeDraggingIdx !== idx || !svgRef.current) return;
+    e.stopPropagation();
+    e.nativeEvent?.stopImmediatePropagation?.();
     const rect = svgRef.current.getBoundingClientRect();
     const relativeY = ((e.clientY - rect.top) / rect.height) * SVG_HEIGHT;
     const newDb = yToDb(relativeY);
@@ -154,6 +160,7 @@ export default function InteractiveEQ() {
 
   const handlePointerUp = (e: React.PointerEvent) => {
     if (activeDraggingIdx !== null) {
+      e.stopPropagation();
       const target = e.currentTarget;
       if (typeof target.releasePointerCapture === 'function') {
         try {
@@ -161,6 +168,56 @@ export default function InteractiveEQ() {
         } catch {}
       }
       setActiveDraggingIdx(null);
+    }
+  };
+
+  // Fluid Pointer drag handling for the 10 vertical EQ sliders
+  const updateBandFromPointer = (idx: number, target: HTMLDivElement, clientY: number) => {
+    const rect = target.getBoundingClientRect();
+    if (rect.height <= 0) return;
+    const relY = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    const ratio = 1 - relY / rect.height; // 1 at top (+12dB), 0 at bottom (-12dB)
+    const rawDb = ratio * 24 - 12;
+    // Step to nearest 0.5dB
+    const stepped = Math.round(rawDb * 2) / 2;
+    const clamped = Math.max(-12, Math.min(12, stepped));
+    if (clamped !== equalizerBands[idx]) {
+      const next = [...equalizerBands];
+      next[idx] = clamped;
+      setEqualizerBands(next);
+      if (clamped === 0 && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(6);
+      }
+    }
+  };
+
+  const handleBandPointerDown = (idx: number, e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.nativeEvent?.stopImmediatePropagation?.();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    setActiveBandDraggingIdx(idx);
+    updateBandFromPointer(idx, e.currentTarget, e.clientY);
+  };
+
+  const handleBandPointerMove = (idx: number, e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeBandDraggingIdx === idx) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.nativeEvent?.stopImmediatePropagation?.();
+      updateBandFromPointer(idx, e.currentTarget, e.clientY);
+    }
+  };
+
+  const handleBandPointerUp = (idx: number, e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeBandDraggingIdx === idx) {
+      e.stopPropagation();
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {}
+      setActiveBandDraggingIdx(null);
     }
   };
 
@@ -472,26 +529,51 @@ export default function InteractiveEQ() {
                   {isBoost ? `+${dbVal.toFixed(1)}` : dbVal.toFixed(1)}
                 </div>
 
-                {/* Vertical Slider Track Container */}
-                <div className="relative h-28 w-6 flex items-center justify-center my-1">
-                  {/* Center zero line marker */}
-                  <div className="absolute w-full h-[1px] bg-white/20 top-1/2 -translate-y-1/2 pointer-events-none" />
+                {/* Vertical Slider Track Container (Fluid Pointer Slider) */}
+                <div
+                  onPointerDown={(e) => handleBandPointerDown(i, e)}
+                  onPointerMove={(e) => handleBandPointerMove(i, e)}
+                  onPointerUp={(e) => handleBandPointerUp(i, e)}
+                  onPointerCancel={(e) => handleBandPointerUp(i, e)}
+                  onDoubleClick={() => handleDoubleClick(i)}
+                  className="relative h-28 w-7 sm:w-8 flex items-center justify-center my-1 cursor-ns-resize touch-none select-none group/band"
+                  title={`${EQ_FREQ_LABELS[i]}Hz: ${dbVal > 0 ? '+' : ''}${dbVal} dB (Double click to reset)`}
+                  role="slider"
+                  aria-label={`${EQ_FREQ_LABELS[i]}Hz`}
+                  aria-valuenow={dbVal}
+                  aria-valuemin={-12}
+                  aria-valuemax={12}
+                >
+                  {/* Track Channel Groove */}
+                  <div className="w-1.5 h-full rounded-full bg-white/10 relative overflow-hidden group-hover/band:w-2 transition-all">
+                    {/* Center zero line marker */}
+                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-white/30 pointer-events-none" />
+                    {/* Active Fill from Center 0dB */}
+                    <div
+                      className={`absolute inset-x-0 pointer-events-none ${
+                        isBoost
+                          ? 'bg-gradient-to-t from-cyan-500 to-cyan-300'
+                          : isCut
+                          ? 'bg-gradient-to-b from-pink-500 to-pink-300'
+                          : 'bg-transparent'
+                      }`}
+                      style={{
+                        top: isBoost ? `${(1 - (dbVal / 12) * 0.5 - 0.5) * 100}%` : '50%',
+                        bottom: isCut ? `${(1 - (0.5 - (Math.abs(dbVal) / 12) * 0.5)) * 100}%` : '50%'
+                      }}
+                    />
+                  </div>
 
-                  {/* Native Vertical Slider */}
-                  <input
-                    type="range"
-                    min="-12"
-                    max="12"
-                    step="0.5"
-                    value={dbVal}
-                    onChange={(e) => {
-                      const next = [...equalizerBands];
-                      next[i] = parseFloat(e.target.value);
-                      setEqualizerBands(next);
+                  {/* Tactile Elevated Thumb */}
+                  <div
+                    className={`absolute w-5 h-5 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.6)] border-2 ${
+                      isBoost ? 'border-cyan-400' : isCut ? 'border-pink-400' : 'border-zinc-300'
+                    } pointer-events-none transition-transform duration-75 ${
+                      activeBandDraggingIdx === i ? 'scale-125 shadow-[0_0_12px_#22d3ee]' : 'group-hover/band:scale-115'
+                    }`}
+                    style={{
+                      bottom: `calc(${((dbVal + 12) / 24) * 100}% - 10px)`
                     }}
-                    onDoubleClick={() => handleDoubleClick(i)}
-                    className="w-28 h-6 -rotate-90 appearance-none bg-transparent cursor-pointer accent-cyan-400"
-                    title={`${EQ_FREQ_LABELS[i]}Hz: ${dbVal} dB (Double click to reset)`}
                   />
                 </div>
 

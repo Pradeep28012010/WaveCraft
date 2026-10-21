@@ -669,35 +669,54 @@ body,
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.18);
+  height: 6px;
+  background: rgba(255, 255, 255, 0.20);
   border-radius: var(--radius-full);
   outline: none;
   cursor: pointer;
+  touch-action: none; /* Prevents scroll interception during slider dragging */
+  padding: 8px 0; /* Creates an invisible ~22px vertical hit area */
+  background-clip: content-box; /* Keeps visual bar slim while hit target is generous */
+  margin: 0;
 }
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #ffffff;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: grab;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease;
 }
-input[type='range']::-webkit-slider-thumb:hover {
-  transform: scale3d(1.25, 1.25, 1);
+input[type='range']:hover::-webkit-slider-thumb {
+  transform: scale3d(1.2, 1.2, 1);
+  box-shadow: 0 0 12px 1px var(--color-accent, #fa243c);
+}
+input[type='range']:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  transform: scale3d(1.35, 1.35, 1);
+  box-shadow: 0 0 16px 2px var(--color-accent, #fa243c);
 }
 input[type='range']::-moz-range-thumb {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
   border: none;
   border-radius: 50%;
   background: #ffffff;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: grab;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease;
+}
+input[type='range']:hover::-moz-range-thumb {
+  transform: scale3d(1.2, 1.2, 1);
+  box-shadow: 0 0 12px 1px var(--color-accent, #fa243c);
+}
+input[type='range']:active::-moz-range-thumb {
+  cursor: grabbing;
+  transform: scale3d(1.35, 1.35, 1);
+  box-shadow: 0 0 16px 2px var(--color-accent, #fa243c);
 }
 
 /* Rhythmic Studio Equalizer Bars (GPU scaleY instead of layout height reflow!) */

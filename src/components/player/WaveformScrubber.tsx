@@ -275,6 +275,7 @@ export const WaveformScrubber = memo(({
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isJamGuest) return;
     e.stopPropagation();
+    e.nativeEvent?.stopImmediatePropagation?.();
     e.currentTarget.setPointerCapture(e.pointerId);
     if (snapTimerRef.current) {
       clearTimeout(snapTimerRef.current);
@@ -348,7 +349,7 @@ export const WaveformScrubber = memo(({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onMouseLeave={() => setHoverTime(null)}
-        className={`relative ${isJamGuest ? 'pointer-events-none' : 'cursor-pointer'} py-3 group flex flex-col justify-end touch-none h-14`}
+        className={`relative ${isJamGuest ? 'pointer-events-none' : 'cursor-pointer'} py-4 -my-2 group flex flex-col justify-end touch-none h-16 select-none`}
       >
         {/* Floating Scrubber Time Preview Capsule */}
         {(hoverTime !== null || isDragging) && (
@@ -446,7 +447,7 @@ export const WaveformScrubber = memo(({
           {/* iOS Style Elastic Thumb Head with Specular Halo */}
           <div
             className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full border-0 bg-white shadow-[0_0_16px_2px_var(--color-accent)] pointer-events-none z-10 transition-transform duration-150 ${
-              isDragging ? 'w-4.5 h-4.5 scale-125' : 'w-3 h-3 scale-90 group-hover:scale-120'
+              isDragging ? 'w-5 h-5 scale-125' : 'w-3.5 h-3.5 scale-95 group-hover:scale-120'
             }`}
             style={{
               left: `calc(${percent}% + ${elasticOffset}px)`,

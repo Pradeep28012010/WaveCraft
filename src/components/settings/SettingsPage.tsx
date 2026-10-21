@@ -153,40 +153,46 @@ export default function SettingsPage() {
     settings.setEqualizerBands(nextBands);
   };
 
-  const handleVerticalDrag = (
-    index: number,
-    e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>
-  ) => {
-    const target = e.currentTarget;
+  const [activeSettingsBandIdx, setActiveSettingsBandIdx] = useState<number | null>(null);
+
+  const updateSettingsBandFromPointer = (index: number, target: HTMLDivElement, clientY: number) => {
     const rect = target.getBoundingClientRect();
-    const updateFromClientY = (clientY: number) => {
-      const relY = Math.max(0, Math.min(rect.height, clientY - rect.top));
-      const ratio = 1 - relY / rect.height; // 1 at top (+12dB), 0 at bottom (-12dB)
-      const db = ratio * 24 - 12;
-      handleBandChange(index, db);
-    };
+    if (rect.height <= 0) return;
+    const relY = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    const ratio = 1 - relY / rect.height; // 1 at top (+12dB), 0 at bottom (-12dB)
+    const db = ratio * 24 - 12;
+    handleBandChange(index, db);
+  };
 
-    const initialY = 'touches' in e ? e.touches[0]?.clientY ?? 0 : e.clientY;
-    updateFromClientY(initialY);
+  const handleBandPointerDown = (index: number, e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.nativeEvent?.stopImmediatePropagation?.();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    setActiveSettingsBandIdx(index);
+    triggerAndroidHaptic('light');
+    updateSettingsBandFromPointer(index, e.currentTarget, e.clientY);
+  };
 
-    if ('touches' in e) {
-      const onTouchMove = (moveEvt: TouchEvent) => {
-        if (moveEvt.touches[0]) updateFromClientY(moveEvt.touches[0].clientY);
-      };
-      const onTouchEnd = () => {
-        window.removeEventListener('touchmove', onTouchMove);
-        window.removeEventListener('touchend', onTouchEnd);
-      };
-      window.addEventListener('touchmove', onTouchMove, { passive: true });
-      window.addEventListener('touchend', onTouchEnd);
-    } else {
-      const onMove = (moveEvent: MouseEvent) => updateFromClientY(moveEvent.clientY);
-      const onUp = () => {
-        window.removeEventListener('mousemove', onMove);
-        window.removeEventListener('mouseup', onUp);
-      };
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
+  const handleBandPointerMove = (index: number, e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeSettingsBandIdx === index) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.nativeEvent?.stopImmediatePropagation?.();
+      updateSettingsBandFromPointer(index, e.currentTarget, e.clientY);
+    }
+  };
+
+  const handleBandPointerUp = (index: number, e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeSettingsBandIdx === index) {
+      e.stopPropagation();
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {}
+      setActiveSettingsBandIdx(null);
+      triggerAndroidHaptic('medium');
     }
   };
 
@@ -462,9 +468,17 @@ export default function SettingsPage() {
                     </span>
 
                     <div
-                      onMouseDown={(e) => handleVerticalDrag(idx, e)}
-                      onTouchStart={(e) => handleVerticalDrag(idx, e)}
-                      className="relative w-6 sm:w-8 flex-1 bg-white/[0.06] hover:bg-white/[0.1] border-0 rounded-full cursor-ns-resize flex justify-center overflow-hidden touch-none"
+                      onPointerDown={(e) => handleBandPointerDown(idx, e)}
+                      onPointerMove={(e) => handleBandPointerMove(idx, e)}
+                      onPointerUp={(e) => handleBandPointerUp(idx, e)}
+                      onPointerCancel={(e) => handleBandPointerUp(idx, e)}
+                      onDoubleClick={() => handleBandChange(idx, 0)}
+                      className="relative w-7 sm:w-9 flex-1 bg-white/[0.08] hover:bg-white/[0.14] border-0 rounded-full cursor-ns-resize flex justify-center overflow-hidden touch-none select-none"
+                      role="slider"
+                      aria-label={BAND_LABELS[idx]}
+                      aria-valuenow={val}
+                      aria-valuemin={-12}
+                      aria-valuemax={12}
                     >
                       <div className="absolute left-0 right-0 top-1/2 h-px bg-white/20 pointer-events-none" />
                       <div
@@ -472,8 +486,10 @@ export default function SettingsPage() {
                         style={{ height: `${pct}%` }}
                       />
                       <div
-                        className="absolute w-5 h-5 rounded-full bg-white shadow-[0_2px_10px_rgba(0,0,0,0.6)] border-0 pointer-events-none transition-all duration-75"
-                        style={{ bottom: `calc(${pct}% - 10px)` }}
+                        className={`absolute w-5.5 h-5.5 rounded-full bg-white shadow-[0_2px_10px_rgba(0,0,0,0.6)] border-2 border-white/80 pointer-events-none transition-transform duration-75 ${
+                          activeSettingsBandIdx === idx ? 'scale-125 shadow-[0_0_12px_var(--color-accent)]' : ''
+                        }`}
+                        style={{ bottom: `calc(${pct}% - 11px)` }}
                       />
                     </div>
 
@@ -502,7 +518,11 @@ export default function SettingsPage() {
                   max="100"
                   value={settings.bassBoostStrength ?? 0}
                   onChange={(e) => settings.setBassBoostStrength(Number(e.target.value))}
-                  className="w-32 accent-[var(--color-accent)] cursor-pointer"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    e.nativeEvent?.stopImmediatePropagation?.();
+                  }}
+                  className="w-32 accent-[var(--color-accent)] cursor-pointer touch-none"
                 />
               </div>
             </InsetSettingRow>
@@ -523,7 +543,11 @@ export default function SettingsPage() {
                   max="200"
                   value={settings.spatialStereoWidth ?? 100}
                   onChange={(e) => settings.setSpatialStereoWidth(Number(e.target.value))}
-                  className="w-32 accent-[var(--color-accent)] cursor-pointer"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    e.nativeEvent?.stopImmediatePropagation?.();
+                  }}
+                  className="w-32 accent-[var(--color-accent)] cursor-pointer touch-none"
                 />
               </div>
             </InsetSettingRow>
@@ -584,7 +608,11 @@ export default function SettingsPage() {
                   max="12"
                   value={settings.crossfadeDuration}
                   onChange={(e) => settings.setCrossfade(Number(e.target.value))}
-                  className="w-28 sm:w-36 accent-[var(--color-accent)] cursor-pointer"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    e.nativeEvent?.stopImmediatePropagation?.();
+                  }}
+                  className="w-28 sm:w-36 accent-[var(--color-accent)] cursor-pointer touch-none"
                 />
               </div>
             </InsetSettingRow>

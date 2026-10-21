@@ -75,6 +75,7 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isJamGuest) return;
     e.stopPropagation();
+    e.nativeEvent?.stopImmediatePropagation?.();
     e.currentTarget.setPointerCapture(e.pointerId);
     if (snapTimerRef.current) {
       clearTimeout(snapTimerRef.current);
@@ -257,11 +258,46 @@ export default function MiniPlayer() {
 
   if (!currentTrack) return null;
 
-  const handleVolumeClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, x / rect.width));
+  const [isVolumeDragging, setIsVolumeDragging] = useState(false);
+  const volumeTrackRef = useRef<HTMLDivElement>(null);
+
+  const updateVolumeFromPointer = (clientX: number) => {
+    if (!volumeTrackRef.current) return;
+    const rect = volumeTrackRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     setVolume(ratio);
+    if (isMuted && ratio > 0) toggleMute();
+  };
+
+  const handleVolumePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.nativeEvent?.stopImmediatePropagation?.();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    setIsVolumeDragging(true);
+    triggerAndroidHaptic('light');
+    updateVolumeFromPointer(e.clientX);
+  };
+
+  const handleVolumePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isVolumeDragging) {
+      e.stopPropagation();
+      e.nativeEvent?.stopImmediatePropagation?.();
+      updateVolumeFromPointer(e.clientX);
+    }
+  };
+
+  const handleVolumePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isVolumeDragging) {
+      e.stopPropagation();
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {}
+      setIsVolumeDragging(false);
+      triggerAndroidHaptic('medium');
+    }
   };
 
   const touchStartX = useRef<number | null>(null);
@@ -782,12 +818,30 @@ export default function MiniPlayer() {
                 )}
               </button>
               <div
-                className="flex-1 h-1.5 bg-white/20 rounded-full cursor-pointer relative group overflow-hidden"
-                onClick={handleVolumeClick}
+                ref={volumeTrackRef}
+                onPointerDown={handleVolumePointerDown}
+                onPointerMove={handleVolumePointerMove}
+                onPointerUp={handleVolumePointerUp}
+                onPointerCancel={handleVolumePointerUp}
+                className="flex-1 h-6 -my-2 flex items-center cursor-pointer relative group touch-none select-none"
+                role="slider"
+                aria-label="Volume"
+                aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
               >
+                <div className="w-full h-1.5 bg-white/20 group-hover:h-2 rounded-full overflow-hidden transition-all duration-150 relative">
+                  <div
+                    className="h-full bg-white rounded-full group-hover:bg-[var(--color-accent)] transition-all"
+                    style={{ width: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
+                  />
+                </div>
+                {/* Elevated thumb */}
                 <div
-                  className="h-full bg-white rounded-full group-hover:bg-[var(--color-accent)] transition-all"
-                  style={{ width: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
+                  className={`absolute w-3 h-3 rounded-full bg-white shadow-md top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none transition-transform ${
+                    isVolumeDragging ? 'scale-125 opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
+                  style={{ left: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
                 />
               </div>
             </div>

@@ -751,7 +751,11 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                   step="0.1"
                   value={userOffset}
                   onChange={(e) => handleSetOffset(parseFloat(e.target.value))}
-                  className="flex-1 accent-[var(--color-accent)] h-1 bg-white/20 rounded-lg cursor-pointer"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    e.nativeEvent?.stopImmediatePropagation?.();
+                  }}
+                  className="flex-1 accent-[var(--color-accent)] cursor-pointer touch-none"
                 />
                 <span className="text-[10px] text-white/40">+15s</span>
               </div>

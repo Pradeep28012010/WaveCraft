@@ -101,6 +101,8 @@ function AppleFluidSlider({
   onChange: (val: number) => void;
   onReset?: () => void;
 }) {
+  const [isDragging, setIsDragging] = useState(false);
+  const trackRef = useRef<HTMLDivElement>(null);
   const percent = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
 
   const accentGradients = {
@@ -112,15 +114,56 @@ function AppleFluidSlider({
   };
 
   const accentThumbBorders = {
-    cyan: 'border-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.5)]',
-    amber: 'border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)]',
-    indigo: 'border-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.5)]',
-    pink: 'border-pink-300 shadow-[0_0_12px_rgba(244,63,94,0.5)]',
-    emerald: 'border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+    cyan: 'border-cyan-300 shadow-[0_0_14px_rgba(6,182,212,0.6)]',
+    amber: 'border-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.6)]',
+    indigo: 'border-indigo-300 shadow-[0_0_14px_rgba(99,102,241,0.6)]',
+    pink: 'border-pink-300 shadow-[0_0_14px_rgba(244,63,94,0.6)]',
+    emerald: 'border-emerald-300 shadow-[0_0_14px_rgba(16,185,129,0.6)]'
+  };
+
+  const updateFromPointer = (clientX: number) => {
+    if (!trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const rawVal = min + ratio * (max - min);
+    const stepped = Math.round((rawVal - min) / step) * step + min;
+    const clamped = Math.max(min, Math.min(max, stepped));
+    onChange(Number(clamped.toFixed(4)));
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.nativeEvent?.stopImmediatePropagation?.();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    setIsDragging(true);
+    triggerAndroidHaptic('light');
+    updateFromPointer(e.clientX);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      e.stopPropagation();
+      e.nativeEvent?.stopImmediatePropagation?.();
+      updateFromPointer(e.clientX);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      e.stopPropagation();
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {}
+      setIsDragging(false);
+      triggerAndroidHaptic('medium');
+    }
   };
 
   return (
-    <div className="space-y-1.5 select-none group">
+    <div className="space-y-1.5 select-none group touch-none">
       <div className="flex items-center justify-between text-xs">
         <span className="font-semibold text-white/80 group-hover:text-white transition-colors">
           {label}
@@ -129,38 +172,52 @@ function AppleFluidSlider({
           type="button"
           onClick={onReset}
           className="font-mono text-xs font-bold text-white/90 hover:text-white transition cursor-pointer"
-          title={onReset ? 'Double-click to reset' : undefined}
+          title={onReset ? 'Click to reset' : undefined}
         >
           {formattedValue}
         </button>
       </div>
 
-      <div className="relative h-6 flex items-center">
-        {/* Track Bar */}
-        <div className="w-full h-2 rounded-full bg-white/10 relative overflow-hidden backdrop-blur-md">
+      <div
+        ref={trackRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className="relative h-8 -my-1 flex items-center cursor-pointer touch-none"
+        role="slider"
+        aria-label={label}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            onChange(Math.max(min, Number((value - step).toFixed(4))));
+          } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            onChange(Math.min(max, Number((value + step).toFixed(4))));
+          }
+        }}
+      >
+        {/* Track Bar (Generous 8px visible track with 32px touch target) */}
+        <div className="w-full h-2 rounded-full bg-white/15 relative overflow-hidden backdrop-blur-md">
           <div
-            className={`h-full bg-gradient-to-r ${accentGradients[accentColor]} transition-all duration-75`}
+            className={`h-full bg-gradient-to-r ${accentGradients[accentColor]} ${isDragging ? 'transition-none' : 'transition-all duration-75'}`}
             style={{ width: `${percent}%` }}
           />
         </div>
 
-        {/* Elevated Thumb */}
+        {/* Elevated Tactile Thumb */}
         <div
-          className={`absolute w-4.5 h-4.5 -ml-2 rounded-full bg-white border-2 ${accentThumbBorders[accentColor]} pointer-events-none transition-transform group-hover:scale-125 shadow-md`}
-          style={{ left: `${percent}%` }}
-        />
-
-        {/* Native Touch & Mouse Range */}
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => {
-            onChange(parseFloat(e.target.value));
+          className={`absolute w-5 h-5 -ml-2.5 rounded-full bg-white border-2 ${accentThumbBorders[accentColor]} pointer-events-none shadow-lg transition-transform ${
+            isDragging ? 'scale-125' : 'group-hover:scale-115'
+          }`}
+          style={{
+            left: `${percent}%`,
+            transition: isDragging ? 'transform 100ms ease-out' : 'left 75ms ease-out, transform 150ms ease-out'
           }}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
       </div>
     </div>
@@ -1105,26 +1162,18 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
             {/* 2. Master Ambient Blend Slider */}
             <div className="p-4 rounded-2xl liquid-glass border-0 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">🎚️</span>
-                  <span className="text-xs font-bold text-white">Master Atmosphere Blend</span>
-                </div>
-                <span className="text-xs font-mono font-bold text-emerald-300">
-                  {Math.round(masterAverage * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.02"
+              <AppleFluidSlider
+                label="Master Atmosphere Blend"
                 value={masterAverage}
-                onChange={(e) => handleMasterVolumeChange(parseFloat(e.target.value))}
-                className="w-full accent-emerald-400 cursor-pointer h-2 bg-white/15 rounded-lg"
-                aria-label="Master Ambient Volume"
+                min={0}
+                max={1}
+                step={0.01}
+                formattedValue={`${Math.round(masterAverage * 100)}%`}
+                accentColor="emerald"
+                onChange={(val) => handleMasterVolumeChange(val)}
+                onReset={() => handleMasterVolumeChange(0.5)}
               />
-              <div className="flex justify-between text-[10px] text-white/40">
+              <div className="flex justify-between text-[10px] text-white/40 pt-1">
                 <span>Subtle Whisper</span>
                 <span>Balanced Immersion</span>
                 <span>Deep Presence</span>

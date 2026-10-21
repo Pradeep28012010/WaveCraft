@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { useState, useRef, useEffect, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -94,6 +94,7 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isJamGuest) return;
     e.stopPropagation();
+    e.nativeEvent?.stopImmediatePropagation?.();
     e.currentTarget.setPointerCapture(e.pointerId);
     if (snapTimerRef.current) {
       clearTimeout(snapTimerRef.current);
@@ -163,7 +164,7 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onMouseLeave={() => setHoverTime(null)}
-        className={`relative ${isJamGuest ? 'pointer-events-none' : 'cursor-pointer'} py-2 group flex items-center touch-none`}
+        className={`relative ${isJamGuest ? 'pointer-events-none' : 'cursor-pointer'} py-3.5 -my-1.5 group flex items-center touch-none select-none`}
       >
         {/* Hover / Scrub Floating Time Bubble */}
         {(hoverTime !== null || isDragging) && (
@@ -215,7 +216,7 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
           {/* iOS Style Elastic Thumb Head - positioned independently for true rubber-band stretch */}
           <div
             className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full border-0 bg-white/95 shadow-[0_0_14px_2px_var(--color-accent)] backdrop-blur-sm pointer-events-none z-10 transition-transform duration-150 ${
-              isDragging ? 'w-4 h-4 scale-125' : 'w-3 h-3 scale-90 group-hover:scale-115'
+              isDragging ? 'w-5 h-5 scale-125' : 'w-3.5 h-3.5 scale-95 group-hover:scale-125'
             }`}
             style={{
               left: `calc(${percent}% + ${elasticOffset}px)`,
@@ -391,6 +392,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
   if (!currentTrack) return null;
 
+  const dragControls = useDragControls();
+
   const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
   const artSrc = currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL;
   const { palette } = useColorExtract(artSrc);
@@ -402,6 +405,8 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       exit={{ y: '100%', opacity: 0 }}
       transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.75 }}
       drag={isStudioModalOpen || showQueue || showWaveCard ? false : 'y'}
+      dragControls={dragControls}
+      dragListener={false}
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={{ top: 0.04, bottom: 0.65 }}
       onDragEnd={(_, info) => {
@@ -507,11 +512,28 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
+          {/* Top Drag Handle (Native Mobile Sheet Pill) */}
+          <div
+            onPointerDown={(e) => {
+              dragControls.start(e);
+            }}
+            className="w-full pt-2.5 pb-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none relative z-30 flex-shrink-0"
+            title="Drag down to minimize"
+          >
+            <div className="w-12 h-1.5 rounded-full bg-white/30 active:bg-white/55 transition-colors shadow-sm" />
+          </div>
+
           {/* Top Bar */}
           <div
+            onPointerDown={(e) => {
+              const target = e.target as HTMLElement;
+              if (target && target.tagName !== 'BUTTON' && !target.closest('button') && !target.closest('input')) {
+                dragControls.start(e);
+              }
+            }}
             className={`relative z-30 app-region-no-drag ${
               isPhone ? 'h-13 px-4' : 'h-13 px-5 sm:px-8'
-            } flex items-center justify-between flex-shrink-0`}
+            } flex items-center justify-between flex-shrink-0 cursor-grab active:cursor-grabbing`}
             style={{
               paddingTop: isPhone ? 'max(env(safe-area-inset-top), 4px)' : undefined
             }}
@@ -2153,9 +2175,15 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           step="0.01"
                           value={isMuted ? 0 : volume}
                           onChange={(e) => setVolume(Number(e.target.value))}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onTouchStart={(e) => e.stopPropagation()}
-                          className="w-16 sm:w-20 touch-none"
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            e.nativeEvent?.stopImmediatePropagation?.();
+                          }}
+                          onTouchStart={(e) => {
+                            e.stopPropagation();
+                            e.nativeEvent?.stopImmediatePropagation?.();
+                          }}
+                          className="w-20 sm:w-28 touch-none cursor-pointer"
                         />
                         <span className="text-[10px] font-bold text-white/55 tabular-nums w-7">
                           {Math.round((isMuted ? 0 : volume) * 100)}%
