@@ -53,25 +53,22 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const activeRatio = isDragging ? dragRatio : playbackRatio;
   const activeDisplayTime = isDragging ? dragRatio * activeDuration : currentTime;
 
-  const thumbWidth = 32;
-  const halfThumb = thumbWidth / 2; // 16px
-
   const calculateRatioAndOffset = (clientX: number) => {
     if (!trackRef.current) return { ratio: 0, offset: 0 };
     const rect = trackRef.current.getBoundingClientRect();
-    const usableWidth = Math.max(1, rect.width - thumbWidth);
-    const x = clientX - rect.left - halfThumb;
+    const x = clientX - rect.left;
+    const width = rect.width;
 
     if (x < 0) {
       const pull = -x;
-      const resisted = -Math.min(20, Math.pow(pull, 0.68) * 1.4);
+      const resisted = -Math.min(24, Math.pow(pull, 0.68) * 1.4);
       return { ratio: 0, offset: resisted };
-    } else if (x > usableWidth) {
-      const pull = x - usableWidth;
-      const resisted = Math.min(20, Math.pow(pull, 0.68) * 1.4);
+    } else if (x > width) {
+      const pull = x - width;
+      const resisted = Math.min(24, Math.pow(pull, 0.68) * 1.4);
       return { ratio: 1, offset: resisted };
     } else {
-      return { ratio: Math.max(0, Math.min(1, x / usableWidth)), offset: 0 };
+      return { ratio: Math.max(0, Math.min(1, x / width)), offset: 0 };
     }
   };
 
@@ -131,9 +128,7 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const fillWidth =
     elasticOffset < 0
       ? -elasticOffset
-      : percent <= 0 && elasticOffset >= 0
-      ? '0%'
-      : `calc(${halfThumb}px + (${percent} * (100% - ${thumbWidth}px) / 100) + ${elasticOffset}px)`;
+      : `calc(${percent}% + ${elasticOffset}px)`;
 
   const transitionStyle = isDragging
     ? 'none'
@@ -195,49 +190,22 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
         }}
       />
 
-      {/* Fuwad Liquid Glass Elastic Thumb Head */}
+      {/* iOS Style Elastic Thumb Head */}
       <div
-        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing z-20 pointer-events-auto touch-none transition-opacity duration-150 ${
-          isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-white shadow-[0_0_10px_2px_var(--color-accent)] pointer-events-none z-10 transition-transform duration-150 ${
+          isDragging
+            ? 'w-3.5 h-3.5 scale-125 opacity-100'
+            : 'w-2.5 h-2.5 opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100'
         }`}
         style={{
-          left: `calc(${halfThumb}px + (${percent} * (100% - ${thumbWidth}px) / 100) + ${elasticOffset}px)`,
+          left: `calc(${percent}% + ${elasticOffset}px)`,
           transition: isDragging
-            ? 'none'
+            ? 'transform 150ms ease-out'
             : isSnapping
-            ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
-            : 'left 150ms linear'
+            ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 150ms ease-out'
+            : 'left 150ms linear, transform 150ms ease-out'
         }}
-      >
-        <div
-          style={{
-            width: isDragging ? '36px' : '32px',
-            height: '18px',
-            borderRadius: '9px',
-            background: 'linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.95)',
-            boxShadow: isDragging
-              ? '0 6px 16px rgba(0, 0, 0, 0.45), 0 0 10px 1px var(--color-accent)'
-              : '0 3px 10px rgba(0, 0, 0, 0.3), 0 0 6px 1px var(--color-accent)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            transform: isDragging ? 'scale(1.05)' : 'scale(1)',
-            transition: 'width 150ms ease-out, transform 150ms ease-out'
-          }}
-          className="relative flex items-center justify-center overflow-hidden"
-        >
-          <div className="absolute top-[1px] inset-x-1.5 h-[1px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
-          <div
-            style={{
-              width: '12px',
-              height: '3px',
-              borderRadius: '9999px',
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(255, 255, 255, 0.7)'
-            }}
-          />
-        </div>
-      </div>
+      />
     </div>
   );
 });
