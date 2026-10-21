@@ -13,6 +13,8 @@ import { getSearchHistory, clearSearchHistory } from '../../utils/searchHistory'
 import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
 import GlassModal from '../ui/GlassModal';
+import { LiquidGlassToggle } from '../ui/LiquidGlassToggle';
+import { LiquidGlassSlider } from '../ui/LiquidGlassSlider';
 import { EQ_PRESETS } from '../../utils/constants';
 import { resetAutoMixerFilters } from '../../services/audioEngine';
 import type {
@@ -23,7 +25,7 @@ import type {
 } from '../../types';
 
 // ============================================================================
-// APPLE-INSPIRED TACTILE TOGGLE SWITCH
+// FUWAD LIQUID GLASS TOGGLE SWITCH
 // ============================================================================
 function AppleToggle({
   checked,
@@ -35,28 +37,13 @@ function AppleToggle({
   disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
+    <LiquidGlassToggle
+      checked={checked}
+      onChange={onChange}
       disabled={disabled}
-      onClick={() => {
-        triggerAndroidHaptic('light');
-        onChange(!checked);
-      }}
-      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-250 ease-in-out focus:outline-none disabled:opacity-40 ${
-        checked
-          ? 'bg-[var(--color-accent)] shadow-[0_0_12px_rgba(250,45,72,0.35)]'
-          : 'bg-white/15 hover:bg-white/20'
-      }`}
-    >
-      <span
-        aria-hidden="true"
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-250 ease-in-out ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
-    </button>
+      size="md"
+      activeColor="emerald"
+    />
   );
 }
 
@@ -485,12 +472,32 @@ export default function SettingsPage() {
                         className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-accent)]/80 to-purple-500/80 pointer-events-none transition-all duration-75"
                         style={{ height: `${pct}%` }}
                       />
+                      {/* Fuwad Liquid Glass Capsule Thumb */}
                       <div
-                        className={`absolute w-5.5 h-5.5 rounded-full bg-white shadow-[0_2px_10px_rgba(0,0,0,0.6)] border-2 border-white/80 pointer-events-none transition-transform duration-75 ${
-                          activeSettingsBandIdx === idx ? 'scale-125 shadow-[0_0_12px_var(--color-accent)]' : ''
-                        }`}
-                        style={{ bottom: `calc(${pct}% - 11px)` }}
-                      />
+                        className="absolute left-1/2 -translate-x-1/2 pointer-events-none transition-transform duration-75"
+                        style={{ bottom: `calc(${pct}% - 7px)` }}
+                      >
+                        <div
+                          style={{
+                            width: activeSettingsBandIdx === idx ? '26px' : '22px',
+                            height: '14px',
+                            borderRadius: '7px',
+                            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%)',
+                            border: '1px solid rgba(255, 255, 255, 0.9)',
+                            boxShadow: activeSettingsBandIdx === idx
+                              ? '0 0 14px 2px var(--color-accent)'
+                              : '0 2px 8px rgba(0, 0, 0, 0.35)',
+                            backdropFilter: 'blur(8px)',
+                            WebkitBackdropFilter: 'blur(8px)',
+                            transform: activeSettingsBandIdx === idx ? 'scale(1.15)' : 'scale(1)',
+                            transition: 'width 100ms ease-out, transform 100ms ease-out'
+                          }}
+                          className="relative flex items-center justify-center overflow-hidden"
+                        >
+                          <div className="absolute top-[1px] inset-x-1 h-[1px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
+                          <div className="w-[8px] h-[2px] rounded-full bg-white/40 border-t border-white/60 opacity-70" />
+                        </div>
+                      </div>
                     </div>
 
                     <span className="text-[10px] sm:text-[11px] text-white/60 font-semibold">{BAND_LABELS[idx]}</span>
@@ -508,21 +515,17 @@ export default function SettingsPage() {
               label="Sub-Bass Acoustic Punch"
               description="Low-frequency saturation harmonic enhancement for headphones and soundbars"
             >
-              <div className="flex items-center gap-3 w-48 justify-end">
-                <span className="text-xs font-bold text-white/80 tabular-nums w-10 text-right">
-                  {settings.bassBoostStrength ?? 0}%
-                </span>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
+              <div className="flex items-center gap-3 w-56 sm:w-64 justify-end">
+                <LiquidGlassSlider
                   value={settings.bassBoostStrength ?? 0}
-                  onChange={(e) => settings.setBassBoostStrength(Number(e.target.value))}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    e.nativeEvent?.stopImmediatePropagation?.();
-                  }}
-                  className="w-32 accent-[var(--color-accent)] cursor-pointer touch-none"
+                  min={0}
+                  max={100}
+                  step={1}
+                  defaultValue={0}
+                  accentColor="rose"
+                  formattedValue={`${settings.bassBoostStrength ?? 0}%`}
+                  onChange={(val) => settings.setBassBoostStrength(val)}
+                  className="w-36 sm:w-44"
                 />
               </div>
             </InsetSettingRow>
@@ -533,21 +536,17 @@ export default function SettingsPage() {
               label="3D Binaural Stereo Expansion"
               description="Expands the acoustic stage width from standard stereo (100%) to panoramic immersion (200%)"
             >
-              <div className="flex items-center gap-3 w-48 justify-end">
-                <span className="text-xs font-bold text-white/80 tabular-nums w-10 text-right">
-                  {settings.spatialStereoWidth ?? 100}%
-                </span>
-                <input
-                  type="range"
-                  min="100"
-                  max="200"
+              <div className="flex items-center gap-3 w-56 sm:w-64 justify-end">
+                <LiquidGlassSlider
                   value={settings.spatialStereoWidth ?? 100}
-                  onChange={(e) => settings.setSpatialStereoWidth(Number(e.target.value))}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    e.nativeEvent?.stopImmediatePropagation?.();
-                  }}
-                  className="w-32 accent-[var(--color-accent)] cursor-pointer touch-none"
+                  min={100}
+                  max={200}
+                  step={1}
+                  defaultValue={100}
+                  accentColor="blue"
+                  formattedValue={`${settings.spatialStereoWidth ?? 100}%`}
+                  onChange={(val) => settings.setSpatialStereoWidth(val)}
+                  className="w-36 sm:w-44"
                 />
               </div>
             </InsetSettingRow>
@@ -598,21 +597,17 @@ export default function SettingsPage() {
                   : 'Off (Instant gapless preloaded transition)'
               }
             >
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-white/80 tabular-nums w-8 text-right">
-                  {settings.crossfadeDuration}s
-                </span>
-                <input
-                  type="range"
-                  min="0"
-                  max="12"
+              <div className="flex items-center gap-3 w-56 sm:w-64 justify-end">
+                <LiquidGlassSlider
                   value={settings.crossfadeDuration}
-                  onChange={(e) => settings.setCrossfade(Number(e.target.value))}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    e.nativeEvent?.stopImmediatePropagation?.();
-                  }}
-                  className="w-28 sm:w-36 accent-[var(--color-accent)] cursor-pointer touch-none"
+                  min={0}
+                  max={12}
+                  step={1}
+                  defaultValue={0}
+                  accentColor="amber"
+                  formattedValue={`${settings.crossfadeDuration}s`}
+                  onChange={(val) => settings.setCrossfade(val)}
+                  className="w-36 sm:w-44"
                 />
               </div>
             </InsetSettingRow>

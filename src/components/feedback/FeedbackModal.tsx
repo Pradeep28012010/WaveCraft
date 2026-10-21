@@ -4,6 +4,7 @@ import { useFeedbackStore, type FeedbackType } from '../../stores/feedbackStore'
 import { usePlayerStore } from '../../stores/playerStore';
 import { getActiveEngine } from '../../services/audioEngine';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { LiquidGlassToggle } from '../ui/LiquidGlassToggle';
 
 const CATEGORIES: Record<FeedbackType, string[]> = {
   bug: [
@@ -354,16 +355,18 @@ export default function FeedbackModal() {
 
             {/* Diagnostics Auto-Attach Box */}
             <div className="rounded-xl bg-white/[0.03] border-0 p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-white/80 font-medium">
-                  <input
-                    type="checkbox"
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <LiquidGlassToggle
                     checked={includeDiagnostics}
-                    onChange={(e) => setIncludeDiagnostics(e.target.checked)}
-                    className="w-4 h-4 rounded accent-[var(--color-accent)] cursor-pointer"
+                    onChange={setIncludeDiagnostics}
+                    size="sm"
+                    activeColor="accent"
                   />
-                  <span>Attach system diagnostics ({diagnostics.platform}, {diagnostics.appVersion})</span>
-                </label>
+                  <span className="text-xs text-white/80 font-medium">
+                    Attach system diagnostics ({diagnostics.platform}, {diagnostics.appVersion})
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowDiagnosticsDetail(!showDiagnosticsDetail)}

@@ -190,22 +190,41 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
         }}
       />
 
-      {/* iOS Style Elastic Thumb Head */}
+      {/* Fuwad Liquid Glass Elastic Thumb Head */}
       <div
-        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-white shadow-[0_0_10px_2px_var(--color-accent)] pointer-events-none z-10 transition-transform duration-150 ${
-          isDragging
-            ? 'w-3.5 h-3.5 scale-125 opacity-100'
-            : 'w-2.5 h-2.5 opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100'
+        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none z-10 transition-opacity duration-150 ${
+          isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}
         style={{
           left: `calc(${percent}% + ${elasticOffset}px)`,
           transition: isDragging
-            ? 'transform 150ms ease-out'
+            ? 'none'
             : isSnapping
-            ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 150ms ease-out'
-            : 'left 150ms linear, transform 150ms ease-out'
+            ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+            : 'left 150ms linear'
         }}
-      />
+      >
+        <div
+          style={{
+            width: isDragging ? '28px' : '24px',
+            height: '14px',
+            borderRadius: '7px',
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.9)',
+            boxShadow: isDragging
+              ? '0 4px 12px rgba(0, 0, 0, 0.35), 0 0 10px 1px var(--color-accent)'
+              : '0 2px 8px rgba(0, 0, 0, 0.22), 0 0 6px 1px var(--color-accent)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            transform: isDragging ? 'scale(1.08)' : 'scale(1)',
+            transition: 'width 150ms ease-out, transform 150ms ease-out'
+          }}
+          className="relative flex items-center justify-center overflow-hidden"
+        >
+          <div className="absolute top-[1px] inset-x-1 h-[1px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
+          <div className="w-[8px] h-[2px] rounded-full bg-white/40 border-t border-white/60 opacity-70" />
+        </div>
+      </div>
     </div>
   );
 });
@@ -830,19 +849,40 @@ export default function MiniPlayer() {
                 aria-valuemin={0}
                 aria-valuemax={100}
               >
-                <div className="w-full h-1.5 bg-white/20 group-hover:h-2 rounded-full overflow-hidden transition-all duration-150 relative">
+                <div className="w-full h-[5px] bg-white/15 dark:bg-white/10 group-hover:h-[6px] rounded-full overflow-hidden transition-all duration-150 relative border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]">
                   <div
-                    className="h-full bg-white rounded-full group-hover:bg-[var(--color-accent)] transition-all"
+                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full group-hover:from-[var(--color-accent)] group-hover:to-rose-500 transition-all shadow-[0_0_8px_rgba(59,130,246,0.5)]"
                     style={{ width: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
                   />
                 </div>
-                {/* Elevated thumb */}
+                {/* Fuwad Liquid Glass Capsule Thumb */}
                 <div
-                  className={`absolute w-3 h-3 rounded-full bg-white shadow-md top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none transition-transform ${
-                    isVolumeDragging ? 'scale-125 opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none transition-opacity duration-150 ${
+                    isVolumeDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
                   style={{ left: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
-                />
+                >
+                  <div
+                    style={{
+                      width: isVolumeDragging ? '28px' : '24px',
+                      height: '14px',
+                      borderRadius: '7px',
+                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%)',
+                      border: '1px solid rgba(255, 255, 255, 0.9)',
+                      boxShadow: isVolumeDragging
+                        ? '0 4px 12px rgba(0, 0, 0, 0.35), 0 0 10px 1px rgba(59, 130, 246, 0.5)'
+                        : '0 2px 8px rgba(0, 0, 0, 0.22), 0 0 6px 1px rgba(59, 130, 246, 0.35)',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      transform: isVolumeDragging ? 'scale(1.08)' : 'scale(1)',
+                      transition: 'width 150ms ease-out, transform 150ms ease-out'
+                    }}
+                    className="relative flex items-center justify-center overflow-hidden"
+                  >
+                    <div className="absolute top-[1px] inset-x-1 h-[1px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
+                    <div className="w-[8px] h-[2px] rounded-full bg-white/40 border-t border-white/60 opacity-70" />
+                  </div>
+                </div>
               </div>
             </div>
 

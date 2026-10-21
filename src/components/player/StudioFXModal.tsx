@@ -20,6 +20,7 @@ import {
 } from '../../services/audioEngine';
 import InteractiveEQ from './InteractiveEQ';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { LiquidGlassToggle } from '../ui/LiquidGlassToggle';
 
 type StudioTab = 'eq' | 'spatial' | 'mastering' | 'atmosphere' | 'ambient';
 
@@ -113,14 +114,6 @@ function AppleFluidSlider({
     emerald: 'from-emerald-400 via-teal-400 to-cyan-500'
   };
 
-  const accentThumbBorders = {
-    cyan: 'border-cyan-300 shadow-[0_0_14px_rgba(6,182,212,0.6)]',
-    amber: 'border-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.6)]',
-    indigo: 'border-indigo-300 shadow-[0_0_14px_rgba(99,102,241,0.6)]',
-    pink: 'border-pink-300 shadow-[0_0_14px_rgba(244,63,94,0.6)]',
-    emerald: 'border-emerald-300 shadow-[0_0_14px_rgba(16,185,129,0.6)]'
-  };
-
   const updateFromPointer = (clientX: number) => {
     if (!trackRef.current) return;
     const rect = trackRef.current.getBoundingClientRect();
@@ -201,24 +194,45 @@ function AppleFluidSlider({
           }
         }}
       >
-        {/* Track Bar (Generous 8px visible track with 32px touch target) */}
-        <div className="w-full h-2 rounded-full bg-white/15 relative overflow-hidden backdrop-blur-md">
+        {/* Track Bar (Sleek 5px visible track with 32px touch target) */}
+        <div className="w-full h-[5px] rounded-full bg-white/15 dark:bg-white/10 relative overflow-hidden backdrop-blur-md border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]">
           <div
             className={`h-full bg-gradient-to-r ${accentGradients[accentColor]} ${isDragging ? 'transition-none' : 'transition-all duration-75'}`}
             style={{ width: `${percent}%` }}
           />
         </div>
 
-        {/* Elevated Tactile Thumb */}
+        {/* Liquid Glass Capsule Thumb (Fuwad design: elongated horizontal pill with refraction lens) */}
         <div
-          className={`absolute w-5 h-5 -ml-2.5 rounded-full bg-white border-2 ${accentThumbBorders[accentColor]} pointer-events-none shadow-lg transition-transform ${
-            isDragging ? 'scale-125' : 'group-hover:scale-115'
-          }`}
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none will-change-transform z-20"
           style={{
             left: `${percent}%`,
             transition: isDragging ? 'transform 100ms ease-out' : 'left 75ms ease-out, transform 150ms ease-out'
           }}
-        />
+        >
+          <div
+            style={{
+              width: isDragging ? '36px' : '32px',
+              height: '18px',
+              borderRadius: '9px',
+              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.9)',
+              boxShadow: isDragging
+                ? '0 6px 16px rgba(0, 0, 0, 0.32), 0 2px 4px rgba(0, 0, 0, 0.16), inset 0 1.5px 2px #fff, inset 0 -1px 2px rgba(0,0,0,0.08)'
+                : '0 4px 12px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1.5px 2px #fff, inset 0 -1px 2px rgba(0,0,0,0.06)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              transform: isDragging ? 'scale(1.04)' : 'scale(1)',
+              transition: 'width 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out'
+            }}
+            className="relative flex items-center justify-center overflow-hidden"
+          >
+            {/* Top Specular Arc Line */}
+            <div className="absolute top-[1px] inset-x-1.5 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
+            {/* Optical Refraction Lens Center Notch */}
+            <div className="w-[12px] h-[2.5px] rounded-full bg-white/40 border-t border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] opacity-70" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -814,24 +828,18 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
 
-                  {/* Auto-Orbit Toggle Button */}
+                  {/* Auto-Orbit Liquid Glass Toggle */}
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-xs font-semibold text-white/80">Continuous 360° Auto-Orbit</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        triggerAndroidHaptic('light');
-                        setSpatialOrbitAuto(!spatialOrbitAuto);
-                        if (fxMode !== '8d-orbit') setFxMode('8d-orbit');
+                    <LiquidGlassToggle
+                      checked={Boolean(spatialOrbitAuto)}
+                      onChange={(val) => {
+                        setSpatialOrbitAuto(val);
+                        if (val && fxMode !== '8d-orbit') setFxMode('8d-orbit');
                       }}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer border-0 ${
-                        spatialOrbitAuto
-                          ? 'bg-cyan-400 text-black shadow-md shadow-cyan-400/20'
-                          : 'bg-white/10 text-white/60 hover:bg-white/15'
-                      }`}
-                    >
-                      {spatialOrbitAuto ? 'Auto-Orbit: ON' : 'Manual Lock'}
-                    </button>
+                      activeColor="cyan"
+                      size="sm"
+                    />
                   </div>
 
                   {spatialOrbitAuto && (

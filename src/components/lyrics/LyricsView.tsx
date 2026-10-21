@@ -11,6 +11,7 @@ import {
 import { usePlayerStore } from '../../stores/playerStore';
 import { romanizeIndicText, containsNonLatinScript } from '../../services/transliterate';
 import { formatTime } from '../../utils/formatTime';
+import { LiquidGlassSlider } from '../ui/LiquidGlassSlider';
 import type { LyricLine } from '../../types';
 
 interface LyricsViewProps {
@@ -741,23 +742,21 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                 ))}
               </div>
 
-              {/* Fine Slider */}
-              <div className="flex items-center gap-2 w-full sm:w-52">
-                <span className="text-[10px] text-white/40">-15s</span>
-                <input
-                  type="range"
-                  min="-15"
-                  max="15"
-                  step="0.1"
+              {/* Fuwad Liquid Glass Fine Slider */}
+              <div className="flex items-center gap-2 w-full sm:w-56">
+                <span className="text-[10px] text-white/40 font-mono">-15s</span>
+                <LiquidGlassSlider
+                  min={-15}
+                  max={15}
+                  step={0.1}
                   value={userOffset}
-                  onChange={(e) => handleSetOffset(parseFloat(e.target.value))}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    e.nativeEvent?.stopImmediatePropagation?.();
-                  }}
-                  className="flex-1 accent-[var(--color-accent)] cursor-pointer touch-none"
+                  defaultValue={0}
+                  accentColor="cyan"
+                  formattedValue={`${userOffset > 0 ? '+' : ''}${userOffset.toFixed(1)}s`}
+                  onChange={(val) => handleSetOffset(val)}
+                  className="flex-1"
                 />
-                <span className="text-[10px] text-white/40">+15s</span>
+                <span className="text-[10px] text-white/40 font-mono">+15s</span>
               </div>
             </div>
 

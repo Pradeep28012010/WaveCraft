@@ -213,20 +213,41 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
             }}
           />
 
-          {/* iOS Style Elastic Thumb Head - positioned independently for true rubber-band stretch */}
+          {/* Fuwad Liquid Glass Capsule Thumb - positioned independently for true rubber-band stretch */}
           <div
-            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full border-0 bg-white/95 shadow-[0_0_14px_2px_var(--color-accent)] backdrop-blur-sm pointer-events-none z-10 transition-transform duration-150 ${
-              isDragging ? 'w-5 h-5 scale-125' : 'w-3.5 h-3.5 scale-95 group-hover:scale-125'
-            }`}
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none will-change-transform z-20"
             style={{
               left: `calc(${percent}% + ${elasticOffset}px)`,
               transition: isDragging
-                ? 'transform 150ms ease-out'
+                ? 'transform 100ms ease-out'
                 : isSnapping
                 ? 'left 350ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 150ms ease-out'
                 : 'left 150ms linear, transform 150ms ease-out'
             }}
-          />
+          >
+            <div
+              style={{
+                width: isDragging ? '36px' : '30px',
+                height: '18px',
+                borderRadius: '9px',
+                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                boxShadow: isDragging
+                  ? '0 6px 16px rgba(0, 0, 0, 0.35), 0 0 14px 2px var(--color-accent)'
+                  : '0 4px 12px rgba(0, 0, 0, 0.25), 0 0 10px 1px var(--color-accent)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                transform: isDragging ? 'scale(1.05)' : 'scale(1)',
+                transition: 'width 150ms ease-out, transform 150ms ease-out'
+              }}
+              className="relative flex items-center justify-center overflow-hidden"
+            >
+              {/* Top Specular Arc Line */}
+              <div className="absolute top-[1px] inset-x-1.5 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
+              {/* Optical Refraction Lens Center Notch */}
+              <div className="w-[12px] h-[2.5px] rounded-full bg-white/40 border-t border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] opacity-70" />
+            </div>
+          </div>
         </div>
       </div>
 
