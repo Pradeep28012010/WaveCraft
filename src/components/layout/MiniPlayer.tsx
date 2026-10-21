@@ -315,13 +315,6 @@ export default function MiniPlayer() {
     touchStartX.current = null;
     touchStartY.current = null;
 
-    if (deltaY < -35 && Math.abs(deltaY) > Math.abs(deltaX) * 0.8) {
-      // Swiped up -> expand to Fullscreen NowPlaying
-      triggerAndroidHaptic('light');
-      setIsNowPlayingOpen(true);
-      return;
-    }
-
     if (Math.abs(deltaX) > 42 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
       if (isJamGuest) return;
       if (deltaX < 0) {
@@ -336,7 +329,7 @@ export default function MiniPlayer() {
     }
   };
 
-  // Phone UI Preset: Compact Native-Style Floating MiniPlayer Pill with Swipe-to-Skip & Drag-to-Expand
+  // Phone UI Preset: Compact Native-Style Floating MiniPlayer Pill with Swipe-to-Skip
   if (isPhone) {
     if (isKeyboardOpen) {
       return (
@@ -367,15 +360,6 @@ export default function MiniPlayer() {
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0.35, bottom: 0.04 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y < -35 || info.velocity.y < -250) {
-                triggerAndroidHaptic('light');
-                setIsNowPlayingOpen(true);
-              }
-            }}
             className="w-full max-w-md pointer-events-auto gpu-layer select-none"
           >
             <div
@@ -520,15 +504,6 @@ export default function MiniPlayer() {
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-        drag="y"
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={{ top: 0.25, bottom: 0.04 }}
-        onDragEnd={(_, info) => {
-          if (info.offset.y < -35 || info.velocity.y < -250) {
-            triggerAndroidHaptic('light');
-            setIsNowPlayingOpen(true);
-          }
-        }}
         className="px-4 pb-3 pt-1.5 relative z-30 gpu-layer"
       >
         <div
