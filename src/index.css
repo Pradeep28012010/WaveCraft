@@ -665,68 +665,77 @@ body,
   -webkit-text-fill-color: transparent;
 }
 
-/* Fuwad Liquid Glass Range Input (Capsule Pill Thumb with Refraction Depth) */
+/* Fuwad Liquid Glass Range Input (7px Glass Tube & Capsule Pill Thumb with Center Grip Notch) */
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.16);
+  height: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-full);
   outline: none;
   cursor: pointer;
   touch-action: none; /* Prevents scroll interception during slider dragging */
-  padding: 10px 0; /* Creates an invisible ~25px vertical hit area */
+  padding: 10px 0; /* Creates an invisible ~27px vertical hit area */
   background-clip: content-box; /* Keeps visual bar slim while hit target is generous */
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
   margin: 0;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 input[type='range']:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
   background-clip: content-box;
 }
 
-/* Liquid Glass Capsule Thumb (Webkit) */
+/* Liquid Glass Capsule Pill Thumb (Webkit - Exact match to media_1792555652864_80790039.png) */
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 32px;
-  height: 18px;
-  border-radius: 9px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
   cursor: grab;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1.5px 2px #ffffff, inset 0 -1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.15), inset 0 1.5px 2px #FFFFFF, inset 0 -1.5px 2px rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: width 0.15s ease-out, transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease;
 }
 input[type='range']:hover::-webkit-slider-thumb {
-  width: 34px;
-  transform: scale3d(1.06, 1.06, 1);
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.32), 0 0 10px 1px rgba(59, 130, 246, 0.45);
+  width: 48px;
+  transform: scale3d(1.03, 1.03, 1);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.4), 0 0 10px 1px rgba(59, 130, 246, 0.45);
 }
 input[type='range']:active::-webkit-slider-thumb {
   cursor: grabbing;
-  width: 38px;
-  transform: scale3d(1.1, 1.1, 1);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38), 0 0 14px 2px rgba(59, 130, 246, 0.6);
+  width: 52px;
+  transform: scale3d(1.06, 1.06, 1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 14px 2px rgba(59, 130, 246, 0.6);
 }
 
-/* Liquid Glass Capsule Thumb (Firefox) */
+/* Liquid Glass Capsule Pill Thumb (Firefox) */
 input[type='range']::-moz-range-thumb {
-  width: 32px;
-  height: 18px;
-  border-radius: 9px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
   cursor: grab;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1.5px 2px #ffffff, inset 0 -1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.15), inset 0 1.5px 2px #FFFFFF, inset 0 -1.5px 2px rgba(0, 0, 0, 0.08);
   transition: width 0.15s ease-out, transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease;
 }
 input[type='range']:hover::-moz-range-thumb {
-  width: 34px;
+  width: 48px;
+  transform: scale3d(1.03, 1.03, 1);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.4), 0 0 10px 1px rgba(59, 130, 246, 0.45);
+}
+input[type='range']:active::-moz-range-thumb {
+  cursor: grabbing;
+  width: 52px;
   transform: scale3d(1.06, 1.06, 1);
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.32), 0 0 10px 1px rgba(59, 130, 246, 0.45);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 14px 2px rgba(59, 130, 246, 0.6);
 }
 input[type='range']:active::-moz-range-thumb {
   cursor: grabbing;

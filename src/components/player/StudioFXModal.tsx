@@ -194,15 +194,15 @@ function AppleFluidSlider({
           }
         }}
       >
-        {/* Track Bar (Sleek 5px visible track with 32px touch target) */}
-        <div className="w-full h-[5px] rounded-full bg-white/15 dark:bg-white/10 relative overflow-hidden backdrop-blur-md border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]">
+        {/* Track Bar (Sleek 7px glass tube with subtle translucent border and inner groove) */}
+        <div className="w-full h-[7px] rounded-full bg-white/[0.08] dark:bg-white/[0.06] backdrop-blur-md relative overflow-hidden border border-white/[0.14] shadow-[inset_0_1px_2px_rgba(0,0,0,0.35)]">
           <div
             className={`h-full bg-gradient-to-r ${accentGradients[accentColor]} ${isDragging ? 'transition-none' : 'transition-all duration-75'}`}
             style={{ width: `${percent}%` }}
           />
         </div>
 
-        {/* Liquid Glass Capsule Thumb (Fuwad design: elongated horizontal pill with refraction lens) */}
+        {/* Liquid Glass Capsule Thumb (Fuwad design: 44px × 26px with center grip notch) */}
         <div
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none will-change-transform z-20"
           style={{
@@ -212,14 +212,14 @@ function AppleFluidSlider({
         >
           <div
             style={{
-              width: isDragging ? '36px' : '32px',
-              height: '18px',
-              borderRadius: '9px',
-              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.9)',
+              width: isDragging ? '48px' : '44px',
+              height: '26px',
+              borderRadius: '13px',
+              background: 'linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.95)',
               boxShadow: isDragging
-                ? '0 6px 16px rgba(0, 0, 0, 0.32), 0 2px 4px rgba(0, 0, 0, 0.16), inset 0 1.5px 2px #fff, inset 0 -1px 2px rgba(0,0,0,0.08)'
-                : '0 4px 12px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1.5px 2px #fff, inset 0 -1px 2px rgba(0,0,0,0.06)',
+                ? '0 6px 18px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1.5px 2px #FFFFFF, inset 0 -1.5px 2px rgba(0, 0, 0, 0.08)'
+                : '0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.15), inset 0 1.5px 2px #FFFFFF, inset 0 -1.5px 2px rgba(0, 0, 0, 0.08)',
               backdropFilter: 'blur(10px)',
               WebkitBackdropFilter: 'blur(10px)',
               transform: isDragging ? 'scale(1.04)' : 'scale(1)',
@@ -228,9 +228,17 @@ function AppleFluidSlider({
             className="relative flex items-center justify-center overflow-hidden"
           >
             {/* Top Specular Arc Line */}
-            <div className="absolute top-[1px] inset-x-1.5 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
-            {/* Optical Refraction Lens Center Notch */}
-            <div className="w-[12px] h-[2.5px] rounded-full bg-white/40 border-t border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] opacity-70" />
+            <div className="absolute top-[1.5px] inset-x-2.5 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
+            {/* Tactile Center Grip Notch */}
+            <div
+              style={{
+                width: '16px',
+                height: '3.5px',
+                borderRadius: '9999px',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(255, 255, 255, 0.7)'
+              }}
+            />
           </div>
         </div>
       </div>

@@ -482,8 +482,8 @@ export default function SettingsPage() {
                             width: activeSettingsBandIdx === idx ? '26px' : '22px',
                             height: '14px',
                             borderRadius: '7px',
-                            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%)',
-                            border: '1px solid rgba(255, 255, 255, 0.9)',
+                            background: 'linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%)',
+                            border: '1px solid rgba(255, 255, 255, 0.95)',
                             boxShadow: activeSettingsBandIdx === idx
                               ? '0 0 14px 2px var(--color-accent)'
                               : '0 2px 8px rgba(0, 0, 0, 0.35)',
@@ -495,7 +495,15 @@ export default function SettingsPage() {
                           className="relative flex items-center justify-center overflow-hidden"
                         >
                           <div className="absolute top-[1px] inset-x-1 h-[1px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
-                          <div className="w-[8px] h-[2px] rounded-full bg-white/40 border-t border-white/60 opacity-70" />
+                          <div
+                            style={{
+                              width: '10px',
+                              height: '2.5px',
+                              borderRadius: '9999px',
+                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                              boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(255, 255, 255, 0.7)'
+                            }}
+                          />
                         </div>
                       </div>
                     </div>

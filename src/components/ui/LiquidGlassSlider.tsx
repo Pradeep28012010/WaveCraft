@@ -19,15 +19,16 @@ export interface LiquidGlassSliderProps {
 
 /**
  * Liquid Glass Slider
- * Inspired by fuwad.design's Figma Community component: "Liquid Glass Toggle & Slider"
+ * Exactly matching Fuwad.design's Figma project and the user-provided screenshot
+ * (media_1792555652864_80790039.png).
  *
  * Features:
- * - Elongated horizontal liquid-glass capsule thumb (34px × 20px with 10px rounded squircle)
- * - Internal optical refraction lens notch revealing the active track underneath
- * - Vibrant electric blue (or custom theme) track with subtle glow
- * - 120fps pointer capture engine with 36px touch hit area and zero gesture hijacking
- * - Tactile liquid elastic stretch during grab & slide
- * - Tactile haptic ticks and double-click reset support
+ * - 7px high translucent glass tube track with rounded ends
+ * - 48px × 28px wide horizontal porcelain-glass capsule pill thumb (14px rounded)
+ * - Tactile indented center grip notch (18px × 4px)
+ * - Surface gradient: pure white to cool lavender-slate with crisp specular highlights
+ * - 120fps pointer capture engine with 36px touch hit target and zero gesture collisions
+ * - Tactile haptic ticks and double-click to reset
  */
 export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
   value,
@@ -50,15 +51,15 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
   const activeValueRef = useRef(value);
   activeValueRef.current = value;
 
-  // Active track color gradients matching Figma specs
+  // Active track color gradients
   const trackGradients: Record<string, string> = {
-    blue: 'from-blue-500 to-indigo-600 shadow-[0_0_12px_rgba(59,130,246,0.45)]',
-    cyan: 'from-cyan-400 to-blue-500 shadow-[0_0_12px_rgba(6,182,212,0.45)]',
-    emerald: 'from-emerald-400 to-green-500 shadow-[0_0_12px_rgba(16,185,129,0.45)]',
-    amber: 'from-amber-400 via-orange-500 to-rose-500 shadow-[0_0_12px_rgba(245,158,11,0.45)]',
-    rose: 'from-rose-500 to-pink-500 shadow-[0_0_12px_rgba(244,63,94,0.45)]',
-    purple: 'from-purple-500 to-indigo-500 shadow-[0_0_12px_rgba(168,85,247,0.45)]',
-    accent: 'from-[var(--color-accent)] to-rose-500 shadow-[0_0_12px_rgba(250,36,60,0.45)]',
+    blue: 'from-blue-500 to-indigo-600 shadow-[0_0_12px_rgba(59,130,246,0.5)]',
+    cyan: 'from-cyan-400 to-blue-500 shadow-[0_0_12px_rgba(6,182,212,0.5)]',
+    emerald: 'from-emerald-400 to-green-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]',
+    amber: 'from-amber-400 via-orange-500 to-rose-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]',
+    rose: 'from-rose-500 to-pink-500 shadow-[0_0_12px_rgba(244,63,94,0.5)]',
+    purple: 'from-purple-500 to-indigo-500 shadow-[0_0_12px_rgba(168,85,247,0.5)]',
+    accent: 'from-[var(--color-accent)] to-rose-500 shadow-[0_0_12px_rgba(250,36,60,0.5)]',
   };
 
   const currentGradient = trackGradients[accentColor] || trackGradients.blue;
@@ -183,8 +184,8 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
         }}
         className="relative h-9 flex items-center cursor-pointer touch-none group"
       >
-        {/* Track Bar (Sleek 5px groove with glass depth) */}
-        <div className="w-full h-[5px] rounded-full bg-white/15 dark:bg-white/10 backdrop-blur-md relative overflow-hidden border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)] transition-all duration-200">
+        {/* Track Bar (Sleek 7px glass tube with subtle translucent border and inner groove) */}
+        <div className="w-full h-[7px] rounded-full bg-white/[0.08] dark:bg-white/[0.06] backdrop-blur-md relative overflow-hidden border border-white/[0.14] shadow-[inset_0_1px_2px_rgba(0,0,0,0.35)] transition-all duration-200">
           {/* Active Filled Progress Bar */}
           <div
             className={`h-full bg-gradient-to-r ${currentGradient} rounded-full transition-all ${
@@ -194,7 +195,7 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
           />
         </div>
 
-        {/* Liquid Glass Capsule Thumb (Fuwad design: elongated horizontal rounded squircle pill) */}
+        {/* Liquid Glass Capsule Pill Thumb (Exact match to media_1792555652864_80790039.png: 48px × 28px) */}
         <div
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none will-change-transform z-20"
           style={{
@@ -207,31 +208,39 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
           {/* Capsule pill container */}
           <div
             style={{
-              width: isDragging ? '38px' : isHovered ? '36px' : '34px',
-              height: '20px',
-              borderRadius: '10px',
-              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(240, 244, 250, 0.72) 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.9)',
+              width: isDragging ? '52px' : isHovered ? '50px' : '48px',
+              height: '28px',
+              borderRadius: '14px',
+              background: 'linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.95)',
               boxShadow: isDragging
-                ? '0 6px 16px rgba(0, 0, 0, 0.32), 0 2px 4px rgba(0, 0, 0, 0.16), inset 0 1.5px 2px rgba(255, 255, 255, 1), inset 0 -1px 2px rgba(0, 0, 0, 0.08)'
-                : '0 4px 12px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1.5px 2px rgba(255, 255, 255, 1), inset 0 -1px 2px rgba(0, 0, 0, 0.06)',
-              backdropFilter: 'blur(12px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(12px) saturate(180%)',
-              transform: isDragging ? 'scale(1.05)' : isHovered ? 'scale(1.02)' : 'scale(1)',
+                ? '0 6px 18px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1.5px 2px #FFFFFF, inset 0 -1.5px 2px rgba(0, 0, 0, 0.08)'
+                : '0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.15), inset 0 1.5px 2px #FFFFFF, inset 0 -1.5px 2px rgba(0, 0, 0, 0.08)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              transform: isDragging ? 'scale(1.04)' : isHovered ? 'scale(1.02)' : 'scale(1)',
               transition: 'width 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out',
             }}
             className="relative flex items-center justify-center overflow-hidden"
           >
             {/* Top Specular Arc Highlight */}
-            <div className="absolute top-[1.5px] inset-x-2 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
+            <div className="absolute top-[1.5px] inset-x-2.5 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
 
-            {/* Optical Refraction Lens Center Notch (Signature Fuwad Figma detail) */}
-            <div className="w-[14px] h-[3px] rounded-full bg-white/40 border-t border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] opacity-70" />
+            {/* Tactile Horizontal Center Grip Notch (Exact match to media_1792555652864_80790039.png) */}
+            <div
+              style={{
+                width: '18px',
+                height: '4px',
+                borderRadius: '9999px',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(255, 255, 255, 0.7)',
+              }}
+            />
           </div>
 
           {/* Value tooltip badge on drag */}
           {showValueBadge && isDragging && (
-            <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[10px] font-bold text-white tabular-nums border border-white/10 shadow-lg pointer-events-none whitespace-nowrap">
+            <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/85 backdrop-blur-md text-[10px] font-bold text-white tabular-nums border border-white/10 shadow-lg pointer-events-none whitespace-nowrap">
               {formattedValue || clampedVal}
             </div>
           )}

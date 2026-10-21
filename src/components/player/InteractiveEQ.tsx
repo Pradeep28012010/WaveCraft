@@ -576,8 +576,8 @@ export default function InteractiveEQ() {
                         width: activeBandDraggingIdx === i ? '26px' : '22px',
                         height: '14px',
                         borderRadius: '7px',
-                        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 244, 250, 0.75) 100%)',
-                        border: isBoost ? '1px solid #22d3ee' : isCut ? '1px solid #f472b6' : '1px solid rgba(255, 255, 255, 0.9)',
+                        background: 'linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%)',
+                        border: isBoost ? '1px solid #22d3ee' : isCut ? '1px solid #f472b6' : '1px solid rgba(255, 255, 255, 0.95)',
                         boxShadow: activeBandDraggingIdx === i
                           ? isBoost ? '0 0 14px 2px #22d3ee' : '0 0 14px 2px #f472b6'
                           : '0 2px 8px rgba(0, 0, 0, 0.35)',
@@ -589,7 +589,15 @@ export default function InteractiveEQ() {
                       className="relative flex items-center justify-center overflow-hidden"
                     >
                       <div className="absolute top-[1px] inset-x-1 h-[1px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
-                      <div className="w-[8px] h-[2px] rounded-full bg-white/40 border-t border-white/60 opacity-70" />
+                      <div
+                        style={{
+                          width: '10px',
+                          height: '2.5px',
+                          borderRadius: '9999px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(255, 255, 255, 0.7)'
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
