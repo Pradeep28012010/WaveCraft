@@ -465,9 +465,9 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.2.3',
-        versionCode: 14,
-        releaseDate: '2026-10-20',
+        version: '5.2.4',
+        versionCode: 15,
+        releaseDate: '2026-10-21',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
         title: 'WaveCraft Pro v5.2.3 (Seamless Liquid Glass & Dark Obsidian Studio)',
         releaseNotes: [

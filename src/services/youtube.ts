@@ -672,7 +672,21 @@ export async function getTrending(category = 'global'): Promise<Track[]> {
       console.warn('Trending fetch error, falling back to search:', err);
     }
 
-    const fallback = await searchTracks('top global hits 2025');
+    const categoryQueryMap: Record<string, string> = {
+      global: 'top global hits 2025 songs',
+      india: 'top 50 trending songs india bollywood punjabi',
+      usa: 'top 50 songs usa billboard hot 100',
+      hiphop: 'rapcaviar hip hop drill songs',
+      dance: 'top edm dance club festival hits',
+      kpop: 'top kpop songs bts blackpink newjeans',
+      pop: 'todays top hits viral pop songs',
+      rock: 'top rock alternative songs',
+      latin: 'top latin reggaeton songs',
+      chill: 'chill lofi acoustic instrumental beats',
+      indie: 'ultimate indie alternative rock hits'
+    };
+    const fallbackQuery = categoryQueryMap[category] || `top trending ${category} songs`;
+    const fallback = await searchTracks(fallbackQuery);
     if (fallback.length > 0) {
       trendingCategoryCache.set(category, fallback);
       if (category === 'global') {

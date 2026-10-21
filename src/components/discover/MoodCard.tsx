@@ -15,7 +15,6 @@ export interface MoodCardProps {
   onPlay: (mood: MoodPlaylist, query: string) => void;
   onQueue: (mood: MoodPlaylist, query: string, e: React.MouseEvent) => void;
   onShuffle: (mood: MoodPlaylist, query: string, e: React.MouseEvent) => void;
-  onOpenVibeStudio: (mood: MoodPlaylist, e: React.MouseEvent) => void;
   isGrid?: boolean;
 }
 
@@ -32,7 +31,6 @@ export const MoodCard = memo(function MoodCard({
   onPlay,
   onQueue,
   onShuffle,
-  onOpenVibeStudio,
   isGrid = false
 }: MoodCardProps) {
   const isCurrentlyPlayingThisMood = isMoodActive && isPlaying;
@@ -171,7 +169,7 @@ export const MoodCard = memo(function MoodCard({
           </p>
         )}
 
-        {/* Quick Action Interactive Buttons (Queue, Shuffle, AI DJ) */}
+        {/* Quick Action Interactive Buttons (Queue, Shuffle) */}
         <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between opacity-85 group-hover:opacity-100 transition-opacity">
           <div className="flex items-center gap-1.5">
             {/* Add Mix to Queue */}
@@ -204,16 +202,6 @@ export const MoodCard = memo(function MoodCard({
               </svg>
             </button>
           </div>
-
-          {/* AI Vibe DJ Studio Link */}
-          <button
-            type="button"
-            onClick={(e) => onOpenVibeStudio(mood, e)}
-            className="h-7 px-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white border border-white/15 backdrop-blur-md flex items-center gap-1 text-[11px] font-semibold transition-all active:scale-95 cursor-pointer"
-            title="Open in AI Vibe DJ Studio"
-          >
-            <span>✨ DJ</span>
-          </button>
         </div>
       </div>
     </div>

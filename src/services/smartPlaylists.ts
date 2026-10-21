@@ -94,6 +94,16 @@ export function computeSmartPlaylists(
     });
   }
 
+  // Helper to ensure a smart playlist isn't an exact duplicate of On Repeat
+  const isDuplicateOfOnRepeat = (list: Track[]) => {
+    if (list.length === 0 || onRepeatTracks.length === 0) return true;
+    if (list.length === onRepeatTracks.length) {
+      const onRepeatIds = new Set(onRepeatTracks.map((t) => t.id));
+      return list.every((t) => onRepeatIds.has(t.id));
+    }
+    return false;
+  };
+
   // ================= 2. HEAVY ROTATION (LAST 7 DAYS) =================
   const sortedRecent = Array.from(recentPlayCounts.entries())
     .sort((a, b) => b[1] - a[1])
@@ -101,7 +111,7 @@ export function computeSmartPlaylists(
     .filter((t): t is Track => Boolean(t))
     .slice(0, 20);
 
-  if (sortedRecent.length >= 2) {
+  if (sortedRecent.length >= 3 && !isDuplicateOfOnRepeat(sortedRecent)) {
     smartPlaylists.push({
       id: 'smart-heavy-rotation',
       name: 'Heavy Rotation',
@@ -127,7 +137,7 @@ export function computeSmartPlaylists(
     })
     .slice(0, 20);
 
-  if (chillTracks.length >= 3) {
+  if (chillTracks.length >= 3 && !isDuplicateOfOnRepeat(chillTracks)) {
     smartPlaylists.push({
       id: 'smart-late-night',
       name: 'Late Night Chill',
@@ -151,7 +161,7 @@ export function computeSmartPlaylists(
     })
     .slice(0, 20);
 
-  if (forgottenGems.length >= 3) {
+  if (forgottenGems.length >= 3 && !isDuplicateOfOnRepeat(forgottenGems)) {
     smartPlaylists.push({
       id: 'smart-forgotten-gems',
       name: 'Forgotten Gems',

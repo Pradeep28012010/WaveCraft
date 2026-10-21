@@ -8,6 +8,7 @@ import { getTrending, getCachedTrending, searchTracks } from '../../services/you
 import { getNewReleases, getCachedNewReleases, getAlbumTracks, getAlbumArt, FALLBACK_NEW_RELEASES } from '../../services/itunes';
 import { computeSmartPlaylists, type SmartPlaylistDef } from '../../services/smartPlaylists';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
+import { getSmartRecommendations } from '../../services/recommendationEngine';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from '../search/GenreBrowser';
 import TrendingSection from './TrendingSection';
@@ -212,6 +213,7 @@ const DAILY_MIX_DEFINITIONS = [
     id: 'daily-mix-1',
     name: 'Daily Mix 1',
     sub: 'Chill Lo-Fi, Ambient & Acoustic',
+    category: 'chill',
     query: 'chill lofi acoustic instrumental beats',
     gradient: 'from-emerald-500 via-teal-600 to-indigo-950',
     icon: '☕',
@@ -221,7 +223,8 @@ const DAILY_MIX_DEFINITIONS = [
   {
     id: 'daily-mix-2',
     name: 'Daily Mix 2',
-    sub: 'High-Octane Phonk & Gym Motivation',
+    sub: 'High-Octane Phonk & Heavy Trap',
+    category: 'hiphop',
     query: 'drift phonk gym workout motivation hits',
     gradient: 'from-rose-600 via-red-600 to-zinc-950',
     icon: '⚡',
@@ -231,8 +234,9 @@ const DAILY_MIX_DEFINITIONS = [
   {
     id: 'daily-mix-3',
     name: 'Daily Mix 3',
-    sub: 'Synthwave, Neon Bass & Night Drive',
-    query: 'synthwave night drive retro weeknd electronic',
+    sub: 'Club Anthems, House & Dance EDM',
+    category: 'dance',
+    query: 'synthwave night drive retro electronic dance',
     gradient: 'from-purple-600 via-fuchsia-600 to-slate-950',
     icon: '🌃',
     tag: 'Neon Arp',
@@ -242,11 +246,23 @@ const DAILY_MIX_DEFINITIONS = [
     id: 'daily-mix-4',
     name: 'Daily Mix 4',
     sub: 'Global Pop, Viral Hits & Trending',
+    category: 'pop',
     query: 'todays top hits viral pop global',
     gradient: 'from-amber-500 via-orange-600 to-rose-950',
     icon: '🔥',
     tag: 'Chart Topper',
     badge: 'DAILY MIX 4'
+  },
+  {
+    id: 'daily-mix-5',
+    name: 'Daily Mix 5',
+    sub: 'Ultimate Indie, Alt & Acoustic Discovery',
+    category: 'indie',
+    query: 'ultimate indie alternative rock acoustic hits',
+    gradient: 'from-cyan-500 via-blue-600 to-slate-950',
+    icon: '🌿',
+    tag: 'Indie Pulse',
+    badge: 'DAILY MIX 5'
   }
 ];
 
@@ -357,6 +373,8 @@ export default function HomePage() {
   const [isCategoryTrendingLoading, setIsCategoryTrendingLoading] = useState<boolean>(false);
   const [loadingMoodId, setLoadingMoodId] = useState<string | null>(null);
   const [playingAlbumId, setPlayingAlbumId] = useState<string | null>(null);
+  const [playingChartKey, setPlayingChartKey] = useState<string | null>(null);
+  const [loadingDailyMixId, setLoadingDailyMixId] = useState<string | null>(null);
 
   // In-app floating micro-toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -773,17 +791,6 @@ export default function HomePage() {
     [playTrack]
   );
 
-  const handleOpenVibeStudio = useCallback(
-    (mood: MoodPlaylist, e: React.MouseEvent) => {
-      e.stopPropagation();
-      triggerAndroidHaptic('light');
-      navigate(
-        `/vibe?prompt=${encodeURIComponent(`${mood.name} - ${mood.sub}`)}&mood=${mood.id}`
-      );
-    },
-    [navigate]
-  );
-
   const handlePlayAlbum = useCallback(async (album: AlbumResult, e: React.MouseEvent) => {
     e.stopPropagation();
     triggerAndroidHaptic('light');
@@ -823,25 +830,101 @@ export default function HomePage() {
     });
   }, []);
 
-  const handlePlaySmartPlaylist = (smartPl: SmartPlaylistDef, shuffle = false) => {
+  const handlePlayChart = useCallback(
+    async (chartKey: string, chartName: string, e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      triggerAndroidHaptic('medium');
+      unlockAudioEngine();
+      setPlayingChartKey(chartKey);
+      setActiveTrendingCategory(chartKey);
+      showToast(`Loading ${chartName}... 📈`);
+
+      try {
+        setIsCategoryTrendingLoading(true);
+        const tracks = await getTrending(chartKey);
+        if (tracks && tracks.length > 0) {
+          setTrendingTracks(tracks);
+          playTrack(tracks[0], tracks, 0);
+          showToast(`Now Playing ${chartName} 🎵`);
+        } else {
+          const fallbackQueryMap: Record<string, string> = {
+            global: 'top global hits 2025 songs',
+            india: 'top 50 trending songs india bollywood punjabi',
+            usa: 'top 50 songs usa billboard hot 100',
+            hiphop: 'rapcaviar hip hop drill songs',
+            dance: 'top edm dance club festival hits',
+            kpop: 'top kpop songs bts blackpink newjeans'
+          };
+          const query = fallbackQueryMap[chartKey] || `${chartName} hit songs`;
+          const searchRes = await searchTracks(query);
+          if (searchRes && searchRes.length > 0) {
+            setTrendingTracks(searchRes);
+            playTrack(searchRes[0], searchRes, 0);
+            showToast(`Now Playing ${chartName} 🎵`);
+          } else {
+            showToast(`No tracks found for ${chartName}`);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to play chart:', err);
+        showToast(`Failed to load ${chartName}`);
+      } finally {
+        setIsCategoryTrendingLoading(false);
+        setPlayingChartKey(null);
+      }
+    },
+    [playTrack]
+  );
+
+  const handlePlaySmartPlaylist = async (smartPl: SmartPlaylistDef, shuffle = false) => {
     unlockAudioEngine();
     triggerAndroidHaptic('medium');
     if (!smartPl.tracks || smartPl.tracks.length === 0) {
       showToast(`No tracks in ${smartPl.name} yet`);
       return;
     }
-    const list = shuffle ? shuffleArray([...smartPl.tracks]) : smartPl.tracks;
-    playTrack(list[0], list, 0);
+    const baseTracks = shuffle ? shuffleArray([...smartPl.tracks]) : [...smartPl.tracks];
+    playTrack(baseTracks[0], baseTracks, 0);
     showToast(`Now Playing ${smartPl.name} 🎶`);
+
+    // If the playlist has fewer than 10 tracks, auto-enrich the queue with recommendations
+    // based on the seed track so the user gets an endless radio experience
+    if (baseTracks.length < 10) {
+      try {
+        const seed = baseTracks[0];
+        const recs = await getSmartRecommendations(seed, baseTracks, 15);
+        if (recs && recs.length > 0) {
+          const combined = [...baseTracks];
+          for (const r of recs) {
+            if (!combined.some((x) => x.id === r.id)) {
+              combined.push(r);
+            }
+          }
+          usePlayerStore.setState({
+            queue: combined,
+            originalQueue: combined
+          });
+        }
+      } catch (e) {
+        console.warn('Could not enrich smart playlist:', e);
+      }
+    }
   };
 
-  const handlePlayDailyMix = async (mixDef: typeof DAILY_MIX_DEFINITIONS[0]) => {
+  const handlePlayDailyMix = async (mixDef: (typeof DAILY_MIX_DEFINITIONS)[0]) => {
     unlockAudioEngine();
     triggerAndroidHaptic('medium');
+    setLoadingDailyMixId(mixDef.id);
     showToast(`Loading ${mixDef.name}... 🎶`);
     try {
-      const tracks = await searchTracks(mixDef.query);
-      if (tracks.length > 0) {
+      let tracks: Track[] = [];
+      if (mixDef.category) {
+        tracks = await getTrending(mixDef.category);
+      }
+      if (!tracks || tracks.length === 0) {
+        tracks = await searchTracks(mixDef.query);
+      }
+      if (tracks && tracks.length > 0) {
         playTrack(tracks[0], tracks, 0);
         showToast(`Now Playing ${mixDef.name} 🎵`);
       } else {
@@ -850,6 +933,8 @@ export default function HomePage() {
     } catch (err) {
       console.error('Failed to play daily mix:', err);
       showToast(`Failed to load ${mixDef.name}`);
+    } finally {
+      setLoadingDailyMixId(null);
     }
   };
 
@@ -938,18 +1023,6 @@ export default function HomePage() {
                 <path d="M8 5v14l11-7z" />
               </svg>
               <span>Play Today's Flow</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                navigate('/vibe');
-              }}
-              className="px-4 py-2.5 sm:py-3 rounded-full glass-button text-white/90 hover:text-white font-bold text-xs sm:text-sm flex items-center gap-2 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
-              title="Summon AI DJ Studio"
-            >
-              <span>✨</span>
-              <span>AI DJ</span>
             </button>
           </div>
         </div>
@@ -1565,9 +1638,13 @@ export default function HomePage() {
                   className="w-8 h-8 rounded-full glass-button-primary text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer shadow-md"
                   title={`Play ${mix.name}`}
                 >
-                  <svg className="w-3.5 h-3.5 ml-0.5 fill-current" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
+                  {loadingDailyMixId === mix.id ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5 ml-0.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
@@ -1591,46 +1668,77 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {CURATED_CHARTS.map((chart) => (
-              <div
-                key={chart.key}
-                onClick={() => handleSelectTrendingCategory(chart.key)}
-                className={`group relative p-3.5 rounded-2xl liquid-glass border transition-all duration-300 cursor-pointer overflow-hidden flex flex-col justify-between active:scale-[0.98] ${
-                  activeTrendingCategory === chart.key
-                    ? 'ring-2 ring-emerald-400 border-transparent shadow-[0_8px_25px_rgba(16,185,129,0.35)]'
-                    : `${chart.border} hover:border-white/30`
-                }`}
-                style={{
-                  background: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.7) 100%)`
-                }}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xl">{chart.icon}</span>
-                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/80">
-                      {chart.badge}
-                    </span>
+            {CURATED_CHARTS.map((chart) => {
+              const isChartActive = activeTrendingCategory === chart.key;
+              const isChartLoading = playingChartKey === chart.key;
+              return (
+                <div
+                  key={chart.key}
+                  onClick={() => handlePlayChart(chart.key, chart.name)}
+                  className={`group relative p-3.5 rounded-2xl liquid-glass border transition-all duration-300 cursor-pointer overflow-hidden flex flex-col justify-between active:scale-[0.98] ${
+                    isChartActive
+                      ? 'ring-2 ring-emerald-400 border-transparent shadow-[0_8px_25px_rgba(16,185,129,0.35)]'
+                      : `${chart.border} hover:border-white/30`
+                  }`}
+                  style={{
+                    background: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.7) 100%)`
+                  }}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xl">{chart.icon}</span>
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+                        {chart.badge}
+                      </span>
+                    </div>
+                    <h4 className="font-extrabold text-xs sm:text-sm text-white group-hover:text-emerald-300 transition-colors line-clamp-1">
+                      {chart.name}
+                    </h4>
+                    <p className="text-[10px] text-white/55 line-clamp-2 mt-1 leading-snug">
+                      {chart.sub}
+                    </p>
                   </div>
-                  <h4 className="font-extrabold text-xs sm:text-sm text-white group-hover:text-emerald-300 transition-colors line-clamp-1">
-                    {chart.name}
-                  </h4>
-                  <p className="text-[10px] text-white/55 line-clamp-2 mt-1 leading-snug">
-                    {chart.sub}
-                  </p>
-                </div>
 
-                <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10">
-                  <span className="text-[10px] font-bold text-emerald-400">
-                    {activeTrendingCategory === chart.key ? 'Active Chart' : 'View Chart'}
-                  </span>
-                  <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white/80 group-hover:bg-emerald-500 group-hover:text-black transition-colors">
-                    <svg className="w-3 h-3 fill-current ml-0.5" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
+                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10">
+                    <span className="text-[10px] font-bold text-emerald-400">
+                      {isChartLoading ? (
+                        <span className="flex items-center gap-1 text-emerald-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Loading...
+                        </span>
+                      ) : isChartActive && isPlaying ? (
+                        <span className="flex items-center gap-1 text-emerald-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Playing
+                        </span>
+                      ) : isChartActive ? (
+                        'Active Chart'
+                      ) : (
+                        'Play Chart'
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handlePlayChart(chart.key, chart.name, e)}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md ${
+                        isChartActive
+                          ? 'bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                          : 'bg-white/10 text-white/80 group-hover:bg-emerald-500 group-hover:text-black'
+                      }`}
+                      title={`Play ${chart.name}`}
+                    >
+                      {isChartLoading ? (
+                        <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -2028,7 +2136,6 @@ export default function HomePage() {
                   onPlay={handlePlayMood}
                   onQueue={handleQueueMood}
                   onShuffle={handleShuffleMood}
-                  onOpenVibeStudio={handleOpenVibeStudio}
                   isGrid={true}
                 />
               ))}
@@ -2052,7 +2159,6 @@ export default function HomePage() {
                 onPlay={handlePlayMood}
                 onQueue={handleQueueMood}
                 onShuffle={handleShuffleMood}
-                onOpenVibeStudio={handleOpenVibeStudio}
                 isGrid={false}
               />
             ))}
