@@ -70,24 +70,27 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const activeRatio = isDragging ? dragRatio : playbackRatio;
   const activeDisplayTime = isDragging ? dragRatio * activeDuration : currentTime;
 
+  const thumbWidth = 44;
+  const halfThumb = thumbWidth / 2; // 22px
+
   const calculateRatioAndOffset = (clientX: number) => {
     if (!trackRef.current) return { ratio: 0, offset: 0 };
     const rect = trackRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const width = rect.width;
+    const usableWidth = Math.max(1, rect.width - thumbWidth);
+    const x = clientX - rect.left - halfThumb;
 
     if (x < 0) {
       // Elastic stretch before start (rubber-band resistance)
       const pull = -x;
-      const resisted = -Math.min(32, Math.pow(pull, 0.68) * 1.5);
+      const resisted = -Math.min(24, Math.pow(pull, 0.68) * 1.5);
       return { ratio: 0, offset: resisted };
-    } else if (x > width) {
+    } else if (x > usableWidth) {
       // Elastic stretch beyond end (rubber-band resistance)
-      const pull = x - width;
-      const resisted = Math.min(32, Math.pow(pull, 0.68) * 1.5);
+      const pull = x - usableWidth;
+      const resisted = Math.min(24, Math.pow(pull, 0.68) * 1.5);
       return { ratio: 1, offset: resisted };
     } else {
-      return { ratio: Math.max(0, Math.min(1, x / width)), offset: 0 };
+      return { ratio: Math.max(0, Math.min(1, x / usableWidth)), offset: 0 };
     }
   };
 
@@ -147,7 +150,9 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const fillWidth =
     elasticOffset < 0
       ? -elasticOffset
-      : `calc(${percent}% + ${elasticOffset}px)`;
+      : percent <= 0 && elasticOffset >= 0
+      ? '0%'
+      : `calc(${halfThumb}px + (${percent} * (100% - ${thumbWidth}px) / 100) + ${elasticOffset}px)`;
 
   const transitionStyle = isDragging
     ? 'none'
@@ -215,9 +220,9 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
 
           {/* Fuwad Liquid Glass Capsule Thumb - positioned independently for true rubber-band stretch */}
           <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none will-change-transform z-20"
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing will-change-transform z-20 pointer-events-auto touch-none"
             style={{
-              left: `calc(${percent}% + ${elasticOffset}px)`,
+              left: `calc(${halfThumb}px + (${percent} * (100% - ${thumbWidth}px) / 100) + ${elasticOffset}px)`,
               transition: isDragging
                 ? 'transform 100ms ease-out'
                 : isSnapping

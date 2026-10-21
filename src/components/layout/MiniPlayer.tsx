@@ -53,22 +53,25 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const activeRatio = isDragging ? dragRatio : playbackRatio;
   const activeDisplayTime = isDragging ? dragRatio * activeDuration : currentTime;
 
+  const thumbWidth = 32;
+  const halfThumb = thumbWidth / 2; // 16px
+
   const calculateRatioAndOffset = (clientX: number) => {
     if (!trackRef.current) return { ratio: 0, offset: 0 };
     const rect = trackRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const width = rect.width;
+    const usableWidth = Math.max(1, rect.width - thumbWidth);
+    const x = clientX - rect.left - halfThumb;
 
     if (x < 0) {
       const pull = -x;
-      const resisted = -Math.min(24, Math.pow(pull, 0.68) * 1.4);
+      const resisted = -Math.min(20, Math.pow(pull, 0.68) * 1.4);
       return { ratio: 0, offset: resisted };
-    } else if (x > width) {
-      const pull = x - width;
-      const resisted = Math.min(24, Math.pow(pull, 0.68) * 1.4);
+    } else if (x > usableWidth) {
+      const pull = x - usableWidth;
+      const resisted = Math.min(20, Math.pow(pull, 0.68) * 1.4);
       return { ratio: 1, offset: resisted };
     } else {
-      return { ratio: Math.max(0, Math.min(1, x / width)), offset: 0 };
+      return { ratio: Math.max(0, Math.min(1, x / usableWidth)), offset: 0 };
     }
   };
 
@@ -128,7 +131,9 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const fillWidth =
     elasticOffset < 0
       ? -elasticOffset
-      : `calc(${percent}% + ${elasticOffset}px)`;
+      : percent <= 0 && elasticOffset >= 0
+      ? '0%'
+      : `calc(${halfThumb}px + (${percent} * (100% - ${thumbWidth}px) / 100) + ${elasticOffset}px)`;
 
   const transitionStyle = isDragging
     ? 'none'
@@ -192,11 +197,11 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
 
       {/* Fuwad Liquid Glass Elastic Thumb Head */}
       <div
-        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none z-10 transition-opacity duration-150 ${
+        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing z-20 pointer-events-auto touch-none transition-opacity duration-150 ${
           isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}
         style={{
-          left: `calc(${percent}% + ${elasticOffset}px)`,
+          left: `calc(${halfThumb}px + (${percent} * (100% - ${thumbWidth}px) / 100) + ${elasticOffset}px)`,
           transition: isDragging
             ? 'none'
             : isSnapping
@@ -292,7 +297,9 @@ export default function MiniPlayer() {
     if (!volumeTrackRef.current) return;
     const rect = volumeTrackRef.current.getBoundingClientRect();
     if (rect.width <= 0) return;
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const usableWidth = Math.max(1, rect.width - 32);
+    const clickX = clientX - rect.left - 16;
+    const ratio = Math.max(0, Math.min(1, clickX / usableWidth));
     setVolume(ratio);
     if (isMuted && ratio > 0) toggleMute();
   };
@@ -860,15 +867,22 @@ export default function MiniPlayer() {
                 <div className="w-full h-[5px] bg-white/15 dark:bg-white/10 group-hover:h-[6px] rounded-full overflow-hidden transition-all duration-150 relative border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]">
                   <div
                     className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full group-hover:from-[var(--color-accent)] group-hover:to-rose-500 transition-all shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                    style={{ width: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
+                    style={{
+                      width:
+                        (isMuted ? 0 : volume) <= 0
+                          ? '0%'
+                          : `calc(16px + (${((isMuted ? 0 : volume) * 100).toFixed(1)} * (100% - 32px) / 100))`,
+                    }}
                   />
                 </div>
                 {/* Fuwad Liquid Glass Capsule Thumb */}
                 <div
-                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none transition-opacity duration-150 ${
+                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing z-20 pointer-events-auto touch-none transition-opacity duration-150 ${
                     isVolumeDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
-                  style={{ left: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
+                  style={{
+                    left: `calc(16px + (${((isMuted ? 0 : volume) * 100).toFixed(1)} * (100% - 32px) / 100))`,
+                  }}
                 >
                   <div
                     style={{

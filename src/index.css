@@ -737,12 +737,6 @@ input[type='range']:active::-moz-range-thumb {
   transform: scale3d(1.06, 1.06, 1);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 14px 2px rgba(59, 130, 246, 0.6);
 }
-input[type='range']:active::-moz-range-thumb {
-  cursor: grabbing;
-  width: 38px;
-  transform: scale3d(1.1, 1.1, 1);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38), 0 0 14px 2px rgba(59, 130, 246, 0.6);
-}
 
 /* Rhythmic Studio Equalizer Bars (GPU scaleY instead of layout height reflow!) */
 @keyframes eq-bar-1 {

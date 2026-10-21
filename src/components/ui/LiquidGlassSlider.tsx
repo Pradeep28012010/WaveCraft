@@ -19,16 +19,13 @@ export interface LiquidGlassSliderProps {
 
 /**
  * Liquid Glass Slider
- * Exactly matching Fuwad.design's Figma project and the user-provided screenshot
- * (media_1792555652864_80790039.png).
- *
- * Features:
- * - 7px high translucent glass tube track with rounded ends
+ * Exactly matching Fuwad.design's Figma project and the user screenshots:
+ * - 7px translucent glass tube track with rounded ends
  * - 48px × 28px wide horizontal porcelain-glass capsule pill thumb (14px rounded)
  * - Tactile indented center grip notch (18px × 4px)
- * - Surface gradient: pure white to cool lavender-slate with crisp specular highlights
- * - 120fps pointer capture engine with 36px touch hit target and zero gesture collisions
- * - Tactile haptic ticks and double-click to reset
+ * - Zero dead zones: 100% draggable anywhere on the pill (left side, center, right side)
+ * - Fluid offset-preserving drag on the pill + instant tap-to-seek on the track
+ * - 120fps pointer capture engine inside 36px touch hit area
  */
 export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
   value,
@@ -46,8 +43,10 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
   showValueBadge = false,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
   const [isHovered, setIsHovered] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
+  const dragOffsetRef = useRef(0);
   const activeValueRef = useRef(value);
   activeValueRef.current = value;
 
@@ -68,21 +67,66 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
   const clampedVal = Math.min(max, Math.max(min, value));
   const range = max - min;
   const percent = range > 0 ? ((clampedVal - min) / range) * 100 : 0;
+  const percentRef = useRef(percent);
+  percentRef.current = percent;
+
+  // Thumb geometry constants
+  const thumbWidth = 48;
+  const halfThumb = thumbWidth / 2; // 24px
 
   const updateFromPointer = useCallback(
-    (clientX: number) => {
+    (clientX: number, isInitialPress = false) => {
       if (!trackRef.current) return;
       const rect = trackRef.current.getBoundingClientRect();
-      const rawPct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      const usableWidth = Math.max(1, rect.width - thumbWidth);
+
+      if (isInitialPress) {
+        // Current thumb center coordinate on screen
+        const currentThumbCenterX = rect.left + halfThumb + (percentRef.current / 100) * usableWidth;
+        const distFromCenter = clientX - currentThumbCenterX;
+
+        // If the pointer down is anywhere on the pill body (generous ±30px hit zone)
+        if (Math.abs(distFromCenter) <= halfThumb + 6) {
+          // Preserve the grab offset so dragging starts smoothly from wherever on the pill it was touched
+          dragOffsetRef.current = distFromCenter;
+          return;
+        } else {
+          // Direct click on the track: jump directly to that point
+          dragOffsetRef.current = 0;
+          const trackPct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+          const rawVal = min + trackPct * range;
+          const steppedVal = Math.round((rawVal - min) / step) * step + min;
+          const finalVal = Math.min(max, Math.max(min, Number(steppedVal.toFixed(4))));
+          if (finalVal !== activeValueRef.current) {
+            activeValueRef.current = finalVal;
+            onChange(finalVal);
+          }
+          return;
+        }
+      }
+
+      // Calculate new position using the grab offset
+      const effectiveClientX = clientX - dragOffsetRef.current;
+      const clickX = effectiveClientX - rect.left - halfThumb;
+
+      // Smooth edge reversal damping
+      if (clickX < 0) {
+        dragOffsetRef.current = Math.max(dragOffsetRef.current, clientX - rect.left - halfThumb);
+      } else if (clickX > usableWidth) {
+        dragOffsetRef.current = Math.min(dragOffsetRef.current, clientX - rect.left - halfThumb - usableWidth);
+      }
+
+      const rawPct = Math.min(1, Math.max(0, clickX / usableWidth));
       const rawVal = min + rawPct * range;
-      const steppedVal = Math.round(rawVal / step) * step;
+      const steppedVal = Math.round((rawVal - min) / step) * step + min;
       const finalVal = Math.min(max, Math.max(min, Number(steppedVal.toFixed(4))));
 
       if (finalVal !== activeValueRef.current) {
+        activeValueRef.current = finalVal;
         onChange(finalVal);
       }
     },
-    [min, max, step, range, onChange]
+    [min, max, step, range, halfThumb, thumbWidth, onChange]
   );
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -90,27 +134,30 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
     e.stopPropagation();
     e.nativeEvent?.stopImmediatePropagation?.();
     e.currentTarget.setPointerCapture(e.pointerId);
+    isDraggingRef.current = true;
     setIsDragging(true);
     triggerAndroidHaptic('light');
-    updateFromPointer(e.clientX);
+    updateFromPointer(e.clientX, true);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isDragging) {
+    if (isDraggingRef.current) {
       e.stopPropagation();
       e.nativeEvent?.stopImmediatePropagation?.();
-      updateFromPointer(e.clientX);
+      updateFromPointer(e.clientX, false);
     }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
+    if (!isDraggingRef.current) return;
     e.stopPropagation();
     e.nativeEvent?.stopImmediatePropagation?.();
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
+    isDraggingRef.current = false;
     setIsDragging(false);
+    dragOffsetRef.current = 0;
     triggerAndroidHaptic('medium');
     onChangeEnd?.(activeValueRef.current);
   };
@@ -146,7 +193,7 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
         </div>
       )}
 
-      {/* Main Touch Slider Region (36px comfortable hit target) */}
+      {/* Main Touch Slider Region (36px comfortable hit target encompassing the full pill travel) */}
       <div
         ref={trackRef}
         role="slider"
@@ -182,24 +229,31 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
             onChangeEnd?.(max);
           }
         }}
-        className="relative h-9 flex items-center cursor-pointer touch-none group"
+        className="relative h-9 w-full flex items-center cursor-pointer touch-none group select-none"
       >
-        {/* Track Bar (Sleek 7px glass tube with subtle translucent border and inner groove) */}
+        {/* Track Bar (Sleek 7px glass tube with rounded caps) */}
         <div className="w-full h-[7px] rounded-full bg-white/[0.08] dark:bg-white/[0.06] backdrop-blur-md relative overflow-hidden border border-white/[0.14] shadow-[inset_0_1px_2px_rgba(0,0,0,0.35)] transition-all duration-200">
           {/* Active Filled Progress Bar */}
           <div
             className={`h-full bg-gradient-to-r ${currentGradient} rounded-full transition-all ${
               isDragging ? 'duration-0' : 'duration-100 ease-out'
             }`}
-            style={{ width: `${percent}%` }}
+            style={{
+              width:
+                percent <= 0
+                  ? '0%'
+                  : percent >= 100
+                  ? '100%'
+                  : `calc(24px + (${percent} * (100% - 48px) / 100))`,
+            }}
           />
         </div>
 
-        {/* Liquid Glass Capsule Pill Thumb (Exact match to media_1792555652864_80790039.png: 48px × 28px) */}
+        {/* Liquid Glass Capsule Pill Thumb (Exact 48px × 28px squircle - 100% Draggable Anywhere on the Pill) */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none will-change-transform z-20"
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing will-change-transform z-20 pointer-events-auto touch-none"
           style={{
-            left: `${percent}%`,
+            left: `calc(24px + (${percent} * (100% - 48px) / 100))`,
             transition: isDragging
               ? 'transform 100ms ease-out'
               : 'left 100ms ease-out, transform 150ms ease-out',
@@ -224,9 +278,9 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
             className="relative flex items-center justify-center overflow-hidden"
           >
             {/* Top Specular Arc Highlight */}
-            <div className="absolute top-[1.5px] inset-x-2.5 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
+            <div className="absolute top-[1.5px] inset-x-2.5 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95 pointer-events-none" />
 
-            {/* Tactile Horizontal Center Grip Notch (Exact match to media_1792555652864_80790039.png) */}
+            {/* Tactile Horizontal Center Grip Notch */}
             <div
               style={{
                 width: '18px',
@@ -235,6 +289,7 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
                 backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(255, 255, 255, 0.7)',
               }}
+              className="pointer-events-none"
             />
           </div>
 

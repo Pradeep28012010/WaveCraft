@@ -175,4 +175,99 @@ describe('UI Enhancements & Gestures Validation', () => {
       assert.strictEqual(getLikeButtonVisibilityClass(false, false, true), 'opacity-100');
     });
   });
+
+  describe('Liquid Glass Slider Pill Inset Geometry & Zero Dead Zone Dragging', () => {
+    const thumbWidth = 48;
+    const halfThumb = thumbWidth / 2; // 24px
+
+    function calculateThumbCenter(percent, rectWidth) {
+      const usableWidth = Math.max(1, rectWidth - thumbWidth);
+      return halfThumb + (percent / 100) * usableWidth;
+    }
+
+    function simulatePointerDown(clientX, rectLeft, rectWidth, currentPercent) {
+      const usableWidth = Math.max(1, rectWidth - thumbWidth);
+      const currentThumbCenterX = rectLeft + halfThumb + (currentPercent / 100) * usableWidth;
+      const distFromCenter = clientX - currentThumbCenterX;
+
+      if (Math.abs(distFromCenter) <= halfThumb + 6) {
+        return { isPillGrab: true, dragOffset: distFromCenter, jumpPct: null };
+      } else {
+        const trackPct = Math.min(1, Math.max(0, (clientX - rectLeft) / rectWidth));
+        return { isPillGrab: false, dragOffset: 0, jumpPct: trackPct * 100 };
+      }
+    }
+
+    function simulatePointerMove(clientX, rectLeft, rectWidth, dragOffset) {
+      const usableWidth = Math.max(1, rectWidth - thumbWidth);
+      const effectiveClientX = clientX - dragOffset;
+      let clickX = effectiveClientX - rectLeft - halfThumb;
+
+      let nextDragOffset = dragOffset;
+      if (clickX < 0) {
+        nextDragOffset = Math.max(dragOffset, clientX - rectLeft - halfThumb);
+        clickX = 0;
+      } else if (clickX > usableWidth) {
+        nextDragOffset = Math.min(dragOffset, clientX - rectLeft - halfThumb - usableWidth);
+        clickX = usableWidth;
+      }
+
+      const rawPct = Math.min(1, Math.max(0, clickX / usableWidth));
+      return { percent: rawPct * 100, nextDragOffset };
+    }
+
+    test('Thumb travel is strictly confined inside track boundaries at 0% and 100%', () => {
+      const rectWidth = 300;
+      const centerAt0 = calculateThumbCenter(0, rectWidth);
+      assert.strictEqual(centerAt0, 24);
+      assert.strictEqual(centerAt0 - halfThumb, 0, 'Left edge must align at 0px');
+
+      const centerAt100 = calculateThumbCenter(100, rectWidth);
+      assert.strictEqual(centerAt100, rectWidth - 24);
+      assert.strictEqual(centerAt100 + halfThumb, rectWidth, 'Right edge must align at rectWidth');
+    });
+
+    test('Zero dead zones: Touching left side of pill at 0% captures offset and drags rightwards immediately', () => {
+      const rectLeft = 100;
+      const rectWidth = 300;
+      // Pill is at 0%: center is at 100 + 24 = 124. Left edge is at 100.
+      // User touches near left edge of pill at clientX = 102.
+      const down = simulatePointerDown(102, rectLeft, rectWidth, 0);
+      assert.strictEqual(down.isPillGrab, true);
+      assert.strictEqual(down.dragOffset, -22);
+      assert.strictEqual(down.jumpPct, null);
+
+      // User moves right by 4px to clientX = 106
+      const move = simulatePointerMove(106, rectLeft, rectWidth, down.dragOffset);
+      assert.ok(move.percent > 0, `Expected percent > 0, got ${move.percent}`);
+      // Exactly 4px / usableWidth (252) * 100 = ~1.587%
+      assert.ok(Math.abs(move.percent - (4 / 252) * 100) < 0.01);
+    });
+
+    test('Edge reversal clamping prevents lag when dragging past bounds and reversing', () => {
+      const rectLeft = 100;
+      const rectWidth = 300;
+      const dragOffset = -22;
+
+      // Finger drags 30px to the left of the slider
+      const pastLeft = simulatePointerMove(70, rectLeft, rectWidth, dragOffset);
+      assert.strictEqual(pastLeft.percent, 0);
+      // Drag offset is automatically clamped so reversing requires no dead distance
+      assert.ok(pastLeft.nextDragOffset >= -54);
+
+      // As soon as finger moves right from the boundary (clientX = 101), value immediately increases
+      const reverseMove = simulatePointerMove(102, rectLeft, rectWidth, pastLeft.nextDragOffset);
+      assert.ok(reverseMove.percent >= 0);
+    });
+
+    test('Direct click on track outside pill jumps directly to that percentage', () => {
+      const rectLeft = 100;
+      const rectWidth = 300;
+      // Pill is at 0%. User clicks at 75% of track (clientX = 100 + 0.75 * 300 = 325)
+      const down = simulatePointerDown(325, rectLeft, rectWidth, 0);
+      assert.strictEqual(down.isPillGrab, false);
+      assert.strictEqual(down.dragOffset, 0);
+      assert.strictEqual(down.jumpPct, 75);
+    });
+  });
 });

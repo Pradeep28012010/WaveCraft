@@ -103,8 +103,15 @@ function AppleFluidSlider({
   onReset?: () => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
   const trackRef = useRef<HTMLDivElement>(null);
+  const dragOffsetRef = useRef(0);
+  const activeValueRef = useRef(value);
+  activeValueRef.current = value;
+
   const percent = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+  const percentRef = useRef(percent);
+  percentRef.current = percent;
 
   const accentGradients = {
     cyan: 'from-cyan-500 via-sky-400 to-blue-500',
@@ -114,15 +121,59 @@ function AppleFluidSlider({
     emerald: 'from-emerald-400 via-teal-400 to-cyan-500'
   };
 
-  const updateFromPointer = (clientX: number) => {
+  const thumbWidth = 44;
+  const halfThumb = thumbWidth / 2; // 22px
+  const range = max - min;
+
+  const updateFromPointer = (clientX: number, isInitialPress = false) => {
     if (!trackRef.current) return;
     const rect = trackRef.current.getBoundingClientRect();
     if (rect.width <= 0) return;
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const rawVal = min + ratio * (max - min);
+    const usableWidth = Math.max(1, rect.width - thumbWidth);
+
+    if (isInitialPress) {
+      const currentThumbCenterX = rect.left + halfThumb + (percentRef.current / 100) * usableWidth;
+      const distFromCenter = clientX - currentThumbCenterX;
+
+      // If touched anywhere on the pill body (±28px hit zone)
+      if (Math.abs(distFromCenter) <= halfThumb + 6) {
+        dragOffsetRef.current = distFromCenter;
+        return;
+      } else {
+        // Direct click on the track: jump directly to that point
+        dragOffsetRef.current = 0;
+        const trackPct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+        const rawVal = min + trackPct * range;
+        const stepped = Math.round((rawVal - min) / step) * step + min;
+        const clamped = Math.max(min, Math.min(max, stepped));
+        const finalVal = Number(clamped.toFixed(4));
+        if (finalVal !== activeValueRef.current) {
+          activeValueRef.current = finalVal;
+          onChange(finalVal);
+        }
+        return;
+      }
+    }
+
+    const effectiveClientX = clientX - dragOffsetRef.current;
+    const clickX = effectiveClientX - rect.left - halfThumb;
+
+    // Edge reversal damping
+    if (clickX < 0) {
+      dragOffsetRef.current = Math.max(dragOffsetRef.current, clientX - rect.left - halfThumb);
+    } else if (clickX > usableWidth) {
+      dragOffsetRef.current = Math.min(dragOffsetRef.current, clientX - rect.left - halfThumb - usableWidth);
+    }
+
+    const ratio = Math.max(0, Math.min(1, clickX / usableWidth));
+    const rawVal = min + ratio * range;
     const stepped = Math.round((rawVal - min) / step) * step + min;
     const clamped = Math.max(min, Math.min(max, stepped));
-    onChange(Number(clamped.toFixed(4)));
+    const finalVal = Number(clamped.toFixed(4));
+    if (finalVal !== activeValueRef.current) {
+      activeValueRef.current = finalVal;
+      onChange(finalVal);
+    }
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -131,26 +182,29 @@ function AppleFluidSlider({
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {}
+    isDraggingRef.current = true;
     setIsDragging(true);
     triggerAndroidHaptic('light');
-    updateFromPointer(e.clientX);
+    updateFromPointer(e.clientX, true);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isDragging) {
+    if (isDraggingRef.current) {
       e.stopPropagation();
       e.nativeEvent?.stopImmediatePropagation?.();
-      updateFromPointer(e.clientX);
+      updateFromPointer(e.clientX, false);
     }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isDragging) {
+    if (isDraggingRef.current) {
       e.stopPropagation();
       try {
         e.currentTarget.releasePointerCapture(e.pointerId);
       } catch {}
+      isDraggingRef.current = false;
       setIsDragging(false);
+      dragOffsetRef.current = 0;
       triggerAndroidHaptic('medium');
     }
   };
@@ -177,7 +231,7 @@ function AppleFluidSlider({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        className="relative h-8 -my-1 flex items-center cursor-pointer touch-none"
+        className="relative h-8 -my-1 flex items-center cursor-pointer touch-none select-none"
         role="slider"
         aria-label={label}
         aria-valuenow={value}
@@ -198,15 +252,22 @@ function AppleFluidSlider({
         <div className="w-full h-[7px] rounded-full bg-white/[0.08] dark:bg-white/[0.06] backdrop-blur-md relative overflow-hidden border border-white/[0.14] shadow-[inset_0_1px_2px_rgba(0,0,0,0.35)]">
           <div
             className={`h-full bg-gradient-to-r ${accentGradients[accentColor]} ${isDragging ? 'transition-none' : 'transition-all duration-75'}`}
-            style={{ width: `${percent}%` }}
+            style={{
+              width:
+                percent <= 0
+                  ? '0%'
+                  : percent >= 100
+                  ? '100%'
+                  : `calc(${halfThumb}px + (${percent} * (100% - ${thumbWidth}px) / 100))`
+            }}
           />
         </div>
 
-        {/* Liquid Glass Capsule Thumb (Fuwad design: 44px × 26px with center grip notch) */}
+        {/* Liquid Glass Capsule Thumb (Fuwad design: 44px × 26px with center grip notch - 100% draggable anywhere) */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none will-change-transform z-20"
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing will-change-transform z-20 pointer-events-auto touch-none"
           style={{
-            left: `${percent}%`,
+            left: `calc(${halfThumb}px + (${percent} * (100% - ${thumbWidth}px) / 100))`,
             transition: isDragging ? 'transform 100ms ease-out' : 'left 75ms ease-out, transform 150ms ease-out'
           }}
         >
@@ -228,7 +289,7 @@ function AppleFluidSlider({
             className="relative flex items-center justify-center overflow-hidden"
           >
             {/* Top Specular Arc Line */}
-            <div className="absolute top-[1.5px] inset-x-2.5 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
+            <div className="absolute top-[1.5px] inset-x-2.5 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95 pointer-events-none" />
             {/* Tactile Center Grip Notch */}
             <div
               style={{
@@ -238,6 +299,7 @@ function AppleFluidSlider({
                 backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(255, 255, 255, 0.7)'
               }}
+              className="pointer-events-none"
             />
           </div>
         </div>
