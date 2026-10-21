@@ -297,9 +297,7 @@ export default function MiniPlayer() {
     if (!volumeTrackRef.current) return;
     const rect = volumeTrackRef.current.getBoundingClientRect();
     if (rect.width <= 0) return;
-    const usableWidth = Math.max(1, rect.width - 32);
-    const clickX = clientX - rect.left - 16;
-    const ratio = Math.max(0, Math.min(1, clickX / usableWidth));
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     setVolume(ratio);
     if (isMuted && ratio > 0) toggleMute();
   };
@@ -864,55 +862,19 @@ export default function MiniPlayer() {
                 aria-valuemin={0}
                 aria-valuemax={100}
               >
-                <div className="w-full h-[5px] bg-white/15 dark:bg-white/10 group-hover:h-[6px] rounded-full overflow-hidden transition-all duration-150 relative border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]">
+                <div className="w-full h-1.5 bg-white/20 group-hover:h-2 rounded-full overflow-hidden transition-all duration-150 relative border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]">
                   <div
                     className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full group-hover:from-[var(--color-accent)] group-hover:to-rose-500 transition-all shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                    style={{
-                      width:
-                        (isMuted ? 0 : volume) <= 0
-                          ? '0%'
-                          : `calc(16px + (${((isMuted ? 0 : volume) * 100).toFixed(1)} * (100% - 32px) / 100))`,
-                    }}
+                    style={{ width: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
                   />
                 </div>
-                {/* Fuwad Liquid Glass Capsule Thumb */}
+                {/* Elevated subtle thumb on hover/drag */}
                 <div
-                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing z-20 pointer-events-auto touch-none transition-opacity duration-150 ${
-                    isVolumeDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  className={`absolute w-3 h-3 rounded-full bg-white shadow-md top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none transition-transform duration-100 ${
+                    isVolumeDragging ? 'scale-125 opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
-                  style={{
-                    left: `calc(16px + (${((isMuted ? 0 : volume) * 100).toFixed(1)} * (100% - 32px) / 100))`,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: isVolumeDragging ? '36px' : '32px',
-                      height: '18px',
-                      borderRadius: '9px',
-                      background: 'linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%)',
-                      border: '1px solid rgba(255, 255, 255, 0.95)',
-                      boxShadow: isVolumeDragging
-                        ? '0 6px 16px rgba(0, 0, 0, 0.45), 0 0 10px 1px rgba(59, 130, 246, 0.5)'
-                        : '0 3px 10px rgba(0, 0, 0, 0.3), 0 0 6px 1px rgba(59, 130, 246, 0.35)',
-                      backdropFilter: 'blur(8px)',
-                      WebkitBackdropFilter: 'blur(8px)',
-                      transform: isVolumeDragging ? 'scale(1.05)' : 'scale(1)',
-                      transition: 'width 150ms ease-out, transform 150ms ease-out'
-                    }}
-                    className="relative flex items-center justify-center overflow-hidden"
-                  >
-                    <div className="absolute top-[1px] inset-x-1.5 h-[1px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
-                    <div
-                      style={{
-                        width: '12px',
-                        height: '3px',
-                        borderRadius: '9999px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(255, 255, 255, 0.7)'
-                      }}
-                    />
-                  </div>
-                </div>
+                  style={{ left: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
+                />
               </div>
             </div>
 

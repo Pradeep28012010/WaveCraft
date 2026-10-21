@@ -688,54 +688,48 @@ input[type='range']:hover {
   background-clip: content-box;
 }
 
-/* Liquid Glass Capsule Pill Thumb (Webkit - Exact match to media_1792555652864_80790039.png) */
+/* Sleek Native Range Input Thumb */
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 44px;
-  height: 26px;
-  border-radius: 13px;
-  background: linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #FFFFFF;
   border: 1px solid rgba(255, 255, 255, 0.95);
   cursor: grab;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.15), inset 0 1.5px 2px #FFFFFF, inset 0 -1.5px 2px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: width 0.15s ease-out, transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease-out;
 }
 input[type='range']:hover::-webkit-slider-thumb {
-  width: 48px;
-  transform: scale3d(1.03, 1.03, 1);
-  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.4), 0 0 10px 1px rgba(59, 130, 246, 0.45);
+  transform: scale(1.15);
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.5);
 }
 input[type='range']:active::-webkit-slider-thumb {
   cursor: grabbing;
-  width: 52px;
-  transform: scale3d(1.06, 1.06, 1);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 14px 2px rgba(59, 130, 246, 0.6);
+  transform: scale(1.25);
+  box-shadow: 0 3px 12px rgba(59, 130, 246, 0.7);
 }
 
-/* Liquid Glass Capsule Pill Thumb (Firefox) */
+/* Native Range Input Thumb (Firefox) */
 input[type='range']::-moz-range-thumb {
-  width: 44px;
-  height: 26px;
-  border-radius: 13px;
-  background: linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #FFFFFF;
   border: 1px solid rgba(255, 255, 255, 0.95);
   cursor: grab;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.15), inset 0 1.5px 2px #FFFFFF, inset 0 -1.5px 2px rgba(0, 0, 0, 0.08);
-  transition: width 0.15s ease-out, transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease-out;
 }
 input[type='range']:hover::-moz-range-thumb {
-  width: 48px;
-  transform: scale3d(1.03, 1.03, 1);
-  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.4), 0 0 10px 1px rgba(59, 130, 246, 0.45);
+  transform: scale(1.15);
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.5);
 }
 input[type='range']:active::-moz-range-thumb {
   cursor: grabbing;
-  width: 52px;
-  transform: scale3d(1.06, 1.06, 1);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 14px 2px rgba(59, 130, 246, 0.6);
+  transform: scale(1.25);
+  box-shadow: 0 3px 12px rgba(59, 130, 246, 0.7);
 }
 
 /* Rhythmic Studio Equalizer Bars (GPU scaleY instead of layout height reflow!) */
