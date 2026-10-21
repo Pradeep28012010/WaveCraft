@@ -7,6 +7,8 @@ import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { SPOTIFY_TRENDING_CATEGORIES } from '../../services/youtube';
 import { preloadTrackArtworks } from '../../utils/imagePreloader';
+import { shuffleArray } from '../../utils/shuffle';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 interface TrendingSectionProps {
   tracks: Track[];
@@ -73,7 +75,44 @@ function TrendingSection({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+          {tracks.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('medium');
+                  onPlayTrack(tracks[0], tracks, 0);
+                }}
+                className="px-3.5 py-1.5 rounded-full glass-button-primary text-white text-xs font-black flex items-center gap-1.5 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                title="Play entire chart"
+              >
+                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                <span>Play All</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerAndroidHaptic('medium');
+                  const shuffled = shuffleArray([...tracks]);
+                  onPlayTrack(shuffled[0], shuffled, 0);
+                }}
+                className="px-3 py-1.5 rounded-full glass-button text-white/80 hover:text-white text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                title="Shuffle chart"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="16 3 21 3 21 8" />
+                  <line x1="4" y1="20" x2="21" y2="3" />
+                  <polyline points="21 16 21 21 16 21" />
+                  <line x1="15" y1="15" x2="21" y2="21" />
+                  <line x1="4" y1="4" x2="9" y2="9" />
+                </svg>
+                <span>Shuffle</span>
+              </button>
+            </>
+          )}
           <button
             onClick={() => scroll('left')}
             className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white cursor-pointer active:scale-90 transition-transform"
@@ -174,9 +213,21 @@ function TrendingSection({
                     isActive ? 'shadow-[0_8px_25px_rgba(250,45,72,0.3)] ring-1 ring-[var(--color-accent)]/40' : ''
                   }`}>
                     {/* Top Chart Rank Badge: #01, #02... */}
-                    <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-black tracking-tight text-white/95 shadow-sm border-0 flex items-center gap-0.5">
-                      <span className="text-[var(--color-accent)] font-black text-[11px]">#</span>
-                      <span className="tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                    <div className={`absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full backdrop-blur-md text-[10px] font-black tracking-tight shadow-sm border-0 flex items-center gap-1 ${
+                      i === 0
+                        ? 'bg-amber-400 text-black font-black shadow-[0_0_12px_rgba(251,191,36,0.6)]'
+                        : i === 1
+                        ? 'bg-zinc-200 text-black font-black'
+                        : i === 2
+                        ? 'bg-amber-700 text-white font-black'
+                        : 'bg-black/70 text-white/95'
+                    }`}>
+                      {i === 0 ? <span>👑 #01</span> : (
+                        <>
+                          <span className={i < 3 ? 'font-black' : 'text-[var(--color-accent)] font-black'}>#</span>
+                          <span className="tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                        </>
+                      )}
                     </div>
 
                     {/* Dedicated 3-Dots Action Button for mobile & desktop */}
