@@ -176,7 +176,7 @@ export async function fetchYouTubeSearch(query, limit = 25) {
       else if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
 
       const wantsLong = /\b(mix|playlist|compilation|jukebox|hours?|live\s*stream)\b/i.test(clean);
-      if (seconds < 45 || (!wantsLong && seconds > 900)) continue;
+      if (seconds < 55 || (!wantsLong && seconds > 900)) continue;
 
       const rawTitle = v.title?.runs?.[0]?.text || 'Unknown Title';
       const rawAuthor =
@@ -185,11 +185,11 @@ export async function fetchYouTubeSearch(query, limit = 25) {
         'WaveCraft Cloud';
 
       const JUNK_DISCARD_REGEX =
-        /\b(karaoke|minus\s*one|backing\s*track|no\s*vocals?|without\s*vocals?|vocal\s*cut|off\s*vocal|sing\s*along|maa\s*paata\s*mee\s*nota|dance\s*performance|dance\s*cover|choreography|choreographed|duet\s*dance|college\s*dance|stage\s*performance|drama\s*company|reactions?|review|tutorial|lesson|ringtone|whatsapp\s*status|shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i;
+        /\b(karaoke|minus\s*one|backing\s*track|no\s*vocals?|without\s*vocals?|vocal\s*cut|off\s*vocal|sing\s*along|maa\s*paata\s*mee\s*nota|dance\s*performance|dance\s*cover|choreography|choreographed|duet\s*dance|college\s*dance|stage\s*performance|drama\s*company|reactions?|review|tutorial|lesson|ringtone|whatsapp\s*status|shorts|#shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i;
 
-      // Discard ringtones, whatsapp status, dance performance, and karaoke videos if user didn't ask for instrumental
+      // Discard ringtones, whatsapp status, dance performance, shorts, and karaoke videos if user didn't ask for instrumental
       if (!wantsInstrumental) {
-        if (JUNK_DISCARD_REGEX.test(rawTitle) || JUNK_DISCARD_REGEX.test(rawAuthor)) {
+        if (JUNK_DISCARD_REGEX.test(rawTitle) || JUNK_DISCARD_REGEX.test(rawAuthor) || /#shorts\b/i.test(rawTitle)) {
           continue;
         }
       }
@@ -295,28 +295,49 @@ export async function fetchSpotifyTrending(categoryKey = 'global') {
               thumbnail: playlistCover,
               thumbnailLarge: playlistCover,
               thumbnailUrl: playlistCover,
-              audioUrl: t.audioPreview?.url || undefined,
+              audioUrl: undefined,
               audioPreviewUrl: t.audioPreview?.url || undefined,
               spotifyUri: t.uri || `spotify:track:${tid}`,
               quality: 'Spotify Master'
             };
           });
 
-          // Pre-resolve YouTube IDs for the top tracks in parallel batches for zero-latency, verified playback
+          // Pre-resolve YouTube IDs for the top tracks in parallel batches for zero-latency, full-length playback
           const candidatesToResolve = mappedTracks.slice(0, 30);
           const resolvedTracks = [];
           const seenVideoIds = new Set();
 
-          for (let b = 0; b < candidatesToResolve.length; b += 8) {
-            const batch = candidatesToResolve.slice(b, b + 8);
+          for (let b = 0; b < candidatesToResolve.length; b += 6) {
+            const batch = candidatesToResolve.slice(b, b + 6);
             const batchResults = await Promise.allSettled(
-              batch.map((tr) => fetchYouTubeSearch(`${tr.title} ${tr.artist}`, 2))
+              batch.map((tr) => fetchYouTubeSearch(`${tr.title} ${tr.artist} audio`, 5))
             );
 
             batch.forEach((tr, idx) => {
               const res = batchResults[idx];
               if (res.status === 'fulfilled' && Array.isArray(res.value) && res.value.length > 0) {
-                const matched = res.value[0];
+                const candidates = res.value;
+                const targetDur = tr.duration || 210;
+
+                // Filter out shorts / teasers (< 60s when original song is >= 90s)
+                const validCandidates = candidates.filter(
+                  (c) =>
+                    c.youtubeId &&
+                    !seenVideoIds.has(c.youtubeId) &&
+                    (targetDur >= 90 ? (c.duration || 0) >= 60 : (c.duration || 0) >= 30)
+                );
+
+                // Pick the candidate closest to target duration (avoiding snippets/reels)
+                let matched = null;
+                if (validCandidates.length > 0) {
+                  matched = validCandidates.reduce((best, curr) => {
+                    if (!best) return curr;
+                    const diffBest = Math.abs((best.duration || 210) - targetDur);
+                    const diffCurr = Math.abs((curr.duration || 210) - targetDur);
+                    return diffCurr < diffBest ? curr : best;
+                  }, null);
+                }
+
                 if (matched && matched.youtubeId && !seenVideoIds.has(matched.youtubeId)) {
                   seenVideoIds.add(matched.youtubeId);
                   tr.youtubeId = matched.youtubeId;

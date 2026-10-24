@@ -339,13 +339,22 @@ export function findStrictTrackMatch(
       score -= 600;
     }
 
+    // Reject shorts / teasers (< 60s when original song is >= 90s)
+    if (targetDuration >= 90 && cand.duration > 0 && cand.duration < 60) {
+      continue;
+    }
+    if (cand.duration > 0 && cand.duration < 40) {
+      continue;
+    }
+
     // Duration match
     if (targetDuration > 0 && cand.duration > 0) {
       const diff = Math.abs(cand.duration - targetDuration);
-      if (diff <= 5) score += 150;
-      else if (diff <= 15) score += 80;
-      else if (diff <= 35) score += 30;
-      else if (diff > 60) score -= 120;
+      if (diff <= 5) score += 200;
+      else if (diff <= 15) score += 120;
+      else if (diff <= 35) score += 50;
+      else if (diff > 60) score -= 300;
+      else if (diff > 90) score -= 600;
     }
 
     if (cand.youtubeId) score += 50;
@@ -654,7 +663,27 @@ export async function getTrending(category = 'global'): Promise<Track[]> {
       }
       if (res?.ok) {
         const data = await res.json();
-        const tracks: Track[] = data.tracks || data.youtube || [];
+        const rawTracks: Track[] = data.tracks || data.youtube || [];
+        const isPreviewUrl = (url?: string) =>
+          Boolean(
+            url &&
+              (url.includes('p.scdn.co') ||
+                url.includes('preview') ||
+                url.includes('itunes') ||
+                url.includes('audio-ssl') ||
+                url.includes('apple.com'))
+          );
+        const tracks: Track[] = rawTracks.map((t) => {
+          const hasPreviewInAudioUrl = isPreviewUrl(t.audioUrl);
+          const isShortDuration = Boolean(t.duration && t.duration < 60);
+          return {
+            ...t,
+            audioUrl: hasPreviewInAudioUrl ? undefined : t.audioUrl,
+            audioPreviewUrl: t.audioPreviewUrl || (hasPreviewInAudioUrl ? t.audioUrl : undefined),
+            youtubeId: isShortDuration ? undefined : t.youtubeId,
+            id: isShortDuration && t.id.startsWith('yt_') ? `sp_${t.id.replace('yt_', '')}` : t.id
+          };
+        });
         if (tracks.length > 0) {
           trendingCategoryCache.set(category, tracks);
           if (category === 'global') {

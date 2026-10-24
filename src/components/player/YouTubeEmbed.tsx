@@ -69,6 +69,9 @@ export default function YouTubeEmbed() {
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rampTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoCachedTracksRef = useRef<Set<string>>(new Set());
+  const shortDurationRetriedRef = useRef<Set<string>>(new Set());
+  const searchAndPlayYouTubeRef = useRef<((track: Track, shouldPlay: boolean) => void) | null>(null);
+  const fallbackToYouTubeRef = useRef<((track: Track, ytId: string, shouldPlay: boolean) => void) | null>(null);
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const queue = usePlayerStore((s) => s.queue);
@@ -234,8 +237,41 @@ export default function YouTubeEmbed() {
     const onLoadedMetadata = () => {
       if (getActiveEngine() !== 'audio') return;
       lastReportedTime = -1;
-      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
-        setDuration(audio.duration);
+      const dur = audio.duration;
+      const curTrack = usePlayerStore.getState().currentTrack;
+      const expectedDur = curTrack?.duration || 0;
+
+      // Detect and reject any 30-second preview clips mistakenly loaded into native audio
+      if (
+        dur > 0 &&
+        dur < 50 &&
+        expectedDur >= 90 &&
+        curTrack &&
+        !shortDurationRetriedRef.current.has(curTrack.id)
+      ) {
+        shortDurationRetriedRef.current.add(curTrack.id);
+        console.warn(`[WaveCraft] Audio source duration (${dur}s) is a 30s preview for "${curTrack.title}" (expected >= ${expectedDur}s). Rejecting preview...`);
+        audio.pause();
+        audio.src = '';
+        curTrack.audioUrl = undefined;
+        usePlayerStore.setState((s) => ({
+          currentTrack: s.currentTrack?.id === curTrack.id ? { ...s.currentTrack, audioUrl: undefined } : s.currentTrack,
+          queue: s.queue.map((t) => (t.id === curTrack.id ? { ...t, audioUrl: undefined } : t))
+        }));
+        const effYt =
+          curTrack.youtubeId ||
+          (curTrack.id.startsWith('yt_') ? curTrack.id.replace('yt_', '') : '') ||
+          (curTrack.id.startsWith('yt-') ? curTrack.id.replace('yt-', '') : '');
+        if (effYt) {
+          fallbackToYouTubeRef.current?.(curTrack, effYt, true);
+        } else {
+          searchAndPlayYouTubeRef.current?.(curTrack, true);
+        }
+        return;
+      }
+
+      if (dur && !isNaN(dur) && isFinite(dur)) {
+        setDuration(dur);
       }
       setIsLoading(false);
     };
@@ -598,6 +634,16 @@ export default function YouTubeEmbed() {
               usePlayerStore.setState({ isPlaying: true, isLoading: false });
               const dur = e.target.getDuration?.();
               if (dur && dur > 0) {
+                const curTrack = usePlayerStore.getState().currentTrack;
+                const expectedDur = curTrack?.duration || 0;
+                // If YouTube video is < 55s for a track expected to be >= 90s, it's a short/teaser, not the full song
+                if (dur < 55 && expectedDur >= 90 && curTrack && !shortDurationRetriedRef.current.has(curTrack.id)) {
+                  shortDurationRetriedRef.current.add(curTrack.id);
+                  console.warn(`[WaveCraft] YouTube video duration (${dur}s) is too short for "${curTrack.title}" (expected >= ${expectedDur}s). Re-querying full length version...`);
+                  curTrack.youtubeId = undefined;
+                  searchAndPlayYouTubeRef.current?.(curTrack, true);
+                  return;
+                }
                 usePlayerStore.getState().setDuration(dur);
               }
             } else if (state === window.YT?.PlayerState?.PAUSED) {
@@ -710,6 +756,7 @@ export default function YouTubeEmbed() {
 
   // Helper to fallback or play on YouTube IFrame
   const fallbackToYouTube = (_track: Track, effectiveYtId: string, shouldPlay: boolean) => {
+    fallbackToYouTubeRef.current = fallbackToYouTube;
     updateMediaSessionMetadata(_track);
     setActiveEngine('youtube');
     const audio = audioRef.current;
@@ -852,12 +899,16 @@ export default function YouTubeEmbed() {
           setIsLoading(false);
           const cur = usePlayerStore.getState().currentTrack;
           if (cur) cur.audioUrl = undefined;
-          const effectiveYtId =
-            cur?.youtubeId ||
-            (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
-            (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
+          const isSuspectShort = Boolean(cur?.duration && cur.duration < 60);
+          const effectiveYtId = isSuspectShort
+            ? ''
+            : cur?.youtubeId ||
+              (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
+              (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
           if (cur && effectiveYtId && (typeof navigator === 'undefined' || navigator.onLine)) {
             fallbackToYouTube(cur, effectiveYtId, true);
+          } else if (cur && (typeof navigator === 'undefined' || navigator.onLine)) {
+            searchAndPlayYouTube(cur, true);
           } else if (err?.name === 'NotAllowedError') {
             usePlayerStore.getState().pause();
           } else if (cur) {
@@ -980,6 +1031,14 @@ export default function YouTubeEmbed() {
         );
       };
 
+      if (track.audioUrl && isAudioPreviewUrl(track.audioUrl)) {
+        track.audioUrl = undefined;
+        usePlayerStore.setState((s) => ({
+          currentTrack: s.currentTrack?.id === track.id ? { ...s.currentTrack, audioUrl: undefined } : s.currentTrack,
+          queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: undefined } : t))
+        }));
+      }
+
       // 2. Direct 320kbps Audio Stream already available (MUST be full-length CDN stream, never 30s preview)
       const isDirectCdnStream =
         Boolean(track.audioUrl) &&
@@ -994,10 +1053,12 @@ export default function YouTubeEmbed() {
         return;
       }
 
-      const effectiveYtId =
-        track.youtubeId ||
-        (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
-        (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
+      const isSuspectShortId = Boolean(track.duration && track.duration < 60);
+      const effectiveYtId = isSuspectShortId
+        ? ''
+        : track.youtubeId ||
+          (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
+          (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
       // 3. If YouTube video ID is already known, give 320kbps resolution a fast 1200ms window.
       // If 320kbps direct stream resolves fast, use native audiophile DSP; otherwise start YouTube immediately!
@@ -1085,28 +1146,55 @@ export default function YouTubeEmbed() {
     const token = ++resolvingTokenRef.current;
     const { cleanTitle, cleanArtist } = cleanTrackQuery(track.title, track.artist);
     const primaryQuery = cleanArtist ? `${cleanTitle} ${cleanArtist}`.trim() : cleanTitle || `${track.title} ${track.artist}`.trim();
+    const isRetryShort = shortDurationRetriedRef.current.has(track.id);
+    const searchQuery = isRetryShort ? `${primaryQuery} audio`.trim() : primaryQuery;
 
-    searchTracks(primaryQuery)
+    searchTracks(searchQuery)
       .then(async (results) => {
         if (token !== resolvingTokenRef.current) return;
         if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
-        let best = findStrictTrackMatch(track.title, track.artist, results, track.duration);
+        const targetDur = track.duration || 210;
 
-        // Fallback: If title had extra noise, query with cleaned title
-        if (!best && cleanTitle && cleanTitle !== primaryQuery) {
+        // Filter out clips < 60s when the song is expected to be >= 90s
+        const validResults = results.filter((r) => {
+          if (targetDur >= 90 && r.duration > 0 && r.duration < 60) return false;
+          if (r.duration > 0 && r.duration < 35) return false;
+          return true;
+        });
+
+        let best = findStrictTrackMatch(track.title, track.artist, validResults.length > 0 ? validResults : results, targetDur);
+
+        // Fallback: If title had extra noise or no match, query with audio suffix or clean title
+        if (!best) {
           try {
-            const fallbackResults = await searchTracks(cleanTitle);
+            const fallbackQuery = `${cleanTitle} ${cleanArtist} audio`.trim();
+            const fallbackResults = await searchTracks(fallbackQuery);
             if (token !== resolvingTokenRef.current) return;
             if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-            best = findStrictTrackMatch(track.title, track.artist, fallbackResults, track.duration);
+            const validFallback = fallbackResults.filter((r) => {
+              if (targetDur >= 90 && r.duration > 0 && r.duration < 60) return false;
+              if (r.duration > 0 && r.duration < 35) return false;
+              return true;
+            });
+            best = findStrictTrackMatch(track.title, track.artist, validFallback.length > 0 ? validFallback : fallbackResults, targetDur);
           } catch {}
         }
 
         if (token !== resolvingTokenRef.current) return;
         if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
-        const resolved = best || (results.length > 0 ? results[0] : null);
+        let resolved = best;
+        if (!resolved && validResults.length > 0) {
+          resolved = validResults.reduce((closest, curr) => {
+            if (!closest) return curr;
+            const diffClosest = Math.abs((closest.duration || 210) - targetDur);
+            const diffCurr = Math.abs((curr.duration || 210) - targetDur);
+            return diffCurr < diffClosest ? curr : closest;
+          }, validResults[0]);
+        } else if (!resolved && results.length > 0) {
+          resolved = results[0];
+        }
 
         const ytid =
           resolved?.youtubeId ||
@@ -1146,6 +1234,8 @@ export default function YouTubeEmbed() {
         pruneAndSkipTrack(track.id);
       });
   };
+  searchAndPlayYouTubeRef.current = searchAndPlayYouTube;
+  fallbackToYouTubeRef.current = fallbackToYouTube;
 
   // Load new track when currentTrack changes
   useEffect(() => {

@@ -465,18 +465,18 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.2.4',
-        versionCode: 15,
-        releaseDate: '2026-10-21',
+        version: '5.2.5',
+        versionCode: 16,
+        releaseDate: '2026-10-25',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
-        title: 'WaveCraft Pro v5.2.3 (Seamless Liquid Glass & Dark Obsidian Studio)',
+        title: 'WaveCraft Pro v5.2.5 (Full-Length Global Charts & Audio Stream Perfection)',
         releaseNotes: [
+          'Full-Length Global Charts & Pulse: Strictly resolved full music audio tracks and rejected 30s preview snippets and teaser shorts.',
+          'Proactive Audio Stream Engine: Zero preview URLs in streaming audio pipeline with automatic fallback and duration validation.',
           'Deep Dark Obsidian Aesthetics: Clamped warm album color luminance (L <= 0.24) and unified ambient backdrops so the player strictly stays deep, dark, and moody across all songs.',
           'Seamless Liquid Glass Blending: Completely eliminated artificial diffuser strips, softened perimeter shadows, and centered radial gradient diffusion for zero boundary lines or dark stripes on cards.',
           'Smooth Waveform Visualizer: Retained audio envelope dynamics and unclipped atmospheric visualizer glow.',
-          'Fluid Liquid-Glass Navigation: Ultra-smooth gliding indicator and glint physics across all navigation tabs.',
-          'Atmosphere Studio Interactivity: Full touch and click event responsiveness across all soundscape layers, sliders, and presets.',
-          'Ultra-Fast Track Resolver: Instant 1200ms playback transition and concurrent audio stream racing for zero buffering dropouts.'
+          'Atmosphere Studio Interactivity: Full touch and click event responsiveness across all soundscape layers, sliders, and presets.'
         ],
         forceUpdate: false
       });

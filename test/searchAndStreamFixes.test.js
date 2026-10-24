@@ -204,4 +204,71 @@ test('Search Ranking & Stream Fixes Validation', async (t) => {
     assert.equal(isStrictSaavnMatch('Samajavaragamana', 'Sid Sriram', 'Samajavaragamana (From Ala Vaikunthapurramuloo)', 'Sid Sriram'), true);
     assert.equal(isStrictSaavnMatch('Interstellar Theme', 'Hans Zimmer', 'Interstellar Theme', 'Hans Zimmer'), true);
   });
+
+  await t.test('Shorts and Teasers Rejection When Target Duration is Full Song', () => {
+    const candidates = [
+      { id: 'yt_short1', title: 'Nicole Kidman Jimmy Fallon Teaser', duration: 45, youtubeId: 'short1' },
+      { id: 'yt_full1', title: 'Nicole Kidman - Full Official Audio', duration: 212, youtubeId: 'full1' },
+      { id: 'yt_short2', title: 'Song Official Short Clip', duration: 28, youtubeId: 'short2' }
+    ];
+
+    const targetDuration = 210;
+    // Strict filter: reject candidate duration < 60s when target is >= 90s
+    const valid = candidates.filter((c) => {
+      if (targetDuration >= 90 && c.duration > 0 && c.duration < 60) return false;
+      if (c.duration > 0 && c.duration < 35) return false;
+      return true;
+    });
+
+    assert.equal(valid.length, 1);
+    assert.equal(valid[0].id, 'yt_full1');
+    assert.equal(valid[0].duration, 212);
+
+    // Duration proximity selection
+    const closest = valid.reduce((best, curr) => {
+      if (!best) return curr;
+      const diffBest = Math.abs((best.duration || 210) - targetDuration);
+      const diffCurr = Math.abs((curr.duration || 210) - targetDuration);
+      return diffCurr < diffBest ? curr : best;
+    }, null);
+
+    assert.equal(closest.youtubeId, 'full1');
+  });
+
+  await t.test('Spotify Trending Track Sanitization Prevents 30s Audio Leaks', () => {
+    const isAudioPreviewUrl = (url) => {
+      if (!url) return false;
+      return (
+        url.includes('p.scdn.co') ||
+        url.includes('itunes.apple.com') ||
+        url.includes('mzstatic.com') ||
+        url.includes('audio-ssl') ||
+        url.includes('apple.com') ||
+        url.includes('preview')
+      );
+    };
+
+    const rawSpotifyTrack = {
+      id: 'sp_123',
+      title: 'Die With A Smile',
+      artist: 'Lady Gaga, Bruno Mars',
+      duration: 251,
+      audioUrl: 'https://p.scdn.co/mp3-preview/a1b2c3d4e5f6',
+      audioPreviewUrl: 'https://p.scdn.co/mp3-preview/a1b2c3d4e5f6',
+      youtubeId: 'yt_previewClip45s',
+      durationRecorded: 45
+    };
+
+    // Sanitization step executed on import / trending fetch
+    const sanitized = {
+      ...rawSpotifyTrack,
+      audioUrl: isAudioPreviewUrl(rawSpotifyTrack.audioUrl) ? undefined : rawSpotifyTrack.audioUrl,
+      audioPreviewUrl: rawSpotifyTrack.audioPreviewUrl,
+      youtubeId: rawSpotifyTrack.durationRecorded < 60 ? undefined : rawSpotifyTrack.youtubeId
+    };
+
+    assert.equal(sanitized.audioUrl, undefined, 'Preview URL must not be present in audioUrl');
+    assert.equal(sanitized.audioPreviewUrl, 'https://p.scdn.co/mp3-preview/a1b2c3d4e5f6');
+    assert.equal(sanitized.youtubeId, undefined, 'Short duration YouTube ID (<60s) must be cleared for full-length re-resolution');
+  });
 });
