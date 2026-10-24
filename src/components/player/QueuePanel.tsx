@@ -458,15 +458,16 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                 </button>
               </div>
 
-              {/* Segmented Tab Pill + Quick Actions */}
+              {/* Unified Liquid Glass Queue Toolbar - Single Sleek Action Bar */}
               <div className="flex items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass relative">
+                {/* Segmented Tab Pill: Up Next vs Played */}
+                <div className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass relative flex-shrink-0">
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
                       setActiveTab('upnext');
                     }}
-                    className="relative px-3.5 py-1 rounded-full text-[11px] font-bold cursor-pointer flex items-center gap-1.5 select-none"
+                    className="relative px-3.5 py-1.5 rounded-full text-[11px] font-bold cursor-pointer flex items-center gap-1.5 select-none"
                   >
                     {activeTab === 'upnext' && (
                       <motion.div
@@ -475,19 +476,23 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                         className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                       />
                     )}
-                    <span className={`relative z-10 transition-colors duration-150 ${
-                      activeTab === 'upnext' ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
-                    }`}>
+                    <span
+                      className={`relative z-10 transition-colors duration-150 ${
+                        activeTab === 'upnext'
+                          ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                          : 'text-white/60 hover:text-white'
+                      }`}
+                    >
                       Up Next
                     </span>
-                    <span className="relative z-10 text-[10px] opacity-80">({upcomingItems.length})</span>
+                    <span className="relative z-10 text-[10px] opacity-80 tabular-nums">({upcomingItems.length})</span>
                   </button>
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
                       setActiveTab('history');
                     }}
-                    className="relative px-3.5 py-1 rounded-full text-[11px] font-bold cursor-pointer flex items-center gap-1.5 select-none"
+                    className="relative px-3.5 py-1.5 rounded-full text-[11px] font-bold cursor-pointer flex items-center gap-1.5 select-none"
                   >
                     {activeTab === 'history' && (
                       <motion.div
@@ -496,99 +501,146 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                         className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                       />
                     )}
-                    <span className={`relative z-10 transition-colors duration-150 ${
-                      activeTab === 'history' ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
-                    }`}>
+                    <span
+                      className={`relative z-10 transition-colors duration-150 ${
+                        activeTab === 'history'
+                          ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                          : 'text-white/60 hover:text-white'
+                      }`}
+                    >
                       Played
                     </span>
-                    <span className="relative z-10 text-[10px] opacity-80">({historyItems.length})</span>
+                    <span className="relative z-10 text-[10px] opacity-80 tabular-nums">({historyItems.length})</span>
                   </button>
                 </div>
 
-                {activeTab === 'upnext' && upcomingItems.length > 0 && !isJamGuest && (
+                {/* Symmetrical Quick Action Dock */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {/* Shuffle Upcoming */}
+                  <button
+                    onClick={handleShuffleUpcoming}
+                    disabled={isJamGuest || upcomingItems.length <= 1}
+                    title={isJamGuest ? 'Host controls queue order' : 'Shuffle Upcoming Tracks'}
+                    aria-label="Shuffle Upcoming"
+                    className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed flex-shrink-0"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
+                      <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+                    </svg>
+                  </button>
+
+                  {/* Repeat Mode */}
+                  <button
+                    onClick={isJamGuest ? undefined : cycleRepeat}
+                    disabled={isJamGuest}
+                    title={isJamGuest ? 'Host controls playback mode' : `Repeat Mode: ${repeatMode.toUpperCase()}`}
+                    aria-label="Repeat Mode"
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer relative flex-shrink-0 ${
+                      isJamGuest
+                        ? 'glass-button text-white/40 cursor-not-allowed'
+                        : repeatMode !== 'off'
+                        ? 'glass-button-primary text-white shadow-sm'
+                        : 'glass-button text-white/70 hover:text-white'
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
+                      <polyline points="17 1 21 5 17 9" />
+                      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                      <polyline points="7 23 3 19 7 15" />
+                      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                    </svg>
+                    {repeatMode === 'one' && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center shadow-sm">
+                        1
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Autoplay / Infinite Radio Toggle */}
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
-                      handleClearUpcoming();
+                      toggleAutoplay();
                     }}
-                    className="text-[11px] font-bold text-white/45 hover:text-rose-400 transition-colors cursor-pointer px-2.5 py-1 rounded-full hover:bg-rose-500/10"
-                    title="Clear Upcoming Queue"
+                    title={
+                      autoplay
+                        ? 'Infinite Radio ON: Automatically plays smart recommendations when queue ends'
+                        : 'Infinite Radio OFF: Tap to enable continuous radio flow'
+                    }
+                    aria-label="Infinite Radio"
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
+                      autoplay
+                        ? 'glass-button-primary text-white shadow-sm'
+                        : 'glass-button text-white/60 hover:text-white'
+                    }`}
                   >
-                    Clear All
+                    <span className="text-sm font-black leading-none">∞</span>
                   </button>
-                )}
-              </div>
 
-              {/* Dedicated Quick Action Toolbar Strip - Compact, Perfectly Spaced */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-                {/* Autoplay / Infinite Radio Toggle */}
-                <button
-                  onClick={() => {
-                    triggerAndroidHaptic('light');
-                    toggleAutoplay();
-                  }}
-                  title={autoplay ? 'Infinite Radio ON: Automatically plays smart recommendations when queue ends' : 'Infinite Radio OFF: Tap to enable continuous radio flow'}
-                  className={`h-7.5 px-3 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer flex-shrink-0 ${
-                    autoplay
-                      ? 'glass-button-primary text-white shadow-sm'
-                      : 'glass-button text-white/60 hover:text-white'
-                  }`}
-                >
-                  <span className="text-xs font-black">∞</span>
-                  <span>Radio</span>
-                </button>
+                  {/* Save Queue as Playlist */}
+                  <button
+                    onClick={handleSaveQueueAsPlaylist}
+                    disabled={queue.length === 0}
+                    title={savedToast ? 'Saved to Library!' : 'Save Queue as Playlist in Library'}
+                    aria-label="Save Queue as Playlist"
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 disabled:opacity-35 disabled:cursor-not-allowed ${
+                      savedToast
+                        ? 'glass-button-emerald text-emerald-300 shadow-sm'
+                        : 'glass-button text-white/75 hover:text-white'
+                    }`}
+                  >
+                    {savedToast ? (
+                      <svg
+                        className="w-3.5 h-3.5 text-emerald-300"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-3.5 h-3.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.1"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M11 12H3M16 6H3M16 18H3M18 9v6m-3-3h6" />
+                      </svg>
+                    )}
+                  </button>
 
-                {/* Shuffle Upcoming */}
-                <button
-                  onClick={handleShuffleUpcoming}
-                  disabled={isJamGuest || upcomingItems.length <= 1}
-                  title={isJamGuest ? 'Host controls queue order' : 'Shuffle Upcoming Tracks'}
-                  className="w-7.5 h-7.5 rounded-xl glass-button flex items-center justify-center text-white/75 hover:text-white transition-all cursor-pointer disabled:opacity-35 flex-shrink-0"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
-                    <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-                  </svg>
-                </button>
-
-                {/* Repeat Mode */}
-                <button
-                  onClick={isJamGuest ? undefined : cycleRepeat}
-                  disabled={isJamGuest}
-                  title={isJamGuest ? 'Host controls playback mode' : `Repeat Mode: ${repeatMode.toUpperCase()}`}
-                  className={`w-7.5 h-7.5 rounded-xl flex items-center justify-center transition-all cursor-pointer relative flex-shrink-0 ${
-                    isJamGuest
-                      ? 'glass-button text-white/40 cursor-not-allowed'
-                      : repeatMode !== 'off'
-                      ? 'glass-button-primary text-white'
-                      : 'glass-button text-white/70 hover:text-white'
-                  }`}
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1">
-                    <polyline points="17 1 21 5 17 9" />
-                    <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                    <polyline points="7 23 3 19 7 15" />
-                    <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                  </svg>
-                  {repeatMode === 'one' && (
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-accent)] text-white text-[8px] font-black flex items-center justify-center">
-                      1
-                    </span>
+                  {/* Clear Upcoming Queue */}
+                  {activeTab === 'upnext' && upcomingItems.length > 0 && !isJamGuest && (
+                    <button
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        handleClearUpcoming();
+                      }}
+                      title="Clear Upcoming Queue"
+                      aria-label="Clear Upcoming Queue"
+                      className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-white/45 hover:text-rose-400 hover:bg-rose-500/15 transition-all cursor-pointer flex-shrink-0"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.1"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
                   )}
-                </button>
-
-                {/* Save Queue as Playlist */}
-                <button
-                  onClick={handleSaveQueueAsPlaylist}
-                  disabled={queue.length === 0}
-                  title="Save Queue as Playlist in Library"
-                  className={`h-7.5 px-3 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer flex-shrink-0 ${
-                    savedToast
-                      ? 'glass-button-emerald text-emerald-300'
-                      : 'glass-button text-white/75 hover:text-white'
-                  }`}
-                >
-                  {savedToast ? '✓ Saved' : 'Save'}
-                </button>
+                </div>
               </div>
             </div>
 
