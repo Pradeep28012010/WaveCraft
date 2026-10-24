@@ -65,6 +65,7 @@ export default function YouTubeEmbed() {
   const isCrossfadingRef = useRef<boolean>(false);
   const retryAttemptRef = useRef<number>(0);
   const bufferingStartTimeRef = useRef<number>(0);
+  const ytStallRecoveryCountRef = useRef<number>(0);
   const ytBufferingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rampTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -318,15 +319,6 @@ export default function YouTubeEmbed() {
           usePlayerStore.getState().nextTrack();
         }, Math.min(3000, activeCrossfade * 750));
       }
-
-      // Smart Auto-Cache: Cache track for offline listening after 20s or 35% playback
-      if (cur >= 20 || (dur > 0 && cur / dur >= 0.35)) {
-        const curTrack = usePlayerStore.getState().currentTrack;
-        if (curTrack?.id && !autoCachedTracksRef.current.has(curTrack.id)) {
-          autoCachedTracksRef.current.add(curTrack.id);
-          autoCacheTrack(curTrack);
-        }
-      }
     };
 
     const onEnded = () => {
@@ -404,43 +396,27 @@ export default function YouTubeEmbed() {
         }, 450);
       }
 
-      // Step 1: After 2s of stalling, perform a gentle in-place buffer nudge to force HTTP range fetch
+      // Step 1: After 2s of stalling, gently prompt play without seeking (avoids aborting in-flight HTTP buffer)
       if (!audioStallNudgeTimer) {
         audioStallNudgeTimer = setTimeout(() => {
           audioStallNudgeTimer = null;
           if (getActiveEngine() === 'audio' && usePlayerStore.getState().isPlaying && audio.readyState < 3) {
             if (audio.paused) {
               audio.play().catch(() => {});
-            } else {
-              const cur = audio.currentTime;
-              audio.currentTime = Math.max(0, cur + 0.01);
-              audio.play().catch(() => {});
             }
           }
         }, 2000);
       }
 
-      // Step 2: After 5.5s of persistent stall, re-load stream at current position
+      // Step 2: After 7.5s of persistent stall on native audio, switch to reliable YouTube stream
       if (!audioStallHardRecoveryTimer) {
         audioStallHardRecoveryTimer = setTimeout(() => {
           audioStallHardRecoveryTimer = null;
           if (getActiveEngine() === 'audio' && usePlayerStore.getState().isPlaying && audio.readyState < 3) {
-            console.warn('[WaveCraft] Persistent audio stall after 5.5s, reloading current stream segment');
-            const pos = audio.currentTime;
-            const currentSrc = audio.src;
-            if (currentSrc) {
-              audio.src = currentSrc;
-              audio.currentTime = pos;
-              audio.play().then(() => {
-                setIsLoading(false);
-              }).catch(() => {
-                onError();
-              });
-            } else {
-              onError();
-            }
+            console.warn('[WaveCraft] Persistent native audio stall after 7.5s, switching to reliable YouTube stream');
+            onError();
           }
-        }, 5500);
+        }, 7500);
       }
     };
 
@@ -631,6 +607,7 @@ export default function YouTubeEmbed() {
               userInitiatedPauseRef.current = false;
               isCrossfadingRef.current = false;
               bufferingStartTimeRef.current = 0;
+              ytStallRecoveryCountRef.current = 0;
               usePlayerStore.setState({ isPlaying: true, isLoading: false });
               const dur = e.target.getDuration?.();
               if (dur && dur > 0) {
@@ -942,6 +919,7 @@ export default function YouTubeEmbed() {
       retryAttemptRef.current = 0;
       isCrossfadingRef.current = false;
       bufferingStartTimeRef.current = 0;
+      ytStallRecoveryCountRef.current = 0;
       isSwitchingTrackRef.current = true;
       trackTransitionIntentRef.current = true;
       userInitiatedPauseRef.current = false;
@@ -1039,14 +1017,17 @@ export default function YouTubeEmbed() {
         }));
       }
 
-      // 2. Direct 320kbps Audio Stream already available (MUST be full-length CDN stream, never 30s preview)
+      // 2. Direct 320kbps Audio Stream already available (MUST be full-length CDN stream, never 30s preview or throttled googlevideo)
       const isDirectCdnStream =
         Boolean(track.audioUrl) &&
         !isAudioPreviewUrl(track.audioUrl) &&
+        !track.audioUrl!.includes('googlevideo.com') &&
         (track.audioUrl!.startsWith('https://aac.saavncdn.com') ||
          track.audioUrl!.startsWith('blob:') ||
-         track.audioUrl!.endsWith('.mp4') ||
-         track.audioUrl!.endsWith('.mp3'));
+         track.audioUrl!.includes('saavncdn') ||
+         (track.audioUrl!.startsWith('https://') &&
+          !track.audioUrl!.includes('youtube') &&
+          (track.audioUrl!.endsWith('.mp4') || track.audioUrl!.endsWith('.mp3') || track.audioUrl!.endsWith('.m4a'))));
 
       if (isDirectCdnStream && audio) {
         playNativeAudio(track.audioUrl!, shouldPlay);
@@ -1071,7 +1052,7 @@ export default function YouTubeEmbed() {
             if (resolveToken !== resolvingTokenRef.current) return;
             if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
-            if (directAudioUrl) {
+            if (directAudioUrl && !directAudioUrl.includes('googlevideo.com')) {
               track.audioUrl = directAudioUrl;
               track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
               usePlayerStore.setState((s) => ({
@@ -1088,7 +1069,7 @@ export default function YouTubeEmbed() {
 
               // Allow background caching if direct audio resolves later
               directAudioPromise.then((bgUrl) => {
-                if (bgUrl && resolveToken === resolvingTokenRef.current) {
+                if (bgUrl && !bgUrl.includes('googlevideo.com') && resolveToken === resolvingTokenRef.current) {
                   track.audioUrl = bgUrl;
                   track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
                 }
@@ -1108,7 +1089,7 @@ export default function YouTubeEmbed() {
           if (resolveToken !== resolvingTokenRef.current) return;
           if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
-          if (directAudioUrl) {
+          if (directAudioUrl && !directAudioUrl.includes('googlevideo.com')) {
             track.audioUrl = directAudioUrl;
             track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
             usePlayerStore.setState((s) => ({
@@ -1319,7 +1300,7 @@ export default function YouTubeEmbed() {
         nextTrackCandidate.youtubeId
       )
         .then((directUrl) => {
-          if (directUrl) {
+          if (directUrl && !directUrl.includes('googlevideo.com')) {
             usePlayerStore.setState((s) => ({
               queue: s.queue.map((t, idx) =>
                 idx === nextIdx
@@ -1641,12 +1622,13 @@ export default function YouTubeEmbed() {
           !trackTransitionIntentRef.current
         ) {
           const stallMs = Date.now() - bufferingStartTimeRef.current;
-          // Tier 1 (after 2.5s): Gentle wake-up play kick
-          if (stallMs >= 2500 && stallMs < 4500) {
+          // Tier 1 (after 3.5s): Gentle wake-up play kick
+          if (stallMs >= 3500 && stallMs < 4000) {
             try { ytPlayer.playVideo?.(); } catch {}
           }
-          // Tier 2 (after 4.5s): Soft reload at current timestamp without resetting queue progress
-          else if (stallMs >= 4500) {
+          // Tier 2 (after 9.5s): One-time soft reload at current timestamp if completely frozen (prevents recurring reload loops)
+          else if (stallMs >= 9500 && ytStallRecoveryCountRef.current < 1) {
+            ytStallRecoveryCountRef.current++;
             bufferingStartTimeRef.current = 0;
             const curTrack = usePlayerStore.getState().currentTrack;
             const curTime = ytPlayer.getCurrentTime?.() || 0;

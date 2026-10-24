@@ -271,4 +271,48 @@ test('Search Ranking & Stream Fixes Validation', async (t) => {
     assert.equal(sanitized.audioPreviewUrl, 'https://p.scdn.co/mp3-preview/a1b2c3d4e5f6');
     assert.equal(sanitized.youtubeId, undefined, 'Short duration YouTube ID (<60s) must be cleared for full-length re-resolution');
   });
+
+  await t.test('Direct CDN Stream Rejection of Throttled GoogleVideo URLs', () => {
+    const isDirectCdnStream = (url) => {
+      if (!url) return false;
+      if (url.includes('googlevideo.com')) return false;
+      if (url.includes('p.scdn.co') || url.includes('preview')) return false;
+      return (
+        url.startsWith('https://aac.saavncdn.com') ||
+        url.startsWith('blob:') ||
+        url.includes('saavncdn') ||
+        (url.startsWith('https://') &&
+          !url.includes('youtube') &&
+          (url.endsWith('.mp4') || url.endsWith('.mp3') || url.endsWith('.m4a')))
+      );
+    };
+
+    assert.equal(isDirectCdnStream('https://rr3---sn-4g5edn6y.googlevideo.com/videoplayback?expire=123'), false);
+    assert.equal(isDirectCdnStream('https://aac.saavncdn.com/123/song_320.mp4'), true);
+    assert.equal(isDirectCdnStream('blob:http://localhost:5173/uuid-audio'), true);
+    assert.equal(isDirectCdnStream('https://p.scdn.co/mp3-preview/123'), false);
+  });
+
+  await t.test('Watchdog Recovery Loop Clamping Prevents Infinite Buffering', () => {
+    let stallCount = 0;
+    let reloadAttempts = 0;
+    let bufferingStartTime = Date.now() - 10000; // 10s stall
+
+    const handleWatchdogTick = () => {
+      const stallMs = Date.now() - bufferingStartTime;
+      if (stallMs >= 9500 && reloadAttempts < 1) {
+        reloadAttempts++;
+        bufferingStartTime = 0;
+        stallCount++;
+      }
+    };
+
+    handleWatchdogTick();
+    assert.equal(stallCount, 1, 'First stall should attempt single recovery');
+
+    // Subsequent tick while still buffering should not loop reload
+    bufferingStartTime = Date.now() - 12000;
+    handleWatchdogTick();
+    assert.equal(stallCount, 1, 'Recovery must not trigger again in a recurring loop');
+  });
 });

@@ -369,9 +369,6 @@ export default async function handler(req, res) {
       if (title) {
         streamData = await resolveDirectAudioStream(title, artist, clientIp);
       }
-      if (!streamData && videoId) {
-        streamData = await resolveYouTubeAudioStream(videoId);
-      }
 
       if (streamData?.audioUrl) {
         setCached(cacheKey, streamData, 3_600_000);
@@ -389,28 +386,41 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Proxy URL target domain not allowed' });
       }
       try {
+        const upstreamHeaders = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        };
+        // Forward HTTP Range header if requested by audio element for seamless buffering and seeking
+        if (req.headers.range) {
+          upstreamHeaders['Range'] = req.headers.range;
+        }
+
         const upstream = await fetchWithTimeout(audioUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          }
+          headers: upstreamHeaders
         }, 15000);
-        if (!upstream.ok) {
+        if (!upstream.ok && upstream.status !== 206) {
           return res.status(upstream.status).json({ error: 'Upstream fetch failed' });
         }
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
+        res.setHeader('Accept-Ranges', 'bytes');
         res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mp4');
+
+        const contentRange = upstream.headers.get('content-range');
+        if (contentRange) res.setHeader('Content-Range', contentRange);
+
         const length = upstream.headers.get('content-length');
         if (length) res.setHeader('Content-Length', length);
 
+        res.status(upstream.status);
+
         if (upstream.body && typeof upstream.body.getReader === 'function') {
           const { Readable } = await import('node:stream');
-          res.status(200);
           Readable.fromWeb(upstream.body).pipe(res);
           return;
         } else {
           const arrayBuf = await upstream.arrayBuffer();
-          return res.status(200).send(Buffer.from(arrayBuf));
+          return res.send(Buffer.from(arrayBuf));
         }
       } catch (err) {
         return res.status(500).json({ error: err.message });
@@ -465,18 +475,17 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.2.5',
-        versionCode: 16,
+        version: '5.2.6',
+        versionCode: 17,
         releaseDate: '2026-10-25',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
-        title: 'WaveCraft Pro v5.2.5 (Full-Length Global Charts & Audio Stream Perfection)',
+        title: 'WaveCraft Pro v5.2.6 (Zero Mid-Song Buffering & Stream Engine Stabilization)',
         releaseNotes: [
-          'Full-Length Global Charts & Pulse: Strictly resolved full music audio tracks and rejected 30s preview snippets and teaser shorts.',
-          'Proactive Audio Stream Engine: Zero preview URLs in streaming audio pipeline with automatic fallback and duration validation.',
-          'Deep Dark Obsidian Aesthetics: Clamped warm album color luminance (L <= 0.24) and unified ambient backdrops so the player strictly stays deep, dark, and moody across all songs.',
-          'Seamless Liquid Glass Blending: Completely eliminated artificial diffuser strips, softened perimeter shadows, and centered radial gradient diffusion for zero boundary lines or dark stripes on cards.',
-          'Smooth Waveform Visualizer: Retained audio envelope dynamics and unclipped atmospheric visualizer glow.',
-          'Atmosphere Studio Interactivity: Full touch and click event responsiveness across all soundscape layers, sliders, and presets.'
+          'Zero Mid-Song Buffering: Eliminated premature 20s background download bandwidth competition and non-destructive stall recovery.',
+          'Infinite Buffering Loop Elimination: Fixed watchdog 4.5s aggressive reload loop on YouTube playback.',
+          'Direct CDN Routing: Filtered throttled IP-locked GoogleVideo streams from native audio, cleanly routing YouTube streams to official YouTube player.',
+          'HTTP Range Streaming Proxy: Upstream Range forwarding with 206 Partial Content support for seamless seeking and continuous chunk streaming.',
+          'Unified Queue Action Bar: Sleek, compact liquid-glass action bar in Queue Studio with symmetrical quick controls.'
         ],
         forceUpdate: false
       });

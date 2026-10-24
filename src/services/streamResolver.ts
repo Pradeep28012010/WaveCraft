@@ -295,7 +295,12 @@ export async function resolveDirectAudio(
 
     if (res && res.ok) {
       const data = await res.json();
-      if (data?.audioUrl && typeof data.audioUrl === 'string' && data.audioUrl.startsWith('https://')) {
+      if (
+        data?.audioUrl &&
+        typeof data.audioUrl === 'string' &&
+        !data.audioUrl.includes('googlevideo.com') &&
+        data.audioUrl.startsWith('https://')
+      ) {
         if (streamCache.size >= MAX_CACHE_ENTRIES) {
           const first = streamCache.keys().next().value;
           if (first) streamCache.delete(first);

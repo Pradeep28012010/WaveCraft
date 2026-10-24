@@ -1,16 +1,15 @@
 {
-  "version": "5.2.5",
-  "versionCode": 16,
+  "version": "5.2.6",
+  "versionCode": 17,
   "releaseDate": "2026-10-25",
   "downloadUrl": "https://wavecraft-alpha.vercel.app/WaveCraft.apk",
-  "title": "WaveCraft Pro v5.2.5 (Full-Length Global Charts & Audio Stream Perfection)",
+  "title": "WaveCraft Pro v5.2.6 (Zero Mid-Song Buffering & Stream Engine Stabilization)",
   "releaseNotes": [
-    "Full-Length Global Charts & Pulse: Strictly resolved full music audio tracks and rejected 30s preview snippets and teaser shorts.",
-    "Proactive Audio Stream Engine: Zero preview URLs in streaming audio pipeline with automatic fallback and duration validation.",
-    "Deep Dark Obsidian Aesthetics: Clamped warm album color luminance (L <= 0.24) and unified ambient backdrops so the player strictly stays deep, dark, and moody across all songs.",
-    "Seamless Liquid Glass Blending: Completely eliminated artificial diffuser strips, softened perimeter shadows, and centered radial gradient diffusion for zero boundary lines or dark stripes on cards.",
-    "Smooth Waveform Visualizer: Retained audio envelope dynamics and unclipped atmospheric visualizer glow.",
-    "Atmosphere Studio Interactivity: Full touch and click event responsiveness across all soundscape layers, sliders, and presets."
+    "Zero Mid-Song Buffering: Eliminated premature 20s background download bandwidth competition and non-destructive stall recovery.",
+    "Infinite Buffering Loop Elimination: Fixed watchdog 4.5s aggressive reload loop on YouTube playback.",
+    "Direct CDN Routing: Filtered throttled IP-locked GoogleVideo streams from native audio, cleanly routing YouTube streams to official YouTube player.",
+    "HTTP Range Streaming Proxy: Upstream Range forwarding with 206 Partial Content support for seamless seeking and continuous chunk streaming.",
+    "Unified Queue Action Bar: Sleek, compact liquid-glass action bar in Queue Studio with symmetrical quick controls."
   ],
   "forceUpdate": false
 }
