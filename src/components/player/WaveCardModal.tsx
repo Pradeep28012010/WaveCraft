@@ -6,6 +6,9 @@ import { getLyricsData } from '../../services/lyrics';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { getShareBaseUrl } from '../../services/apiConfig';
+import { formatTime } from '../../utils/formatTime';
+import { resolveDirectAudio } from '../../services/streamResolver';
+import { usePlayerStore } from '../../stores/playerStore';
 
 interface WaveCardModalProps {
   isOpen: boolean;
@@ -103,6 +106,12 @@ export default function WaveCardModal({
   const [isExporting, setIsExporting] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [videoElapsedSec, setVideoElapsedSec] = useState(0);
+  const [targetDurationTotalSec, setTargetDurationTotalSec] = useState(30);
+  const [reelStartTime, setReelStartTime] = useState<number>(currentTime || 0);
+  const [reelDurationMode, setReelDurationMode] = useState<'15s' | '30s' | '60s' | 'full'>('30s');
+  const stopRecordingEarlyRef = useRef<(() => void) | null>(null);
+  const cancelRecordingRef = useRef<(() => void) | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Sync themeId if initialThemeId changes or modal opens
@@ -111,6 +120,26 @@ export default function WaveCardModal({
       setThemeId(initialThemeId);
     }
   }, [initialThemeId, isOpen]);
+
+  // Auto-sync reelStartTime to selected lyric quote or currentTime
+  useEffect(() => {
+    if (selectedQuote && lyrics.length > 0) {
+      const firstQuoteLine = selectedQuote.split('\n')[0]?.trim().toLowerCase();
+      const match = lyrics.find(
+        (l) =>
+          firstQuoteLine &&
+          (l.text.toLowerCase().includes(firstQuoteLine) ||
+            firstQuoteLine.includes(l.text.toLowerCase()))
+      );
+      if (match && typeof match.time === 'number') {
+        setReelStartTime(Math.max(0, Math.floor(match.time)));
+        return;
+      }
+    }
+    if (currentTime && currentTime > 0) {
+      setReelStartTime(Math.max(0, Math.floor(currentTime)));
+    }
+  }, [selectedQuote, lyrics, currentTime]);
 
   const activeTheme = CARD_THEMES.find((t) => t.id === themeId) || CARD_THEMES[0];
 
@@ -545,11 +574,30 @@ export default function WaveCardModal({
     }
   };
 
-  // Record a 6-second 60fps 9:16 Animated Video Story (.webm) with spinning vinyl & live spectrum
+  // Record an Animated Video Reel (.webm) with Live Song Audio & reactive spectrum
   const handleRecordVideoStory = async () => {
     if (isRecordingVideo || typeof MediaRecorder === 'undefined') return;
     setIsRecordingVideo(true);
     setVideoProgress(0);
+    setVideoElapsedSec(0);
+
+    // Compute target duration in milliseconds
+    const trackDur = track.duration || 180;
+    let targetDurationSec = 30;
+    if (reelDurationMode === '15s') targetDurationSec = 15;
+    else if (reelDurationMode === '30s') targetDurationSec = 30;
+    else if (reelDurationMode === '60s') targetDurationSec = 60;
+    else if (reelDurationMode === 'full')
+      targetDurationSec = Math.max(10, Math.floor(trackDur - reelStartTime));
+
+    setTargetDurationTotalSec(targetDurationSec);
+    const totalMs = targetDurationSec * 1000;
+
+    // Pause background player if playing so audio does not collide
+    const wasMainPlaying = usePlayerStore.getState().isPlaying;
+    if (wasMainPlaying) {
+      usePlayerStore.getState().pause();
+    }
 
     try {
       const vCanvas = document.createElement('canvas');
@@ -558,9 +606,11 @@ export default function WaveCardModal({
       const ctx = vCanvas.getContext('2d');
       if (!ctx) {
         setIsRecordingVideo(false);
+        if (wasMainPlaying) usePlayerStore.getState().resume();
         return;
       }
 
+      // Load artwork
       const imgUrl = track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL;
       const artImg = await new Promise<HTMLImageElement | null>((resolve) => {
         const img = new Image();
@@ -570,13 +620,97 @@ export default function WaveCardModal({
         img.src = imgUrl;
       });
 
-      const stream = vCanvas.captureStream(60);
-      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-        ? 'video/webm;codecs=vp9'
+      // Resolve audio stream
+      let streamUrl = track.audioUrl;
+      if (!streamUrl || streamUrl.includes('p.scdn.co')) {
+        try {
+          const resolved = await resolveDirectAudio(
+            track.title,
+            track.artist,
+            track.duration,
+            track.youtubeId
+          );
+          if (resolved) {
+            streamUrl = resolved;
+            track.audioUrl = resolved;
+          }
+        } catch {}
+      }
+      if (!streamUrl && track.audioUrl) {
+        streamUrl = track.audioUrl;
+      }
+
+      // Initialize audio element
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      if (streamUrl) {
+        audio.src = streamUrl;
+      }
+
+      // Preload audio and seek to reelStartTime
+      if (streamUrl) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, 3500);
+          audio.oncanplay = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          audio.onerror = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+        });
+
+        try {
+          audio.currentTime = reelStartTime;
+        } catch {}
+      }
+
+      // Setup Web Audio routing to capture audio tracks
+      let audioCtx: AudioContext | null = null;
+      let audioDestination: MediaStreamAudioDestinationNode | null = null;
+      let analyser: AnalyserNode | null = null;
+      let freqData: Uint8Array<ArrayBuffer> | null = null;
+
+      if (streamUrl) {
+        try {
+          audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          audioDestination = audioCtx.createMediaStreamDestination();
+          const source = audioCtx.createMediaElementSource(audio);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 64;
+          freqData = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
+
+          source.connect(analyser);
+          analyser.connect(audioDestination);
+          analyser.connect(audioCtx.destination); // Let user hear the reel audio live!
+        } catch {
+          // If mediaElementSource has CORS restriction in this environment, fallback silently
+        }
+      }
+
+      // Combine video stream from canvas with audio stream
+      const vStream = vCanvas.captureStream(60);
+      const vTrack = vStream.getVideoTracks()[0];
+      const aTracks = audioDestination
+        ? audioDestination.stream.getAudioTracks()
+        : (audio as any).captureStream
+        ? (audio as any).captureStream().getAudioTracks()
+        : [];
+
+      const streamTracks = aTracks.length > 0 ? [vTrack, ...aTracks] : [vTrack];
+      const combinedStream = new MediaStream(streamTracks);
+
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+        ? 'video/webm;codecs=vp9,opus'
+        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
         : 'video/webm';
-      const recorder = new MediaRecorder(stream, {
+
+      const recorder = new MediaRecorder(combinedStream, {
         mimeType,
-        videoBitsPerSecond: 4_500_000
+        videoBitsPerSecond: 4_500_000,
+        audioBitsPerSecond: 192_000
       });
 
       const chunks: BlobPart[] = [];
@@ -584,15 +718,54 @@ export default function WaveCardModal({
         if (e.data && e.data.size > 0) chunks.push(e.data);
       };
 
-      const totalMs = 6000;
       const startTime = performance.now();
       let rafId = 0;
+      let isCancelled = false;
+      let isStoppedEarly = false;
+
+      stopRecordingEarlyRef.current = () => {
+        isStoppedEarly = true;
+        if (recorder.state === 'recording') {
+          recorder.stop();
+        }
+      };
+
+      cancelRecordingRef.current = () => {
+        isCancelled = true;
+        cancelAnimationFrame(rafId);
+        try {
+          audio.pause();
+          audio.src = '';
+        } catch {}
+        if (audioCtx) {
+          try {
+            audioCtx.close();
+          } catch {}
+        }
+        if (recorder.state === 'recording') {
+          recorder.stop();
+        }
+        setIsRecordingVideo(false);
+        setVideoProgress(0);
+        if (wasMainPlaying) {
+          usePlayerStore.getState().resume();
+        }
+      };
 
       const drawFrame = (now: number) => {
+        if (isCancelled) return;
         const elapsed = now - startTime;
         const t = elapsed / 1000;
         const pct = Math.min(100, Math.round((elapsed / totalMs) * 100));
         setVideoProgress(pct);
+        setVideoElapsedSec(Math.min(targetDurationSec, Math.floor(elapsed / 1000)));
+
+        // Read real audio FFT if analyser is active
+        let liveBassPulse = 0;
+        if (analyser && freqData) {
+          analyser.getByteFrequencyData(freqData);
+          liveBassPulse = (freqData[1] + freqData[2] + freqData[3]) / (3 * 255);
+        }
 
         // 1. Background
         const bgGrad = ctx.createLinearGradient(0, 0, 720, 1280);
@@ -602,35 +775,48 @@ export default function WaveCardModal({
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, 720, 1280);
 
-        // 2. Orbiting Glow Orbs
+        // 2. Cosmic Star Dust
+        ctx.save();
+        for (let i = 0; i < 40; i++) {
+          const sx = (i * 137 + 19) % 720;
+          const sy = (i * 241 + 43) % 1280;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+          ctx.beginPath();
+          ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // 3. Orbiting Glow Orbs (reacts to real bass pulse)
+        const orbScale = 1 + liveBassPulse * 0.35;
         const ox1 = 200 + Math.cos(t * 1.2) * 90;
         const oy1 = 260 + Math.sin(t * 1.2) * 70;
-        const orb1 = ctx.createRadialGradient(ox1, oy1, 20, ox1, oy1, 380);
-        orb1.addColorStop(0, `${activeTheme.primary}66`);
+        const orb1 = ctx.createRadialGradient(ox1, oy1, 20, ox1, oy1, 380 * orbScale);
+        orb1.addColorStop(0, `${activeTheme.primary}77`);
         orb1.addColorStop(1, 'transparent');
         ctx.fillStyle = orb1;
         ctx.fillRect(0, 0, 720, 1280);
 
-        // 3. Spinning Vinyl Platter
+        // 4. Spinning Vinyl Platter
         const vcx = 360;
         const vcy = 340;
         ctx.save();
         ctx.translate(vcx, vcy);
-        ctx.rotate(t * 1.6);
+        ctx.rotate(t * 1.8);
 
         ctx.beginPath();
-        ctx.arc(0, 0, 170, 0, Math.PI * 2);
-        ctx.fillStyle = '#111116';
+        ctx.arc(0, 0, 175, 0, Math.PI * 2);
+        ctx.fillStyle = '#0e0f15';
         ctx.fill();
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3.5;
         ctx.strokeStyle = activeTheme.primary;
         ctx.stroke();
 
         // Vinyl grooves
-        for (const r of [145, 120, 95]) {
+        for (const r of [155, 132, 110, 88]) {
           ctx.beginPath();
           ctx.arc(0, 0, r, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
           ctx.lineWidth = 1.5;
           ctx.stroke();
         }
@@ -647,31 +833,33 @@ export default function WaveCardModal({
         }
         ctx.restore();
 
-        // 4. Track Title & Artist
+        // 5. Track Title & Artist
         ctx.textAlign = 'center';
         ctx.fillStyle = activeTheme.primary;
         ctx.font = '800 18px Inter, sans-serif';
         const storyTag = sectorName
           ? `🪐 ${sectorName.toUpperCase()} • ${matchScore || 96}% MATCH`
-          : 'WAVECRAFT STUDIO STORY';
-        ctx.fillText(storyTag, 360, 565);
+          : 'WAVECRAFT AUDIO REEL';
+        ctx.fillText(storyTag, 360, 560);
 
         ctx.fillStyle = '#ffffff';
         ctx.font = '800 34px Inter, sans-serif';
-        const titleShort = track.title.length > 24 ? track.title.slice(0, 23) + '…' : track.title;
-        ctx.fillText(titleShort, 360, 612);
+        const titleShort =
+          track.title.length > 24 ? track.title.slice(0, 23) + '…' : track.title;
+        ctx.fillText(titleShort, 360, 608);
 
-        ctx.fillStyle = 'rgba(255,255,255,0.68)';
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
         ctx.font = '600 22px Inter, sans-serif';
-        const artistShort = track.artist.length > 30 ? track.artist.slice(0, 29) + '…' : track.artist;
-        ctx.fillText(artistShort, 360, 648);
+        const artistShort =
+          track.artist.length > 30 ? track.artist.slice(0, 29) + '…' : track.artist;
+        ctx.fillText(artistShort, 360, 644);
 
-        // 5. Lyric Quote Box
-        ctx.fillStyle = 'rgba(255,255,255,0.05)';
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        // 6. Lyric Quote Box
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(64, 695, 592, 260, 32);
+        ctx.roundRect(64, 690, 592, 260, 32);
         ctx.fill();
         ctx.stroke();
 
@@ -683,14 +871,20 @@ export default function WaveCardModal({
           ctx.fillText(`“${clean}”`, 360, 775 + idx * 48);
         });
 
-        // 6. Animated Bouncing Audio-Reactive Equalizer Bars
+        // 7. Animated Audio-Reactive Equalizer Bars
         const barCount = 36;
         const startX = 90;
         const stepX = 540 / barCount;
         for (let i = 0; i < barCount; i++) {
-          const wave =
-            20 +
-            Math.abs(Math.sin(t * 7 + i * 0.4) * 52 + Math.cos(t * 4.5 - i * 0.3) * 28);
+          let wave = 20;
+          if (freqData && freqData.length > 0) {
+            const fVal = freqData[i % freqData.length] / 255;
+            wave = 16 + fVal * 95;
+          } else {
+            wave =
+              20 +
+              Math.abs(Math.sin(t * 7 + i * 0.4) * 52 + Math.cos(t * 4.5 - i * 0.3) * 28);
+          }
           ctx.fillStyle = i % 2 === 0 ? activeTheme.primary : activeTheme.secondary;
           ctx.beginPath();
           ctx.roundRect(startX + i * stepX, 1060 - wave / 2, 9, wave, 4.5);
@@ -701,7 +895,7 @@ export default function WaveCardModal({
         ctx.font = '700 18px Inter, sans-serif';
         ctx.fillText('WaveCraft • 320kbps Studio Audio', 360, 1190);
 
-        if (elapsed < totalMs) {
+        if (elapsed < totalMs && !isStoppedEarly) {
           rafId = requestAnimationFrame(drawFrame);
         } else {
           recorder.stop();
@@ -710,21 +904,49 @@ export default function WaveCardModal({
 
       recorder.onstop = () => {
         cancelAnimationFrame(rafId);
+        try {
+          audio.pause();
+          audio.src = '';
+        } catch {}
+        if (audioCtx) {
+          try {
+            audioCtx.close();
+          } catch {}
+        }
+        if (wasMainPlaying && !isCancelled) {
+          usePlayerStore.getState().resume();
+        }
+
+        if (isCancelled) {
+          setIsRecordingVideo(false);
+          setVideoProgress(0);
+          return;
+        }
+
         const videoBlob = new Blob(chunks, { type: mimeType });
         const url = URL.createObjectURL(videoBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `WaveStory-${track.title.replace(/[^a-z0-9]/gi, '_').slice(0, 22)}.webm`;
+        const recordedSec = Math.round((performance.now() - startTime) / 1000);
+        a.download = `WaveReel-${track.title.replace(/[^a-z0-9]/gi, '_').slice(0, 20)}-${recordedSec}s.webm`;
         a.click();
         URL.revokeObjectURL(url);
         setIsRecordingVideo(false);
         setVideoProgress(0);
       };
 
-      recorder.start();
+      // Start playing audio and recording
+      if (streamUrl) {
+        try {
+          await audio.play();
+        } catch {}
+      }
+
+      recorder.start(500);
       rafId = requestAnimationFrame(drawFrame);
     } catch {
       setIsRecordingVideo(false);
+      if (wasMainPlaying) usePlayerStore.getState().resume();
     }
   };
 
@@ -1005,6 +1227,9 @@ export default function WaveCardModal({
                             } else {
                               const next = [...activeLines, clean].slice(-4);
                               setSelectedQuote(next.join('\n'));
+                              if (typeof line.time === 'number') {
+                                setReelStartTime(Math.max(0, Math.floor(line.time)));
+                              }
                             }
                           }}
                           className={`w-full text-left px-3 py-1.5 rounded-xl text-xs transition-colors truncate cursor-pointer flex items-center justify-between gap-2 ${
@@ -1025,6 +1250,90 @@ export default function WaveCardModal({
                   </div>
                 </div>
               )}
+
+              {/* 3. Video Reel & Audio Settings */}
+              <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-white/70">
+                    3. Video Reel & Audio Settings
+                  </label>
+                  <span className="text-[10px] font-extrabold text-cyan-300">
+                    Live Song Audio Included
+                  </span>
+                </div>
+
+                {/* Duration Mode Pills */}
+                <div>
+                  <span className="text-[11px] text-white/50 block mb-1.5">
+                    Export Duration:
+                  </span>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(['15s', '30s', '60s', 'full'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          setReelDurationMode(mode);
+                        }}
+                        className={`py-1.5 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center ${
+                          reelDurationMode === mode
+                            ? 'glass-button-primary text-white shadow-md'
+                            : 'glass-button text-white/60 hover:text-white'
+                        }`}
+                      >
+                        {mode === '15s'
+                          ? '15s Story'
+                          : mode === '30s'
+                          ? '30s Reel'
+                          : mode === '60s'
+                          ? '60s Clip'
+                          : 'Full Song'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Start Time Offset Scrubber */}
+                <div>
+                  <div className="flex items-center justify-between text-[11px] text-white/60 mb-1">
+                    <span>Start At Lyric / Track Timestamp:</span>
+                    <span className="font-mono font-bold text-white">
+                      {formatTime(reelStartTime)} / {formatTime(track.duration || 180)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setReelStartTime((t) => Math.max(0, t - 5))}
+                      className="px-2 py-1 rounded-lg glass-button text-[10px] font-bold text-white/70 hover:text-white cursor-pointer"
+                      title="Rewind 5 seconds"
+                    >
+                      -5s
+                    </button>
+                    <input
+                      type="range"
+                      min={0}
+                      max={Math.max(10, (track.duration || 180) - 5)}
+                      value={reelStartTime}
+                      onChange={(e) => setReelStartTime(Number(e.target.value))}
+                      className="flex-1 accent-[var(--color-accent)] cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReelStartTime((t) =>
+                          Math.min((track.duration || 180) - 5, t + 5)
+                        )
+                      }
+                      className="px-2 py-1 rounded-lg glass-button text-[10px] font-bold text-white/70 hover:text-white cursor-pointer"
+                      title="Forward 5 seconds"
+                    >
+                      +5s
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               {/* Export & Share Buttons */}
               <div className="pt-2 space-y-2.5">
@@ -1050,18 +1359,61 @@ export default function WaveCardModal({
                   </button>
                 </div>
 
-                <button
-                  onClick={handleRecordVideoStory}
-                  disabled={isRecordingVideo || isExporting}
-                  className="w-full py-3 px-5 rounded-2xl glass-button-emerald text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <span>🎬</span>
-                  <span>
-                    {isRecordingVideo
-                      ? `Recording 60fps Video Reel... (${videoProgress}%)`
-                      : 'Export 6s Animated Video Story (.webm)'}
-                  </span>
-                </button>
+                {isRecordingVideo ? (
+                  <div className="p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold text-cyan-200">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+                        Recording Video Reel with Live Audio...
+                      </span>
+                      <span className="font-mono">
+                        {formatTime(videoElapsedSec)} / {formatTime(targetDurationTotalSec)} (
+                        {videoProgress}%)
+                      </span>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="w-full h-2 rounded-full bg-black/40 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-cyan-400 to-pink-500 transition-all duration-300"
+                        style={{ width: `${videoProgress}%` }}
+                      />
+                    </div>
+
+                    {/* Live Action Buttons */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => stopRecordingEarlyRef.current?.()}
+                        className="flex-1 py-2 rounded-xl glass-button-primary text-white font-extrabold text-xs shadow-md cursor-pointer"
+                      >
+                        ⏹ Finish & Save Reel Now
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => cancelRecordingRef.current?.()}
+                        className="py-2 px-3 rounded-xl glass-button text-red-300 hover:text-white font-bold text-xs cursor-pointer"
+                      >
+                        ✕ Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleRecordVideoStory}
+                    disabled={isRecordingVideo || isExporting}
+                    className="w-full py-3 px-5 rounded-2xl glass-button-emerald text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 hover:brightness-110 active:scale-98"
+                  >
+                    <span>🎬</span>
+                    <span>
+                      Export{' '}
+                      {reelDurationMode === 'full'
+                        ? 'Full Song'
+                        : `${reelDurationMode} Video`}{' '}
+                      Reel (.webm with Audio)
+                    </span>
+                  </button>
+                )}
 
                 <button
                   onClick={handleCopyLink}

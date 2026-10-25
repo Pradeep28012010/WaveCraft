@@ -14,7 +14,7 @@
 
 // Devanagari Unicode mapping [0x0900 - 0x097F]
 const DEVANAGARI_VOWELS: Record<string, string> = {
-  'अ': 'a', 'आ': 'aa', 'इ': 'i', 'ई': 'ee', 'उ': 'u', 'ऊ': 'oo', 'ऋ': 'ri',
+  'अ': 'a', 'आ': 'aa', 'इ': 'i', 'ई': 'i', 'उ': 'u', 'ऊ': 'oo', 'ऋ': 'ri',
   'ए': 'e', 'ऐ': 'ai', 'ओ': 'o', 'औ': 'au', 'अं': 'am', 'अः': 'ah'
 };
 
@@ -25,12 +25,19 @@ const DEVANAGARI_CONSONANTS: Record<string, string> = {
   'त': 'ta', 'थ': 'tha', 'द': 'da', 'ध': 'dha', 'न': 'na',
   'प': 'pa', 'फ': 'pha', 'ब': 'ba', 'भ': 'bha', 'म': 'ma',
   'य': 'ya', 'र': 'ra', 'ल': 'la', 'व': 'va', 'श': 'sha',
-  'ष': 'sha', 'स': 'sa', 'ह': 'ha', 'ळ': 'la', 'क्ष': 'ksha', 'ज्ञ': 'gya'
+  'ष': 'sha', 'स': 'sa', 'ह': 'ha', 'ळ': 'la', 'क्ष': 'ksha', 'ज्ञ': 'gya',
+  // Precomposed Nukta consonants
+  'क़': 'qa', 'ख़': 'kha', 'ग़': 'gha', 'ज़': 'za', 'ड़': 'da', 'ढ़': 'dha', 'फ़': 'fa', 'य़': 'ya'
+};
+
+const NUKTA_CONSONANT_MAP: Record<string, string> = {
+  'क': 'qa', 'ख': 'kha', 'ग': 'gha', 'ज': 'za', 'ड': 'da', 'ढ': 'dha', 'फ': 'fa', 'य': 'ya',
+  'श': 'sha', 'स': 'sa', 'ह': 'ha'
 };
 
 const DEVANAGARI_MATRAS: Record<string, string> = {
-  'ा': 'aa', 'ി': 'i', 'ी': 'ee', 'ु': 'u', 'ू': 'oo', 'ृ': 'ri',
-  'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au', 'ं': 'n', 'ँ': 'n', 'ः': 'h'
+  'ा': 'aa', 'ि': 'i', 'ी': 'i', 'ु': 'u', 'ू': 'oo', 'ृ': 'ri',
+  'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au', 'ः': 'h'
 };
 
 // Telugu Unicode mapping [0x0C00 - 0x0C7F]
@@ -197,40 +204,89 @@ const VIRAMAS = new Set([
 export function romanizeIndicText(text: string): string {
   if (!text) return '';
 
+  // Clean orphan combining nukta or dotted circle artifacts first
+  const cleanText = text.replace(/◌़/g, '').replace(/◌/g, '');
+
   let out = '';
-  const len = text.length;
+  const len = cleanText.length;
   let i = 0;
 
   while (i < len) {
-    const ch = text[i];
+    let ch = cleanText[i];
     const code = ch.charCodeAt(0);
 
     // Devanagari range [0x0900, 0x097F]
     if (code >= 0x0900 && code <= 0x097F) {
+      let next = i + 1 < len ? cleanText[i + 1] : '';
+
+      // Check nukta combining mark '\u093C'
+      let isNukta = false;
+      if (next === '\u093C') {
+        if (NUKTA_CONSONANT_MAP[ch]) {
+          ch = NUKTA_CONSONANT_MAP[ch];
+          isNukta = true;
+        }
+        i++; // Consume nukta
+        next = i + 1 < len ? cleanText[i + 1] : '';
+      }
+
       if (DEVANAGARI_VOWELS[ch]) {
         out += DEVANAGARI_VOWELS[ch];
         i++;
         continue;
       }
-      if (DEVANAGARI_CONSONANTS[ch]) {
-        const base = DEVANAGARI_CONSONANTS[ch];
-        const next = i + 1 < len ? text[i + 1] : '';
+
+      const base = isNukta ? ch : DEVANAGARI_CONSONANTS[ch];
+      if (base) {
         if (next && VIRAMAS.has(next)) {
           out += base.slice(0, -1);
           i += 2;
           continue;
         }
+
+        // Matra
         if (next && DEVANAGARI_MATRAS[next]) {
-          out += base.slice(0, -1) + DEVANAGARI_MATRAS[next];
+          const matra = DEVANAGARI_MATRAS[next];
+          const afterMatra = i + 2 < len ? cleanText[i + 2] : '';
+          if (afterMatra === 'ं' || afterMatra === 'ँ') {
+            out += base.slice(0, -1) + matra + 'n';
+            i += 3;
+            continue;
+          }
+          out += base.slice(0, -1) + matra;
           i += 2;
           continue;
         }
-        out += base;
+
+        // Anusvara on bare consonant (e.g. रंग -> Rang)
+        if (next === 'ं' || next === 'ँ') {
+          out += base.slice(0, -1) + 'an';
+          i += 2;
+          continue;
+        }
+
+        // Schwa deletion on bare consonant at end of word:
+        // A word ends if next is whitespace, punctuation, newline, or end of string
+        const isEnd = !next || /[\s,.\-!?"'()[\]{}|]/.test(next);
+        const isSingleLetterWord =
+          isEnd && (i === 0 || /[\s,.\-!?"'()[\]{}|]/.test(cleanText[i - 1]));
+        if (isEnd && !isSingleLetterWord) {
+          out += base.slice(0, -1);
+        } else {
+          out += base;
+        }
         i++;
         continue;
       }
+
       if (DEVANAGARI_MATRAS[ch]) {
         out += DEVANAGARI_MATRAS[ch];
+        i++;
+        continue;
+      }
+
+      // Ignore stray nukta or virama
+      if (ch === '\u093C' || ch === '\u094D') {
         i++;
         continue;
       }
@@ -459,8 +515,17 @@ export function romanizeIndicText(text: string): string {
       }
     }
 
-    // Default passthrough for ASCII, whitespace, punctuation, Latin
-    out += ch;
+    // Default passthrough for ASCII, whitespace, punctuation, Latin (exclude stray combining marks)
+    if (
+      ch !== '\u093C' &&
+      ch !== '\u094D' &&
+      ch !== '\u25CC' &&
+      ch !== '\u09BC' &&
+      ch !== '\u0A3C' &&
+      ch !== '\u0ABC'
+    ) {
+      out += ch;
+    }
     i++;
   }
 

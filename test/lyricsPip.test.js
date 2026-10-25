@@ -30,6 +30,16 @@ describe('Floating Picture-in-Picture & Syllable-Synced Live Lyrics', () => {
       assert.ok(res.toLowerCase().includes('tum'), `Expected "tum" in result, got: ${res}`);
     });
 
+    it('transliterates Devanagari with Nukta and Anusvara without dotted circle artifacts', () => {
+      const sample = 'ये रंगत काजल की है तेरी ख़ातिर ही तो दाख़िल';
+      const res = romanizeIndicText(sample);
+      assert.ok(!res.includes('◌'), `Found dotted circle artifact in: ${res}`);
+      assert.ok(!res.includes('\u093C'), `Found unhandled nukta in: ${res}`);
+      assert.ok(res.includes('Rangat'), `Expected "Rangat" in result, got: ${res}`);
+      assert.ok(res.includes('Khaatir') || res.includes('Khatir'), `Expected "Khaatir" in result, got: ${res}`);
+      assert.ok(res.includes('Daakhil') || res.includes('Dakhil'), `Expected "Daakhil" in result, got: ${res}`);
+    });
+
     it('transliterates Malayalam script to Romanized phonetics', () => {
       // Malayalam: മറുപടി പറയുവാൻ മടിയുണ്ടല്ലൊ
       const res = romanizeIndicText('മറുപടി പറയുവാൻ മടിയുണ്ടല്ലൊ');

@@ -9,6 +9,7 @@ import {
   type LyricsCandidate
 } from '../../services/lyrics';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { romanizeIndicText, containsNonLatinScript } from '../../services/transliterate';
 import { formatTime } from '../../utils/formatTime';
 import { LiquidGlassSlider } from '../ui/LiquidGlassSlider';
@@ -306,7 +307,21 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
     };
   }, [artist, title, activeDuration]);
 
-  const [scriptPreference, setScriptPreference] = useState<'auto' | 'romanized' | 'native'>('auto');
+  const lyricsShowRomanization = useSettingsStore((s) => s.lyricsShowRomanization ?? true);
+  const setLyricsShowRomanization = useSettingsStore((s) => s.setLyricsShowRomanization);
+
+  // Script preference is persisted across closes/reopens via settingsStore
+  const scriptPreference: 'romanized' | 'native' = lyricsShowRomanization ? 'romanized' : 'native';
+
+  // Automatically switch to Latin candidate if user has romanized preference enabled
+  useEffect(() => {
+    if (lyricsShowRomanization && result?.candidates && result.candidates.length > 1) {
+      const latinCandidate = result.candidates.find((c) => c.scriptType === 'Latin');
+      if (latinCandidate && String(result.activeCandidateId) !== String(latinCandidate.id)) {
+        handleSwitchCandidate(latinCandidate);
+      }
+    }
+  }, [result?.activeCandidateId, lyricsShowRomanization]);
 
 
   const hasNonLatinLyrics = useMemo(() => {
@@ -550,7 +565,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
               type="button"
               onClick={() => {
                 const nextPref = scriptPreference === 'romanized' ? 'native' : 'romanized';
-                setScriptPreference(nextPref);
+                setLyricsShowRomanization(nextPref === 'romanized');
                 if (result?.candidates && result.candidates.length > 1) {
                   const match = result.candidates.find((c) =>
                     nextPref === 'romanized' ? c.scriptType === 'Latin' : c.scriptType !== 'Latin'
@@ -774,7 +789,14 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                       <button
                         key={cand.id}
                         type="button"
-                        onClick={() => handleSwitchCandidate(cand)}
+                        onClick={() => {
+                          handleSwitchCandidate(cand);
+                          if (cand.scriptType === 'Latin') {
+                            setLyricsShowRomanization(true);
+                          } else {
+                            setLyricsShowRomanization(false);
+                          }
+                        }}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-tight transition-all cursor-pointer flex items-center gap-1.5 ${
                           isCandActive
                             ? 'glass-button-primary text-white border-white/40 shadow-sm'
