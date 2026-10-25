@@ -105,6 +105,7 @@ interface FilamentPacket {
 }
 
 const CLUSTERS = [
+  // 1. North-West: Supernova Pulse (High-Energy, Bass, Phonk, Trap)
   {
     name: 'Supernova Pulse',
     shortName: 'Supernova',
@@ -112,11 +113,25 @@ const CLUSTERS = [
     color: '#f43f5e',
     secondary: '#fb7185',
     accentRgb: '244, 63, 94',
-    cx: -0.46,
-    cy: -0.22,
+    cx: -0.42,
+    cy: -0.32,
     cz: 0.16,
-    centroidDna: { energy: 88, bass: 86, vocal: 68, euphoria: 82 }
+    centroidDna: { energy: 92, bass: 90, vocal: 60, euphoria: 80 }
   },
+  // 2. North: Pulsar Neon (Cyberpunk, Synthwave, High-BPM Dance)
+  {
+    name: 'Pulsar Neon',
+    shortName: 'Pulsar',
+    subtitle: 'Cyber Electro & Neon Beats',
+    color: '#ec4899',
+    secondary: '#f472b6',
+    accentRgb: '236, 72, 153',
+    cx: 0.0,
+    cy: -0.48,
+    cz: -0.12,
+    centroidDna: { energy: 88, bass: 76, vocal: 52, euphoria: 92 }
+  },
+  // 3. North-East: Andromeda Velvet (Late-Night Soul, R&B & Melodic Pop)
   {
     name: 'Andromeda Velvet',
     shortName: 'Andromeda',
@@ -124,23 +139,25 @@ const CLUSTERS = [
     color: '#a855f7',
     secondary: '#c084fc',
     accentRgb: '168, 85, 247',
-    cx: 0.46,
-    cy: -0.20,
+    cx: 0.42,
+    cy: -0.32,
     cz: -0.16,
-    centroidDna: { energy: 58, bass: 64, vocal: 90, euphoria: 78 }
+    centroidDna: { energy: 54, bass: 60, vocal: 92, euphoria: 76 }
   },
+  // 4. East: Nebula Horizon (Atmospheric, Lofi, Chill & Dreamscape)
   {
-    name: 'Cyber Hyperion',
-    shortName: 'Hyperion',
-    subtitle: 'Electronic & Cinema Odyssey',
-    color: '#06b6d4',
-    secondary: '#22d3ee',
-    accentRgb: '6, 182, 212',
-    cx: -0.42,
-    cy: 0.24,
-    cz: -0.2,
-    centroidDna: { energy: 84, bass: 82, vocal: 62, euphoria: 91 }
+    name: 'Nebula Horizon',
+    shortName: 'Nebula',
+    subtitle: 'Lofi Chill & Dreamscape',
+    color: '#6366f1',
+    secondary: '#818cf8',
+    accentRgb: '99, 102, 241',
+    cx: 0.52,
+    cy: 0.02,
+    cz: 0.14,
+    centroidDna: { energy: 44, bass: 52, vocal: 78, euphoria: 84 }
   },
+  // 5. South-East: Solaris Gold (Timeless Acoustic, Folk, Classic & Vocals)
   {
     name: 'Solaris Gold',
     shortName: 'Solaris',
@@ -148,10 +165,49 @@ const CLUSTERS = [
     color: '#f59e0b',
     secondary: '#fbbf24',
     accentRgb: '245, 158, 11',
-    cx: 0.44,
-    cy: 0.24,
-    cz: 0.2,
-    centroidDna: { energy: 64, bass: 56, vocal: 88, euphoria: 86 }
+    cx: 0.40,
+    cy: 0.35,
+    cz: 0.18,
+    centroidDna: { energy: 58, bass: 48, vocal: 90, euphoria: 86 }
+  },
+  // 6. South: Orion Aurora (Warm Melodic, Indie & Uplifting Grooves)
+  {
+    name: 'Orion Aurora',
+    shortName: 'Orion',
+    subtitle: 'Warm Melodic & Uplifting Anthems',
+    color: '#10b981',
+    secondary: '#34d399',
+    accentRgb: '16, 185, 129',
+    cx: 0.0,
+    cy: 0.48,
+    cz: -0.15,
+    centroidDna: { energy: 68, bass: 64, vocal: 82, euphoria: 88 }
+  },
+  // 7. South-West: Cyber Hyperion (Electronic, Techno & Deep Sub-Bass)
+  {
+    name: 'Cyber Hyperion',
+    shortName: 'Hyperion',
+    subtitle: 'Electronic & Deep Sub-Bass',
+    color: '#06b6d4',
+    secondary: '#22d3ee',
+    accentRgb: '6, 182, 212',
+    cx: -0.40,
+    cy: 0.35,
+    cz: -0.18,
+    centroidDna: { energy: 84, bass: 86, vocal: 52, euphoria: 88 }
+  },
+  // 8. West: Astral Abyss (Cinematic Scores, Deep Space & Dark Bass)
+  {
+    name: 'Astral Abyss',
+    shortName: 'Astral',
+    subtitle: 'Cinematic Odyssey & Deep Space',
+    color: '#8b5cf6',
+    secondary: '#a78bfa',
+    accentRgb: '139, 92, 246',
+    cx: -0.52,
+    cy: -0.02,
+    cz: 0.12,
+    centroidDna: { energy: 76, bass: 82, vocal: 68, euphoria: 74 }
   }
 ];
 
@@ -178,7 +234,7 @@ function clamp(val: number, min: number, max: number): number {
 }
 
 /**
- * 100% Deterministic 4-Channel Sonic DNA & Cluster Classifier
+ * 100% Deterministic 4-Channel Sonic DNA & 8-Sector Cluster Classifier
  */
 function analyzeTrackSonicDNA(track: Track): { dna: SonicDNA; clusterIndex: number } {
   const text = `${track.title || ''} ${track.artist || ''} ${track.album || ''} ${track.genre || ''}`.toLowerCase();
@@ -191,45 +247,88 @@ function analyzeTrackSonicDNA(track: Track): { dna: SonicDNA; clusterIndex: numb
   let euphoria = 70 + (((h >> 12) % 19) - 9);
 
   if (
-    /\b(bass|trap|phonk|hype|party|club|dance|beat|remix|workout|power|kuthu|mass|badass|beast|fire|sicko|fein|starboy|blinding)\b/i.test(
+    /\b(bass|trap|phonk|drill|hype|party|club|power|kuthu|mass|badass|beast|fire|sicko|fein|travis|metro)\b/i.test(
       text
     )
   ) {
-    energy += 18;
-    bass += 20;
-    euphoria += 8;
+    energy += 20;
+    bass += 22;
+    euphoria += 6;
   }
 
   if (
-    /\b(synth|cyber|electronic|edm|techno|house|trance|future|neon|walker|daft|kavinsky|hans|ost|score|theme|horizon|cosmos)\b/i.test(
+    /\b(neon|synth|synthwave|dance|edm|future|disco|speed|fast|run|starboy|blinding|weeknd|rave)\b/i.test(
       text
     )
   ) {
-    energy += 12;
-    bass += 12;
+    energy += 16;
     euphoria += 18;
-    vocal -= 8;
+    bass += 8;
   }
 
   if (
-    /\b(love|soul|melody|romantic|heart|velvet|night|midnight|lofi|lo-fi|slowed|reverb|chill|arijit|shreya|sid|weeknd|lana|kesariya|tum)\b/i.test(
+    /\b(love|soul|melody|romantic|heart|velvet|night|midnight|arijit|shreya|sid|kesariya|tum|dil|sensual|slow)\b/i.test(
       text
     )
   ) {
-    vocal += 16;
+    vocal += 18;
     euphoria += 10;
     energy -= 10;
     bass += 4;
   }
 
   if (
-    /\b(acoustic|unplugged|live|piano|guitar|strings|classic|timeless|gold|rahman|ilaiyaraaja|indie|folk|ballad|sun|moon)\b/i.test(
+    /\b(lofi|lo-fi|chill|chillout|slowed|reverb|ambient|relax|sleep|study|cloud|dream|haze|mist)\b/i.test(
       text
     )
   ) {
-    vocal += 15;
+    vocal += 10;
+    euphoria += 16;
+    energy -= 18;
+    bass -= 4;
+  }
+
+  if (
+    /\b(acoustic|unplugged|live|piano|guitar|strings|classic|timeless|gold|rahman|ilaiyaraaja|old|vintage)\b/i.test(
+      text
+    )
+  ) {
+    vocal += 16;
     euphoria += 14;
-    bass -= 10;
+    bass -= 8;
+  }
+
+  if (
+    /\b(indie|folk|sunrise|morning|uplifting|anthem|hope|joy|alive|light|pop|radio|cheer)\b/i.test(
+      text
+    )
+  ) {
+    energy += 8;
+    vocal += 14;
+    euphoria += 16;
+    bass += 2;
+  }
+
+  if (
+    /\b(cyber|electronic|techno|house|trance|glitch|bassline|sub|industrial|daft|kavinsky|skrillex)\b/i.test(
+      text
+    )
+  ) {
+    energy += 14;
+    bass += 18;
+    euphoria += 14;
+    vocal -= 12;
+  }
+
+  if (
+    /\b(ost|score|theme|hans|zimmer|interstellar|cinematic|epic|dark|space|abyss|dune|batman|trailer)\b/i.test(
+      text
+    )
+  ) {
+    energy += 10;
+    bass += 16;
+    euphoria += 6;
+    vocal += 4;
   }
 
   if (dur > 0 && dur < 175) {
@@ -642,7 +741,7 @@ export default function SonicGalaxyPage() {
     }
 
     const entries = Array.from(map.values());
-    const clusterBuckets: number[] = [0, 0, 0, 0];
+    const clusterBuckets: number[] = new Array(CLUSTERS.length).fill(0);
 
     const rawNodes = entries.map(({ track, source }, idx) => {
       getCachedAlbumImage(track.thumbnail || track.thumbnailUrl);
@@ -689,30 +788,30 @@ export default function SonicGalaxyPage() {
       } else if (artistPlayCount >= 2) {
         reason = `Artist appears ${artistPlayCount}× in library • ${sonicSimilarityPct}% DNA match`;
       } else if (artistPlayCount === 1) {
-        reason = `Familiar artist • ${vibeSynergyPct}% ${cluster.shortName} quadrant synergy`;
+        reason = `Familiar artist • ${vibeSynergyPct}% ${cluster.shortName} sector synergy`;
       } else {
         reason = `Discovery Star • ${sonicSimilarityPct}% Cosine DNA match to your taste`;
       }
 
       const h = hashString(track.id + track.title);
 
-      // Distinct 3D positions based on galaxyLayout formation
+      // Distinct 3D positions based on 8-sector galaxyLayout formation
       let x = 0;
       let y = 0;
       let z = 0;
 
       if (galaxyLayout === 'rings') {
-        // Concentric Radar Rings: higher match orbits closer to the nucleus
+        // Concentric Radar Rings across all 8 sectors
         const normalizedDist = Math.max(0.16, ((100 - affinityScore) / 42) * 0.78);
-        const angle = idx * 2.39996 + clusterIndex * (Math.PI / 2);
+        const angle = idx * 2.39996 + clusterIndex * (Math.PI / 4);
         x = Math.cos(angle) * normalizedDist;
         z = Math.sin(angle) * normalizedDist;
         y = (((h % 100) / 100) - 0.5) * 0.22;
       } else if (galaxyLayout === 'spiral') {
-        // Majestic Logarithmic 4-Arm Spiral Galaxy
-        const armOffset = clusterIndex * (Math.PI / 2);
-        const spiralProgress = (rankInCluster + 1) / Math.max(4, entries.length / 4);
-        const armAngle = armOffset + spiralProgress * Math.PI * 2.4;
+        // Majestic Logarithmic 8-Arm Spiral Galaxy
+        const armOffset = clusterIndex * (Math.PI / 4);
+        const spiralProgress = (rankInCluster + 1) / Math.max(2, entries.length / CLUSTERS.length);
+        const armAngle = armOffset + spiralProgress * Math.PI * 2.2;
         const radius = 0.14 + Math.sqrt(spiralProgress) * 0.72;
         const spreadJitter = (((h % 100) / 100) - 0.5) * 0.08;
         x = Math.cos(armAngle) * (radius + spreadJitter);
@@ -721,12 +820,12 @@ export default function SonicGalaxyPage() {
         const diskThickness = 0.16 * (1 - radius * 0.65) + 0.03;
         y = (((h >> 4) % 100) / 100 - 0.5) * diskThickness;
       } else {
-        // Quadrant Constellations: golden-angle spiral around each quadrant centroid
-        const goldenAngle = rankInCluster * 2.39996 + clusterIndex * 1.1;
-        const ringStep = 0.09 + Math.sqrt(rankInCluster + 1) * 0.068;
-        const spreadZ = (((h >> 4) % 100) / 100 - 0.5) * 0.36;
-        x = cluster.cx + Math.cos(goldenAngle) * Math.min(0.32, ringStep);
-        y = cluster.cy + Math.sin(goldenAngle) * Math.min(0.28, ringStep);
+        // 8-Sector Constellations: golden-angle spiral around each sector centroid covering all 8 sides
+        const goldenAngle = rankInCluster * 2.39996 + clusterIndex * 0.785;
+        const ringStep = 0.08 + Math.sqrt(rankInCluster + 1) * 0.055;
+        const spreadZ = (((h >> 4) % 100) / 100 - 0.5) * 0.32;
+        x = cluster.cx + Math.cos(goldenAngle) * Math.min(0.24, ringStep);
+        y = cluster.cy + Math.sin(goldenAngle) * Math.min(0.22, ringStep);
         z = cluster.cz + spreadZ;
       }
 
@@ -773,7 +872,7 @@ export default function SonicGalaxyPage() {
   }, [stars]);
 
   const clusterCounts = useMemo(() => {
-    const counts = [0, 0, 0, 0];
+    const counts = new Array(CLUSTERS.length).fill(0);
     for (const s of stars) {
       if (counts[s.clusterIndex] !== undefined) counts[s.clusterIndex]++;
     }
@@ -1797,7 +1896,7 @@ export default function SonicGalaxyPage() {
           const barH = Math.max(2, val * 26);
           const bx = startX + b * barGap;
 
-          const clusterIdx = Math.floor((b / specBars) * 4);
+          const clusterIdx = Math.floor((b / specBars) * CLUSTERS.length);
           const col = CLUSTERS[clusterIdx]?.color || '#38bdf8';
 
           ctx.fillStyle = col;
@@ -1925,9 +2024,9 @@ export default function SonicGalaxyPage() {
           {/* 3-Way Formation Switcher with Liquid Glass Sliding Pill */}
           <div className="flex items-center p-1 rounded-2xl bg-white/[0.05] border-0 backdrop-blur-xl shadow-inner self-start md:self-center relative">
             {[
-              { id: 'quadrants', label: 'Constellations', icon: '🪐' },
+              { id: 'quadrants', label: '8-Sector Galaxy', icon: '🪐' },
               { id: 'rings', label: 'Taste Radar', icon: '🎯' },
-              { id: 'spiral', label: 'Spiral Galaxy', icon: '🌀' }
+              { id: 'spiral', label: '8-Arm Spiral', icon: '🌀' }
             ].map((fmt) => {
               const isSelected = galaxyLayout === fmt.id;
               return (
@@ -1963,22 +2062,22 @@ export default function SonicGalaxyPage() {
           </div>
         </div>
 
-        {/* Tier 2: Quadrant Filters & Integrated Search Bar */}
+        {/* Tier 2: 8-Sector Constellation Filters & Integrated Search Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
-          {/* Quadrant Constellation Filter Pills */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Sector Constellation Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 max-w-full">
             <button
               onClick={() => {
                 triggerAndroidHaptic('light');
                 setActiveClusterFilter(null);
               }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all flex-shrink-0 ${
                 activeClusterFilter === null
                   ? 'glass-button-primary text-white shadow-sm'
                   : 'glass-button text-white/70 hover:text-white'
               }`}
             >
-              All Quadrants ({stars.length})
+              All 8 Sectors ({stars.length})
             </button>
             {CLUSTERS.map((c, idx) => (
               <button
@@ -1987,7 +2086,7 @@ export default function SonicGalaxyPage() {
                   triggerAndroidHaptic('light');
                   setActiveClusterFilter(activeClusterFilter === idx ? null : idx);
                 }}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 flex-shrink-0 ${
                   activeClusterFilter === idx
                     ? 'glass-button text-white border-white/50 bg-white/20 shadow-md'
                     : 'glass-button text-white/70 hover:text-white'
