@@ -113,18 +113,18 @@ const Visualizer = memo(
           return;
         }
 
-        const width = canvas.width;
-        const height = canvas.height;
+        const dpr = Math.min(2.5, window.devicePixelRatio || 1);
+        const width = canvas.width / dpr;
+        const height = canvas.height / dpr;
         if (width === 0 || height === 0) {
           requestRef.current = requestAnimationFrame(draw);
           return;
         }
 
-        // Frame-rate independent delta-time normalized to 60fps (0.5 on 120Hz displays)
+        // Frame-rate independent delta-time normalized to 60fps reference (0.5 on 120Hz displays)
         const elapsed = now - lastTimeRef.current;
         lastTimeRef.current = now;
-        const dt = Math.min(2.2, Math.max(0.25, elapsed / 16.667));
-        const smoothFactor = 1 - Math.pow(1 - 0.26, dt);
+        const dt = Math.min(2.5, Math.max(0.1, elapsed / 16.667));
 
         // Smooth camera tilt damping
         const tilt = tiltRef.current;
@@ -132,21 +132,41 @@ const Visualizer = memo(
         tilt.y += (tilt.targetY - tilt.y) * (0.08 * dt);
 
         initStarsAndParticles(width, height);
-        ctx.clearRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
+        if (style === 'laser-oscilloscope') {
+          // Phosphor retention persistence trail
+          ctx.fillStyle = 'rgba(6, 6, 12, 0.22)';
+          ctx.fillRect(0, 0, width, height);
+        } else {
+          ctx.clearRect(0, 0, width, height);
+        }
 
         const data = dataRef.current;
 
-        // Update frequency spectrum (real Web Audio FFT first, rhythmic synth fallback second)
+        // Dual-pole audio dynamics: instant transient attack (kick/snare) + silky exponential release
         if (isActive) {
           const hasRealAudio = getAudioFrequencyData(fftBufferRef.current);
           if (hasRealAudio) {
+            const attackRate = 1 - Math.pow(1 - 0.45, dt);
+            const decayRate = 1 - Math.pow(1 - 0.16, dt);
             for (let i = 0; i < 64; i++) {
-              const normalized = (fftBufferRef.current[i] || 0) / 255;
-              data[i] += (normalized - data[i]) * smoothFactor;
+              const raw = (fftBufferRef.current[i] || 0) / 255;
+              const prev = i > 0 ? (fftBufferRef.current[i - 1] || 0) / 255 : raw;
+              const next = i < 63 ? (fftBufferRef.current[i + 1] || 0) / 255 : raw;
+              const target = raw * 0.7 + (prev + next) * 0.15;
+              const rate = target > data[i] ? attackRate : decayRate;
+              data[i] += (target - data[i]) * rate;
             }
           } else {
             const beatPulse = Math.pow((Math.sin(now * 0.0065) + 1) * 0.5, 2.2);
-            const fallbackSmooth = 1 - Math.pow(1 - 0.16, dt);
+            const fallbackSmooth = 1 - Math.pow(1 - 0.18, dt);
             for (let i = 0; i < 64; i++) {
               const isBass = i < 12;
               const wave =
@@ -195,50 +215,50 @@ const Visualizer = memo(
         if (style === 'cyber-mesh') {
           const cx = width / 2;
           const horizonY = height * 0.46 + tilt.y * 25;
-          const fov = height * 0.72;
-          const camY = height * 0.36 + tilt.y * 35;
+          const fov = height * 0.76;
+          const camY = height * 0.38 + tilt.y * 35;
 
           // Horizon Glow & Synthwave Sun
-          const sunR = Math.min(width, height) * (0.17 + bassEnergy * 0.06);
+          const sunR = Math.min(width, height) * (0.17 + bassEnergy * 0.05);
           const sunX = cx + tilt.x * 30;
-          const sunY = horizonY - 12;
+          const sunY = horizonY - 10;
 
-          const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.2, sunX, sunY, sunR * 1.8);
+          const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.2, sunX, sunY, sunR * 1.9);
           sunGlow.addColorStop(0, c0);
-          sunGlow.addColorStop(0.5, c1);
+          sunGlow.addColorStop(0.5, `${c1}88`);
           sunGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
           ctx.fillStyle = sunGlow;
           ctx.beginPath();
-          ctx.arc(sunX, sunY, sunR * 1.8, 0, Math.PI * 2);
+          ctx.arc(sunX, sunY, sunR * 1.9, 0, Math.PI * 2);
           ctx.fill();
 
-          // Sun Disk with retro scanline slats
+          // Sun Disk with high-precision anti-aliased slats
           ctx.save();
           ctx.beginPath();
           ctx.arc(sunX, sunY, sunR, Math.PI, 0); // Upper half above horizon
           ctx.clip();
           const sunDiskGrad = ctx.createLinearGradient(sunX, sunY - sunR, sunX, sunY);
           sunDiskGrad.addColorStop(0, '#fef08a');
-          sunDiskGrad.addColorStop(0.4, c0);
+          sunDiskGrad.addColorStop(0.38, c0);
           sunDiskGrad.addColorStop(1, c1);
           ctx.fillStyle = sunDiskGrad;
           ctx.fillRect(sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
 
-          const slats = 6;
+          const slats = 8;
           ctx.fillStyle = '#06060b';
           for (let s = 1; s <= slats; s++) {
-            const slatH = s * (sunR * 0.028);
+            const slatH = s * (sunR * 0.024);
             const slatY = sunY - (s / (slats + 1)) * sunR;
             ctx.fillRect(sunX - sunR, slatY, sunR * 2, slatH);
           }
           ctx.restore();
 
-          // 3D Terrain Grid
-          const cols = 22;
-          const rows = 24;
-          const rowSpacing = 36;
+          // 3D Terrain Grid with Smooth Interpolation
+          const cols = 42; // High-density grid for silky 120fps curves
+          const rows = 32;
+          const rowSpacing = 32;
           meshOffsetRef.current =
-            (meshOffsetRef.current + (isActive ? 1.4 + bassEnergy * 3.0 : 0.35) * dt) % rowSpacing;
+            (meshOffsetRef.current + (isActive ? 1.2 + bassEnergy * 2.8 : 0.3) * dt) % rowSpacing;
 
           const gridPoints: Array<Array<{ sx: number; sy: number; alpha: number }>> = [];
 
@@ -246,20 +266,26 @@ const Visualizer = memo(
             const distZ = r * rowSpacing - meshOffsetRef.current;
             if (distZ < 4) continue;
             const proj = fov / (fov + distZ);
-            const rowAlpha = Math.max(0, Math.min(1, (1 - distZ / (rows * rowSpacing)) * 1.5));
+            const rowAlpha = Math.max(0, Math.min(1, (1 - distZ / (rows * rowSpacing)) * 1.6));
             const rowPoints: Array<{ sx: number; sy: number; alpha: number }> = [];
 
             for (let c = -cols / 2; c <= cols / 2; c++) {
               const normC = c / (cols / 2); // -1 to 1
-              const colSpacing = (width * 1.75) / cols;
-              const worldX = c * colSpacing + tilt.x * 65;
+              const colSpacing = (width * 1.8) / cols;
+              const worldX = c * colSpacing + tilt.x * 60;
 
-              // Mountain ridge elevation: canyon in center, reactive mountains on sides
-              const valley = Math.pow(Math.abs(normC), 2.2);
-              const freqIdx = Math.min(31, Math.floor(Math.abs(normC) * 32));
-              const freqVal = data[freqIdx] || 0;
-              const ripple = Math.sin(distZ * 0.035 - now * 0.003 + c * 0.45) * (14 + bassEnergy * 34);
-              const worldY = -valley * (freqVal * 115 + 38) - ripple;
+              // Mountain ridge elevation: smooth valley in center, continuous reactive mountains on sides
+              const absNorm = Math.abs(normC);
+              const valley = Math.pow(absNorm, 2.4);
+              // Smooth fractional frequency interpolation
+              const freqPos = absNorm * 31;
+              const f0 = Math.floor(freqPos);
+              const f1 = Math.min(31, f0 + 1);
+              const fFrac = freqPos - f0;
+              const freqVal = (data[f0] || 0) * (1 - fFrac) + (data[f1] || 0) * fFrac;
+
+              const ripple = Math.sin(distZ * 0.035 - now * 0.003 + c * 0.35) * (12 + bassEnergy * 30);
+              const worldY = -valley * (freqVal * 110 + 36) - ripple;
 
               const sx = cx + worldX * proj;
               const sy = horizonY + (camY + worldY) * proj;
@@ -268,23 +294,27 @@ const Visualizer = memo(
             gridPoints.push(rowPoints);
           }
 
-          // Draw latitudinal lines (horizontal ribbons)
+          // Draw latitudinal lines with silky smooth curves
           for (let r = 0; r < gridPoints.length; r++) {
             const pts = gridPoints[r];
             if (pts.length < 2) continue;
             ctx.beginPath();
             ctx.moveTo(pts[0].sx, pts[0].sy);
-            for (let i = 1; i < pts.length; i++) {
-              ctx.lineTo(pts[i].sx, pts[i].sy);
+            for (let i = 0; i < pts.length - 1; i++) {
+              const mx = (pts[i].sx + pts[i + 1].sx) * 0.5;
+              const my = (pts[i].sy + pts[i + 1].sy) * 0.5;
+              ctx.quadraticCurveTo(pts[i].sx, pts[i].sy, mx, my);
             }
+            ctx.lineTo(pts[pts.length - 1].sx, pts[pts.length - 1].sy);
+
             const rAlpha = pts[0].alpha;
             ctx.strokeStyle = r % 2 === 0 ? c0 : c1;
-            ctx.globalAlpha = rAlpha * (0.45 + bassEnergy * 0.4);
-            ctx.lineWidth = Math.max(1, 2.4 * rAlpha);
+            ctx.globalAlpha = rAlpha * (0.42 + bassEnergy * 0.38);
+            ctx.lineWidth = Math.max(1, 2.0 * rAlpha);
             ctx.stroke();
           }
 
-          // Draw longitudinal lines (perspective lines converging towards horizon)
+          // Draw longitudinal lines with smooth perspective curves
           const numPtsInRow = gridPoints[0]?.length || 0;
           for (let c = 0; c < numPtsInRow; c++) {
             ctx.beginPath();
@@ -299,10 +329,11 @@ const Visualizer = memo(
                 ctx.lineTo(pt.sx, pt.sy);
               }
             }
-            const normC = Math.abs((c - numPtsInRow / 2) / (numPtsInRow / 2));
-            ctx.strokeStyle = normC > 0.45 ? c0 : c2;
-            ctx.globalAlpha = 0.55 + bassEnergy * 0.35;
-            ctx.lineWidth = 1.4;
+            const colNorm = Math.abs((c - numPtsInRow / 2) / (numPtsInRow / 2));
+            const lineAlpha = Math.max(0.08, 1 - colNorm * 0.5);
+            ctx.strokeStyle = c % 2 === 0 ? c1 : c2;
+            ctx.globalAlpha = lineAlpha * (0.35 + bassEnergy * 0.45);
+            ctx.lineWidth = 1.2;
             ctx.stroke();
           }
           ctx.globalAlpha = 1.0;
@@ -1228,61 +1259,82 @@ const Visualizer = memo(
           ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
         } else if (style === 'laser-oscilloscope') {
-          // Lissajous Laser Beam CRT Oscilloscope
-          oscPhaseRef.current += (0.015 + bassEnergy * 0.04) * dt;
+          // Lissajous Laser Beam CRT Oscilloscope - Phosphor Persistence & Silky Vector Beam
+          oscPhaseRef.current += (0.012 + bassEnergy * 0.028) * dt;
           const cx = width / 2 + tilt.x * 40;
           const cy = height / 2 + tilt.y * 30;
-          const scale = Math.min(width, height) * 0.38;
-          const samples = 220;
+          const scale = Math.min(width, height) * 0.36;
+          const samples = 720; // Silky smooth 120fps curve
 
           // CRT phosphor reticle
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
           ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.arc(cx, cy, scale * 1.05, 0, Math.PI * 2);
+          ctx.arc(cx, cy, scale * 1.08, 0, Math.PI * 2);
           ctx.stroke();
           ctx.beginPath();
-          ctx.moveTo(cx - scale * 1.05, cy);
-          ctx.lineTo(cx + scale * 1.05, cy);
-          ctx.moveTo(cx, cy - scale * 1.05);
-          ctx.lineTo(cx, cy + scale * 1.05);
+          ctx.moveTo(cx - scale * 1.08, cy);
+          ctx.lineTo(cx + scale * 1.08, cy);
+          ctx.moveTo(cx, cy - scale * 1.08);
+          ctx.lineTo(cx, cy + scale * 1.08);
           ctx.stroke();
 
-          // Lissajous harmonics modulated by frequency bins
-          const freqA = 2 + (data[4] || 0) * 2;
-          const freqB = 3 + (data[16] || 0) * 3;
+          // Harmonic Lissajous ratios (2:3 with audio-reactive phase drift)
           const delta = oscPhaseRef.current;
+          const harmonicFreqA = 2;
+          const harmonicFreqB = 3;
 
-          // First pass: Thick outer neon bloom glow
-          ctx.beginPath();
+          // Build continuous closed loop points with smooth Catmull-Rom interpolation
+          const pts: Array<{ x: number; y: number }> = [];
           for (let i = 0; i <= samples; i++) {
             const t = (i / samples) * Math.PI * 2;
-            const audioWarp = (data[i % 64] || 0) * 0.22;
-            const amp = scale * (0.8 + bassEnergy * 0.25 + audioWarp);
-            const x = cx + Math.sin(freqA * t + delta) * amp;
-            const y = cy + Math.sin(freqB * t) * amp;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+            // Symmetric audio envelope that wraps seamlessly with 0 discontinuity at t = 0 and 2pi
+            const normT = i / samples;
+            const freqIdx = Math.floor(Math.abs(Math.sin(normT * Math.PI)) * 31);
+            const audioWarp = (data[freqIdx] || 0) * 0.28 * Math.sin(t * 6 + delta);
+            const amp = scale * (0.82 + bassEnergy * 0.22 + audioWarp);
+
+            const x = cx + Math.sin(harmonicFreqA * t + delta) * amp;
+            const y = cy + Math.sin(harmonicFreqB * t) * amp;
+            pts.push({ x, y });
           }
+
+          // Render with smooth quadratic splines through points
+          const drawBeamPath = () => {
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 0; i < pts.length - 1; i++) {
+              const mx = (pts[i].x + pts[i + 1].x) * 0.5;
+              const my = (pts[i].y + pts[i + 1].y) * 0.5;
+              ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+            }
+            ctx.closePath();
+          };
+
+          // 3-Pass Phosphor Glow Pipeline
+          // Pass 1: Wide neon bloom glow
+          drawBeamPath();
           ctx.strokeStyle = c0;
-          ctx.lineWidth = 6 + bassEnergy * 6;
+          ctx.lineWidth = 8 + bassEnergy * 8;
           ctx.globalAlpha = 0.35 + bassEnergy * 0.3;
           ctx.shadowColor = c0;
-          ctx.shadowBlur = 18;
+          ctx.shadowBlur = 24;
           ctx.stroke();
 
-          // Second pass: Mid laser beam
+          // Pass 2: Vivid mid beam
+          drawBeamPath();
           ctx.strokeStyle = c1;
-          ctx.lineWidth = 2.8;
-          ctx.globalAlpha = 0.75;
+          ctx.lineWidth = 3.2;
+          ctx.globalAlpha = 0.8;
           ctx.shadowColor = c1;
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = 10;
           ctx.stroke();
 
-          // Third pass: Hyper-bright laser core
+          // Pass 3: Ultra-bright laser core
+          drawBeamPath();
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.2;
-          ctx.globalAlpha = 0.95;
+          ctx.lineWidth = 1.4;
+          ctx.globalAlpha = 0.98;
           ctx.shadowBlur = 0;
           ctx.stroke();
 
@@ -1290,6 +1342,7 @@ const Visualizer = memo(
           ctx.globalAlpha = 1;
         }
 
+        ctx.restore();
         requestRef.current = requestAnimationFrame(draw);
       },
       [isActive, style, colors]
@@ -1299,8 +1352,16 @@ const Visualizer = memo(
       const handleResize = () => {
         const canvas = canvasRef.current;
         if (canvas && canvas.parentElement) {
-          canvas.width = canvas.parentElement.clientWidth;
-          canvas.height = canvas.parentElement.clientHeight;
+          const rect = canvas.parentElement.getBoundingClientRect();
+          const dpr = Math.min(2.5, window.devicePixelRatio || 1);
+          const w = Math.round(rect.width);
+          const h = Math.round(rect.height);
+          if (w > 0 && h > 0) {
+            canvas.width = Math.round(w * dpr);
+            canvas.height = Math.round(h * dpr);
+            canvas.style.width = `${w}px`;
+            canvas.style.height = `${h}px`;
+          }
         }
       };
 
