@@ -247,7 +247,12 @@ export type VisualizerStyle =
   | 'nebula'
   | 'starfield'
   | 'cyber-mesh'
-  | 'analog-vu';
+  | 'analog-vu'
+  | 'quantum-tunnel'
+  | 'solar-flare'
+  | 'kaleidoscope'
+  | 'matrix-rain'
+  | 'laser-oscilloscope';
 
 export type AudioQuality = SettingsState['audioQuality'];
 export type PerformanceProfile = SettingsState['performanceProfile'];

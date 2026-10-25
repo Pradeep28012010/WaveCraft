@@ -829,6 +829,11 @@ export default function SettingsPage() {
                 options={[
                   { value: 'cyber-mesh', label: '3D Cyber Wave Mesh' },
                   { value: 'nebula', label: '3D Cosmic Nebula' },
+                  { value: 'quantum-tunnel', label: 'Quantum Hyperdrive Tunnel' },
+                  { value: 'solar-flare', label: 'Solar Flare & Pulsar Corona' },
+                  { value: 'kaleidoscope', label: 'Sacred Mandala Kaleidoscope' },
+                  { value: 'matrix-rain', label: 'Cyber Matrix Digital Rain' },
+                  { value: 'laser-oscilloscope', label: 'Laser Oscilloscope (Lissajous CRT)' },
                   { value: 'analog-vu', label: 'Vintage Analog VU Meter' },
                   { value: 'starfield', label: '3D Starfield Warp' },
                   { value: 'particles', label: 'Bioluminescent Orbs' },

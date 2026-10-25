@@ -33,6 +33,11 @@ interface NowPlayingProps {
 const VISUALIZER_MODES: Array<{ id: VisualizerStyle; label: string }> = [
   { id: 'cyber-mesh', label: '3D Cyber Mesh' },
   { id: 'nebula', label: '3D Cosmic Nebula' },
+  { id: 'quantum-tunnel', label: 'Quantum Tunnel' },
+  { id: 'solar-flare', label: 'Solar Pulsar' },
+  { id: 'kaleidoscope', label: 'Mandala Prism' },
+  { id: 'matrix-rain', label: 'Matrix Rain' },
+  { id: 'laser-oscilloscope', label: 'Laser Scope' },
   { id: 'analog-vu', label: 'Analog VU Meter' },
   { id: 'starfield', label: '3D Starfield' },
   { id: 'particles', label: 'Bio Orbs' },

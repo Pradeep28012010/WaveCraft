@@ -12,12 +12,22 @@ test('Atmosphere Soundscapes & 3D Visualizer Architecture', async (t) => {
       'circular',
       'blob',
       'bars',
-      'wave'
+      'wave',
+      'quantum-tunnel',
+      'solar-flare',
+      'kaleidoscope',
+      'matrix-rain',
+      'laser-oscilloscope'
     ];
 
     assert.equal(validStyles.includes('cyber-mesh'), true, 'cyber-mesh mode must be supported');
     assert.equal(validStyles.includes('analog-vu'), true, 'analog-vu mode must be supported');
-    assert.equal(validStyles.length, 9, 'Should have exactly 9 visualizer modes');
+    assert.equal(validStyles.includes('quantum-tunnel'), true, 'quantum-tunnel mode must be supported');
+    assert.equal(validStyles.includes('solar-flare'), true, 'solar-flare mode must be supported');
+    assert.equal(validStyles.includes('kaleidoscope'), true, 'kaleidoscope mode must be supported');
+    assert.equal(validStyles.includes('matrix-rain'), true, 'matrix-rain mode must be supported');
+    assert.equal(validStyles.includes('laser-oscilloscope'), true, 'laser-oscilloscope mode must be supported');
+    assert.equal(validStyles.length, 14, 'Should have exactly 14 visualizer modes');
   });
 
   await t.test('Atmosphere Mood Presets Validation', () => {

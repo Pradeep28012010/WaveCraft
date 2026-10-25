@@ -59,6 +59,17 @@ const Visualizer = memo(
       right: 0,
       tapeAngle: 0
     });
+    const matrixColsRef = useRef<
+      Array<{
+        x: number;
+        y: number;
+        speed: number;
+        chars: string[];
+      }>
+    >([]);
+    const tunnelRotationRef = useRef<number>(0);
+    const flareAngleRef = useRef<number>(0);
+    const oscPhaseRef = useRef<number>(0);
 
     const initStarsAndParticles = (width: number, height: number) => {
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -859,6 +870,334 @@ const Visualizer = memo(
           ctx.strokeStyle = gradient;
           ctx.lineWidth = 2;
           ctx.stroke();
+        } else if (style === 'quantum-tunnel') {
+          // Quantum Hyperdrive Hexagonal Tunnel
+          tunnelRotationRef.current += (0.008 + bassEnergy * 0.035) * dt;
+          const cx = width / 2 + tilt.x * 40;
+          const cy = height / 2 + tilt.y * 30;
+          const maxRadius = Math.hypot(width, height) * 0.65;
+          const rings = 18;
+          const sides = 6; // Hexagonal geometry
+
+          // Central hyperspace void / singularity glow
+          const coreGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 70 + bassEnergy * 60);
+          coreGlow.addColorStop(0, c0);
+          coreGlow.addColorStop(0.4, `${c1}88`);
+          coreGlow.addColorStop(1, 'rgba(6, 6, 12, 0)');
+          ctx.fillStyle = coreGlow;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 70 + bassEnergy * 60, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Concentric hyperbolic tunnel rings
+          const ringPoints: Array<Array<{ x: number; y: number }>> = [];
+          for (let r = 0; r < rings; r++) {
+            const progress = ((r / rings) + (now * 0.0006 * (1 + bassEnergy * 1.5))) % 1;
+            const depth = Math.pow(progress, 2.4);
+            const radius = Math.max(8, depth * maxRadius);
+            const freqIdx = Math.min(63, Math.floor(r * (64 / rings)));
+            const freqAudio = data[freqIdx] || 0;
+            const ringAngle = tunnelRotationRef.current + r * 0.12 * Math.sin(now * 0.001);
+
+            const pts: Array<{ x: number; y: number }> = [];
+            for (let s = 0; s < sides; s++) {
+              const theta = ringAngle + (s * 2 * Math.PI) / sides;
+              const distortion = 1 + freqAudio * 0.35 + Math.sin(theta * 3 + now * 0.005) * 0.08 * bassEnergy;
+              const rad = radius * distortion;
+              pts.push({
+                x: cx + Math.cos(theta) * rad,
+                y: cy + Math.sin(theta) * rad
+              });
+            }
+            ringPoints.push(pts);
+
+            // Draw ring perimeter
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let s = 1; s < sides; s++) {
+              ctx.lineTo(pts[s].x, pts[s].y);
+            }
+            ctx.closePath();
+
+            const ringAlpha = Math.min(1, Math.sin(progress * Math.PI) * 1.2);
+            ctx.strokeStyle = r % 3 === 0 ? c0 : r % 3 === 1 ? c1 : c2;
+            ctx.lineWidth = Math.max(1.2, progress * 4.2 * (1 + freqAudio * 0.8));
+            ctx.globalAlpha = ringAlpha * (0.4 + freqAudio * 0.6);
+            ctx.stroke();
+          }
+
+          // Tunnel longitudinal warp rails connecting rings
+          if (ringPoints.length > 1) {
+            for (let s = 0; s < sides; s++) {
+              ctx.beginPath();
+              ctx.moveTo(ringPoints[0][s].x, ringPoints[0][s].y);
+              for (let r = 1; r < ringPoints.length; r++) {
+                ctx.lineTo(ringPoints[r][s].x, ringPoints[r][s].y);
+              }
+              ctx.strokeStyle = s % 2 === 0 ? c1 : c2;
+              ctx.lineWidth = 1.4;
+              ctx.globalAlpha = 0.35 + bassEnergy * 0.45;
+              ctx.stroke();
+            }
+          }
+          ctx.globalAlpha = 1;
+        } else if (style === 'solar-flare') {
+          // Solar Flare & Pulsar Corona
+          flareAngleRef.current += (0.005 + bassEnergy * 0.02) * dt;
+          const cx = width / 2 + tilt.x * 35;
+          const cy = height / 2 + tilt.y * 25;
+          const baseRadius = Math.min(width, height) * 0.16 + bassEnergy * 28;
+
+          // Multi-layer glowing corona
+          const coronaGlow = ctx.createRadialGradient(cx, cy, baseRadius * 0.4, cx, cy, baseRadius * 2.8);
+          coronaGlow.addColorStop(0, `${c0}ee`);
+          coronaGlow.addColorStop(0.35, `${c1}88`);
+          coronaGlow.addColorStop(0.7, `${c2}33`);
+          coronaGlow.addColorStop(1, 'rgba(6, 6, 12, 0)');
+          ctx.fillStyle = coronaGlow;
+          ctx.beginPath();
+          ctx.arc(cx, cy, baseRadius * 2.8, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Coronal flares & prominence loops
+          const rayCount = 48;
+          ctx.save();
+          ctx.translate(cx, cy);
+          for (let i = 0; i < rayCount; i++) {
+            const angle = (i * 2 * Math.PI) / rayCount + flareAngleRef.current;
+            const freqIdx = Math.floor((i / rayCount) * 48);
+            const audioVal = data[freqIdx] || 0;
+            const flareLen = baseRadius + audioVal * (baseRadius * 1.5) + Math.sin(i * 3 + now * 0.006) * 14;
+
+            const p1x = Math.cos(angle) * (baseRadius * 0.95);
+            const p1y = Math.sin(angle) * (baseRadius * 0.95);
+            const p2x = Math.cos(angle) * flareLen;
+            const p2y = Math.sin(angle) * flareLen;
+
+            // Arcing prominence loop curve
+            const curveOffset = Math.sin(i * 1.5 + now * 0.008) * (20 + audioVal * 30);
+            const cpx = Math.cos(angle + 0.1) * (flareLen * 0.7) - Math.sin(angle) * curveOffset;
+            const cpy = Math.sin(angle + 0.1) * (flareLen * 0.7) + Math.cos(angle) * curveOffset;
+
+            ctx.beginPath();
+            ctx.moveTo(p1x, p1y);
+            ctx.quadraticCurveTo(cpx, cpy, p2x, p2y);
+
+            const rayGrad = ctx.createLinearGradient(p1x, p1y, p2x, p2y);
+            rayGrad.addColorStop(0, c0);
+            rayGrad.addColorStop(0.5, c1);
+            rayGrad.addColorStop(1, `${c2}00`);
+
+            ctx.strokeStyle = rayGrad;
+            ctx.lineWidth = Math.max(1.2, 2.5 * (1 + audioVal));
+            ctx.globalAlpha = 0.5 + audioVal * 0.5;
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          // Central stellar core
+          const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius);
+          coreGrad.addColorStop(0, '#ffffff');
+          coreGrad.addColorStop(0.3, c0);
+          coreGrad.addColorStop(0.8, c1);
+          coreGrad.addColorStop(1, 'rgba(10, 10, 20, 0.9)');
+          ctx.fillStyle = coreGrad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = c0;
+          ctx.lineWidth = 2 + bassEnergy * 4;
+          ctx.globalAlpha = 0.9;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        } else if (style === 'kaleidoscope') {
+          // Sacred Mandala Prism Kaleidoscope
+          tunnelRotationRef.current += (0.004 + bassEnergy * 0.015) * dt;
+          const cx = width / 2 + tilt.x * 35;
+          const cy = height / 2 + tilt.y * 25;
+          const sectors = 12; // 12-fold symmetry mandala
+          const maxRadius = Math.min(width, height) * 0.46;
+          const stepAngle = (2 * Math.PI) / sectors;
+
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(tunnelRotationRef.current);
+
+          for (let s = 0; s < sectors; s++) {
+            ctx.save();
+            ctx.rotate(s * stepAngle);
+            if (s % 2 === 1) {
+              ctx.scale(1, -1); // mirror symmetry
+            }
+
+            // Draw mandala petal facets
+            const facetCount = 14;
+            for (let f = 0; f < facetCount; f++) {
+              const freqIdx = Math.min(63, f * 4);
+              const freqVal = data[freqIdx] || 0;
+              const r1 = (f / facetCount) * maxRadius * (0.85 + bassEnergy * 0.25);
+              const r2 = ((f + 1) / facetCount) * maxRadius * (0.85 + bassEnergy * 0.25);
+              const theta1 = (freqVal * 0.25);
+              const theta2 = (stepAngle * 0.5) * (0.5 + freqVal * 0.5);
+
+              const x1 = Math.cos(theta1) * r1;
+              const y1 = Math.sin(theta1) * r1;
+              const x2 = Math.cos(theta2) * ((r1 + r2) * 0.5);
+              const y2 = Math.sin(theta2) * ((r1 + r2) * 0.5);
+              const x3 = Math.cos(theta1) * r2;
+              const y3 = Math.sin(theta1) * r2;
+
+              ctx.beginPath();
+              ctx.moveTo(x1, y1);
+              ctx.lineTo(x2, y2);
+              ctx.lineTo(x3, y3);
+              ctx.closePath();
+
+              const facetAlpha = 0.25 + freqVal * 0.65;
+              ctx.fillStyle = f % 3 === 0 ? `${c0}33` : f % 3 === 1 ? `${c1}33` : `${c2}33`;
+              ctx.fill();
+
+              ctx.strokeStyle = f % 3 === 0 ? c0 : f % 3 === 1 ? c1 : c2;
+              ctx.lineWidth = Math.max(1, 1.8 * (1 + freqVal));
+              ctx.globalAlpha = facetAlpha;
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
+          ctx.restore();
+
+          // Central sacred gemstone core
+          const gemGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 26 + bassEnergy * 16);
+          gemGrad.addColorStop(0, '#ffffff');
+          gemGrad.addColorStop(0.5, c0);
+          gemGrad.addColorStop(1, `${c1}00`);
+          ctx.fillStyle = gemGrad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 26 + bassEnergy * 16, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        } else if (style === 'matrix-rain') {
+          // Cyber Matrix Digital Rain Cascade
+          const colWidth = 20;
+          const numCols = Math.floor(width / colWidth);
+          const chars = '0123456789ABCDEFｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ';
+
+          if (matrixColsRef.current.length !== numCols) {
+            matrixColsRef.current = Array.from({ length: numCols }, (_, idx) => ({
+              x: idx * colWidth,
+              y: Math.random() * -height,
+              speed: 2 + Math.random() * 4,
+              chars: Array.from({ length: 22 }, () => chars[Math.floor(Math.random() * chars.length)])
+            }));
+          }
+
+          ctx.font = '13px monospace';
+          ctx.textAlign = 'center';
+
+          // Perspective and audio-driven fall
+          const globalSpeed = (1 + bassEnergy * 2.8) * dt;
+
+          for (let c = 0; c < matrixColsRef.current.length; c++) {
+            const col = matrixColsRef.current[c];
+            const freqIdx = Math.min(63, Math.floor((c / numCols) * 64));
+            const freqVal = data[freqIdx] || 0;
+
+            col.y += (col.speed + freqVal * 8) * globalSpeed;
+            if (col.y - 22 * 16 > height) {
+              col.y = Math.random() * -60;
+              col.speed = 2 + Math.random() * 4;
+            }
+
+            // Periodically mutate characters
+            if (Math.random() < 0.08 + bassEnergy * 0.15) {
+              const charIdx = Math.floor(Math.random() * col.chars.length);
+              col.chars[charIdx] = chars[Math.floor(Math.random() * chars.length)];
+            }
+
+            // Draw stream glyphs
+            for (let i = 0; i < col.chars.length; i++) {
+              const charY = col.y - i * 16;
+              if (charY < -16 || charY > height + 16) continue;
+
+              const isHead = i === 0;
+              const trailAlpha = Math.max(0.08, (1 - i / col.chars.length) * (0.5 + freqVal * 0.5));
+
+              if (isHead) {
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = c2;
+                ctx.shadowBlur = 8 + bassEnergy * 10;
+              } else {
+                ctx.fillStyle = i < 4 ? c2 : i < 10 ? c1 : c0;
+                ctx.shadowBlur = 0;
+              }
+
+              ctx.globalAlpha = isHead ? 1 : trailAlpha;
+              ctx.fillText(col.chars[i], col.x + colWidth / 2, charY);
+            }
+          }
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 1;
+        } else if (style === 'laser-oscilloscope') {
+          // Lissajous Laser Beam CRT Oscilloscope
+          oscPhaseRef.current += (0.015 + bassEnergy * 0.04) * dt;
+          const cx = width / 2 + tilt.x * 40;
+          const cy = height / 2 + tilt.y * 30;
+          const scale = Math.min(width, height) * 0.38;
+          const samples = 220;
+
+          // CRT phosphor reticle
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(cx, cy, scale * 1.05, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(cx - scale * 1.05, cy);
+          ctx.lineTo(cx + scale * 1.05, cy);
+          ctx.moveTo(cx, cy - scale * 1.05);
+          ctx.lineTo(cx, cy + scale * 1.05);
+          ctx.stroke();
+
+          // Lissajous harmonics modulated by frequency bins
+          const freqA = 2 + (data[4] || 0) * 2;
+          const freqB = 3 + (data[16] || 0) * 3;
+          const delta = oscPhaseRef.current;
+
+          // First pass: Thick outer neon bloom glow
+          ctx.beginPath();
+          for (let i = 0; i <= samples; i++) {
+            const t = (i / samples) * Math.PI * 2;
+            const audioWarp = (data[i % 64] || 0) * 0.22;
+            const amp = scale * (0.8 + bassEnergy * 0.25 + audioWarp);
+            const x = cx + Math.sin(freqA * t + delta) * amp;
+            const y = cy + Math.sin(freqB * t) * amp;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = c0;
+          ctx.lineWidth = 6 + bassEnergy * 6;
+          ctx.globalAlpha = 0.35 + bassEnergy * 0.3;
+          ctx.shadowColor = c0;
+          ctx.shadowBlur = 18;
+          ctx.stroke();
+
+          // Second pass: Mid laser beam
+          ctx.strokeStyle = c1;
+          ctx.lineWidth = 2.8;
+          ctx.globalAlpha = 0.75;
+          ctx.shadowColor = c1;
+          ctx.shadowBlur = 8;
+          ctx.stroke();
+
+          // Third pass: Hyper-bright laser core
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.2;
+          ctx.globalAlpha = 0.95;
+          ctx.shadowBlur = 0;
+          ctx.stroke();
+
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 1;
         }
 
         requestRef.current = requestAnimationFrame(draw);

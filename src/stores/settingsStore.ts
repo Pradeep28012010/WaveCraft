@@ -1,20 +1,11 @@
 import { create } from 'zustand';
-import type { SettingsState } from '../types';
+import type { SettingsState, VisualizerStyle } from '../types';
 import { loadSettings, saveSettings } from '../services/storage';
 import { EQ_PRESETS } from '../utils/constants';
 
 const SETTINGS_LOCAL_KEY = 'wavecraft_settings_v1';
 
-export type VisualizerStyleOption =
-  | 'bars'
-  | 'wave'
-  | 'blob'
-  | 'circular'
-  | 'particles'
-  | 'nebula'
-  | 'starfield'
-  | 'cyber-mesh'
-  | 'analog-vu';
+export type VisualizerStyleOption = VisualizerStyle;
 
 interface SettingsStore extends SettingsState {
   crossfade: number;
