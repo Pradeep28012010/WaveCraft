@@ -1028,49 +1028,54 @@ export default function HomePage() {
         </div>
 
         {/* Unified Discovery & Navigation Control Bar */}
-        <div className="flex flex-col items-start md:flex-row md:items-center justify-between gap-3 pt-1 w-full min-w-0">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pt-1 w-full min-w-0">
           {/* Category Filter Pills */}
           <div
-            className="inline-flex items-center gap-1.5 p-1.5 rounded-full liquid-glass border-0 overflow-x-auto no-scrollbar w-fit max-w-full flex-shrink-0 self-start relative"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            className="w-full xl:w-auto overflow-x-auto no-scrollbar py-0.5 min-w-0 flex items-center"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
-            {FILTER_CHIPS.map((chip) => {
-              const isSelected = activeFilter === chip.id;
-              return (
-                <button
-                  key={chip.id}
-                  onClick={() => {
-                    triggerAndroidHaptic('light');
-                    setActiveFilter(chip.id);
-                  }}
-                  className="relative px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 justify-center cursor-pointer flex-shrink-0 select-none"
-                >
-                  {isSelected && (
-                    <motion.div
-                      layoutId="home-category-active-pill"
-                      transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                      className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
-                    />
-                  )}
-                  <span className="relative z-10 text-xs">{chip.icon}</span>
-                  <span
-                    className={`relative z-10 transition-colors duration-150 ${
-                      isSelected
-                        ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
-                        : 'text-white/60 hover:text-white'
-                    }`}
+            <div
+              className="inline-flex items-center gap-1.5 p-1.5 rounded-full liquid-glass border-0 flex-nowrap flex-shrink-0 self-start relative shadow-sm"
+            >
+              {FILTER_CHIPS.map((chip) => {
+                const isSelected = activeFilter === chip.id;
+                return (
+                  <button
+                    key={chip.id}
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setActiveFilter(chip.id);
+                    }}
+                    className="relative px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 justify-center cursor-pointer flex-shrink-0 select-none"
                   >
-                    {chip.label}
-                  </span>
-                </button>
-              );
-            })}
+                    {isSelected && (
+                      <motion.div
+                        layoutId="home-category-active-pill"
+                        transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                        className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                      />
+                    )}
+                    <span className="relative z-10 text-xs">{chip.icon}</span>
+                    <span
+                      className={`relative z-10 transition-colors duration-150 ${
+                        isSelected
+                          ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                          : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      {chip.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="w-6 flex-shrink-0 xl:hidden pointer-events-none" aria-hidden="true" />
           </div>
 
           {/* Quick Soundstage Telemetry & Studio Shortcuts */}
           <div
-            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3 -my-2 px-1 w-full md:w-auto md:justify-end flex-shrink-0"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 w-full min-w-0 xl:w-auto xl:max-w-[65%] xl:justify-end scroll-smooth"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
             {/* Liked Songs */}
             <button
@@ -1143,6 +1148,9 @@ export default function HomePage() {
               <span className="text-emerald-400 text-xs">📥</span>
               <span>Vault</span>
             </button>
+
+            {/* End trailing spacer ensuring the last pill never hits the right edge flush */}
+            <div className="w-6 sm:w-8 flex-shrink-0 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
       </div>
