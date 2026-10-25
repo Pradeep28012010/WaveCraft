@@ -1506,11 +1506,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   {/* Active Visualizer Mode Button with Dropdown Trigger */}
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       triggerAndroidHaptic('light');
                       setShowVisualizerPicker((prev) => !prev);
                     }}
-                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-sliding-pill text-xs font-bold text-white shadow-lg cursor-pointer select-none hover:brightness-110 active:scale-[0.98] transition-all"
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-full glass-button-primary pointer-events-auto text-xs font-bold text-white shadow-[0_4px_16px_rgba(250,45,72,0.35)] cursor-pointer select-none hover:brightness-110 active:scale-[0.96] transition-all relative z-20"
                     title="Change visualizer style"
                   >
                     <span className="text-xs">✨</span>

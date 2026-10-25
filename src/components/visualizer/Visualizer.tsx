@@ -68,6 +68,7 @@ const Visualizer = memo(
       }>
     >([]);
     const tunnelRotationRef = useRef<number>(0);
+    const tunnelZOffsetRef = useRef<number>(0);
     const flareAngleRef = useRef<number>(0);
     const oscPhaseRef = useRef<number>(0);
 
@@ -257,6 +258,7 @@ const Visualizer = memo(
           const cols = 42; // High-density grid for silky 120fps curves
           const rows = 32;
           const rowSpacing = 32;
+          const maxDist = rows * rowSpacing;
           meshOffsetRef.current =
             (meshOffsetRef.current + (isActive ? 1.2 + bassEnergy * 2.8 : 0.3) * dt) % rowSpacing;
 
@@ -264,9 +266,12 @@ const Visualizer = memo(
 
           for (let r = 0; r < rows; r++) {
             const distZ = r * rowSpacing - meshOffsetRef.current;
-            if (distZ < 4) continue;
+            if (distZ < 4 || distZ > maxDist) continue;
             const proj = fov / (fov + distZ);
-            const rowAlpha = Math.max(0, Math.min(1, (1 - distZ / (rows * rowSpacing)) * 1.6));
+            const nearFade = Math.min(1, Math.max(0, (distZ - 6) / 110));
+            const farFade = Math.min(1, Math.max(0, (maxDist - distZ) / 170));
+            const rowAlpha = nearFade * farFade;
+            if (rowAlpha <= 0.005) continue;
             const rowPoints: Array<{ sx: number; sy: number; alpha: number }> = [];
 
             for (let c = -cols / 2; c <= cols / 2; c++) {
@@ -902,38 +907,49 @@ const Visualizer = memo(
           ctx.lineWidth = 2;
           ctx.stroke();
         } else if (style === 'quantum-tunnel') {
-          // Quantum Hyperdrive Hexagonal Tunnel
-          tunnelRotationRef.current += (0.008 + bassEnergy * 0.035) * dt;
+          // Quantum Hyperdrive Hexagonal Tunnel - Perfectly Sorted Continuous 120fps Depth Rails
+          tunnelRotationRef.current += (0.005 + bassEnergy * 0.018) * dt;
+          tunnelZOffsetRef.current = (tunnelZOffsetRef.current + (0.0025 + bassEnergy * 0.006) * dt) % 1;
           const cx = width / 2 + tilt.x * 40;
           const cy = height / 2 + tilt.y * 30;
-          const maxRadius = Math.hypot(width, height) * 0.65;
+          const maxRadius = Math.hypot(width, height) * 0.68;
           const rings = 18;
           const sides = 6; // Hexagonal geometry
 
           // Central hyperspace void / singularity glow
-          const coreGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 70 + bassEnergy * 60);
-          coreGlow.addColorStop(0, c0);
-          coreGlow.addColorStop(0.4, `${c1}88`);
+          const coreGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 65 + bassEnergy * 55);
+          coreGlow.addColorStop(0, '#ffffff');
+          coreGlow.addColorStop(0.25, c0);
+          coreGlow.addColorStop(0.55, `${c1}88`);
           coreGlow.addColorStop(1, 'rgba(6, 6, 12, 0)');
           ctx.fillStyle = coreGlow;
           ctx.beginPath();
-          ctx.arc(cx, cy, 70 + bassEnergy * 60, 0, Math.PI * 2);
+          ctx.arc(cx, cy, 65 + bassEnergy * 55, 0, Math.PI * 2);
           ctx.fill();
 
-          // Concentric hyperbolic tunnel rings
-          const ringPoints: Array<Array<{ x: number; y: number }>> = [];
+          // Calculate ring progressions sorted strictly by depth (singularity 0 -> camera 1)
+          const ringData: Array<{ progress: number; ringIndex: number }> = [];
           for (let r = 0; r < rings; r++) {
-            const progress = ((r / rings) + (now * 0.0006 * (1 + bassEnergy * 1.5))) % 1;
-            const depth = Math.pow(progress, 2.4);
-            const radius = Math.max(8, depth * maxRadius);
-            const freqIdx = Math.min(63, Math.floor(r * (64 / rings)));
+            const rawProg = (r / rings + tunnelZOffsetRef.current) % 1;
+            ringData.push({ progress: rawProg, ringIndex: r });
+          }
+          // Sort strictly by progress so rails connect from core outwards without ANY crossed wires!
+          ringData.sort((a, b) => a.progress - b.progress);
+
+          const ringPoints: Array<Array<{ x: number; y: number }>> = [];
+
+          for (let i = 0; i < ringData.length; i++) {
+            const { progress, ringIndex } = ringData[i];
+            const depth = Math.pow(progress, 2.2);
+            const radius = Math.max(6, depth * maxRadius);
+            const freqIdx = Math.min(63, Math.floor(ringIndex * (64 / rings)));
             const freqAudio = data[freqIdx] || 0;
-            const ringAngle = tunnelRotationRef.current + r * 0.12 * Math.sin(now * 0.001);
+            const ringAngle = tunnelRotationRef.current + progress * 0.8;
 
             const pts: Array<{ x: number; y: number }> = [];
             for (let s = 0; s < sides; s++) {
               const theta = ringAngle + (s * 2 * Math.PI) / sides;
-              const distortion = 1 + freqAudio * 0.35 + Math.sin(theta * 3 + now * 0.005) * 0.08 * bassEnergy;
+              const distortion = 1 + freqAudio * 0.28 + Math.sin(theta * 3 + now * 0.004) * 0.06 * bassEnergy;
               const rad = radius * distortion;
               pts.push({
                 x: cx + Math.cos(theta) * rad,
@@ -942,7 +958,8 @@ const Visualizer = memo(
             }
             ringPoints.push(pts);
 
-            // Draw ring perimeter
+            // Ring perimeter with smooth sine fade-in at singularity and fade-out at screen boundary
+            const ringAlpha = Math.sin(progress * Math.PI);
             ctx.beginPath();
             ctx.moveTo(pts[0].x, pts[0].y);
             for (let s = 1; s < sides; s++) {
@@ -950,14 +967,13 @@ const Visualizer = memo(
             }
             ctx.closePath();
 
-            const ringAlpha = Math.min(1, Math.sin(progress * Math.PI) * 1.2);
-            ctx.strokeStyle = r % 3 === 0 ? c0 : r % 3 === 1 ? c1 : c2;
-            ctx.lineWidth = Math.max(1.2, progress * 4.2 * (1 + freqAudio * 0.8));
-            ctx.globalAlpha = ringAlpha * (0.4 + freqAudio * 0.6);
+            ctx.strokeStyle = ringIndex % 3 === 0 ? c0 : ringIndex % 3 === 1 ? c1 : c2;
+            ctx.lineWidth = Math.max(1, depth * 3.6 * (1 + freqAudio * 0.6));
+            ctx.globalAlpha = ringAlpha * (0.35 + freqAudio * 0.55);
             ctx.stroke();
           }
 
-          // Tunnel longitudinal warp rails connecting rings
+          // Tunnel longitudinal warp rails connecting rings strictly in depth order (never tangles!)
           if (ringPoints.length > 1) {
             for (let s = 0; s < sides; s++) {
               ctx.beginPath();
@@ -967,7 +983,7 @@ const Visualizer = memo(
               }
               ctx.strokeStyle = s % 2 === 0 ? c1 : c2;
               ctx.lineWidth = 1.4;
-              ctx.globalAlpha = 0.35 + bassEnergy * 0.45;
+              ctx.globalAlpha = 0.4 + bassEnergy * 0.4;
               ctx.stroke();
             }
           }
@@ -1198,7 +1214,7 @@ const Visualizer = memo(
           ctx.restore();
           ctx.globalAlpha = 1;
         } else if (style === 'matrix-rain') {
-          // Cyber Matrix Digital Rain Cascade
+          // Cyber Matrix Digital Rain Cascade - Silky 120fps Batched Render Pipeline
           const colWidth = 20;
           const numCols = Math.floor(width / colWidth);
           const chars = '0123456789ABCDEFｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ';
@@ -1214,10 +1230,13 @@ const Visualizer = memo(
 
           ctx.font = '13px monospace';
           ctx.textAlign = 'center';
+          ctx.shadowBlur = 0;
 
           // Perspective and audio-driven fall
           const globalSpeed = (1 + bassEnergy * 2.8) * dt;
+          const headsToRender: Array<{ char: string; x: number; y: number }> = [];
 
+          // Pass 1: Trailing stream glyphs (zero shadow blur overhead for high 120fps throughput)
           for (let c = 0; c < matrixColsRef.current.length; c++) {
             const col = matrixColsRef.current[c];
             const freqIdx = Math.min(63, Math.floor((c / numCols) * 64));
@@ -1229,33 +1248,47 @@ const Visualizer = memo(
               col.speed = 2 + Math.random() * 4;
             }
 
-            // Periodically mutate characters
-            if (Math.random() < 0.08 + bassEnergy * 0.15) {
+            // Smooth delta-timed character mutation (eliminates 120Hz strobing flicker)
+            if (Math.random() < (0.05 + bassEnergy * 0.12) * dt) {
               const charIdx = Math.floor(Math.random() * col.chars.length);
               col.chars[charIdx] = chars[Math.floor(Math.random() * chars.length)];
             }
 
-            // Draw stream glyphs
-            for (let i = 0; i < col.chars.length; i++) {
+            const colCenterX = col.x + colWidth / 2;
+
+            // Draw trailing glyphs (from dimmest tail to brighter body)
+            for (let i = 1; i < col.chars.length; i++) {
               const charY = col.y - i * 16;
               if (charY < -16 || charY > height + 16) continue;
 
-              const isHead = i === 0;
-              const trailAlpha = Math.max(0.08, (1 - i / col.chars.length) * (0.5 + freqVal * 0.5));
+              const trailAlpha = Math.max(0.08, (1 - i / col.chars.length) * (0.55 + freqVal * 0.45));
+              ctx.fillStyle = i < 4 ? c2 : i < 10 ? c1 : c0;
+              ctx.globalAlpha = trailAlpha;
+              ctx.fillText(col.chars[i], colCenterX, charY);
+            }
 
-              if (isHead) {
-                ctx.fillStyle = '#ffffff';
-                ctx.shadowColor = c2;
-                ctx.shadowBlur = 8 + bassEnergy * 10;
-              } else {
-                ctx.fillStyle = i < 4 ? c2 : i < 10 ? c1 : c0;
-                ctx.shadowBlur = 0;
-              }
-
-              ctx.globalAlpha = isHead ? 1 : trailAlpha;
-              ctx.fillText(col.chars[i], col.x + colWidth / 2, charY);
+            // Collect valid head glyphs for batched glowing head pass
+            if (col.y >= -16 && col.y <= height + 16) {
+              headsToRender.push({
+                char: col.chars[0],
+                x: colCenterX,
+                y: col.y
+              });
             }
           }
+
+          // Pass 2: Batched glowing head glyphs (single shadow blur state switch across entire frame!)
+          if (headsToRender.length > 0) {
+            ctx.shadowColor = c2;
+            ctx.shadowBlur = 8 + bassEnergy * 10;
+            ctx.fillStyle = '#ffffff';
+            ctx.globalAlpha = 1;
+            for (let h = 0; h < headsToRender.length; h++) {
+              ctx.fillText(headsToRender[h].char, headsToRender[h].x, headsToRender[h].y);
+            }
+            ctx.shadowBlur = 0;
+          }
+
           ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
         } else if (style === 'laser-oscilloscope') {
