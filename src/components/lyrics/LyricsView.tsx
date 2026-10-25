@@ -12,7 +12,6 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { romanizeIndicText, containsNonLatinScript } from '../../services/transliterate';
 import { formatTime } from '../../utils/formatTime';
-import { LiquidGlassSlider } from '../ui/LiquidGlassSlider';
 import type { LyricLine } from '../../types';
 
 interface LyricsViewProps {
@@ -757,21 +756,25 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
                 ))}
               </div>
 
-              {/* Fuwad Liquid Glass Fine Slider */}
-              <div className="flex items-center gap-2 w-full sm:w-56">
-                <span className="text-[10px] text-white/40 font-mono">-15s</span>
-                <LiquidGlassSlider
-                  min={-15}
-                  max={15}
-                  step={0.1}
-                  value={userOffset}
-                  defaultValue={0}
-                  accentColor="cyan"
-                  formattedValue={`${userOffset > 0 ? '+' : ''}${userOffset.toFixed(1)}s`}
-                  onChange={(val) => handleSetOffset(val)}
-                  className="flex-1"
-                />
-                <span className="text-[10px] text-white/40 font-mono">+15s</span>
+              {/* Normal Fine Timing Offset Slider */}
+              <div className="flex items-center gap-2.5 w-full sm:w-56">
+                <span className="text-[10px] text-white/45 font-mono select-none">-15s</span>
+                <div className="relative flex-1 flex flex-col items-center">
+                  <span className="text-[11px] font-mono font-black text-cyan-300 leading-none mb-1">
+                    {userOffset > 0 ? `+${userOffset.toFixed(1)}s` : `${userOffset.toFixed(1)}s`}
+                  </span>
+                  <input
+                    type="range"
+                    min={-15}
+                    max={15}
+                    step={0.1}
+                    value={userOffset}
+                    onChange={(e) => handleSetOffset(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer accent-cyan-400 hover:accent-cyan-300 transition-all"
+                    aria-label="Fine timing offset"
+                  />
+                </div>
+                <span className="text-[10px] text-white/45 font-mono select-none">+15s</span>
               </div>
             </div>
 

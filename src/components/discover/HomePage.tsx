@@ -1107,19 +1107,6 @@ export default function HomePage() {
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
             </button>
 
-            {/* DJ Decks */}
-            <button
-              onClick={() => {
-                triggerAndroidHaptic('medium');
-                navigate('/dj');
-              }}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white text-xs font-semibold transition-all cursor-pointer whitespace-nowrap border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm flex-shrink-0"
-              title="Open Dual-Deck DJ Console"
-            >
-              <span className="text-cyan-400 text-xs">🎛️</span>
-              <span>DJ Decks</span>
-            </button>
-
             {/* Studio FX */}
             <button
               onClick={() => {
