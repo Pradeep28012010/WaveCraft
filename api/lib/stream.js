@@ -169,10 +169,10 @@ export function isStrictSaavnMatch(
     }
   }
 
-  // Reject wrong artist if target had a specific distinct singer
-  if (artistMismatch) {
-    return false;
-  }
+  const isExactTitle = cleanTarget === cleanCand || normVowels(cleanTarget) === normVowels(cleanCand);
+  const isStrongPrefix =
+    (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) &&
+    Math.abs(cleanCand.length - cleanTarget.length) <= 10;
 
   // Subtitle contains tokens of raw title (e.g. film name, composer, co-singer)
   const candSubTokens = (candSubtitle || '')
@@ -182,8 +182,14 @@ export function isStrictSaavnMatch(
     .filter((t) => t.length > 2);
   const subMatchesRawTitle = candSubTokens.some((tok) => cleanRawTarget.includes(tok));
 
+  // Reject wrong artist only if title is NOT an exact/strong match and artist was genuinely mismatched
+  // (prevents rejecting exact song matches where targetArtist is a YouTube channel/label name)
+  if (artistMismatch && !isExactTitle && !isStrongPrefix && !subMatchesRawTitle) {
+    return false;
+  }
+
   // 1. Exact or vowel-normalized title match
-  if (cleanTarget === cleanCand || normVowels(cleanTarget) === normVowels(cleanCand)) {
+  if (isExactTitle) {
     return true;
   }
   if (
@@ -240,7 +246,7 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
   const movieContext = pipeParts.length >= 2 ? pipeParts[1].replace(/[-–—].*$/, '').trim() : undefined;
 
   let cleanTitle = raw
-    .replace(/\s*[\(\[](?:official\s*(?:music\s*)?video|official\s*audio|lyric\s*video|lyrical\s*video|lyrical\s*song|video\s*song|full\s*song|4k|8k|hd|audio\s*song|audio|visualizer|remastered|lyrics|prod\s*\..*?|dir\s*\..*?|second\s*single|first\s*single|third\s*single|promo|teaser|trailer|original\s*(?:motion\s*picture\s*)?soundtrack|soundtrack|ost|expanded(?:\s*edition)?|deluxe(?:\s*edition)?|special\s*edition|anniversary(?:\s*edition)?|score|bonus\s*track(?:s)?|from\s*["'].*?["'])[\)\]]\s*/gi, ' ')
+    .replace(/\s*[\(\[][^)\]]*?(?:4k|8k|hd|ultra\s*hd|video|audio|visualizer|remaster|lyrics|soundtrack|teaser|promo|trailer|edition|feat|ft\.|with|prod|bonus|anniversary|from)[^)\]]*?[\)\]]/gi, ' ')
     .replace(/\s+(?:full\s+video\s+song|full\s+video|video\s+song|lyrical\s+video|lyrical\s+song|lyrical|full\s+song|full\s+audio|8k\s+video|4k\s+video|hd\s+video|official\s+video|official\s+audio|second\s+single|first\s+single|promo\s+song|video)\b.*$/i, '')
     .replace(/\|\s*.*$/g, '')
     .replace(/[-–—]\s*(?:video|lyric|audio|full|song|original\s*(?:motion\s*picture\s*)?soundtrack|expanded\s*edition|deluxe\s*edition).*$/i, '')
@@ -263,23 +269,61 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
     detectedArtist = dashParts[0];
   }
 
+  // Strip artist name if repeated inside title (e.g. "Top Lugai (Official) Pardeep Boora" -> "Top Lugai")
+  if (cleanArtist && cleanArtist.length > 2) {
+    const escapedArtist = cleanArtist.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const artistRegexEnd = new RegExp(`\\s*[-–—:]?\\s*${escapedArtist}\\s*$`, 'i');
+    const artistRegexStart = new RegExp(`^\\s*${escapedArtist}\\s*[-–—:]?\\s*`, 'i');
+    if (artistRegexEnd.test(songName)) {
+      songName = songName.replace(artistRegexEnd, '').trim();
+    } else if (artistRegexStart.test(songName)) {
+      songName = songName.replace(artistRegexStart, '').trim();
+    }
+  }
+
+  // Strip parenthetical featured artists / tags from songName
+  const cleanSongCore = songName
+    .replace(/\s*[\(\[](?:feat\.|ft\.|with|prod\.|produced\s*by|remix|version|slowed|reverb).*?[\)\]]/gi, '')
+    .trim();
+
   const querySet = new Set();
   if (detectedArtist && songName && !LABEL_CHANNEL_REGEX.test(detectedArtist)) {
     querySet.add(`${songName} ${detectedArtist}`.trim());
+    if (cleanSongCore && cleanSongCore !== songName) {
+      querySet.add(`${cleanSongCore} ${detectedArtist}`.trim());
+    }
+  }
+  if (dashParts.length >= 2) {
+    querySet.add(`${dashParts[0]} ${dashParts[1]}`.trim());
+    querySet.add(dashParts[0]);
+    querySet.add(dashParts[1]);
   }
   if (movieContext && songName) {
     querySet.add(`${songName} ${movieContext}`.trim());
   }
   if (cleanArtist && songName && cleanArtist !== detectedArtist && !LABEL_CHANNEL_REGEX.test(cleanArtist)) {
     querySet.add(`${songName} ${cleanArtist}`.trim());
+    if (cleanSongCore && cleanSongCore !== songName) {
+      querySet.add(`${cleanSongCore} ${cleanArtist}`.trim());
+    }
   }
+  if (cleanSongCore) querySet.add(cleanSongCore);
   if (songName) querySet.add(songName);
   if (cleanTitle) querySet.add(cleanTitle);
   if (cleanArtist && cleanTitle && !LABEL_CHANNEL_REGEX.test(cleanArtist)) {
     querySet.add(`${cleanTitle} ${cleanArtist}`.trim());
   }
 
-  const candidateQueries = Array.from(querySet).filter((q) => q.length > 1).slice(0, 2);
+  // Phonetic transliteration expansion (e.g. "Chalray" <-> "Chalre", "Aa" <-> "A")
+  const phoneticQueries = [];
+  for (const q of querySet) {
+    if (/\bay\b/i.test(q) || /ray\b/i.test(q) || /nay\b/i.test(q)) {
+      phoneticQueries.push(q.replace(/ray\b/gi, 're').replace(/nay\b/gi, 'ne').replace(/\bay\b/gi, 'e'));
+    }
+  }
+  phoneticQueries.forEach((pq) => querySet.add(pq));
+
+  const candidateQueries = Array.from(querySet).filter((q) => q.length > 1).slice(0, 4);
 
   const ipHeader =
     clientIp && clientIp !== 'unknown' && !clientIp.startsWith('127.') && !clientIp.startsWith('192.168.') && !clientIp.startsWith('::1')
@@ -338,6 +382,37 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
 
 export async function resolveYouTubeAudioStream(videoId) {
   if (!videoId) return null;
+
+  // 1. Invidious Mirrors Waterfall for Direct Stream Extraction
+  const mirrors = [
+    'https://yt.chocolatemoo53.com',
+    'https://invidious.nerdvpn.de',
+    'https://inv.nadeko.net'
+  ];
+
+  for (const mirror of mirrors) {
+    try {
+      const res = await fetchWithTimeout(`${mirror}/api/v1/videos/${encodeURIComponent(videoId)}`, {}, 3000);
+      if (res.ok) {
+        const data = await res.json();
+        const formats = data?.adaptiveFormats || [];
+        const audioFormats = formats.filter(
+          (f) => f.type && f.type.startsWith('audio') && f.url
+        );
+        if (audioFormats.length > 0) {
+          audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+          return {
+            audioUrl: audioFormats[0].url,
+            quality: `${Math.round((audioFormats[0].bitrate || 128000) / 1000)}kbps YouTube Studio`,
+            title: data.title || '',
+            artist: data.author || ''
+          };
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Direct InnerTube Fallback
   try {
     const res = await fetchWithTimeout(
       'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
@@ -356,23 +431,25 @@ export async function resolveYouTubeAudioStream(videoId) {
           videoId
         })
       },
-      4500
+      3000
     );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const formats = data?.streamingData?.adaptiveFormats || [];
-    const audioFormats = formats.filter(
-      (f) => f.mimeType && f.mimeType.startsWith('audio/') && f.url
-    );
-    if (audioFormats.length > 0) {
-      audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-      return {
-        audioUrl: audioFormats[0].url,
-        quality: `${Math.round((audioFormats[0].bitrate || 128000) / 1000)}kbps Audio`,
-        title: data.videoDetails?.title || '',
-        artist: data.videoDetails?.author || ''
-      };
+    if (res.ok) {
+      const data = await res.json();
+      const formats = data?.streamingData?.adaptiveFormats || [];
+      const audioFormats = formats.filter(
+        (f) => f.mimeType && f.mimeType.startsWith('audio/') && f.url
+      );
+      if (audioFormats.length > 0) {
+        audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+        return {
+          audioUrl: audioFormats[0].url,
+          quality: `${Math.round((audioFormats[0].bitrate || 128000) / 1000)}kbps Audio`,
+          title: data.videoDetails?.title || '',
+          artist: data.videoDetails?.author || ''
+        };
+      }
     }
   } catch {}
+
   return null;
 }

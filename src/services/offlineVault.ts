@@ -131,6 +131,8 @@ export async function saveTrackOffline(
     let resolvedTrack = { ...track };
     const videoId =
       resolvedTrack.youtubeId ||
+      (resolvedTrack.id.startsWith('yt_') ? resolvedTrack.id.replace('yt_', '') : '') ||
+      (resolvedTrack.id.startsWith('yt-') ? resolvedTrack.id.replace('yt-', '') : '') ||
       (resolvedTrack.id && resolvedTrack.id.length === 11 && !resolvedTrack.id.includes('-')
         ? resolvedTrack.id
         : undefined);
@@ -145,7 +147,8 @@ export async function saveTrackOffline(
           if (res.ok) {
             const data = await res.json();
             if (data?.audioUrl) {
-              resolvedTrack.audioUrl = data.audioUrl;
+              const fullUrl = data.audioUrl.startsWith('/') ? apiUrl(data.audioUrl) : data.audioUrl;
+              resolvedTrack.audioUrl = fullUrl;
               resolvedTrack.quality = data.quality || '320kbps YouTube Studio';
             }
           }
@@ -158,7 +161,7 @@ export async function saveTrackOffline(
             resolvedTrack.title,
             resolvedTrack.artist,
             resolvedTrack.duration,
-            resolvedTrack.youtubeId
+            videoId || resolvedTrack.youtubeId
           );
           if (!directUrl) {
             const { cleanTitle, cleanArtist } = cleanTrackQuery(resolvedTrack.title, resolvedTrack.artist);
@@ -166,12 +169,12 @@ export async function saveTrackOffline(
               cleanTitle,
               cleanArtist,
               resolvedTrack.duration,
-              resolvedTrack.youtubeId
+              videoId || resolvedTrack.youtubeId
             );
           }
           if (directUrl) {
             resolvedTrack.audioUrl = directUrl;
-            resolvedTrack.quality = '320kbps Studio AAC';
+            resolvedTrack.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
           }
         } catch {}
       }
@@ -182,10 +185,14 @@ export async function saveTrackOffline(
       return false;
     }
 
+    const downloadAudioUrl = resolvedTrack.audioUrl.startsWith('/')
+      ? apiUrl(resolvedTrack.audioUrl)
+      : resolvedTrack.audioUrl;
+
     // 2. Fetch the audio binary stream
     let audioBlob: Blob | null = null;
     try {
-      const audioRes = await fetch(resolvedTrack.audioUrl);
+      const audioRes = await fetch(downloadAudioUrl);
       if (audioRes.ok) {
         audioBlob = await audioRes.blob();
       }
@@ -196,7 +203,7 @@ export async function saveTrackOffline(
     // Proxy Fallback 1: Dedicated proxy-stream endpoint
     if (!audioBlob || audioBlob.size < 1024) {
       try {
-        const proxyUrl = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(resolvedTrack.audioUrl)}`);
+        const proxyUrl = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(downloadAudioUrl)}`);
         const pRes = await fetch(proxyUrl);
         if (pRes.ok) {
           audioBlob = await pRes.blob();
@@ -207,7 +214,7 @@ export async function saveTrackOffline(
     // Proxy Fallback 2: Direct cloud origin proxy-stream endpoint
     if (!audioBlob || audioBlob.size < 1024) {
       try {
-        const cloudProxyUrl = `https://wavecraft-alpha.vercel.app/api/music?action=proxy-stream&url=${encodeURIComponent(resolvedTrack.audioUrl)}`;
+        const cloudProxyUrl = `https://wavecraft-alpha.vercel.app/api/music?action=proxy-stream&url=${encodeURIComponent(downloadAudioUrl)}`;
         const pRes = await fetch(cloudProxyUrl);
         if (pRes.ok) {
           audioBlob = await pRes.blob();

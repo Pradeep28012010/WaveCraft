@@ -596,6 +596,11 @@ public class MainActivity extends BridgeActivity {
             settings.setGeolocationEnabled(false);
             settings.setNeedInitialFocus(false);
 
+            // Support third-party cookies for embedded streams
+            android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+            android.webkit.CookieManager.getInstance().setAcceptCookie(true);
+            settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
             // Register native bridge for background audio foreground service & auto-updates
             webView.addJavascriptInterface(new AndroidAudioBridge(), "AndroidAudioBridge");
 
@@ -605,7 +610,7 @@ public class MainActivity extends BridgeActivity {
 
     private void keepWebViewAlive() {
         if (bridge != null && bridge.getWebView() != null) {
-            WebView webView = bridge.getWebView();
+            final WebView webView = bridge.getWebView();
             try {
                 webView.resumeTimers();
                 webView.onResume();
@@ -616,6 +621,18 @@ public class MainActivity extends BridgeActivity {
                     webView.onResume();
                 } catch (Exception ignored) {}
             });
+            webView.postDelayed(() -> {
+                try {
+                    webView.resumeTimers();
+                    webView.onResume();
+                } catch (Exception ignored) {}
+            }, 120);
+            webView.postDelayed(() -> {
+                try {
+                    webView.resumeTimers();
+                    webView.onResume();
+                } catch (Exception ignored) {}
+            }, 500);
         }
     }
 

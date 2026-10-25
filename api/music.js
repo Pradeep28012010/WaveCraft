@@ -370,6 +370,20 @@ export default async function handler(req, res) {
         streamData = await resolveDirectAudioStream(title, artist, clientIp);
       }
 
+      // If JioSaavn has no direct audio match, resolve YouTube direct audio stream via mirror proxy
+      if (!streamData?.audioUrl && videoId) {
+        const ytStream = await resolveYouTubeAudioStream(videoId);
+        if (ytStream?.audioUrl) {
+          const proxiedUrl = `/api/music?action=proxy-stream&url=${encodeURIComponent(ytStream.audioUrl)}`;
+          streamData = {
+            audioUrl: proxiedUrl,
+            quality: ytStream.quality || '160kbps YouTube Studio',
+            title: ytStream.title || title,
+            artist: ytStream.artist || artist
+          };
+        }
+      }
+
       if (streamData?.audioUrl) {
         setCached(cacheKey, streamData, 3_600_000);
         res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=7200');
