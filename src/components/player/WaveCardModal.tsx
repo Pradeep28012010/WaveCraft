@@ -1138,6 +1138,12 @@ export default function WaveCardModal({
 
       for (let offset = 0; offset < totalAudioSamples; offset += chunkSize) {
         if (isCancelledRef.current) break;
+
+        // Queue safety throttling: prevent WebCodecs audio queue from overflowing
+        while (audioEncoder.encodeQueueSize > 25) {
+          await new Promise((r) => setTimeout(r, 10));
+        }
+
         const thisChunk = Math.min(chunkSize, totalAudioSamples - offset);
         const planarData = new Float32Array(thisChunk * 2);
         const left = planarData.subarray(0, thisChunk);
@@ -1159,8 +1165,24 @@ export default function WaveCardModal({
         });
         audioEncoder.encode(audioData);
         audioData.close();
+
+        // Non-blocking UI yield and progress update
+        if ((offset / chunkSize) % 25 === 0) {
+          const audioPct = Math.min(20, Math.round((offset / totalAudioSamples) * 20));
+          setVideoProgress(audioPct);
+          setVideoElapsedSec(Math.floor((offset / totalAudioSamples) * targetDurationSec));
+          await new Promise((r) => setTimeout(r, 0));
+        }
       }
-      await audioEncoder.flush();
+
+      await Promise.race([
+        audioEncoder.flush(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('AudioEncoder flush timeout')), 3500)
+        )
+      ]).catch((err) => {
+        console.warn('[AudioEncoder flush warning]', err);
+      });
 
       // 8. Render Canvas Frames & Encode Video
       setExportStatusMessage('⚡ Turbo Rendering: Dynamic Synced Lyrics...');
@@ -1183,6 +1205,12 @@ export default function WaveCardModal({
 
       for (let f = 0; f < totalFrames; f++) {
         if (isCancelledRef.current || isStoppedEarly) break;
+
+        // Video encoder queue safety throttling
+        while (videoEncoder.encodeQueueSize > 15) {
+          await new Promise((r) => setTimeout(r, 10));
+        }
+
         const elapsedSec = f / fps;
         const songTime = reelStartTime + elapsedSec;
 
@@ -1216,12 +1244,12 @@ export default function WaveCardModal({
         videoEncoder.encode(videoFrame, { keyFrame: f % 60 === 0 });
         videoFrame.close();
 
-        const pct = Math.min(100, Math.round(((f + 1) / totalFrames) * 100));
+        const pct = Math.min(100, 20 + Math.round(((f + 1) / totalFrames) * 80));
         setVideoProgress(pct);
         setVideoElapsedSec(Math.min(targetDurationSec, Math.floor(elapsedSec)));
 
-        // Non-blocking UI yield every 8 frames to update progress
-        if (f % 8 === 0) {
+        // Non-blocking UI yield every 5 frames to update progress smoothly
+        if (f % 5 === 0) {
           await new Promise((r) => setTimeout(r, 0));
         }
       }
@@ -1237,7 +1265,14 @@ export default function WaveCardModal({
         return true;
       }
 
-      await videoEncoder.flush();
+      await Promise.race([
+        videoEncoder.flush(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('VideoEncoder flush timeout')), 5000)
+        )
+      ]).catch((err) => {
+        console.warn('[VideoEncoder flush warning]', err);
+      });
       muxer.finalize();
 
       const videoBlob = new Blob([target.buffer], { type: 'video/webm' });
@@ -1962,8 +1997,11 @@ export default function WaveCardModal({
                 {isRecordingVideo ? (
                   <div className="p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 space-y-3">
                     <div className="flex items-center justify-between text-xs font-bold text-cyan-200">
-                      <span className="flex items-center gap-1.5 truncate max-w-[70%]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping flex-shrink-0" />
+                      <span className="flex items-center gap-2 truncate max-w-[70%]">
+                        <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-400"></span>
+                        </span>
                         <span className="truncate">{exportStatusMessage || 'Encoding Video Reel with Synced Lyrics...'}</span>
                       </span>
                       <span className="font-mono flex-shrink-0">
