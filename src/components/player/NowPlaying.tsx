@@ -669,11 +669,11 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   </svg>
                 </button>
 
-                <div className="flex flex-col items-center max-w-[200px] text-center">
-                  <span className="text-[10px] font-bold tracking-[0.16em] text-white/50 uppercase">
+                <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center max-w-[48vw] text-center pointer-events-none">
+                  <span className="text-[10px] font-bold tracking-[0.16em] text-white/50 uppercase truncate w-full">
                     PLAYING FROM QUEUE
                   </span>
-                  <span className="text-xs font-bold text-white/85 truncate">
+                  <span className="text-xs font-bold text-white/85 truncate w-full">
                     {currentTrack.album && !/wavecraft/i.test(currentTrack.album) ? currentTrack.album : currentTrack.artist}
                   </span>
                 </div>
@@ -789,7 +789,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
 
-                <div className="flex flex-col items-center text-center app-region-no-drag pointer-events-none">
+                <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center text-center app-region-no-drag pointer-events-none max-w-[42vw]">
                   <span className="text-[11px] font-bold tracking-[0.2em] text-white/50 uppercase">
                     Now Playing
                   </span>
@@ -1489,7 +1489,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
           {zenMode ? (
             <div className="relative z-10 flex-1 flex flex-col justify-between p-4 sm:p-8">
               {/* Top Compact Floating Capsule & Popover Grid */}
-              <div ref={visualizerPickerRef} className="relative mx-auto mt-1 flex items-center gap-2 select-none">
+              <div ref={visualizerPickerRef} className="relative w-full flex items-center justify-center mt-1 select-none">
                 <div className="flex items-center gap-1 p-1 rounded-full liquid-glass border-0 shadow-2xl backdrop-blur-2xl">
                   {/* Previous Visualizer */}
                   <button
@@ -1546,14 +1546,14 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   </button>
                 </div>
 
-                {/* Exit Zen Mode Quick Pill */}
+                {/* Exit Zen Mode Quick Pill positioned on the right without shifting the centered capsule */}
                 <button
                   type="button"
                   onClick={() => {
                     triggerAndroidHaptic('light');
                     setZenMode(false);
                   }}
-                  className="h-10 px-3.5 rounded-full liquid-glass border-0 text-white/75 hover:text-white hover:bg-white/10 flex items-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all shadow-lg"
+                  className="absolute right-0 sm:right-2 h-10 px-3.5 rounded-full liquid-glass border-0 text-white/75 hover:text-white hover:bg-white/10 flex items-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all shadow-lg"
                   title="Exit Zen Mode to standard player"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
