@@ -458,7 +458,7 @@ export default function SonicGalaxyPage() {
   const [zoom, setZoom] = useState(1.05);
   const [autoOrbit, setAutoOrbit] = useState(true);
   const [isCinematicTour, setIsCinematicTour] = useState(false);
-  const [showCoordinateGrid, setShowCoordinateGrid] = useState(true);
+  const [showCoordinateGrid, setShowCoordinateGrid] = useState(false);
   const [showConstellationFilaments, setShowConstellationFilaments] = useState(true);
   const [audioReactivityMode, setAudioReactivityMode] = useState<'dynamic' | 'ambient' | 'off'>('dynamic');
   const [isOrbitLocked, setIsOrbitLocked] = useState(false);
@@ -830,9 +830,9 @@ export default function SonicGalaxyPage() {
       const matches = stars
         .filter((b) => b.id !== a.id)
         .map((b) => ({ b, sim: computeDnaCosineSimilarity(a.dna, b.dna) }))
-        .filter((m) => m.sim >= 81)
+        .filter((m) => m.sim >= 88)
         .sort((x, y) => y.sim - x.sim)
-        .slice(0, 2);
+        .slice(0, 1);
 
       for (const m of matches) {
         const key = a.id < m.b.id ? `${a.id}_${m.b.id}` : `${m.b.id}_${a.id}`;
@@ -1238,13 +1238,13 @@ export default function SonicGalaxyPage() {
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // 1. Draw 3D Astrolabe Celestial Coordinate Grid (Elevation & Azimuth)
+      // 1. Draw 3D Astrolabe Celestial Coordinate Grid (Elevation & Azimuth - Minimalist)
       if (showGrid) {
         ctx.save();
-        const gridRings = [0.28, 0.54, 0.82];
+        const gridRings = [0.35, 0.65];
         gridRings.forEach((r, idx) => {
           ctx.beginPath();
-          const segments = 64;
+          const segments = 48;
           for (let i = 0; i <= segments; i++) {
             const ang = (i / segments) * Math.PI * 2;
             const px = Math.cos(ang) * r;
@@ -1255,19 +1255,19 @@ export default function SonicGalaxyPage() {
           }
           ctx.strokeStyle =
             layoutMode === 'rings'
-              ? `rgba(56, 189, 248, ${0.15 - idx * 0.03 + bassEnergy * 0.06})`
-              : `rgba(255, 255, 255, ${0.05 + idx * 0.015 + bassEnergy * 0.04})`;
-          ctx.lineWidth = 1;
+              ? `rgba(56, 189, 248, ${0.06 - idx * 0.02})`
+              : `rgba(255, 255, 255, ${0.03 + idx * 0.01})`;
+          ctx.lineWidth = 0.75;
           ctx.stroke();
 
-          // Degree Markers
+          // Minimal Subtle Markers
           if (idx === 1) {
             const angles = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
-            const labels = ['00h • 0°', '06h • 90°', '12h • 180°', '18h • 270°'];
+            const labels = ['00h', '06h', '12h', '18h'];
             angles.forEach((ang, aIdx) => {
               const proj = project3D(Math.cos(ang) * r, 0, Math.sin(ang) * r, cx, cy, baseScale);
-              ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
-              ctx.font = '700 8px Inter, monospace';
+              ctx.fillStyle = 'rgba(148, 163, 184, 0.22)';
+              ctx.font = '600 7px Inter, monospace';
               ctx.textAlign = 'center';
               ctx.fillText(labels[aIdx], proj.sx, proj.sy - 3);
             });
@@ -1276,7 +1276,7 @@ export default function SonicGalaxyPage() {
         ctx.restore();
       }
 
-      // 2. Draw Galactic Accretion Core & Supermassive Quasar at (0, 0, 0)
+      // 2. Draw Galactic Accretion Core & Supermassive Quasar at (0, 0, 0) - Modern & Clean
       const coreProj = project3D(0, 0, 0, cx, cy, baseScale);
       const isCoreVisible = coreProj.depthZ > -1.5;
 
@@ -1295,63 +1295,40 @@ export default function SonicGalaxyPage() {
           coreProj.sy,
           outerGlowRadius
         );
-        diskGrad.addColorStop(0, 'rgba(236, 72, 153, 0.85)'); // Quasar magenta
-        diskGrad.addColorStop(0.22, 'rgba(168, 85, 247, 0.65)'); // Andromeda violet
-        diskGrad.addColorStop(0.48, 'rgba(56, 189, 248, 0.32)'); // Cyber cyan
-        diskGrad.addColorStop(0.78, 'rgba(245, 158, 11, 0.1)'); // Solaris gold
+        diskGrad.addColorStop(0, 'rgba(236, 72, 153, 0.75)'); // Quasar magenta
+        diskGrad.addColorStop(0.22, 'rgba(168, 85, 247, 0.55)'); // Andromeda violet
+        diskGrad.addColorStop(0.48, 'rgba(56, 189, 248, 0.25)'); // Cyber cyan
+        diskGrad.addColorStop(0.78, 'rgba(245, 158, 11, 0.08)'); // Solaris gold
         diskGrad.addColorStop(1, 'transparent');
         ctx.fillStyle = diskGrad;
         ctx.beginPath();
         ctx.arc(coreProj.sx, coreProj.sy, outerGlowRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Multi-Layer Swirling Accretion Disk Plasma Arcs with Doppler Beaming
+        // Minimal Modern Accretion Disk (Soft Ethereal Plasma without Wireframe Clutter)
         const diskAngle = cameraRef.current.pitch * 0.65 + 0.32;
-        const diskMajor = coreRadius * 3.6;
-        const diskMinor = coreRadius * 1.15;
+        const diskMajor = coreRadius * 2.8;
+        const diskMinor = coreRadius * 0.95;
 
-        // Approaching limb (Doppler boosted: intense bright cyan/white)
         ctx.save();
         ctx.translate(coreProj.sx, coreProj.sy);
         ctx.rotate(diskAngle);
 
-        for (let ring = 0; ring < 3; ring++) {
-          const ringScale = 0.85 + ring * 0.38;
-          const plasmaGrad = ctx.createLinearGradient(-diskMajor * ringScale, 0, diskMajor * ringScale, 0);
-          plasmaGrad.addColorStop(0, 'rgba(103, 232, 249, 0.95)'); // Cyan Doppler boost
-          plasmaGrad.addColorStop(0.45, 'rgba(255, 255, 255, 0.9)'); // White hot center
-          plasmaGrad.addColorStop(0.7, 'rgba(244, 63, 94, 0.55)'); // Redshift receding limb
-          plasmaGrad.addColorStop(1, 'rgba(168, 85, 247, 0.2)');
+        const accretionGrad = ctx.createRadialGradient(0, 0, coreRadius * 0.85, 0, 0, diskMajor);
+        accretionGrad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+        accretionGrad.addColorStop(0.35, 'rgba(103, 232, 249, 0.20)');
+        accretionGrad.addColorStop(0.70, 'rgba(168, 85, 247, 0.08)');
+        accretionGrad.addColorStop(1, 'transparent');
 
-          ctx.strokeStyle = plasmaGrad;
-          ctx.lineWidth = (2.6 - ring * 0.6 + bassEnergy * 1.8) * coreProj.scale;
-          ctx.beginPath();
-          ctx.ellipse(0, 0, diskMajor * ringScale, diskMinor * ringScale, time * (0.45 - ring * 0.1), 0, Math.PI * 2);
-          ctx.stroke();
-        }
-
-        // Swirling Infall Streamers
-        for (let s = 0; s < 4; s++) {
-          const sAngle = (s * Math.PI) / 2 + time * (1.2 + bassEnergy * 1.8);
-          ctx.strokeStyle = s % 2 === 0 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(251, 113, 133, 0.45)';
-          ctx.lineWidth = 1.4 * coreProj.scale;
-          ctx.beginPath();
-          for (let st = 0; st <= 20; st++) {
-            const frac = st / 20;
-            const rSpiral = coreRadius * (0.9 + frac * 2.2);
-            const aSpiral = sAngle + frac * 1.8;
-            const sx = Math.cos(aSpiral) * rSpiral * 1.5;
-            const sy = Math.sin(aSpiral) * rSpiral * 0.5;
-            if (st === 0) ctx.moveTo(sx, sy);
-            else ctx.lineTo(sx, sy);
-          }
-          ctx.stroke();
-        }
+        ctx.fillStyle = accretionGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, diskMajor, diskMinor, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
 
         // Innermost Stable Circular Orbit (ISCO) Photon Sphere Ring
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.4 + bassEnergy * 2.8;
+        ctx.lineWidth = 1.4 + bassEnergy * 1.5;
         ctx.shadowColor = '#38bdf8';
         ctx.shadowBlur = 18 + bassEnergy * 16;
         ctx.beginPath();
@@ -1440,10 +1417,10 @@ export default function SonicGalaxyPage() {
           ctx.arc(proj.sx, proj.sy, nebulaR, 0, Math.PI * 2);
           ctx.fill();
 
-          ctx.fillStyle = `${cluster.secondary}d9`;
-          ctx.font = '800 10px Inter, sans-serif';
+          ctx.fillStyle = `${cluster.secondary}55`;
+          ctx.font = '700 9px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(`✦ ${cluster.name.toUpperCase()}`, proj.sx, proj.sy - nebulaR * 0.58);
+          ctx.fillText(`✦ ${cluster.name.toUpperCase()}`, proj.sx, proj.sy - nebulaR * 0.65);
         });
       }
 
@@ -1491,7 +1468,7 @@ export default function SonicGalaxyPage() {
         (a, b) => b.depthZ - a.depthZ
       );
 
-      // 6. Draw Harmonic Resonance Constellation Filaments & Traveling Quantum Packets
+      // 6. Draw Harmonic Resonance Constellation Filaments (Delicate & Minimal Starlight Threads)
       const showFilaments = showConstellationFilamentsRef.current;
       const focusId = currentHoveredId || currentSelected?.id;
       const focusProj = focusId ? projectedMap.get(focusId) : null;
@@ -1507,24 +1484,24 @@ export default function SonicGalaxyPage() {
 
           // Parsec distance and depth fade
           const avgDepth = (a.depthZ + b.depthZ) / 2;
-          const depthAlpha = Math.max(0.12, Math.min(1, 1 - avgDepth * 0.42));
-          const simAlpha = Math.min(0.9, (fil.sim - 75) / 24);
-          const filamentAlpha = simAlpha * depthAlpha * (0.32 + midEnergy * 0.48);
+          const depthAlpha = Math.max(0.06, Math.min(1, 1 - avgDepth * 0.42));
+          const simAlpha = Math.min(0.4, (fil.sim - 80) / 40);
+          const filamentAlpha = simAlpha * depthAlpha * (0.16 + midEnergy * 0.12);
 
           const grad = ctx.createLinearGradient(a.sx, a.sy, b.sx, b.sy);
           grad.addColorStop(0, `${a.node.color}${Math.round(filamentAlpha * 255).toString(16).padStart(2, '0')}`);
-          grad.addColorStop(0.5, `rgba(255, 255, 255, ${filamentAlpha * 0.7})`);
+          grad.addColorStop(0.5, `rgba(255, 255, 255, ${filamentAlpha * 0.35})`);
           grad.addColorStop(1, `${b.node.color}${Math.round(filamentAlpha * 255).toString(16).padStart(2, '0')}`);
 
           ctx.strokeStyle = grad;
-          ctx.lineWidth = (1.2 + trebleEnergy * 0.9) * Math.min(a.scale, b.scale);
+          ctx.lineWidth = (0.7 + trebleEnergy * 0.3) * Math.min(a.scale, b.scale);
           ctx.beginPath();
           ctx.moveTo(a.sx, a.sy);
           ctx.lineTo(b.sx, b.sy);
           ctx.stroke();
         }
 
-        // Render Traveling Energy Packets along Constellation Web
+        // Render Subtle Stardust Packets along Active Filaments
         if (filList.length > 0) {
           for (const pkt of energyPacketsRef.current) {
             if (pkt.filamentIdx >= filList.length) {
@@ -1548,9 +1525,9 @@ export default function SonicGalaxyPage() {
 
             ctx.fillStyle = pkt.color;
             ctx.shadowColor = pkt.color;
-            ctx.shadowBlur = 8;
+            ctx.shadowBlur = 6;
             ctx.beginPath();
-            ctx.arc(curX, curY, pkt.size * curScale * (1 + midEnergy * 0.6), 0, Math.PI * 2);
+            ctx.arc(curX, curY, pkt.size * 0.8 * curScale * (1 + midEnergy * 0.4), 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
           }
@@ -1558,34 +1535,35 @@ export default function SonicGalaxyPage() {
         ctx.restore();
       }
 
-      // Draw Animated Harmonic Laser Connectors from Selected Star
+      // Draw Subtle Harmonic Gradient Connectors from Selected Star (Clean & Non-Dashed)
       if (focusProj) {
-        const neighbors = backToFront
+        const topRelatives = backToFront
           .filter((p) => p.node.id !== focusProj.node.id)
           .map((p) => ({
             p,
-            sim: computeDnaCosineSimilarity(focusProj.node.dna, p.node.dna),
-            d: Math.hypot(p.sx - focusProj.sx, p.sy - focusProj.sy)
+            sim: computeDnaCosineSimilarity(focusProj.node.dna, p.node.dna)
           }))
+          .filter((item) => item.sim >= 75)
           .sort((a, b) => b.sim - a.sim)
-          .slice(0, 4);
+          .slice(0, 2);
 
-        ctx.save();
-        for (const { p } of neighbors) {
-          const grad = ctx.createLinearGradient(focusProj.sx, focusProj.sy, p.sx, p.sy);
-          grad.addColorStop(0, focusProj.node.color);
-          grad.addColorStop(1, p.node.color);
+        if (topRelatives.length > 0) {
+          ctx.save();
+          for (const { p } of topRelatives) {
+            const grad = ctx.createLinearGradient(focusProj.sx, focusProj.sy, p.sx, p.sy);
+            grad.addColorStop(0, `${focusProj.node.color}b3`);
+            grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.35)');
+            grad.addColorStop(1, `${p.node.color}66`);
 
-          ctx.strokeStyle = grad;
-          ctx.lineWidth = 1.4;
-          ctx.setLineDash([4, 6]);
-          ctx.lineDashOffset = -time * 28;
-          ctx.beginPath();
-          ctx.moveTo(focusProj.sx, focusProj.sy);
-          ctx.lineTo(p.sx, p.sy);
-          ctx.stroke();
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 1.0 * Math.min(focusProj.scale, p.scale);
+            ctx.beginPath();
+            ctx.moveTo(focusProj.sx, focusProj.sy);
+            ctx.lineTo(p.sx, p.sy);
+            ctx.stroke();
+          }
+          ctx.restore();
         }
-        ctx.restore();
       }
 
       // 7. Supernova Expanding Shockwaves
@@ -1636,70 +1614,32 @@ export default function SonicGalaxyPage() {
         ctx.arc(sx, sy, coronaRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Audio Frequency Spikes / Ray Coronas
-        if (activeMix > 0.02 || isPlayingNow) {
-          const rayAlpha = isPlayingNow ? 1 : activeMix;
-          const rayCount = 24;
+        // Modern Minimal Sonic Breathing Wave for Active / Playing Stars (Clean & Attractive)
+        if (activeMix > 0.04 || isPlayingNow) {
+          const pulseIntensity = isPlayingNow ? 1 : activeMix;
           ctx.save();
-          ctx.globalAlpha = depthAlpha * rayAlpha;
-          ctx.translate(sx, sy);
-          ctx.rotate(time * 0.55);
-          for (let k = 0; k < rayCount; k++) {
-            const ang = (k / rayCount) * Math.PI * 2;
-            const binVal = hasLiveAudio
-              ? freqBins[(k * 2) % 32] / 255
-              : 0.32 + 0.32 * Math.sin(time * 6 + k);
-            const innerR = r + 3;
-            const outerR =
-              r + 6 + binVal * (isPlayingNow ? 28 : 16 * activeMix) * scale;
-            ctx.strokeStyle = isPlayingNow ? '#34d399' : node.secondaryColor;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(Math.cos(ang) * innerR, Math.sin(ang) * innerR);
-            ctx.lineTo(Math.cos(ang) * outerR, Math.sin(ang) * outerR);
-            ctx.stroke();
-          }
-          ctx.restore();
-        }
 
-        // 3D Saturnian Planetary Rings with Cassini Division and Revolving Dust Particles
-        if (node.hasPlanetaryRing) {
-          ctx.save();
-          const ringPitch = cameraRef.current.pitch * 0.5 + 0.35;
-          const ringMajor = r * 1.92;
-          const ringMinor = r * 0.50;
+          // Outer Soft Sonic Ripple Pulse Wave
+          const pulsePhase = (time * (isPlayingNow ? 2.4 : 1.4) + node.phase * 0.2) % 1;
+          const rippleR = r + 4 + pulsePhase * (isPlayingNow ? 18 + bassEnergy * 16 : 9);
+          const rippleAlpha = (1 - pulsePhase) * 0.45 * pulseIntensity * depthAlpha;
 
-          // Outer Ring Band
-          ctx.strokeStyle = `${node.secondaryColor}55`;
-          ctx.lineWidth = 2.4 * scale;
+          ctx.strokeStyle = isPlayingNow ? '#34d399' : node.color;
+          ctx.lineWidth = Math.max(0.8, (1.8 - pulsePhase * 1.2) * scale);
+          ctx.globalAlpha = rippleAlpha;
           ctx.beginPath();
-          ctx.ellipse(sx, sy, ringMajor, ringMinor, ringPitch, 0, Math.PI * 2);
+          ctx.arc(sx, sy, rippleR, 0, Math.PI * 2);
           ctx.stroke();
 
-          // Inner Ring Band (Cassini Division)
-          ctx.strokeStyle = `${node.color}33`;
-          ctx.lineWidth = 1.0 * scale;
+          // Luminous Inner Accent Ring
+          const innerRingR = r + 2.5 + (isPlayingNow ? Math.sin(time * 3.5) * 1.2 + bassEnergy * 2.5 : 0);
+          ctx.strokeStyle = isPlayingNow ? '#10b981' : node.secondaryColor;
+          ctx.lineWidth = (isPlayingNow ? 2.0 : 1.2) * scale;
+          ctx.globalAlpha = 0.85 * pulseIntensity * depthAlpha;
           ctx.beginPath();
-          ctx.ellipse(sx, sy, ringMajor * 0.78, ringMinor * 0.78, ringPitch, 0, Math.PI * 2);
+          ctx.arc(sx, sy, innerRingR, 0, Math.PI * 2);
           ctx.stroke();
 
-          // Revolving Ring Micro-Particle Dust
-          const dustCount = 6;
-          for (let d = 0; d < dustCount; d++) {
-            const dAngle = time * (0.8 + d * 0.1) + (d * Math.PI * 2) / dustCount;
-            const dx = Math.cos(dAngle) * ringMajor;
-            const dy = Math.sin(dAngle) * ringMinor;
-            const cosRP = Math.cos(ringPitch);
-            const sinRP = Math.sin(ringPitch);
-            const rotX = dx * cosRP - dy * sinRP;
-            const rotY = dx * sinRP + dy * cosRP;
-
-            ctx.fillStyle = '#ffffff';
-            ctx.globalAlpha = depthAlpha * (0.35 + 0.5 * Math.sin(dAngle));
-            ctx.beginPath();
-            ctx.arc(sx + rotX, sy + rotY, 1.2 * scale, 0, Math.PI * 2);
-            ctx.fill();
-          }
           ctx.restore();
         }
 
@@ -1737,40 +1677,11 @@ export default function SonicGalaxyPage() {
           ? '#10b981'
           : activeMix > 0.3
           ? '#ffffff'
-          : node.secondaryColor;
-        ctx.lineWidth = 1.6 + activeMix * 1.5;
+          : `${node.secondaryColor}88`;
+        ctx.lineWidth = 1.4 + activeMix * 1.2;
         ctx.beginPath();
         ctx.arc(sx, sy, r, 0, Math.PI * 2);
         ctx.stroke();
-
-        // Anamorphic Diffraction Flare Spikes on Hero / Playing / Selected Stars
-        if (isPlayingNow || activeMix > 0.35 || node.affinityScore >= 93) {
-          ctx.save();
-          const flareAlpha = (isPlayingNow ? 0.9 : 0.45 + activeMix * 0.45) * (0.6 + trebleEnergy * 0.5);
-          ctx.globalAlpha = Math.min(1, depthAlpha * flareAlpha);
-          ctx.strokeStyle = isPlayingNow ? '#6ee7b7' : node.secondaryColor;
-          ctx.lineWidth = 1.2 * scale;
-          const flareLen = r * (3.6 + trebleEnergy * 2.2);
-
-          ctx.beginPath();
-          ctx.moveTo(sx - flareLen, sy);
-          ctx.lineTo(sx + flareLen, sy);
-          ctx.moveTo(sx, sy - flareLen);
-          ctx.lineTo(sx, sy + flareLen);
-          ctx.stroke();
-
-          if (isPlayingNow) {
-            ctx.lineWidth = 0.8 * scale;
-            const diagLen = flareLen * 0.58;
-            ctx.beginPath();
-            ctx.moveTo(sx - diagLen, sy - diagLen);
-            ctx.lineTo(sx + diagLen, sy + diagLen);
-            ctx.moveTo(sx - diagLen, sy + diagLen);
-            ctx.lineTo(sx + diagLen, sy - diagLen);
-            ctx.stroke();
-          }
-          ctx.restore();
-        }
 
         // Floating Title & Real Match % Pill - Minimal & Realistic
         // Only render floating badges for the active/selected star, currently hovered star, or currently playing star
