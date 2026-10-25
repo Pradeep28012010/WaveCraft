@@ -13,9 +13,36 @@ interface WaveCardModalProps {
   track: Track;
   currentTime?: number;
   initialQuote?: string;
+  sectorName?: string;
+  matchScore?: number;
+  initialThemeId?: string;
 }
 
 const CARD_THEMES = [
+  {
+    id: 'galaxy',
+    name: '8-Sector Galaxy',
+    primary: '#06b6d4',
+    secondary: '#ec4899',
+    bgStart: '#08172e',
+    bgEnd: '#050510'
+  },
+  {
+    id: 'cyberpunk',
+    name: 'Cyberpunk 2099',
+    primary: '#00f5ff',
+    secondary: '#ff007f',
+    bgStart: '#150529',
+    bgEnd: '#05030f'
+  },
+  {
+    id: 'aurora',
+    name: 'Solaris Aurora',
+    primary: '#10e7b8',
+    secondary: '#38bdf8',
+    bgStart: '#04221d',
+    bgEnd: '#0c071e'
+  },
   {
     id: 'crimson',
     name: 'Crimson Pulse',
@@ -33,6 +60,14 @@ const CARD_THEMES = [
     bgEnd: '#06060f'
   },
   {
+    id: 'gold',
+    name: 'Sunset Vinyl',
+    primary: '#f59e0b',
+    secondary: '#ec4899',
+    bgStart: '#271505',
+    bgEnd: '#08060a'
+  },
+  {
     id: 'emerald',
     name: 'Emerald Studio',
     primary: '#10b981',
@@ -41,12 +76,12 @@ const CARD_THEMES = [
     bgEnd: '#05080c'
   },
   {
-    id: 'gold',
-    name: 'Sunset Vinyl',
-    primary: '#f59e0b',
-    secondary: '#ec4899',
-    bgStart: '#271505',
-    bgEnd: '#08060a'
+    id: 'obsidian',
+    name: 'Obsidian Velvet',
+    primary: '#e2e8f0',
+    secondary: '#64748b',
+    bgStart: '#121318',
+    bgEnd: '#020204'
   }
 ];
 
@@ -55,17 +90,27 @@ export default function WaveCardModal({
   onClose,
   track,
   currentTime = 0,
-  initialQuote
+  initialQuote,
+  sectorName,
+  matchScore,
+  initialThemeId
 }: WaveCardModalProps) {
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [selectedQuote, setSelectedQuote] = useState<string>('');
-  const [themeId, setThemeId] = useState<string>('crimson');
+  const [themeId, setThemeId] = useState<string>(initialThemeId || 'galaxy');
   const [aspectMode, setAspectMode] = useState<'story' | 'feed'>('story');
   const [copiedLink, setCopiedLink] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Sync themeId if initialThemeId changes or modal opens
+  useEffect(() => {
+    if (initialThemeId && CARD_THEMES.some((t) => t.id === initialThemeId)) {
+      setThemeId(initialThemeId);
+    }
+  }, [initialThemeId, isOpen]);
 
   const activeTheme = CARD_THEMES.find((t) => t.id === themeId) || CARD_THEMES[0];
 
@@ -149,35 +194,82 @@ export default function WaveCardModal({
     // 1. Background Gradient
     const bgGrad = ctx.createLinearGradient(0, 0, W, H);
     bgGrad.addColorStop(0, activeTheme.bgStart);
-    bgGrad.addColorStop(0.55, '#0b0b14');
+    bgGrad.addColorStop(0.52, '#080912');
     bgGrad.addColorStop(1, activeTheme.bgEnd);
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
 
-    // 2. Ambient Glow Orbs
-    const orb1 = ctx.createRadialGradient(220, 280, 20, 220, 280, 620);
-    orb1.addColorStop(0, `${activeTheme.primary}66`);
+    // 2. Cosmic Star Dust Particles
+    ctx.save();
+    for (let i = 0; i < 70; i++) {
+      const sx = (i * 173 + 37) % W;
+      const sy = (i * 281 + 83) % H;
+      const sr = i % 4 === 0 ? 2 : 1;
+      const sAlpha = 0.12 + (i % 6) * 0.1;
+      ctx.fillStyle = `rgba(255, 255, 255, ${sAlpha})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 3. Ambient Glow Orbs
+    const orb1 = ctx.createRadialGradient(280, isStory ? 320 : 220, 20, 280, isStory ? 320 : 220, 680);
+    orb1.addColorStop(0, `${activeTheme.primary}77`);
     orb1.addColorStop(1, 'transparent');
     ctx.fillStyle = orb1;
     ctx.fillRect(0, 0, W, H);
 
-    const orb2 = ctx.createRadialGradient(880, H - 300, 20, 880, H - 300, 620);
-    orb2.addColorStop(0, `${activeTheme.secondary}55`);
+    const orb2 = ctx.createRadialGradient(W - 260, H - 360, 20, W - 260, H - 360, 680);
+    orb2.addColorStop(0, `${activeTheme.secondary}66`);
     orb2.addColorStop(1, 'transparent');
     ctx.fillStyle = orb2;
     ctx.fillRect(0, 0, W, H);
 
-    // 3. Inner Frosted Card Frame
-    const framePadY = isStory ? 120 : 72;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.045)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
-    ctx.lineWidth = 3;
+    // 4. Outer Frosted Glass Border Frame
+    const framePadX = 64;
+    const framePadY = isStory ? 95 : 60;
+    const frameW = W - framePadX * 2;
+    const frameH = H - framePadY * 2;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.038)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.roundRect(72, framePadY, 936, H - framePadY * 2, 56);
+    ctx.roundRect(framePadX, framePadY, frameW, frameH, 52);
     ctx.fill();
     ctx.stroke();
 
-    // 4. Load Album Cover safely
+    // 5. Top Header Badge Pill
+    const headerY = framePadY + 48;
+    const badgeText = sectorName
+      ? `🪐 ${sectorName.toUpperCase()} • ${matchScore || 96}% MATCH`
+      : '✦ WAVECRAFT HIGH-FIDELITY • 320 KBPS';
+
+    ctx.font = 'bold 22px Inter, sans-serif';
+    const badgeTextW = ctx.measureText(badgeText).width;
+    const badgeW = badgeTextW + 48;
+    const badgeH = 46;
+    const badgeX = framePadX + 50;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.strokeStyle = `${activeTheme.primary}99`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, headerY, badgeW, badgeH, 23);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = activeTheme.primary;
+    ctx.fillText(badgeText, badgeX + 24, headerY + 31);
+
+    // Right Header Edition Label
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.font = '700 20px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('STUDIO STORY POSTER', framePadX + frameW - 50, headerY + 31);
+    ctx.textAlign = 'left';
+
+    // 6. Load Album Cover safely
     const imgUrl = track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL;
     const loadImg = (src: string): Promise<HTMLImageElement | null> =>
       new Promise((resolve) => {
@@ -189,46 +281,168 @@ export default function WaveCardModal({
       });
 
     const artImg = await loadImg(imgUrl);
-    const artY = isStory ? 210 : 140;
+
+    // Hero Vinyl Sleeve Dimensions
+    const sleeveSize = isStory ? 460 : 360;
+    const sleeveX = framePadX + 54;
+    const artY = isStory ? framePadY + 130 : framePadY + 110;
+
+    // Draw Vinyl Record Disc peeking out behind sleeve on the right
+    const discRadius = sleeveSize * 0.46;
+    const discCenterX = sleeveX + sleeveSize * 0.74;
+    const discCenterY = artY + sleeveSize * 0.5;
 
     ctx.save();
+    // Disc base
     ctx.beginPath();
-    ctx.roundRect(140, artY, 280, 280, 38);
+    ctx.arc(discCenterX, discCenterY, discRadius, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d0e14';
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.stroke();
+
+    // Grooves
+    const grooveRadii = [
+      discRadius * 0.92,
+      discRadius * 0.82,
+      discRadius * 0.72,
+      discRadius * 0.62,
+      discRadius * 0.52
+    ];
+    for (const gr of grooveRadii) {
+      ctx.beginPath();
+      ctx.arc(discCenterX, discCenterY, gr, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    // Center Vinyl Label with art
+    const labelRadius = discRadius * 0.35;
+    ctx.beginPath();
+    ctx.arc(discCenterX, discCenterY, labelRadius, 0, Math.PI * 2);
+    ctx.save();
     ctx.clip();
     if (artImg) {
-      ctx.drawImage(artImg, 140, artY, 280, 280);
+      ctx.drawImage(
+        artImg,
+        discCenterX - labelRadius,
+        discCenterY - labelRadius,
+        labelRadius * 2,
+        labelRadius * 2
+      );
     } else {
-      const fallbackGrad = ctx.createLinearGradient(140, artY, 420, artY + 280);
-      fallbackGrad.addColorStop(0, activeTheme.primary);
-      fallbackGrad.addColorStop(1, activeTheme.secondary);
-      ctx.fillStyle = fallbackGrad;
-      ctx.fillRect(140, artY, 280, 280);
+      ctx.fillStyle = activeTheme.primary;
+      ctx.fill();
     }
     ctx.restore();
 
-    // 5. Track Title & Artist next to Album Art
+    // Vinyl spindle hole
+    ctx.beginPath();
+    ctx.arc(discCenterX, discCenterY, 12, 0, Math.PI * 2);
+    ctx.fillStyle = '#050608';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    // Album Sleeve (in front of vinyl disc)
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = 44;
+    ctx.shadowOffsetX = 8;
+    ctx.shadowOffsetY = 16;
+    ctx.beginPath();
+    ctx.roundRect(sleeveX, artY, sleeveSize, sleeveSize, 34);
+    ctx.fillStyle = '#151722';
+    ctx.fill();
+    ctx.restore();
+
+    // Draw clipped artwork in sleeve
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(sleeveX, artY, sleeveSize, sleeveSize, 34);
+    ctx.clip();
+    if (artImg) {
+      ctx.drawImage(artImg, sleeveX, artY, sleeveSize, sleeveSize);
+    } else {
+      const fallbackGrad = ctx.createLinearGradient(
+        sleeveX,
+        artY,
+        sleeveX + sleeveSize,
+        artY + sleeveSize
+      );
+      fallbackGrad.addColorStop(0, activeTheme.primary);
+      fallbackGrad.addColorStop(1, activeTheme.secondary);
+      ctx.fillStyle = fallbackGrad;
+      ctx.fillRect(sleeveX, artY, sleeveSize, sleeveSize);
+    }
+
+    // Specular diagonal sheen on sleeve
+    const sheenGrad = ctx.createLinearGradient(
+      sleeveX,
+      artY,
+      sleeveX + sleeveSize * 0.7,
+      artY + sleeveSize
+    );
+    sheenGrad.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+    sheenGrad.addColorStop(0.35, 'rgba(255, 255, 255, 0.05)');
+    sheenGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = sheenGrad;
+    ctx.fillRect(sleeveX, artY, sleeveSize, sleeveSize);
+
+    // Sleeve border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // 7. Track Title & Artist
+    const contentX = framePadX + 54;
+    const titleY = artY + sleeveSize + (isStory ? 80 : 60);
+
     ctx.fillStyle = activeTheme.primary;
-    ctx.font = 'bold 24px Inter, sans-serif';
-    ctx.fillText('NOW STREAMING ON WAVECRAFT', 460, artY + 75);
+    ctx.font = '800 24px Inter, sans-serif';
+    ctx.fillText('FEATURED TRACK • 4D SONIC DNA', contentX, titleY);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = '800 46px Inter, sans-serif';
-    const titleShort = track.title.length > 22 ? track.title.slice(0, 21) + '…' : track.title;
-    ctx.fillText(titleShort, 460, artY + 145);
+    ctx.font = isStory ? '800 52px Inter, sans-serif' : '800 44px Inter, sans-serif';
+    const titleLines: string[] = [];
+    const rawWords = track.title.split(/\s+/);
+    let curTitle = '';
+    for (const w of rawWords) {
+      const test = curTitle ? `${curTitle} ${w}` : w;
+      if (ctx.measureText(test).width > 820) {
+        if (curTitle) titleLines.push(curTitle);
+        curTitle = w;
+      } else {
+        curTitle = test;
+      }
+    }
+    if (curTitle) titleLines.push(curTitle);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.68)';
+    let curY = titleY + (isStory ? 54 : 44);
+    for (const tline of titleLines.slice(0, 2)) {
+      ctx.fillText(tline, contentX, curY);
+      curY += isStory ? 60 : 50;
+    }
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
     ctx.font = '600 32px Inter, sans-serif';
-    const artistShort = track.artist.length > 28 ? track.artist.slice(0, 27) + '…' : track.artist;
-    ctx.fillText(artistShort, 460, artY + 200);
+    const artistShort =
+      track.artist.length > 36 ? track.artist.slice(0, 35) + '…' : track.artist;
+    ctx.fillText(`By ${artistShort}`, contentX, curY + 6);
 
-    // 6. Decorative Quote Mark & Lyric Quote Block
-    const quoteTopY = isStory ? 720 : 575;
-    ctx.fillStyle = `${activeTheme.primary}44`;
-    ctx.font = '800 140px Georgia, serif';
-    ctx.fillText('“', 135, quoteTopY);
+    // 8. Editorial Quote Mark & Lyric Section
+    const quoteTopY = curY + (isStory ? 70 : 50);
+    ctx.fillStyle = `${activeTheme.primary}4D`;
+    ctx.font = '800 130px Georgia, serif';
+    ctx.fillText('“', contentX - 6, quoteTopY + 30);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = isStory ? '800 50px Inter, sans-serif' : '700 46px Inter, sans-serif';
+    ctx.font = isStory ? '700 42px Inter, sans-serif' : '700 36px Inter, sans-serif';
     const rawLines = (selectedQuote || track.title).split('\n');
     const wrappedLines: string[] = [];
     for (const raw of rawLines) {
@@ -236,7 +450,7 @@ export default function WaveCardModal({
       let current = '';
       for (const word of words) {
         const test = current ? `${current} ${word}` : word;
-        if (ctx.measureText(test).width > 780) {
+        if (ctx.measureText(test).width > 790) {
           if (current) wrappedLines.push(current);
           current = word;
         } else {
@@ -246,36 +460,41 @@ export default function WaveCardModal({
       if (current) wrappedLines.push(current);
     }
 
-    let yCursor = quoteTopY + 45;
-    const maxLines = isStory ? 8 : 6;
+    let yCursor = quoteTopY + (isStory ? 50 : 42);
+    const maxLines = isStory ? 5 : 4;
     for (const line of wrappedLines.slice(0, maxLines)) {
-      ctx.fillText(line, 145, yCursor);
-      yCursor += isStory ? 74 : 68;
+      ctx.fillText(line, contentX, yCursor);
+      yCursor += isStory ? 58 : 48;
     }
 
-    // 7. Studio Waveform Bars at Bottom
-    const waveY = H - (isStory ? 350 : 275);
-    const barCount = 44;
-    const totalWaveW = 790;
+    // 9. Studio Waveform Bars at Bottom
+    const waveY = H - (isStory ? 230 : 170);
+    const barCount = 48;
+    const totalWaveW = 820;
     const barGap = totalWaveW / barCount;
     for (let i = 0; i < barCount; i++) {
-      const h = 16 + Math.abs(Math.sin(i * 0.45) * 52 + Math.cos(i * 0.8) * 24);
-      const x = 145 + i * barGap;
-      ctx.fillStyle = i < barCount * 0.62 ? activeTheme.primary : 'rgba(255,255,255,0.22)';
+      const h = 18 + Math.abs(Math.sin(i * 0.42) * 58 + Math.cos(i * 0.75) * 26);
+      const x = contentX + i * barGap;
+      const waveGrad = ctx.createLinearGradient(0, waveY - h / 2, 0, waveY + h / 2);
+      waveGrad.addColorStop(0, activeTheme.primary);
+      waveGrad.addColorStop(1, activeTheme.secondary);
+      ctx.fillStyle = i < barCount * 0.68 ? waveGrad : 'rgba(255,255,255,0.22)';
       ctx.beginPath();
-      ctx.roundRect(x, waveY - h / 2, 9, h, 4.5);
+      ctx.roundRect(x, waveY - h / 2, 10, h, 5);
       ctx.fill();
     }
 
-    // 8. Footer Branding
-    const footerY = H - (isStory ? 210 : 155);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    // 10. Footer Branding
+    const footerY = H - (isStory ? 135 : 95);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
     ctx.font = '600 24px Inter, sans-serif';
-    ctx.fillText('WaveCraft • Liquid Glass Music Studio', 145, footerY);
+    ctx.fillText('WaveCraft • Liquid Glass Audio Engine', contentX, footerY);
 
     ctx.fillStyle = activeTheme.primary;
     ctx.font = '700 24px Inter, sans-serif';
-    ctx.fillText('320kbps HD', 790, footerY);
+    ctx.textAlign = 'right';
+    ctx.fillText('wavecraft.app', framePadX + frameW - 54, footerY);
+    ctx.textAlign = 'left';
 
     return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png', 0.95));
   };
@@ -432,7 +651,10 @@ export default function WaveCardModal({
         ctx.textAlign = 'center';
         ctx.fillStyle = activeTheme.primary;
         ctx.font = '800 18px Inter, sans-serif';
-        ctx.fillText('WAVECRAFT STUDIO STORY', 360, 565);
+        const storyTag = sectorName
+          ? `🪐 ${sectorName.toUpperCase()} • ${matchScore || 96}% MATCH`
+          : 'WAVECRAFT STUDIO STORY';
+        ctx.fillText(storyTag, 360, 565);
 
         ctx.fillStyle = '#ffffff';
         ctx.font = '800 34px Inter, sans-serif';
@@ -612,36 +834,71 @@ export default function WaveCardModal({
                   style={{ background: activeTheme.secondary }}
                 />
 
-                {/* Top Track Header */}
-                <div className="relative z-10 flex items-center gap-3.5">
-                  <img
-                    src={track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL}
-                    alt={track.title}
-                    className="w-16 h-16 rounded-2xl object-cover shadow-lg border-0 flex-shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <span
-                      className="text-[9px] font-extrabold uppercase tracking-widest block"
-                      style={{ color: activeTheme.primary }}
-                    >
-                      WaveCraft Studio
-                    </span>
-                    <h4 className="text-base font-extrabold text-white truncate mt-0.5">
-                      {track.title}
-                    </h4>
-                    <p className="text-xs text-white/65 truncate">{track.artist}</p>
+                {/* Top Badge & Header */}
+                <div className="relative z-10 flex items-center justify-between gap-2">
+                  <span
+                    className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-white truncate border"
+                    style={{
+                      backgroundColor: `${activeTheme.primary}25`,
+                      borderColor: `${activeTheme.primary}70`
+                    }}
+                  >
+                    {sectorName
+                      ? `🪐 ${sectorName} • ${matchScore || 96}% MATCH`
+                      : '✦ WAVECRAFT HI-RES'}
+                  </span>
+                  <span className="text-[9px] font-bold text-white/50 whitespace-nowrap">
+                    320kbps HD
+                  </span>
+                </div>
+
+                {/* Hero Vinyl Sleeve Presentation */}
+                <div className="relative z-10 my-1 flex items-center justify-center">
+                  {/* Peeking Vinyl Record Disc */}
+                  <div className="absolute right-2 sm:right-4 w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-[#0d0e14] border border-white/20 shadow-xl flex items-center justify-center pointer-events-none">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border border-white/10 flex items-center justify-center">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border border-white/10 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full overflow-hidden border border-white/30">
+                          <img
+                            src={track.thumbnail || DEFAULT_THUMBNAIL}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Front Album Sleeve */}
+                  <div className="relative z-10 mr-12 sm:mr-14 w-32 h-32 sm:w-36 sm:h-36 rounded-2xl overflow-hidden shadow-2xl border border-white/25">
+                    <img
+                      src={track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL}
+                      alt={track.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-transparent pointer-events-none" />
                   </div>
                 </div>
 
+                {/* Track Details */}
+                <div className="relative z-10 text-center px-1">
+                  <h4 className="text-base sm:text-lg font-black text-white truncate">
+                    {track.title}
+                  </h4>
+                  <p className="text-xs font-semibold text-white/70 truncate mt-0.5">
+                    {track.artist}
+                  </p>
+                </div>
+
                 {/* Center Highlighted Lyric Quote */}
-                <div className="relative z-10 my-auto py-4">
+                <div className="relative z-10 my-auto py-2 text-center">
                   <div
-                    className="text-4xl font-serif leading-none opacity-40 mb-1"
+                    className="text-3xl font-serif leading-none opacity-40 mb-1"
                     style={{ color: activeTheme.primary }}
                   >
                     “
                   </div>
-                  <p className="text-lg sm:text-xl font-extrabold text-white leading-snug whitespace-pre-line line-clamp-6">
+                  <p className="text-sm sm:text-base font-extrabold text-white leading-snug whitespace-pre-line line-clamp-4">
                     {selectedQuote || `Listening to ${track.title}`}
                   </p>
                 </div>

@@ -10,7 +10,31 @@ import GlassSelect from '../ui/GlassSelect';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import WaveCardModal from '../player/WaveCardModal';
 import type { Track } from '../../types';
+
+const getThemeForCluster = (clusterIndex: number) => {
+  switch (clusterIndex) {
+    case 0:
+      return 'galaxy';
+    case 1:
+      return 'crimson';
+    case 2:
+      return 'violet';
+    case 3:
+      return 'gold';
+    case 4:
+      return 'aurora';
+    case 5:
+      return 'cyberpunk';
+    case 6:
+      return 'emerald';
+    case 7:
+      return 'crimson';
+    default:
+      return 'galaxy';
+  }
+};
 
 interface SonicDNA {
   energy: number;
@@ -561,6 +585,7 @@ export default function SonicGalaxyPage() {
   const [showConstellationFilaments, setShowConstellationFilaments] = useState(true);
   const [audioReactivityMode, setAudioReactivityMode] = useState<'dynamic' | 'ambient' | 'off'>('dynamic');
   const [isOrbitLocked, setIsOrbitLocked] = useState(false);
+  const [showStoryModal, setShowStoryModal] = useState(false);
 
   // 3D Camera Rotation, Target Focus Coordinates & Pinch-to-Zoom Refs
   const cameraRef = useRef({
@@ -2428,34 +2453,88 @@ export default function SonicGalaxyPage() {
             {selectedStar ? (
               <>
                 {/* Hero Planet Card Header */}
-                <div className="p-3.5 rounded-2xl bg-white/[0.04] border-0 flex flex-col gap-2.5">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0">
+                <div
+                  className="p-4 rounded-3xl backdrop-blur-xl relative overflow-hidden transition-all duration-300 flex flex-col gap-3"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                    boxShadow: `0 12px 36px -8px ${selectedStar.color}35`,
+                    border: `1px solid ${selectedStar.color}45`
+                  }}
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    {/* Vinyl Sleeve with Peeking Vinyl Record & Play/Pause Interactive Preview */}
+                    <div className="relative flex-shrink-0 flex items-center pr-2">
+                      {/* Peeking Vinyl Record Disc */}
                       <div
-                        className="absolute -inset-1 rounded-2xl blur-md opacity-60"
-                        style={{ backgroundColor: selectedStar.color }}
-                      />
-                      <img
-                        src={selectedStar.track.thumbnail || DEFAULT_THUMBNAIL}
-                        alt={selectedStar.track.title}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                        className={`absolute right-0 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#0d0e14] border border-white/20 shadow-lg flex items-center justify-center transition-transform duration-700 pointer-events-none ${
+                          currentTrack?.id === selectedStar.track.id && isPlaying
+                            ? 'animate-spin'
+                            : ''
+                        }`}
+                      >
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/10 flex items-center justify-center">
+                          <div className="w-4 h-4 rounded-full bg-white/20 border border-black/50" />
+                        </div>
+                      </div>
+
+                      {/* Front Album Sleeve */}
+                      <div
+                        className="relative z-10 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shadow-xl border border-white/30 group cursor-pointer"
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          if (currentTrack?.id === selectedStar.track.id && isPlaying) {
+                            togglePlay();
+                          } else {
+                            unlockAudioEngine();
+                            playTrackWithSmartQueue(selectedStar.track);
+                          }
                         }}
-                        className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover shadow-xl border-0"
-                      />
+                        title={
+                          currentTrack?.id === selectedStar.track.id && isPlaying
+                            ? 'Pause Preview'
+                            : 'Play Preview'
+                        }
+                      >
+                        <img
+                          src={selectedStar.track.thumbnail || DEFAULT_THUMBNAIL}
+                          alt={selectedStar.track.title}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
+                          }}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Specular Glow */}
+                        <div
+                          className="absolute inset-0 opacity-25 pointer-events-none"
+                          style={{ backgroundColor: selectedStar.color }}
+                        />
+                        {/* Play/Pause Overlay */}
+                        <div
+                          className={`absolute inset-0 bg-black/45 flex items-center justify-center transition-opacity ${
+                            currentTrack?.id === selectedStar.track.id && isPlaying
+                              ? 'opacity-100'
+                              : 'opacity-0 group-hover:opacity-100'
+                          }`}
+                        >
+                          <span className="text-white text-sm sm:text-base drop-shadow-md">
+                            {currentTrack?.id === selectedStar.track.id && isPlaying ? '⏸' : '▶'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="min-w-0 flex-1">
                       <h3 className="text-sm sm:text-base font-black text-white truncate leading-tight">
                         {selectedStar.track.title}
                       </h3>
-                      <p className="text-xs font-semibold text-white/65 truncate mt-0.5">
+                      <p className="text-xs font-semibold text-white/70 truncate mt-0.5">
                         {selectedStar.track.artist}
                       </p>
                     </div>
 
                     {/* Real Taste Match Circular Badge */}
-                    <div className="flex flex-col items-center justify-center px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border-0 flex-shrink-0">
+                    <div className="flex flex-col items-center justify-center px-2.5 py-1.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex-shrink-0 shadow-sm">
                       <span className="text-base sm:text-lg font-black text-emerald-300 leading-none tabular-nums whitespace-nowrap">
                         {selectedStar.affinityScore}%
                       </span>
@@ -2466,9 +2545,9 @@ export default function SonicGalaxyPage() {
                   </div>
 
                   {/* Badges Row: Dedicated row with wrap so badges NEVER clip */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-0">
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5 border-0">
                     <span
-                      className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white whitespace-nowrap"
+                      className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white whitespace-nowrap shadow-sm"
                       style={{
                         backgroundColor: `${selectedStar.color}40`,
                         border: `1px solid ${selectedStar.color}`
@@ -2476,16 +2555,27 @@ export default function SonicGalaxyPage() {
                     >
                       {selectedStar.clusterName}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-[9px] font-bold text-white/70 whitespace-nowrap">
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[9px] font-bold text-white/75 whitespace-nowrap">
                       {selectedStar.sourceLabel}
                     </span>
-                    <span className="text-[9px] font-semibold text-white/45 ml-auto whitespace-nowrap">
+                    <span className="text-[9px] font-semibold text-white/50 ml-auto whitespace-nowrap">
                       {selectedStar.parsecDistance} pc
                     </span>
                   </div>
 
-                  {/* Fly & Orbital Lock Action Pill */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
+                  {/* Actions Row: Story Poster Generator + Fly & Orbit Lock */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08] flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerAndroidHaptic('medium');
+                        setShowStoryModal(true);
+                      }}
+                      className="px-3.5 py-1.5 rounded-full text-[11px] font-black cursor-pointer shadow-lg transition-all flex items-center gap-1.5 bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 text-white hover:brightness-110 active:scale-95 border-0"
+                    >
+                      <span>📸 Story Poster</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => {
@@ -2507,6 +2597,7 @@ export default function SonicGalaxyPage() {
                           : '🚀 Fly & Orbit Star'}
                       </span>
                     </button>
+
                     {isOrbitLocked && (
                       <button
                         type="button"
@@ -2824,23 +2915,33 @@ export default function SonicGalaxyPage() {
                 ▶ Play Star + Smart Gravity Queue
               </button>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
                     triggerAndroidHaptic('light');
                     addNext(selectedStar.track);
                   }}
-                  className="py-2 px-2.5 rounded-full glass-button text-white font-bold text-[11px] cursor-pointer truncate hover:text-white"
+                  className="py-2 px-1.5 rounded-full glass-button text-white font-bold text-[10px] cursor-pointer truncate hover:text-white text-center"
                 >
-                  ➕ Play Next
+                  ➕ Next
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('medium');
+                    setShowStoryModal(true);
+                  }}
+                  className="py-2 px-1.5 rounded-full glass-button text-pink-300 font-extrabold text-[10px] cursor-pointer truncate hover:text-white text-center border-pink-500/30"
+                >
+                  📸 Poster
                 </button>
                 <button
                   type="button"
                   onClick={() => handleLaunchConstellation(selectedStar.clusterIndex)}
-                  className="py-2 px-2.5 rounded-full glass-button-cyan font-bold text-[11px] cursor-pointer truncate"
+                  className="py-2 px-1.5 rounded-full glass-button-cyan font-bold text-[10px] cursor-pointer truncate text-center"
                 >
-                  🌌 Play Nebula
+                  🌌 Nebula
                 </button>
                 <button
                   type="button"
@@ -2850,15 +2951,31 @@ export default function SonicGalaxyPage() {
                       `🪐 ${selectedStar.track.artist.split(',')[0].trim()}`
                     )
                   }
-                  className="py-2 px-2.5 rounded-full glass-button-purple font-bold text-[11px] cursor-pointer truncate"
+                  className="py-2 px-1.5 rounded-full glass-button-purple font-bold text-[10px] cursor-pointer truncate text-center"
                 >
-                  🚀 Artist Orbit
+                  🚀 Orbit
                 </button>
               </div>
             </div>
           )}
         </GlassCard>
       </div>
+
+      {/* High-Res Story & Feed Poster Generator Modal */}
+      {selectedStar && (
+        <WaveCardModal
+          isOpen={showStoryModal}
+          onClose={() => setShowStoryModal(false)}
+          track={selectedStar.track}
+          initialQuote={
+            selectedStar.matchBreakdown?.reason ||
+            `Cosmic taste match in the ${selectedStar.clusterName} sector ✨`
+          }
+          sectorName={selectedStar.clusterName}
+          matchScore={selectedStar.affinityScore}
+          initialThemeId={getThemeForCluster(selectedStar.clusterIndex)}
+        />
+      )}
     </div>
   );
 }
