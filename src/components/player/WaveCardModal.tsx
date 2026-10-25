@@ -2002,15 +2002,15 @@ export default function WaveCardModal({
                   <button
                     onClick={handleStartReelExport}
                     disabled={isRecordingVideo || isExporting}
-                    className="w-full py-3 px-5 rounded-2xl glass-button-emerald text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 hover:brightness-110 active:scale-98"
+                    className="w-full py-3 px-4 rounded-2xl glass-button-emerald text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 hover:brightness-110 active:scale-98 overflow-hidden"
                   >
-                    <span>⚡🎬</span>
-                    <span>
+                    <span className="text-base flex-shrink-0">🎬</span>
+                    <span className="truncate">
                       Export{' '}
                       {reelDurationMode === 'full'
                         ? 'Full Song'
-                        : `${reelDurationMode} Video`}{' '}
-                      Reel (.webm with Synced Audio & Lyrics)
+                        : `${reelDurationMode}`}{' '}
+                      Reel (.webm • Synced Lyrics)
                     </span>
                   </button>
                 )}
