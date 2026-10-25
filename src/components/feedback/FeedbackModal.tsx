@@ -82,7 +82,7 @@ export default function FeedbackModal() {
   const diagnostics = {
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
     platform: typeof navigator !== 'undefined' ? (navigator as any).userAgentData?.platform || navigator.platform || 'Unknown' : 'Unknown',
-    appVersion: 'v5.2.3',
+    appVersion: 'v5.2.7',
     viewport: typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'Unknown',
     audioEngine: getActiveEngine(),
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,

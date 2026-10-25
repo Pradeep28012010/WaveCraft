@@ -475,17 +475,17 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.2.6',
-        versionCode: 17,
+        version: '5.2.7',
+        versionCode: 18,
         releaseDate: '2026-10-25',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
-        title: 'WaveCraft Pro v5.2.6 (Zero Mid-Song Buffering & Stream Engine Stabilization)',
+        title: 'WaveCraft Pro v5.2.7 (120 FPS Visualizers, Engine Dropdown & Fluid Acoustics)',
         releaseNotes: [
-          'Zero Mid-Song Buffering: Eliminated premature 20s background download bandwidth competition and non-destructive stall recovery.',
-          'Infinite Buffering Loop Elimination: Fixed watchdog 4.5s aggressive reload loop on YouTube playback.',
-          'Direct CDN Routing: Filtered throttled IP-locked GoogleVideo streams from native audio, cleanly routing YouTube streams to official YouTube player.',
-          'HTTP Range Streaming Proxy: Upstream Range forwarding with 206 Partial Content support for seamless seeking and continuous chunk streaming.',
-          'Unified Queue Action Bar: Sleek, compact liquid-glass action bar in Queue Studio with symmetrical quick controls.'
+          '14-Engine Visualizer Picker: Fixed interactive capsule dropdown trigger so switching visualizer engines opens instantly without click blockage.',
+          'Silky Quantum Tunnel: Sorted hyperdrive rings strictly by depth with zero wire crossing or tangled geometry at locked 120 FPS.',
+          'Smooth 3D Cyber Mesh: Continuous near/far windowing eliminates terrain row popping and produces fluid audio-reactive horizon waves.',
+          'Batched Matrix Rain: Single-state GPU glowing-head pipeline eliminating raster blur stalls for 120 FPS fluidity.',
+          'Centered Now Playing: Acoustically balanced and mathematically centered player layout across desktop and mobile screens.'
         ],
         forceUpdate: false
       });
