@@ -353,21 +353,27 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
     }
   });
   const [zenMode, setZenMode] = useState(false);
+  const [showVisualizerPicker, setShowVisualizerPicker] = useState(false);
+  const visualizerPickerRef = useRef<HTMLDivElement>(null);
   const [showWaveCard, setShowWaveCard] = useState(false);
   const [waveCardQuote, setWaveCardQuote] = useState<string>('');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showToolsMenu) return;
+    if (!showToolsMenu && !showVisualizerPicker) return;
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node)) {
         setShowToolsMenu(false);
+      }
+      if (visualizerPickerRef.current && !visualizerPickerRef.current.contains(e.target as Node)) {
+        setShowVisualizerPicker(false);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowToolsMenu(false);
+        setShowVisualizerPicker(false);
       }
     };
     window.addEventListener('mousedown', handleClickOutside);
@@ -378,7 +384,18 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       window.removeEventListener('touchstart', handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showToolsMenu]);
+  }, [showToolsMenu, showVisualizerPicker]);
+
+  const cycleVisualizer = (direction: 1 | -1) => {
+    triggerAndroidHaptic('light');
+    const idx = VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle);
+    if (idx === -1) {
+      setVisualizerStyle(VISUALIZER_MODES[0].id);
+      return;
+    }
+    const nextIdx = (idx + direction + VISUALIZER_MODES.length) % VISUALIZER_MODES.length;
+    setVisualizerStyle(VISUALIZER_MODES[nextIdx].id);
+  };
 
   const setDeckMode = (mode: 'cover' | 'vinyl') => {
     setDeckModeState(mode);
@@ -1470,47 +1487,148 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
           {/* ZEN MODE FLOATING 3D VISUALIZER HUD */}
           {zenMode ? (
-            <div className="relative z-10 flex-1 flex flex-col justify-between p-6 sm:p-10">
-              <div className="flex flex-wrap items-center justify-center gap-1.5 mx-auto p-1.5 rounded-full liquid-glass border-0 shadow-2xl relative">
-                {VISUALIZER_MODES.map((m) => {
-                  const isSelected = visualizerStyle === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        triggerAndroidHaptic('light');
-                        setVisualizerStyle(m.id);
-                      }}
-                      className="relative px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer select-none"
+            <div className="relative z-10 flex-1 flex flex-col justify-between p-4 sm:p-8">
+              {/* Top Compact Floating Capsule & Popover Grid */}
+              <div ref={visualizerPickerRef} className="relative mx-auto mt-1 flex items-center gap-2 select-none">
+                <div className="flex items-center gap-1 p-1 rounded-full liquid-glass border-0 shadow-2xl backdrop-blur-2xl">
+                  {/* Previous Visualizer */}
+                  <button
+                    type="button"
+                    onClick={() => cycleVisualizer(-1)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                    title="Previous visualizer style"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </button>
+
+                  {/* Active Visualizer Mode Button with Dropdown Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      setShowVisualizerPicker((prev) => !prev);
+                    }}
+                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-full liquid-sliding-pill text-xs font-bold text-white shadow-lg cursor-pointer select-none hover:brightness-110 active:scale-[0.98] transition-all"
+                    title="Change visualizer style"
+                  >
+                    <span className="text-xs">✨</span>
+                    <span className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+                      {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || 'Visualizer'}
+                    </span>
+                    <span className="text-[10px] text-white/60 font-semibold tabular-nums">
+                      ({Math.max(1, VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle) + 1)}/{VISUALIZER_MODES.length})
+                    </span>
+                    <svg
+                      className={`w-3.5 h-3.5 text-white/70 transition-transform duration-200 ${
+                        showVisualizerPicker ? 'rotate-180' : ''
+                      }`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
                     >
-                      {isSelected && (
-                        <motion.div
-                          layoutId="nowplaying-zen-visualizer-pill"
-                          transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                          className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
-                        />
-                      )}
-                      <span
-                        className={`relative z-10 transition-colors duration-150 ${
-                          isSelected
-                            ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
-                            : 'text-white/60 hover:text-white'
-                        }`}
-                      >
-                        {m.label}
-                      </span>
-                    </button>
-                  );
-                })}
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+
+                  {/* Next Visualizer */}
+                  <button
+                    type="button"
+                    onClick={() => cycleVisualizer(1)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                    title="Next visualizer style"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Exit Zen Mode Quick Pill */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    setZenMode(false);
+                  }}
+                  className="h-10 px-3.5 rounded-full liquid-glass border-0 text-white/75 hover:text-white hover:bg-white/10 flex items-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all shadow-lg"
+                  title="Exit Zen Mode to standard player"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                  </svg>
+                  <span className="hidden sm:inline">Exit Zen</span>
+                </button>
+
+                {/* Frosted Glass Dropdown Grid of all 14 Visualizer Styles */}
+                <AnimatePresence>
+                  {showVisualizerPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.94 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.94 }}
+                      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute top-12 left-1/2 -translate-x-1/2 z-50 w-[90vw] max-w-lg p-3 rounded-2xl liquid-glass border-0 shadow-[0_24px_60px_rgba(0,0,0,0.85)] backdrop-blur-3xl max-h-[65vh] overflow-y-auto no-scrollbar flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between px-2 pb-1 border-b border-white/10">
+                        <span className="text-[11px] font-bold text-white/80 tracking-widest uppercase">
+                          Visualizer Engine ({VISUALIZER_MODES.length})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowVisualizerPicker(false)}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 text-xs transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                        {VISUALIZER_MODES.map((m, idx) => {
+                          const isSel = visualizerStyle === m.id;
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => {
+                                triggerAndroidHaptic('light');
+                                setVisualizerStyle(m.id);
+                                setShowVisualizerPicker(false);
+                              }}
+                              className={`p-2.5 rounded-xl text-xs font-bold text-left transition-all cursor-pointer flex flex-col gap-1 ${
+                                isSel
+                                  ? 'glass-button-primary text-white shadow-[0_0_15px_rgba(250,45,72,0.4)]'
+                                  : 'glass-button text-white/70 hover:text-white hover:bg-white/10'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] text-white/40 font-mono">
+                                  {idx + 1 < 10 ? `0${idx + 1}` : idx + 1}
+                                </span>
+                                {isSel && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_6px_#fff]" />
+                                )}
+                              </div>
+                              <span className="truncate">{m.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <div className="w-full max-w-2xl mx-auto rounded-3xl liquid-glass border-0 p-5 shadow-2xl">
+              {/* Bottom Upgraded Floating Liquid Glass Music Card */}
+              <div className="w-full max-w-xl mx-auto rounded-3xl liquid-glass border-0 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <img
                       src={artSrc}
                       alt={currentTrack.title}
-                      className={`w-12 h-12 rounded-full object-cover border-0 will-change-transform ${
+                      className={`w-12 h-12 rounded-full object-cover border-0 shadow-lg will-change-transform ${
                         isPlaying ? 'animate-spin' : ''
                       }`}
                       style={{ animationDuration: '8s' }}
@@ -1532,49 +1650,82 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       <span>Synced</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2.5 sm:gap-3.5">
+                      {/* Like button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (currentTrack) {
+                            triggerAndroidHaptic('light');
+                            toggleLike(currentTrack);
+                          }
+                        }}
+                        className="w-9 h-9 rounded-full flex items-center justify-center glass-button text-white/80 hover:text-white active:scale-90 transition-transform cursor-pointer"
+                        title={isLiked ? 'Unlike track' : 'Like track'}
+                      >
+                        {isLiked ? (
+                          <svg className="w-4 h-4 text-rose-500 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-white/60 hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+                          </svg>
+                        )}
+                      </button>
+
+                      {/* Prev */}
                       <button
                         type="button"
                         onClick={prevTrack}
                         aria-label="Previous track"
                         title="Previous track"
-                        className="text-white/75 hover:text-white cursor-pointer"
+                        className="text-white/75 hover:text-white active:scale-90 transition-transform cursor-pointer"
                       >
-                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                         </svg>
                       </button>
+
+                      {/* Play / Pause */}
                       <button
                         type="button"
                         onClick={togglePlay}
                         aria-label={isPlaying ? 'Pause' : 'Play'}
                         title={isPlaying ? 'Pause' : 'Play'}
-                        className="w-12 h-12 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
+                        className="w-11 h-11 p-0 rounded-full glass-button-primary text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform cursor-pointer"
                       >
                         {isPlaying ? (
-                          <svg className="w-6 h-6 block" viewBox="0 0 24 24" fill="currentColor">
+                          <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="currentColor">
                             <rect x="6.5" y="5" width="3.5" height="14" rx="1.2" />
                             <rect x="14" y="5" width="3.5" height="14" rx="1.2" />
                           </svg>
                         ) : (
-                          <svg className="w-6 h-6 block" viewBox="0 0 24 24" fill="currentColor">
+                          <svg className="w-5 h-5 block translate-x-0.5" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M7.5 5.65c0-.82.89-1.33 1.6-.91l10.05 6.35c.68.43.68 1.39 0 1.82L9.1 19.26c-.71.42-1.6-.09-1.6-.91V5.65z" />
                           </svg>
                         )}
                       </button>
+
+                      {/* Next */}
                       <button
                         type="button"
                         onClick={nextTrack}
                         aria-label="Next track"
                         title="Next track"
-                        className="text-white/75 hover:text-white cursor-pointer"
+                        className="text-white/75 hover:text-white active:scale-90 transition-transform cursor-pointer"
                       >
-                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                         </svg>
                       </button>
                     </div>
                   )}
+                </div>
+
+                {/* Scrubber with exact time & seek */}
+                <div className="mt-2 pt-1">
+                  <NowPlayingScrubber fallbackDuration={currentTrack?.duration || 210} />
                 </div>
               </div>
             </div>

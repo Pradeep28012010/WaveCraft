@@ -1011,70 +1011,160 @@ const Visualizer = memo(
           ctx.stroke();
           ctx.globalAlpha = 1;
         } else if (style === 'kaleidoscope') {
-          // Sacred Mandala Prism Kaleidoscope
-          tunnelRotationRef.current += (0.004 + bassEnergy * 0.015) * dt;
-          const cx = width / 2 + tilt.x * 35;
-          const cy = height / 2 + tilt.y * 25;
-          const sectors = 12; // 12-fold symmetry mandala
-          const maxRadius = Math.min(width, height) * 0.46;
+          // Sacred Mandala Prism Kaleidoscope - Radiant Sacred Geometry & Blooming Lotus
+          tunnelRotationRef.current += (0.003 + bassEnergy * 0.012) * dt;
+          const cx = width / 2 + tilt.x * 40;
+          const cy = height / 2 + tilt.y * 30;
+          const maxRadius = Math.min(width, height) * 0.48;
+          const sectors = 12;
           const stepAngle = (2 * Math.PI) / sectors;
 
+          // Background Sacred Harmonic Geometry Aura
+          const aura = ctx.createRadialGradient(cx, cy, 10, cx, cy, maxRadius * 1.15);
+          aura.addColorStop(0, `${c0}55`);
+          aura.addColorStop(0.35, `${c1}33`);
+          aura.addColorStop(0.7, `${c2}18`);
+          aura.addColorStop(1, 'rgba(6, 6, 12, 0)');
+          ctx.fillStyle = aura;
+          ctx.beginPath();
+          ctx.arc(cx, cy, maxRadius * 1.15, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Concentric Sacred Rings with Golden-Ratio Geometry
+          const ringRadii = [
+            maxRadius * 0.28,
+            maxRadius * 0.52,
+            maxRadius * 0.78,
+            maxRadius * 0.98
+          ];
+          for (let r = 0; r < ringRadii.length; r++) {
+            const freqVal = data[r * 12] || 0;
+            const ringR = ringRadii[r] * (1 + freqVal * 0.12 + bassEnergy * 0.08);
+            ctx.beginPath();
+            ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+            ctx.strokeStyle = r % 2 === 0 ? c1 : c2;
+            ctx.lineWidth = 1 + freqVal * 1.8;
+            ctx.globalAlpha = 0.25 + freqVal * 0.35;
+            ctx.stroke();
+
+            // Interlocking Sacred Circle Arcs (Flower of Life effect)
+            if (r === 1 || r === 2) {
+              const nodeCount = sectors;
+              for (let n = 0; n < nodeCount; n++) {
+                const nodeAngle = (n * 2 * Math.PI) / nodeCount + tunnelRotationRef.current * (r === 1 ? 0.5 : -0.5);
+                const nx = cx + Math.cos(nodeAngle) * ringR;
+                const ny = cy + Math.sin(nodeAngle) * ringR;
+                ctx.beginPath();
+                ctx.arc(nx, ny, ringR * 0.32, 0, Math.PI * 2);
+                ctx.strokeStyle = c0;
+                ctx.lineWidth = 0.8;
+                ctx.globalAlpha = 0.18 + bassEnergy * 0.22;
+                ctx.stroke();
+              }
+            }
+          }
+
+          // Blooming Sacred Lotus Petals (Curved Bezier Jewels)
           ctx.save();
           ctx.translate(cx, cy);
           ctx.rotate(tunnelRotationRef.current);
 
-          for (let s = 0; s < sectors; s++) {
+          const layers = [
+            { count: 12, rBase: maxRadius * 0.5, rTip: maxRadius * (0.85 + bassEnergy * 0.3), color: c0, freqStart: 2 },
+            { count: 12, rBase: maxRadius * 0.25, rTip: maxRadius * (0.58 + (data[16] || 0) * 0.25), color: c1, freqStart: 18, rotOffset: stepAngle * 0.5 },
+            { count: 12, rBase: maxRadius * 0.08, rTip: maxRadius * (0.32 + (data[32] || 0) * 0.2), color: c2, freqStart: 34 }
+          ];
+
+          for (const layer of layers) {
             ctx.save();
-            ctx.rotate(s * stepAngle);
-            if (s % 2 === 1) {
-              ctx.scale(1, -1); // mirror symmetry
-            }
+            if (layer.rotOffset) ctx.rotate(layer.rotOffset);
+            for (let s = 0; s < layer.count; s++) {
+              const theta = (s * 2 * Math.PI) / layer.count;
+              const freqVal = data[(layer.freqStart + s) % 64] || 0;
+              const rBase = layer.rBase;
+              const rTip = layer.rTip * (1 + freqVal * 0.25);
+              const halfSpread = (Math.PI / layer.count) * 0.95;
 
-            // Draw mandala petal facets
-            const facetCount = 14;
-            for (let f = 0; f < facetCount; f++) {
-              const freqIdx = Math.min(63, f * 4);
-              const freqVal = data[freqIdx] || 0;
-              const r1 = (f / facetCount) * maxRadius * (0.85 + bassEnergy * 0.25);
-              const r2 = ((f + 1) / facetCount) * maxRadius * (0.85 + bassEnergy * 0.25);
-              const theta1 = (freqVal * 0.25);
-              const theta2 = (stepAngle * 0.5) * (0.5 + freqVal * 0.5);
+              const b1x = Math.cos(theta - halfSpread) * rBase;
+              const b1y = Math.sin(theta - halfSpread) * rBase;
+              const b2x = Math.cos(theta + halfSpread) * rBase;
+              const b2y = Math.sin(theta + halfSpread) * rBase;
 
-              const x1 = Math.cos(theta1) * r1;
-              const y1 = Math.sin(theta1) * r1;
-              const x2 = Math.cos(theta2) * ((r1 + r2) * 0.5);
-              const y2 = Math.sin(theta2) * ((r1 + r2) * 0.5);
-              const x3 = Math.cos(theta1) * r2;
-              const y3 = Math.sin(theta1) * r2;
+              const tipX = Math.cos(theta) * rTip;
+              const tipY = Math.sin(theta) * rTip;
+
+              const cpDist = (rBase + rTip) * 0.55;
+              const cpBulge = halfSpread * 1.45 * (1 + freqVal * 0.35);
+              const cp1x = Math.cos(theta - cpBulge) * cpDist;
+              const cp1y = Math.sin(theta - cpBulge) * cpDist;
+              const cp2x = Math.cos(theta + cpBulge) * cpDist;
+              const cp2y = Math.sin(theta + cpBulge) * cpDist;
 
               ctx.beginPath();
-              ctx.moveTo(x1, y1);
-              ctx.lineTo(x2, y2);
-              ctx.lineTo(x3, y3);
+              ctx.moveTo(b1x, b1y);
+              ctx.quadraticCurveTo(cp1x, cp1y, tipX, tipY);
+              ctx.quadraticCurveTo(cp2x, cp2y, b2x, b2y);
               ctx.closePath();
 
-              const facetAlpha = 0.25 + freqVal * 0.65;
-              ctx.fillStyle = f % 3 === 0 ? `${c0}33` : f % 3 === 1 ? `${c1}33` : `${c2}33`;
+              const petalGrad = ctx.createLinearGradient(0, 0, tipX, tipY);
+              petalGrad.addColorStop(0, `${layer.color}15`);
+              petalGrad.addColorStop(0.6, `${layer.color}45`);
+              petalGrad.addColorStop(1, '#ffffff35');
+              ctx.fillStyle = petalGrad;
+              ctx.globalAlpha = 0.45 + freqVal * 0.45;
               ctx.fill();
 
-              ctx.strokeStyle = f % 3 === 0 ? c0 : f % 3 === 1 ? c1 : c2;
-              ctx.lineWidth = Math.max(1, 1.8 * (1 + freqVal));
-              ctx.globalAlpha = facetAlpha;
+              ctx.strokeStyle = layer.color;
+              ctx.lineWidth = Math.max(1.2, 2.2 * (1 + freqVal * 0.8));
+              ctx.globalAlpha = 0.65 + freqVal * 0.35;
+              ctx.stroke();
+
+              ctx.beginPath();
+              ctx.moveTo(Math.cos(theta) * rBase, Math.sin(theta) * rBase);
+              ctx.lineTo(tipX, tipY);
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1;
+              ctx.globalAlpha = 0.3 + freqVal * 0.5;
               ctx.stroke();
             }
             ctx.restore();
           }
           ctx.restore();
 
-          // Central sacred gemstone core
-          const gemGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 26 + bassEnergy * 16);
+          // Central Radiant Sacred Star Gemstone
+          const gemRadius = 24 + bassEnergy * 22;
+          const gemGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, gemRadius * 1.8);
           gemGrad.addColorStop(0, '#ffffff');
-          gemGrad.addColorStop(0.5, c0);
-          gemGrad.addColorStop(1, `${c1}00`);
+          gemGrad.addColorStop(0.3, c0);
+          gemGrad.addColorStop(0.7, `${c1}88`);
+          gemGrad.addColorStop(1, 'rgba(6, 6, 12, 0)');
           ctx.fillStyle = gemGrad;
           ctx.beginPath();
-          ctx.arc(cx, cy, 26 + bassEnergy * 16, 0, Math.PI * 2);
+          ctx.arc(cx, cy, gemRadius * 1.8, 0, Math.PI * 2);
           ctx.fill();
+
+          // 12-Pointed Golden Core Star
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(-tunnelRotationRef.current * 1.5);
+          ctx.beginPath();
+          const starPoints = 12;
+          for (let p = 0; p < starPoints * 2; p++) {
+            const rad = p % 2 === 0 ? gemRadius : gemRadius * 0.45;
+            const ang = (p * Math.PI) / starPoints;
+            const px = Math.cos(ang) * rad;
+            const py = Math.sin(ang) * rad;
+            if (p === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fillStyle = '#ffffff';
+          ctx.globalAlpha = 0.9;
+          ctx.fill();
+          ctx.strokeStyle = c0;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
           ctx.globalAlpha = 1;
         } else if (style === 'matrix-rain') {
           // Cyber Matrix Digital Rain Cascade
