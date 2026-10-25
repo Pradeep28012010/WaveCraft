@@ -5,10 +5,13 @@ import type { Track, LyricLine } from '../../types';
 import { getLyricsData } from '../../services/lyrics';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
-import { getShareBaseUrl } from '../../services/apiConfig';
+import { getShareBaseUrl, apiUrl } from '../../services/apiConfig';
 import { formatTime } from '../../utils/formatTime';
 import { resolveDirectAudio } from '../../services/streamResolver';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { romanizeIndicText, containsNonLatinScript } from '../../services/transliterate';
+import { Muxer, ArrayBufferTarget } from 'webm-muxer';
 
 interface WaveCardModalProps {
   isOpen: boolean;
@@ -88,6 +91,362 @@ const CARD_THEMES = [
   }
 ];
 
+const loadImg = (src: string): Promise<HTMLImageElement | null> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+
+async function fetchAudioBinary(url: string): Promise<ArrayBuffer | null> {
+  try {
+    const res = await fetch(url);
+    if (res.ok) {
+      const buf = await res.arrayBuffer();
+      if (buf && buf.byteLength > 1024) return buf;
+    }
+  } catch {}
+
+  try {
+    const proxyUrl = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(url)}`);
+    const res = await fetch(proxyUrl);
+    if (res.ok) {
+      const buf = await res.arrayBuffer();
+      if (buf && buf.byteLength > 1024) return buf;
+    }
+  } catch {}
+
+  return null;
+}
+
+function wrapCanvasText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  if (!text) return [];
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth) {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+function computeAudioMetrics(
+  ch0: Float32Array,
+  ch1: Float32Array,
+  centerSample: number,
+  barCount: number = 36
+): { bassPulse: number; freqData: number[] } {
+  const windowSize = 1024;
+  const start = Math.max(0, centerSample - Math.floor(windowSize / 2));
+  const end = Math.min(ch0.length, start + windowSize);
+  const actualLen = end - start;
+
+  if (actualLen <= 0) {
+    return { bassPulse: 0.2, freqData: new Array(barCount).fill(20) };
+  }
+
+  let sumSq = 0;
+  let bassSum = 0;
+  const bandSize = Math.max(1, Math.floor(actualLen / barCount));
+  const freqData: number[] = new Array(barCount).fill(0);
+
+  for (let b = 0; b < barCount; b++) {
+    let bandEnergy = 0;
+    const bStart = start + b * bandSize;
+    const bEnd = Math.min(end, bStart + bandSize);
+    const count = bEnd - bStart;
+    if (count > 0) {
+      for (let i = bStart; i < bEnd; i++) {
+        const s = (ch0[i] + ch1[i]) * 0.5;
+        bandEnergy += Math.abs(s);
+        sumSq += s * s;
+        if (b < 4) bassSum += Math.abs(s);
+      }
+      const avg = bandEnergy / count;
+      freqData[b] = Math.min(255, Math.floor(avg * 450));
+    }
+  }
+
+  const bassPulse = Math.min(1, (bassSum / (4 * Math.max(1, bandSize))) * 2.2);
+  return { bassPulse, freqData };
+}
+
+function drawStoryFrame(
+  ctx: CanvasRenderingContext2D,
+  songTime: number,
+  elapsedSec: number,
+  totalSec: number,
+  bassPulse: number,
+  freqData: number[] | Uint8Array,
+  artImg: HTMLImageElement | null,
+  track: Track,
+  lyrics: LyricLine[],
+  selectedQuote: string,
+  activeTheme: (typeof CARD_THEMES)[0],
+  sectorName?: string,
+  matchScore?: number
+) {
+  const W = 720;
+  const H = 1280;
+  const t = elapsedSec;
+
+  // 1. Background Gradient
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, activeTheme.bgStart);
+  bgGrad.addColorStop(0.55, '#090912');
+  bgGrad.addColorStop(1, activeTheme.bgEnd);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // 2. Cosmic Star Dust
+  ctx.save();
+  for (let i = 0; i < 40; i++) {
+    const sx = (i * 137 + 19) % W;
+    const sy = (i * 241 + 43) % H;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 3. Orbiting Glow Orbs (reacts to real bass pulse)
+  const orbScale = 1 + bassPulse * 0.35;
+  const ox1 = 200 + Math.cos(t * 1.2) * 90;
+  const oy1 = 260 + Math.sin(t * 1.2) * 70;
+  const orb1 = ctx.createRadialGradient(ox1, oy1, 20, ox1, oy1, 380 * orbScale);
+  orb1.addColorStop(0, `${activeTheme.primary}77`);
+  orb1.addColorStop(1, 'transparent');
+  ctx.fillStyle = orb1;
+  ctx.fillRect(0, 0, W, H);
+
+  // 4. Spinning Vinyl Platter
+  const vcx = 360;
+  const vcy = 340;
+  ctx.save();
+  ctx.translate(vcx, vcy);
+  ctx.rotate(t * 1.8);
+
+  ctx.beginPath();
+  ctx.arc(0, 0, 175, 0, Math.PI * 2);
+  ctx.fillStyle = '#0e0f15';
+  ctx.fill();
+  ctx.lineWidth = 3.5;
+  ctx.strokeStyle = activeTheme.primary;
+  ctx.stroke();
+
+  // Vinyl grooves
+  for (const r of [155, 132, 110, 88]) {
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Center Album Art
+  ctx.beginPath();
+  ctx.arc(0, 0, 72, 0, Math.PI * 2);
+  ctx.clip();
+  if (artImg) {
+    ctx.drawImage(artImg, -72, -72, 144, 144);
+  } else {
+    ctx.fillStyle = activeTheme.primary;
+    ctx.fillRect(-72, -72, 144, 144);
+  }
+  ctx.restore();
+
+  // 5. Track Title & Artist
+  ctx.textAlign = 'center';
+  ctx.fillStyle = activeTheme.primary;
+  ctx.font = '800 18px Inter, sans-serif';
+  const storyTag = sectorName
+    ? `🪐 ${sectorName.toUpperCase()} • ${matchScore || 96}% MATCH`
+    : 'WAVECRAFT AUDIO REEL';
+  ctx.fillText(storyTag, 360, 560);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '800 34px Inter, sans-serif';
+  const titleShort =
+    track.title.length > 24 ? track.title.slice(0, 23) + '…' : track.title;
+  ctx.fillText(titleShort, 360, 608);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.font = '600 22px Inter, sans-serif';
+  const artistShort =
+    track.artist.length > 30 ? track.artist.slice(0, 29) + '…' : track.artist;
+  ctx.fillText(artistShort, 360, 644);
+
+  // 6. DYNAMIC LIVE SYNCED LYRIC BOX
+  const boxX = 64;
+  const boxY = 675;
+  const boxW = 592;
+  const boxH = 285;
+  const boxRadius = 28;
+
+  // Box Background
+  const boxGrad = ctx.createLinearGradient(0, boxY, 0, boxY + boxH);
+  boxGrad.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+  boxGrad.addColorStop(1, 'rgba(12, 14, 22, 0.7)');
+  ctx.fillStyle = boxGrad;
+  ctx.beginPath();
+  ctx.roundRect(boxX, boxY, boxW, boxH, boxRadius);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Header inside Box
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(boxX + 32, boxY + 28, 4.5, 0, Math.PI * 2);
+  ctx.fillStyle = activeTheme.primary;
+  ctx.shadowColor = activeTheme.primary;
+  ctx.shadowBlur = 8;
+  ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = activeTheme.primary;
+  ctx.font = '800 13px Inter, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('LIVE SYNCED LYRICS', boxX + 44, boxY + 32);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.font = '700 13px Inter, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(
+    `${formatTime(songTime)} / ${formatTime(track.duration || totalSec)}`,
+    boxX + boxW - 24,
+    boxY + 32
+  );
+
+  // Synced Lyrics Content
+  ctx.textAlign = 'center';
+  if (lyrics && lyrics.length > 0) {
+    let activeIdx = -1;
+    for (let i = 0; i < lyrics.length; i++) {
+      if (lyrics[i].time <= songTime) {
+        activeIdx = i;
+      } else {
+        break;
+      }
+    }
+
+    if (activeIdx === -1) {
+      // Intro before lyrics start
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.font = 'italic 700 24px Inter, sans-serif';
+      ctx.fillText('♪ [Instrumental Intro] ♪', 360, boxY + 120);
+
+      if (lyrics[0]) {
+        ctx.font = '600 18px Inter, sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        const preview =
+          lyrics[0].text.length > 35
+            ? lyrics[0].text.slice(0, 34) + '…'
+            : lyrics[0].text;
+        ctx.fillText(`Coming up: "${preview}"`, 360, boxY + 175);
+      }
+    } else {
+      const activeLine = lyrics[activeIdx].text;
+      const prevLine = activeIdx > 0 ? lyrics[activeIdx - 1].text : '';
+      const nextLine = activeIdx + 1 < lyrics.length ? lyrics[activeIdx + 1].text : '';
+
+      ctx.font = '800 26px Inter, sans-serif';
+      const wrappedActive = wrapCanvasText(ctx, activeLine, 500);
+
+      if (wrappedActive.length <= 1) {
+        // Single active line: display prevLine, activeLine, nextLine
+        if (prevLine) {
+          ctx.font = '600 18px Inter, sans-serif';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          const cleanPrev =
+            prevLine.length > 36 ? prevLine.slice(0, 35) + '…' : prevLine;
+          ctx.fillText(cleanPrev, 360, boxY + 85);
+        }
+
+        // Active Line
+        ctx.font = '800 28px Inter, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`“${wrappedActive[0] || activeLine}”`, 360, boxY + 145);
+
+        // Next Line
+        if (nextLine) {
+          ctx.font = '600 18px Inter, sans-serif';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+          const cleanNext =
+            nextLine.length > 36 ? nextLine.slice(0, 35) + '…' : nextLine;
+          ctx.fillText(cleanNext, 360, boxY + 205);
+        }
+      } else {
+        // Multi-line active lyric: show wrapped active line + nextLine
+        ctx.font = '800 26px Inter, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`“${wrappedActive[0]}`, 360, boxY + 95);
+        ctx.fillText(`${wrappedActive[1]}”`, 360, boxY + 140);
+
+        if (nextLine) {
+          ctx.font = '600 18px Inter, sans-serif';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+          const cleanNext =
+            nextLine.length > 36 ? nextLine.slice(0, 35) + '…' : nextLine;
+          ctx.fillText(cleanNext, 360, boxY + 205);
+        }
+      }
+    }
+  } else {
+    // Fallback when no lyrics available
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 26px Inter, sans-serif';
+    const rawQuote = (selectedQuote || track.title).split('\n').slice(0, 3);
+    rawQuote.forEach((line, idx) => {
+      const clean = line.length > 34 ? line.slice(0, 33) + '…' : line;
+      ctx.fillText(`“${clean}”`, 360, boxY + 95 + idx * 46);
+    });
+  }
+
+  // 7. Animated Audio-Reactive Equalizer Bars
+  const barCount = 36;
+  const startX = 90;
+  const stepX = 540 / barCount;
+  for (let i = 0; i < barCount; i++) {
+    let wave = 20;
+    if (freqData && freqData.length > 0) {
+      const fVal = (freqData[i % freqData.length] || 0) / 255;
+      wave = 16 + fVal * 95;
+    } else {
+      wave =
+        20 +
+        Math.abs(Math.sin(t * 7 + i * 0.4) * 52 + Math.cos(t * 4.5 - i * 0.3) * 28);
+    }
+    ctx.fillStyle = i % 2 === 0 ? activeTheme.primary : activeTheme.secondary;
+    ctx.beginPath();
+    ctx.roundRect(startX + i * stepX, 1060 - wave / 2, 9, wave, 4.5);
+    ctx.fill();
+  }
+
+  // 8. Bottom Branding
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.font = '700 18px Inter, sans-serif';
+  ctx.fillText('WaveCraft • 320kbps Studio Audio', 360, 1190);
+}
+
 export default function WaveCardModal({
   isOpen,
   onClose,
@@ -98,6 +457,10 @@ export default function WaveCardModal({
   matchScore,
   initialThemeId
 }: WaveCardModalProps) {
+  const lyricsShowRomanization = useSettingsStore((s) => s.lyricsShowRomanization ?? true);
+  const setLyricsShowRomanization = useSettingsStore((s) => s.setLyricsShowRomanization);
+
+  const [rawLyrics, setRawLyrics] = useState<LyricLine[]>([]);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [selectedQuote, setSelectedQuote] = useState<string>('');
   const [themeId, setThemeId] = useState<string>(initialThemeId || 'galaxy');
@@ -105,6 +468,7 @@ export default function WaveCardModal({
   const [copiedLink, setCopiedLink] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [exportStatusMessage, setExportStatusMessage] = useState<string>('');
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoElapsedSec, setVideoElapsedSec] = useState(0);
   const [targetDurationTotalSec, setTargetDurationTotalSec] = useState(30);
@@ -112,6 +476,7 @@ export default function WaveCardModal({
   const [reelDurationMode, setReelDurationMode] = useState<'15s' | '30s' | '60s' | 'full'>('30s');
   const stopRecordingEarlyRef = useRef<(() => void) | null>(null);
   const cancelRecordingRef = useRef<(() => void) | null>(null);
+  const isCancelledRef = useRef<boolean>(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Sync themeId if initialThemeId changes or modal opens
@@ -120,6 +485,22 @@ export default function WaveCardModal({
       setThemeId(initialThemeId);
     }
   }, [initialThemeId, isOpen]);
+
+  // Map raw lyrics into processed lyrics based on lyricsShowRomanization preference
+  useEffect(() => {
+    if (rawLyrics.length === 0) {
+      setLyrics([]);
+      return;
+    }
+    const processed = rawLyrics.map((l) => ({
+      time: l.time,
+      text:
+        lyricsShowRomanization && containsNonLatinScript(l.text)
+          ? romanizeIndicText(l.text)
+          : l.text
+    }));
+    setLyrics(processed);
+  }, [rawLyrics, lyricsShowRomanization]);
 
   // Auto-sync reelStartTime to selected lyric quote or currentTime
   useEffect(() => {
@@ -172,7 +553,7 @@ export default function WaveCardModal({
           !l.text.includes('Switch to Visualizer') &&
           !l.text.startsWith('♪')
       );
-      setLyrics(valid);
+      setRawLyrics(valid);
 
       if (initialQuote && initialQuote.trim()) {
         return;
@@ -186,7 +567,15 @@ export default function WaveCardModal({
         }
         const line1 = valid[activeIdx]?.text || '';
         const line2 = valid[activeIdx + 1]?.text || '';
-        setSelectedQuote(line2 ? `${line1}\n${line2}` : line1);
+        const q1 =
+          lyricsShowRomanization && containsNonLatinScript(line1)
+            ? romanizeIndicText(line1)
+            : line1;
+        const q2 =
+          lyricsShowRomanization && containsNonLatinScript(line2)
+            ? romanizeIndicText(line2)
+            : line2;
+        setSelectedQuote(q2 ? `${q1}\n${q2}` : q1);
       } else {
         setSelectedQuote(`Lost in the sound of ${track.title} ✨`);
       }
@@ -195,7 +584,7 @@ export default function WaveCardModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, track, currentTime, initialQuote]);
+  }, [isOpen, track, currentTime, initialQuote, lyricsShowRomanization]);
 
   const shareUrl = `${getShareBaseUrl()}/?play=${encodeURIComponent(
     `${track.title} ${track.artist}`
@@ -300,15 +689,6 @@ export default function WaveCardModal({
 
     // 6. Load Album Cover safely
     const imgUrl = track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL;
-    const loadImg = (src: string): Promise<HTMLImageElement | null> =>
-      new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
-        img.src = src;
-      });
-
     const artImg = await loadImg(imgUrl);
 
     // Hero Vinyl Sleeve Dimensions
@@ -574,12 +954,321 @@ export default function WaveCardModal({
     }
   };
 
-  // Record an Animated Video Reel (.webm) with Live Song Audio & reactive spectrum
+  // Ultra-Fast Offline WebCodecs + WebM-Muxer Video Reel Exporter
+  const handleFastOfflineVideoExport = async (): Promise<boolean> => {
+    if (
+      typeof window === 'undefined' ||
+      typeof (window as any).VideoEncoder === 'undefined' ||
+      typeof (window as any).AudioEncoder === 'undefined' ||
+      typeof (window as any).VideoFrame === 'undefined' ||
+      typeof (window as any).AudioData === 'undefined'
+    ) {
+      return false;
+    }
+
+    const trackDur = track.duration || 180;
+    let targetDurationSec = 30;
+    if (reelDurationMode === '15s') targetDurationSec = 15;
+    else if (reelDurationMode === '30s') targetDurationSec = 30;
+    else if (reelDurationMode === '60s') targetDurationSec = 60;
+    else if (reelDurationMode === 'full')
+      targetDurationSec = Math.max(10, Math.floor(trackDur - reelStartTime));
+
+    setTargetDurationTotalSec(targetDurationSec);
+    setIsRecordingVideo(true);
+    setVideoProgress(0);
+    setVideoElapsedSec(0);
+    setExportStatusMessage('Resolving high-fidelity audio stream...');
+    isCancelledRef.current = false;
+
+    // Pause player if running so playback doesn't collide
+    const wasMainPlaying = usePlayerStore.getState().isPlaying;
+    if (wasMainPlaying) {
+      usePlayerStore.getState().pause();
+    }
+
+    try {
+      // 1. Resolve Audio Stream
+      let streamUrl = track.audioUrl;
+      if (!streamUrl || streamUrl.includes('p.scdn.co')) {
+        try {
+          const resolved = await resolveDirectAudio(
+            track.title,
+            track.artist,
+            track.duration,
+            track.youtubeId
+          );
+          if (resolved) {
+            streamUrl = resolved;
+            track.audioUrl = resolved;
+          }
+        } catch {}
+      }
+      if (!streamUrl && track.audioUrl) {
+        streamUrl = track.audioUrl;
+      }
+      if (!streamUrl) return false;
+
+      // 2. Fetch audio binary stream
+      setExportStatusMessage('Downloading audio track...');
+      const audioBinary = await fetchAudioBinary(streamUrl);
+      if (!audioBinary || audioBinary.byteLength < 1024) return false;
+
+      // 3. Decode audio data into AudioBuffer
+      setExportStatusMessage('Decoding studio audio graph...');
+      const tempCtx = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 48000
+      });
+      const decodedBuffer = await tempCtx.decodeAudioData(audioBinary.slice(0));
+
+      let finalBuffer = decodedBuffer;
+      if (decodedBuffer.sampleRate !== 48000) {
+        const offlineCtx = new OfflineAudioContext(
+          decodedBuffer.numberOfChannels,
+          Math.ceil(decodedBuffer.duration * 48000),
+          48000
+        );
+        const src = offlineCtx.createBufferSource();
+        src.buffer = decodedBuffer;
+        src.connect(offlineCtx.destination);
+        src.start(0);
+        finalBuffer = await offlineCtx.startRendering();
+      }
+      try {
+        tempCtx.close();
+      } catch {}
+
+      // 4. Codec capability checks
+      let chosenVideoCodec = 'vp09.00.10.08';
+      let chosenMuxerVideoCodec = 'V_VP9';
+
+      const vp9Support = await (window as any).VideoEncoder.isConfigSupported({
+        codec: 'vp09.00.10.08',
+        width: 720,
+        height: 1280,
+        bitrate: 3_500_000,
+        framerate: 30
+      }).catch(() => ({ supported: false }));
+
+      if (vp9Support.supported) {
+        chosenVideoCodec = 'vp09.00.10.08';
+        chosenMuxerVideoCodec = 'V_VP9';
+      } else {
+        const vp8Support = await (window as any).VideoEncoder.isConfigSupported({
+          codec: 'vp8',
+          width: 720,
+          height: 1280,
+          bitrate: 3_500_000,
+          framerate: 30
+        }).catch(() => ({ supported: false }));
+
+        if (vp8Support.supported) {
+          chosenVideoCodec = 'vp8';
+          chosenMuxerVideoCodec = 'V_VP8';
+        } else {
+          return false;
+        }
+      }
+
+      const audioSupport = await (window as any).AudioEncoder.isConfigSupported({
+        codec: 'opus',
+        sampleRate: 48000,
+        numberOfChannels: 2,
+        bitrate: 192_000
+      }).catch(() => ({ supported: false }));
+
+      if (!audioSupport.supported) {
+        return false;
+      }
+
+      // 5. Initialize WebM Muxer
+      const target = new ArrayBufferTarget();
+      const fps = 30;
+      const totalFrames = Math.floor(targetDurationSec * fps);
+
+      const muxer = new Muxer({
+        target,
+        video: {
+          codec: chosenMuxerVideoCodec,
+          width: 720,
+          height: 1280,
+          frameRate: fps
+        },
+        audio: {
+          codec: 'A_OPUS',
+          sampleRate: 48000,
+          numberOfChannels: 2
+        },
+        firstTimestampBehavior: 'offset'
+      });
+
+      // 6. Initialize VideoEncoder and AudioEncoder
+      const videoEncoder = new (window as any).VideoEncoder({
+        output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
+        error: (err: any) => console.error('[VideoEncoder Error]', err)
+      });
+      videoEncoder.configure({
+        codec: chosenVideoCodec,
+        width: 720,
+        height: 1280,
+        bitrate: 3_500_000,
+        framerate: fps
+      });
+
+      const audioEncoder = new (window as any).AudioEncoder({
+        output: (chunk: any, meta: any) => muxer.addAudioChunk(chunk, meta),
+        error: (err: any) => console.error('[AudioEncoder Error]', err)
+      });
+      audioEncoder.configure({
+        codec: 'opus',
+        sampleRate: 48000,
+        numberOfChannels: 2,
+        bitrate: 192_000
+      });
+
+      // 7. Encode Audio into Opus Chunks (in 960-sample Opus frames)
+      setExportStatusMessage('⚡ Turbo Encoding: Audio Stream...');
+      const chunkSize = 960;
+      const sampleRate = 48000;
+      const startSample = Math.floor(reelStartTime * sampleRate);
+      const totalAudioSamples = Math.floor(targetDurationSec * sampleRate);
+      const ch0 = finalBuffer.getChannelData(0);
+      const ch1 =
+        finalBuffer.numberOfChannels > 1 ? finalBuffer.getChannelData(1) : ch0;
+
+      for (let offset = 0; offset < totalAudioSamples; offset += chunkSize) {
+        if (isCancelledRef.current) break;
+        const thisChunk = Math.min(chunkSize, totalAudioSamples - offset);
+        const planarData = new Float32Array(thisChunk * 2);
+        const left = planarData.subarray(0, thisChunk);
+        const right = planarData.subarray(thisChunk);
+
+        for (let i = 0; i < thisChunk; i++) {
+          const idx = startSample + offset + i;
+          left[i] = idx < ch0.length ? ch0[idx] : 0;
+          right[i] = idx < ch1.length ? ch1[idx] : 0;
+        }
+
+        const audioData = new (window as any).AudioData({
+          format: 'f32-planar',
+          sampleRate: 48000,
+          numberOfFrames: thisChunk,
+          numberOfChannels: 2,
+          timestamp: Math.round((offset / sampleRate) * 1_000_000),
+          data: planarData
+        });
+        audioEncoder.encode(audioData);
+        audioData.close();
+      }
+      await audioEncoder.flush();
+
+      // 8. Render Canvas Frames & Encode Video
+      setExportStatusMessage('⚡ Turbo Rendering: Dynamic Synced Lyrics...');
+      const vCanvas = document.createElement('canvas');
+      vCanvas.width = 720;
+      vCanvas.height = 1280;
+      const vCtx = vCanvas.getContext('2d');
+      if (!vCtx) return false;
+
+      const imgUrl = track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL;
+      const artImg = await loadImg(imgUrl);
+
+      let isStoppedEarly = false;
+      stopRecordingEarlyRef.current = () => {
+        isStoppedEarly = true;
+      };
+      cancelRecordingRef.current = () => {
+        isCancelledRef.current = true;
+      };
+
+      for (let f = 0; f < totalFrames; f++) {
+        if (isCancelledRef.current || isStoppedEarly) break;
+        const elapsedSec = f / fps;
+        const songTime = reelStartTime + elapsedSec;
+
+        const centerSample = startSample + Math.floor(elapsedSec * sampleRate);
+        const { bassPulse, freqData } = computeAudioMetrics(
+          ch0,
+          ch1,
+          centerSample,
+          36
+        );
+
+        drawStoryFrame(
+          vCtx,
+          songTime,
+          elapsedSec,
+          targetDurationSec,
+          bassPulse,
+          freqData,
+          artImg,
+          track,
+          lyrics,
+          selectedQuote,
+          activeTheme,
+          sectorName,
+          matchScore
+        );
+
+        const videoFrame = new (window as any).VideoFrame(vCanvas, {
+          timestamp: Math.round(elapsedSec * 1_000_000)
+        });
+        videoEncoder.encode(videoFrame, { keyFrame: f % 60 === 0 });
+        videoFrame.close();
+
+        const pct = Math.min(100, Math.round(((f + 1) / totalFrames) * 100));
+        setVideoProgress(pct);
+        setVideoElapsedSec(Math.min(targetDurationSec, Math.floor(elapsedSec)));
+
+        // Non-blocking UI yield every 8 frames to update progress
+        if (f % 8 === 0) {
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      }
+
+      if (isCancelledRef.current) {
+        try {
+          videoEncoder.close();
+          audioEncoder.close();
+        } catch {}
+        setIsRecordingVideo(false);
+        setVideoProgress(0);
+        if (wasMainPlaying) usePlayerStore.getState().resume();
+        return true;
+      }
+
+      await videoEncoder.flush();
+      muxer.finalize();
+
+      const videoBlob = new Blob([target.buffer], { type: 'video/webm' });
+      const url = URL.createObjectURL(videoBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      const recordedSec = Math.round(targetDurationSec);
+      a.download = `WaveReel-${track.title.replace(/[^a-z0-9]/gi, '_').slice(0, 20)}-${recordedSec}s.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setIsRecordingVideo(false);
+      setVideoProgress(0);
+      if (wasMainPlaying) usePlayerStore.getState().resume();
+      return true;
+    } catch (err) {
+      console.warn('[Fast Video Export Error, falling back to real-time]', err);
+      setIsRecordingVideo(false);
+      setVideoProgress(0);
+      if (wasMainPlaying) usePlayerStore.getState().resume();
+      return false;
+    }
+  };
+
+  // Real-Time Fallback Video Recorder (.webm)
   const handleRecordVideoStory = async () => {
     if (isRecordingVideo || typeof MediaRecorder === 'undefined') return;
     setIsRecordingVideo(true);
     setVideoProgress(0);
     setVideoElapsedSec(0);
+    setExportStatusMessage('Recording video reel with synced audio...');
 
     // Compute target duration in milliseconds
     const trackDur = track.duration || 180;
@@ -612,13 +1301,7 @@ export default function WaveCardModal({
 
       // Load artwork
       const imgUrl = track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL;
-      const artImg = await new Promise<HTMLImageElement | null>((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
-        img.src = imgUrl;
-      });
+      const artImg = await loadImg(imgUrl);
 
       // Resolve audio stream
       let streamUrl = track.audioUrl;
@@ -666,7 +1349,7 @@ export default function WaveCardModal({
         } catch {}
       }
 
-      // Setup Web Audio routing to capture audio tracks
+      // Setup Web Audio routing to capture audio tracks SILENTLY
       let audioCtx: AudioContext | null = null;
       let audioDestination: MediaStreamAudioDestinationNode | null = null;
       let analyser: AnalyserNode | null = null;
@@ -683,7 +1366,7 @@ export default function WaveCardModal({
 
           source.connect(analyser);
           analyser.connect(audioDestination);
-          analyser.connect(audioCtx.destination); // Let user hear the reel audio live!
+          // NOTE: Do NOT connect to audioCtx.destination! Keeps speakers quiet so user is not disturbed!
         } catch {
           // If mediaElementSource has CORS restriction in this environment, fallback silently
         }
@@ -767,133 +1450,22 @@ export default function WaveCardModal({
           liveBassPulse = (freqData[1] + freqData[2] + freqData[3]) / (3 * 255);
         }
 
-        // 1. Background
-        const bgGrad = ctx.createLinearGradient(0, 0, 720, 1280);
-        bgGrad.addColorStop(0, activeTheme.bgStart);
-        bgGrad.addColorStop(0.55, '#090912');
-        bgGrad.addColorStop(1, activeTheme.bgEnd);
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, 720, 1280);
-
-        // 2. Cosmic Star Dust
-        ctx.save();
-        for (let i = 0; i < 40; i++) {
-          const sx = (i * 137 + 19) % 720;
-          const sy = (i * 241 + 43) % 1280;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
-          ctx.beginPath();
-          ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-
-        // 3. Orbiting Glow Orbs (reacts to real bass pulse)
-        const orbScale = 1 + liveBassPulse * 0.35;
-        const ox1 = 200 + Math.cos(t * 1.2) * 90;
-        const oy1 = 260 + Math.sin(t * 1.2) * 70;
-        const orb1 = ctx.createRadialGradient(ox1, oy1, 20, ox1, oy1, 380 * orbScale);
-        orb1.addColorStop(0, `${activeTheme.primary}77`);
-        orb1.addColorStop(1, 'transparent');
-        ctx.fillStyle = orb1;
-        ctx.fillRect(0, 0, 720, 1280);
-
-        // 4. Spinning Vinyl Platter
-        const vcx = 360;
-        const vcy = 340;
-        ctx.save();
-        ctx.translate(vcx, vcy);
-        ctx.rotate(t * 1.8);
-
-        ctx.beginPath();
-        ctx.arc(0, 0, 175, 0, Math.PI * 2);
-        ctx.fillStyle = '#0e0f15';
-        ctx.fill();
-        ctx.lineWidth = 3.5;
-        ctx.strokeStyle = activeTheme.primary;
-        ctx.stroke();
-
-        // Vinyl grooves
-        for (const r of [155, 132, 110, 88]) {
-          ctx.beginPath();
-          ctx.arc(0, 0, r, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-        }
-
-        // Center Album Art
-        ctx.beginPath();
-        ctx.arc(0, 0, 72, 0, Math.PI * 2);
-        ctx.clip();
-        if (artImg) {
-          ctx.drawImage(artImg, -72, -72, 144, 144);
-        } else {
-          ctx.fillStyle = activeTheme.primary;
-          ctx.fillRect(-72, -72, 144, 144);
-        }
-        ctx.restore();
-
-        // 5. Track Title & Artist
-        ctx.textAlign = 'center';
-        ctx.fillStyle = activeTheme.primary;
-        ctx.font = '800 18px Inter, sans-serif';
-        const storyTag = sectorName
-          ? `🪐 ${sectorName.toUpperCase()} • ${matchScore || 96}% MATCH`
-          : 'WAVECRAFT AUDIO REEL';
-        ctx.fillText(storyTag, 360, 560);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '800 34px Inter, sans-serif';
-        const titleShort =
-          track.title.length > 24 ? track.title.slice(0, 23) + '…' : track.title;
-        ctx.fillText(titleShort, 360, 608);
-
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.font = '600 22px Inter, sans-serif';
-        const artistShort =
-          track.artist.length > 30 ? track.artist.slice(0, 29) + '…' : track.artist;
-        ctx.fillText(artistShort, 360, 644);
-
-        // 6. Lyric Quote Box
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(64, 690, 592, 260, 32);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '700 28px Inter, sans-serif';
-        const quoteLines = (selectedQuote || track.title).split('\n').slice(0, 3);
-        quoteLines.forEach((line, idx) => {
-          const clean = line.length > 34 ? line.slice(0, 33) + '…' : line;
-          ctx.fillText(`“${clean}”`, 360, 775 + idx * 48);
-        });
-
-        // 7. Animated Audio-Reactive Equalizer Bars
-        const barCount = 36;
-        const startX = 90;
-        const stepX = 540 / barCount;
-        for (let i = 0; i < barCount; i++) {
-          let wave = 20;
-          if (freqData && freqData.length > 0) {
-            const fVal = freqData[i % freqData.length] / 255;
-            wave = 16 + fVal * 95;
-          } else {
-            wave =
-              20 +
-              Math.abs(Math.sin(t * 7 + i * 0.4) * 52 + Math.cos(t * 4.5 - i * 0.3) * 28);
-          }
-          ctx.fillStyle = i % 2 === 0 ? activeTheme.primary : activeTheme.secondary;
-          ctx.beginPath();
-          ctx.roundRect(startX + i * stepX, 1060 - wave / 2, 9, wave, 4.5);
-          ctx.fill();
-        }
-
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.font = '700 18px Inter, sans-serif';
-        ctx.fillText('WaveCraft • 320kbps Studio Audio', 360, 1190);
+        const songTime = reelStartTime + t;
+        drawStoryFrame(
+          ctx,
+          songTime,
+          t,
+          targetDurationSec,
+          liveBassPulse,
+          freqData || [],
+          artImg,
+          track,
+          lyrics,
+          selectedQuote,
+          activeTheme,
+          sectorName,
+          matchScore
+        );
 
         if (elapsed < totalMs && !isStoppedEarly) {
           rafId = requestAnimationFrame(drawFrame);
@@ -935,7 +1507,7 @@ export default function WaveCardModal({
         setVideoProgress(0);
       };
 
-      // Start playing audio and recording
+      // Start audio and recording
       if (streamUrl) {
         try {
           await audio.play();
@@ -947,6 +1519,14 @@ export default function WaveCardModal({
     } catch {
       setIsRecordingVideo(false);
       if (wasMainPlaying) usePlayerStore.getState().resume();
+    }
+  };
+
+  const handleStartReelExport = async () => {
+    if (isRecordingVideo || isExporting) return;
+    const fastSuccess = await handleFastOfflineVideoExport();
+    if (!fastSuccess) {
+      await handleRecordVideoStory();
     }
   };
 
@@ -1200,13 +1780,32 @@ export default function WaveCardModal({
                     <label className="block text-xs font-bold uppercase tracking-wider text-white/60">
                       Tap Lyric Lines to Toggle on Poster (Up to 4 Lines):
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedQuote('')}
-                      className="text-[11px] font-bold text-white/50 hover:text-white cursor-pointer"
-                    >
-                      Clear
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {rawLyrics.some((l) => containsNonLatinScript(l.text)) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            setLyricsShowRomanization(!lyricsShowRomanization);
+                          }}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                            lyricsShowRomanization
+                              ? 'glass-button-primary text-cyan-300'
+                              : 'glass-button text-white/70 hover:text-white'
+                          }`}
+                          title="Switch between Romanized and Native Script"
+                        >
+                          <span>{lyricsShowRomanization ? '🔤 Romanized' : '🌐 Native'}</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedQuote('')}
+                        className="text-[11px] font-bold text-white/50 hover:text-white cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
                   </div>
                   <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                     {lyrics.slice(0, 35).map((line, i) => {
@@ -1234,7 +1833,7 @@ export default function WaveCardModal({
                           }}
                           className={`w-full text-left px-3 py-1.5 rounded-xl text-xs transition-colors truncate cursor-pointer flex items-center justify-between gap-2 ${
                             isLineSelected
-                              ? 'bg-[var(--color-accent)]/25 border-0(--color-accent)]/50 text-white font-bold'
+                              ? 'bg-[var(--color-accent)]/25 border border-[var(--color-accent)]/50 text-white font-bold'
                               : 'text-white/75 hover:text-white hover:bg-white/10 border-0'
                           }`}
                         >
@@ -1258,7 +1857,7 @@ export default function WaveCardModal({
                     3. Video Reel & Audio Settings
                   </label>
                   <span className="text-[10px] font-extrabold text-cyan-300">
-                    Live Song Audio Included
+                    ⚡ Turbo Offline & Live Synced Audio
                   </span>
                 </div>
 
@@ -1275,6 +1874,7 @@ export default function WaveCardModal({
                         onClick={() => {
                           triggerAndroidHaptic('light');
                           setReelDurationMode(mode);
+                          if (mode === 'full') setReelStartTime(0);
                         }}
                         className={`py-1.5 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center ${
                           reelDurationMode === mode
@@ -1362,11 +1962,11 @@ export default function WaveCardModal({
                 {isRecordingVideo ? (
                   <div className="p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 space-y-3">
                     <div className="flex items-center justify-between text-xs font-bold text-cyan-200">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-                        Recording Video Reel with Live Audio...
+                      <span className="flex items-center gap-1.5 truncate max-w-[70%]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping flex-shrink-0" />
+                        <span className="truncate">{exportStatusMessage || 'Encoding Video Reel with Synced Lyrics...'}</span>
                       </span>
-                      <span className="font-mono">
+                      <span className="font-mono flex-shrink-0">
                         {formatTime(videoElapsedSec)} / {formatTime(targetDurationTotalSec)} (
                         {videoProgress}%)
                       </span>
@@ -1375,7 +1975,7 @@ export default function WaveCardModal({
                     {/* Progress bar */}
                     <div className="w-full h-2 rounded-full bg-black/40 overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-cyan-400 to-pink-500 transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-cyan-400 via-sky-400 to-pink-500 transition-all duration-150"
                         style={{ width: `${videoProgress}%` }}
                       />
                     </div>
@@ -1400,17 +2000,17 @@ export default function WaveCardModal({
                   </div>
                 ) : (
                   <button
-                    onClick={handleRecordVideoStory}
+                    onClick={handleStartReelExport}
                     disabled={isRecordingVideo || isExporting}
                     className="w-full py-3 px-5 rounded-2xl glass-button-emerald text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 hover:brightness-110 active:scale-98"
                   >
-                    <span>🎬</span>
+                    <span>⚡🎬</span>
                     <span>
                       Export{' '}
                       {reelDurationMode === 'full'
                         ? 'Full Song'
                         : `${reelDurationMode} Video`}{' '}
-                      Reel (.webm with Audio)
+                      Reel (.webm with Synced Audio & Lyrics)
                     </span>
                   </button>
                 )}
