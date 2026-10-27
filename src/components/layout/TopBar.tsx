@@ -601,7 +601,7 @@ export default function TopBar() {
 
         {/* Right Action Icons (Studio FX, Active Timers & Drawer) */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {hasUpdate && (
+          {hasUpdate && !isSearch && (
             <button
               onClick={() => {
                 triggerAndroidHaptic('medium');
