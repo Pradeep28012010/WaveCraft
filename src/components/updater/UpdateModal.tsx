@@ -19,6 +19,10 @@ export default memo(function UpdateModal() {
   } = useUpdateStore();
 
   const isNative = isAndroidNative();
+  const isElectron = typeof window !== 'undefined' && Boolean(window.electronAPI);
+  const isWindows =
+    isElectron ||
+    (typeof navigator !== 'undefined' && /Win/i.test(navigator.userAgent || navigator.platform));
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -67,7 +71,13 @@ export default memo(function UpdateModal() {
               <div>
                 <h2 className="text-base font-extrabold text-white">WaveCraft Updates</h2>
                 <p className="text-xs text-white/50">
-                  {isNative ? 'Native Android Zero-Headache Installer' : 'Web & PWA Platform'}
+                  {isElectron
+                    ? 'Windows Studio Desktop Edition'
+                    : isNative
+                    ? 'Native Android Zero-Headache Installer'
+                    : isWindows
+                    ? 'Windows Web & Desktop Installer'
+                    : 'Web & PWA Platform'}
                 </p>
               </div>
             </div>
@@ -149,7 +159,9 @@ export default memo(function UpdateModal() {
             {status === 'downloading' && (
               <div className="py-6 space-y-4 text-center">
                 <div className="flex items-center justify-between text-xs font-bold text-white/80 px-1">
-                  <span>Downloading WaveCraft APK...</span>
+                  <span>
+                    {isWindows ? 'Downloading WaveCraft Windows Installer...' : 'Downloading WaveCraft APK...'}
+                  </span>
                   <span className="tabular-nums font-mono text-[var(--color-accent)]">{downloadProgress}%</span>
                 </div>
 
@@ -164,7 +176,9 @@ export default memo(function UpdateModal() {
                 </div>
 
                 <p className="text-[11px] text-white/50 leading-relaxed">
-                  Streaming directly to phone memory. Android package installer will trigger automatically on completion — zero file manager searching required.
+                  {isWindows
+                    ? 'Downloading official Windows Setup. Once downloaded, the installer will launch automatically to update WaveCraft Pro.'
+                    : 'Streaming directly to phone memory. Android package installer will trigger automatically on completion — zero file manager searching required.'}
                 </p>
               </div>
             )}
@@ -176,9 +190,13 @@ export default memo(function UpdateModal() {
                   ⚡
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Launching Android Package Installer...</h3>
+                  <h3 className="text-base font-bold text-white">
+                    {isWindows ? 'Launching Windows Setup Installer...' : 'Launching Android Package Installer...'}
+                  </h3>
                   <p className="text-xs text-white/60 mt-1">
-                    Tap "Update" on your Android system prompt to complete the installation.
+                    {isWindows
+                      ? 'WaveCraft Pro will close and update to the latest build.'
+                      : 'Tap "Update" on your Android system prompt to complete the installation.'}
                   </p>
                 </div>
               </div>

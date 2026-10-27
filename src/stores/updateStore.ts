@@ -13,6 +13,8 @@ export interface AppVersionInfo {
   versionCode: number;
   releaseDate: string;
   downloadUrl: string;
+  windowsDownloadUrl?: string;
+  windowsInstallerUrl?: string;
   title: string;
   releaseNotes: string[];
   forceUpdate?: boolean;
@@ -177,7 +179,13 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
           } catch {}
         }
 
-        const current = getNativeAppVersion() || get().currentVersion || '5.0.0';
+        let current = getNativeAppVersion() || get().currentVersion || '5.0.0';
+        if (typeof window !== 'undefined' && window.electronAPI?.getAppVersion) {
+          try {
+            const electronVer = await window.electronAPI.getAppVersion();
+            if (electronVer) current = electronVer;
+          } catch {}
+        }
 
         if (versionData) {
           const updateNeeded = safeCompareVersions(versionData.version, current);
@@ -206,9 +214,10 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
 
     startInstallUpdate: () => {
       const { latestVersionInfo } = get();
-      const resolvedApkUrl = resolveApkDownloadUrl(latestVersionInfo?.downloadUrl);
 
+      // 1. Android Native APK Environment
       if (isAndroidNative()) {
+        const resolvedApkUrl = resolveApkDownloadUrl(latestVersionInfo?.downloadUrl);
         set({ status: 'downloading', downloadProgress: 1, errorMessage: null, isModalOpen: true });
         const started = downloadAndInstallNativeUpdate(resolvedApkUrl);
         if (!started) {
@@ -217,16 +226,52 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
             errorMessage: 'Unable to start native background updater. Please try again or download manually.'
           });
         }
-      } else {
-        // Desktop / Web PWA fallback
+        return;
+      }
+
+      // 2. Windows Desktop Electron App Environment
+      if (typeof window !== 'undefined' && window.electronAPI?.downloadAndInstallUpdate) {
+        const winUrl =
+          latestVersionInfo?.windowsDownloadUrl ||
+          latestVersionInfo?.windowsInstallerUrl ||
+          'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe';
+        set({ status: 'downloading', downloadProgress: 1, errorMessage: null, isModalOpen: true });
+        window.electronAPI.downloadAndInstallUpdate(winUrl).catch((err: unknown) => {
+          set({
+            status: 'error',
+            errorMessage: err instanceof Error ? err.message : 'Windows update failed to launch'
+          });
+        });
+        return;
+      }
+
+      // 3. Web Browser on Windows / Desktop PC
+      const isWindows = typeof navigator !== 'undefined' && /Win/i.test(navigator.userAgent || navigator.platform);
+      if (isWindows) {
+        const winUrl =
+          latestVersionInfo?.windowsDownloadUrl ||
+          latestVersionInfo?.windowsInstallerUrl ||
+          'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe';
         const link = document.createElement('a');
-        link.href = resolvedApkUrl;
-        link.download = 'WaveCraft.apk';
+        link.href = winUrl;
+        link.download = 'WaveCraft-Pro-Setup.exe';
+        link.target = '_blank';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         set({ status: 'available' });
+        return;
       }
+
+      // 4. Web Browser on Mobile or generic fallback
+      const resolvedApkUrl = resolveApkDownloadUrl(latestVersionInfo?.downloadUrl);
+      const link = document.createElement('a');
+      link.href = resolvedApkUrl;
+      link.download = 'WaveCraft.apk';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      set({ status: 'available' });
     },
 
     retryPendingInstall: () => {
@@ -243,7 +288,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
   };
 });
 
-// Register native Android callbacks safely on window
+// Register native Android & Electron Windows callbacks safely on window
 if (typeof window !== 'undefined') {
   window.__wavecraft_update_progress = (percent: number) => {
     useUpdateStore.getState().setProgress(percent);
@@ -263,4 +308,22 @@ if (typeof window !== 'undefined') {
   window.__wavecraft_update_error = (error: string) => {
     useUpdateStore.getState().setError(error);
   };
+
+  // Electron Windows listeners
+  if (window.electronAPI) {
+    window.electronAPI.onUpdateProgress?.((percent: number) => {
+      useUpdateStore.getState().setProgress(percent);
+    });
+    window.electronAPI.onUpdateStatus?.((status: string) => {
+      const store = useUpdateStore.getState();
+      if (status === 'installing') {
+        store.setStatus('installing');
+      } else if (status === 'downloading') {
+        store.setStatus('downloading');
+      }
+    });
+    window.electronAPI.onUpdateError?.((error: string) => {
+      useUpdateStore.getState().setError(error);
+    });
+  }
 }

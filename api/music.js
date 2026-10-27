@@ -493,12 +493,15 @@ export default async function handler(req, res) {
         versionCode: 19,
         releaseDate: '2026-10-25',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
+        windowsDownloadUrl: 'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe',
+        windowsInstallerUrl: 'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe',
         title: 'WaveCraft Pro v5.2.8 (Uninterrupted Background Play & Universal Offline Vault)',
         releaseNotes: [
+          'Seamless Windows Desktop Auto-Update: Integrated native Windows setup updater directly in Electron — no more saving wrong APK files on PC.',
           'Uninterrupted Mobile Background Play: Every song continues playing smoothly without pausing when your screen is locked or the app is minimized.',
           'Seamless HD Audio Hot-Swapping: Automatically upgrades to crystal-clear 320kbps native audio without resetting your listening progress.',
           'Universal Offline Vault: Every track can now be saved and cached for 100% offline playback using our smart audio stream pipeline.',
-          'Persistent Native Keep-Alive: Reinforced Android foreground service and WebView architecture to prevent OS background suspension.'
+          'Persistent Native Keep-Alive: Reinforced Android and Windows foreground service to prevent OS background suspension.'
         ],
         forceUpdate: true
       });

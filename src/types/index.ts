@@ -190,6 +190,11 @@ export interface ElectronAPI {
   updateTrack: (track: { title: string; artist: string }) => void;
   finishSetup?: () => void;
   isSetupMode?: () => Promise<boolean>;
+  getAppVersion?: () => Promise<string>;
+  downloadAndInstallUpdate?: (url?: string) => Promise<{ success: boolean; error?: string }>;
+  onUpdateProgress?: (callback: (percent: number) => void) => () => void;
+  onUpdateStatus?: (callback: (status: string) => void) => () => void;
+  onUpdateError?: (callback: (error: string) => void) => () => void;
 }
 
 import type { YouTubePlayerInstance } from '../services/audioEngine';

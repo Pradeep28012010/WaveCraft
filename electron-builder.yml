@@ -8,8 +8,9 @@ directories:
 files:
   - dist/**/*
   - electron/**/*
-  - public/**/*
   - package.json
+  - "!**/*.exe"
+  - "!**/*.apk"
 
 win:
   target:
