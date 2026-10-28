@@ -35,8 +35,9 @@ import {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range, Accept, Origin, User-Agent');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -489,19 +490,19 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.2.9',
-        versionCode: 20,
+        version: '5.3.0',
+        versionCode: 21,
         releaseDate: '2026-10-28',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
         windowsDownloadUrl: 'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe',
         windowsInstallerUrl: 'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe',
-        title: 'WaveCraft Pro v5.2.9 (Universal Background Play & Stream Architecture)',
+        title: 'WaveCraft Pro v5.3.0 (Bulletproof Universal Background Play & Mobile Native Engine)',
         releaseNotes: [
-          'Uninterrupted Mobile Background Play: Every song continues playing continuously in the background when your screen is locked or the app is minimized.',
-          'Smart Stream Architecture: Hot-swaps directly to native 320kbps audio engine across all tracks to bypass mobile browser iframe suspensions.',
-          'Bidirectional Track Query Parsing: Fixes track resolution for all dash formats (Title - Artist vs Artist - Title) seamlessly.',
-          'Universal Offline Vault: 100% of tracks now cache into local storage without dropping out.',
-          'Reinforced Android Media Service: Upgraded Foreground Service and WakeLocks prevent system background killing.'
+          'Forced Native Mobile Audio: Every song now strictly plays via high-fidelity native audio engine on mobile to guarantee uninterrupted background playback.',
+          'Zero YouTube Iframe Background Halts: Completely eliminated mobile iframe fallback suspensions when screen is locked or minimized.',
+          'Universal Proactive Search Resolution: Search results resolve directly to high-bitrate audio streams before initiating playback.',
+          'Enhanced Streaming Resilience: Expanded timeout envelopes and direct multi-query fallback waterfall prevent network aborts.',
+          'Reinforced Android Media Service: High-performance WakeLock and WiFiLock ensure continuous streaming during deep Android Doze mode.'
         ],
         forceUpdate: true
       });

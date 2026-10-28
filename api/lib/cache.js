@@ -37,6 +37,9 @@ export const ALLOWED_AUDIO_DOMAINS = [
   'itunes.apple.com',
   'ytimg.com',
   'chocolatemoo53.com',
+  'jing.rocks',
+  'privacydev.net',
+  'ggtyler.dev',
   'invidious.io',
   'nerdvpn.de',
   'nadeko.net'

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useFeedbackStore, type FeedbackType } from '../../stores/feedbackStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useUpdateStore } from '../../stores/updateStore';
 import { getActiveEngine } from '../../services/audioEngine';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { LiquidGlassToggle } from '../ui/LiquidGlassToggle';

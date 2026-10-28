@@ -102,17 +102,28 @@ export function isStrictSaavnMatch(
   candSubtitle,
   rawTargetTitle
 ) {
-  if (!candTitle || !targetTitle) return false;
+  if (!candTitle || (!targetTitle && !rawTargetTitle)) return false;
 
   const BGM_REGEX =
     /\b(instrumental|karaoke|minus\s*one|backing\s*track|bgm)\b/i;
 
-  const normTarget = (targetTitle || '').toLowerCase().trim();
-  const normCand = (candTitle || '').toLowerCase().trim();
-  const candFull = `${normCand} ${(candSubtitle || '').toLowerCase()}`.trim();
+  const decodeHtml = (s) =>
+    (s || '')
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
 
-  // If user searched for a vocal track, reject candidate if candidate title is instrumental / BGM / karaoke
-  const isTargetInst = BGM_REGEX.test(normTarget);
+  const normTarget = decodeHtml(targetTitle).toLowerCase().trim();
+  const rawTarget = decodeHtml(rawTargetTitle || targetTitle).toLowerCase().trim();
+  const normCand = decodeHtml(candTitle).toLowerCase().trim();
+  const candSub = decodeHtml(candSubtitle || '').toLowerCase().trim();
+  const candFull = `${normCand} ${candSub}`.trim();
+
+  // If user searched for a vocal track, reject candidate if candidate title is pure instrumental / BGM / karaoke
+  const isTargetInst = BGM_REGEX.test(normTarget) || BGM_REGEX.test(rawTarget);
   const isCandInst = BGM_REGEX.test(normCand);
   if (!isTargetInst && isCandInst) {
     return false;
@@ -130,8 +141,7 @@ export function isStrictSaavnMatch(
     .replace(/\s+/g, ' ')
     .trim();
 
-  const cleanRawTarget = (rawTargetTitle || targetTitle || '')
-    .toLowerCase()
+  const cleanRawTarget = rawTarget
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -139,128 +149,75 @@ export function isStrictSaavnMatch(
   const normVowels = (s) =>
     (s || '').replace(/aa+/g, 'a').replace(/ee+/g, 'i').replace(/oo+/g, 'u').replace(/ii+/g, 'i');
 
-  // Validate artist if specified: prevent wrong song by different artist with identical title
-  const isGenericPlaceholder =
-    !targetArtist ||
-    /^(wavecraft|youtube\s*music|various\s*artists|unknown\s*artist|official\s*audio|top\s*hits|music|artist)$/i.test(
-      String(targetArtist).trim()
+  // Dash/Pipe parts from raw title & target
+  const dashParts = (rawTargetTitle || targetTitle)
+    .split(/\s*[-–—|]\s*/)
+    .map((s) => decodeHtml(s).trim())
+    .filter(Boolean)
+    .map((s) =>
+      s
+        .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    )
+    .filter((s) => s.length > 1);
+
+  // 1. Exact or vowel-normalized title match against target, rawTarget, or any dash/pipe part
+  const targetCandidates = [cleanTarget, cleanRawTarget, ...dashParts];
+  for (const t of targetCandidates) {
+    if (!t) continue;
+    if (t === cleanCand || normVowels(t) === normVowels(cleanCand)) {
+      return true;
+    }
+    if ((cleanCand.startsWith(t) || t.startsWith(cleanCand)) && Math.abs(cleanCand.length - t.length) <= 12) {
+      return true;
+    }
+  }
+
+  // 2. Bidirectional Dash Check (e.g. "Artist - Song" vs candTitle "Song" and candSub "Artist")
+  for (const part of dashParts) {
+    if (part === cleanCand || normVowels(part) === normVowels(cleanCand)) {
+      return true;
+    }
+    if (cleanCand.startsWith(part) && Math.abs(cleanCand.length - part.length) <= 8) {
+      return true;
+    }
+  }
+
+  // 3. Candidate token coverage in raw target (prevents penalizing clean short titles against 15-word YouTube titles)
+  const candTokens = cleanCand.split(/\s+/).filter((t) => t.length > 1);
+  const rawTargetTokens = cleanRawTarget.split(/\s+/).filter((t) => t.length > 1);
+  if (candTokens.length > 0 && rawTargetTokens.length > 0) {
+    const candMatchedInTarget = candTokens.filter(
+      (ct) => rawTargetTokens.includes(ct) || rawTargetTokens.some((rt) => normVowels(rt) === normVowels(ct))
     );
-
-  const isLabelOrChannel = Boolean(targetArtist && LABEL_CHANNEL_REGEX.test(targetArtist));
-
-  let artistMatches = true;
-  let artistMismatch = false;
-
-  if (!isGenericPlaceholder && !isLabelOrChannel && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
-    const cleanTargetArtist = targetArtist
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/(?:vevo|records|entertainment|music|official|channel|series|films)\b.*$/i, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    const artistTokens = cleanTargetArtist.split(/\s+/).filter((t) => t.length > 2);
-    if (artistTokens.length > 0) {
-      artistMatches = artistTokens.some((tok) => candFull.includes(tok));
-      if (!artistMatches) {
-        artistMismatch = true;
+    const candCoverage = candMatchedInTarget.length / candTokens.length;
+    if (candCoverage >= 0.7) {
+      return true;
+    }
+    if (candTokens.length === 1 && candCoverage === 1) {
+      if (candSub) {
+        const subTokens = candSub.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((t) => t.length > 2);
+        const subMatches = subTokens.some((st) => cleanRawTarget.includes(st));
+        if (subMatches || candTokens[0].length >= 5) {
+          return true;
+        }
+      } else {
+        return true;
       }
     }
   }
 
-  const rawParts = (rawTargetTitle || '').split(/\s*[-–—]\s*/).map((s) => s.trim()).filter(Boolean);
-  const targetVariants = [
-    cleanTarget,
-    (rawTargetTitle || '')
-      .toLowerCase()
-      .replace(/\s*[\(\[][^)\]]*?[\)\]]/g, ' ')
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim(),
-    rawParts.length > 0
-      ? rawParts[0]
-          .toLowerCase()
-          .replace(/\s*[\(\[][^)\]]*?[\)\]]/g, ' ')
-          .replace(/[^a-z0-9\s]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-      : null,
-    rawParts.length > 1
-      ? rawParts[1]
-          .toLowerCase()
-          .replace(/\s*[\(\[][^)\]]*?[\)\]]/g, ' ')
-          .replace(/[^a-z0-9\s]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-      : null
-  ].filter((v) => Boolean(v && v.length > 1));
-
-  const isExactTitle = targetVariants.some(
-    (v) => v === cleanCand || normVowels(v) === normVowels(cleanCand)
-  );
-  const isStrongPrefix = targetVariants.some(
-    (v) => (cleanCand.startsWith(v) || v.startsWith(cleanCand)) && Math.abs(cleanCand.length - v.length) <= 10
-  );
-
-  // Subtitle contains tokens of raw title (e.g. film name, composer, co-singer)
-  const candSubTokens = (candSubtitle || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter((t) => t.length > 2);
-  const subMatchesRawTitle = candSubTokens.some((tok) => cleanRawTarget.includes(tok));
-
-  // Reject wrong artist only if title is NOT an exact/strong match and artist was genuinely mismatched
-  // (prevents rejecting exact song matches where targetArtist is a YouTube channel/label name)
-  if (artistMismatch && !isExactTitle && !isStrongPrefix && !subMatchesRawTitle) {
-    return false;
-  }
-
-  // 1. Exact or vowel-normalized title match
-  if (isExactTitle || isStrongPrefix) {
-    return true;
-  }
-  if (
-    cleanCand.startsWith(cleanTarget) ||
-    cleanTarget.startsWith(cleanCand) ||
-    normVowels(cleanCand).startsWith(normVowels(cleanTarget)) ||
-    normVowels(cleanTarget).startsWith(normVowels(cleanCand))
-  ) {
-    return true;
-  }
-
-  // 2. Token matching across candidate full text
+  // 4. Token ratio fallback across cleaned query
   const targetTokens = cleanTarget.split(/\s+/).filter((t) => t.length > 1);
-  const candTokens = cleanCand.split(/\s+/).filter((t) => t.length > 1);
-  const candFullTokens = candFull.split(/\s+/).filter((t) => t.length > 1);
-
-  if (targetTokens.length === 0) return false;
-
-  const matchedCandTokens = targetTokens.filter((t) => candTokens.includes(t));
-  const matchedFullTokens = targetTokens.filter((t) => candFullTokens.includes(t));
-
-  const targetVowelTokens = targetTokens.map(normVowels);
-  const candVowelTokens = candTokens.map(normVowels);
-  const matchedVowelTokens = targetVowelTokens.filter((t) => candVowelTokens.includes(t));
-
-  const ratioCand = matchedCandTokens.length / targetTokens.length;
-  const ratioFull = matchedFullTokens.length / targetTokens.length;
-  const ratioVowel = matchedVowelTokens.length / targetTokens.length;
-
-  if (targetTokens.length === 1) {
-    return (
-      candTokens.includes(targetTokens[0]) ||
-      candVowelTokens.includes(normVowels(targetTokens[0])) ||
-      (subMatchesRawTitle && candFullTokens.includes(targetTokens[0]))
-    );
+  if (targetTokens.length > 0) {
+    const matchedCandTokens = targetTokens.filter((t) => candTokens.includes(t));
+    const ratioCand = matchedCandTokens.length / targetTokens.length;
+    if (ratioCand >= 0.5) return true;
   }
 
-  return (
-    ratioCand >= 0.6 ||
-    (ratioVowel >= 0.5 && (artistMatches || subMatchesRawTitle)) ||
-    (ratioFull >= 0.75 && (artistMatches || subMatchesRawTitle))
-  );
+  return false;
 }
 
 export function cleanTrackQuery(title, artist) {
@@ -405,7 +362,7 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
             'X-Real-IP': ipHeader
           }
         },
-        2500
+        5500
       );
       if (res.ok) {
         const data = await res.json();
@@ -445,16 +402,17 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
 export async function resolveYouTubeAudioStream(videoId) {
   if (!videoId) return null;
 
-  // 1. Invidious Mirrors Waterfall for Direct Stream Extraction
+  // Invidious Mirrors Waterfall for Direct Stream Extraction
   const mirrors = [
     'https://yt.chocolatemoo53.com',
-    'https://invidious.nerdvpn.de',
-    'https://inv.nadeko.net'
+    'https://invidious.jing.rocks',
+    'https://invidious.privacydev.net',
+    'https://iv.ggtyler.dev'
   ];
 
   for (const mirror of mirrors) {
     try {
-      const res = await fetchWithTimeout(`${mirror}/api/v1/videos/${encodeURIComponent(videoId)}`, {}, 3000);
+      const res = await fetchWithTimeout(`${mirror}/api/v1/videos/${encodeURIComponent(videoId)}`, {}, 4500);
       if (res.ok) {
         const data = await res.json();
         const formats = data?.adaptiveFormats || [];
