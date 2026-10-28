@@ -11,8 +11,7 @@ export function isAndroidNative(): boolean {
     Capacitor.isNativePlatform() ||
     Capacitor.getPlatform() === 'android' ||
     window.location.protocol === 'capacitor:' ||
-    typeof (window as unknown as { AndroidAudioBridge?: unknown }).AndroidAudioBridge !== 'undefined' ||
-    (window.location.hostname === 'localhost' && !['3000', '5173', '4173'].includes(window.location.port))
+    typeof (window as unknown as { AndroidAudioBridge?: unknown }).AndroidAudioBridge !== 'undefined'
   );
 }
 

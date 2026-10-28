@@ -321,8 +321,9 @@ export async function resolveDirectAudio(
   const topQueries = candidateQueries.slice(0, 4);
 
   // 1. Android Native Network Bridge (Instant zero-CORS resolution directly on mobile)
-  for (const q of topQueries) {
+  if (topQueries.length > 0 && typeof window !== 'undefined' && (window as unknown as { AndroidAudioBridge?: { fetchUrlNative?: (u: string) => string | null } }).AndroidAudioBridge?.fetchUrlNative) {
     try {
+      const q = topQueries[0];
       const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
       const rawJson = fetchAndroidNativeUrl(saavnUrl);
       if (rawJson) {

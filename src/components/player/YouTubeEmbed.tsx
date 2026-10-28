@@ -206,19 +206,10 @@ export default function YouTubeEmbed() {
     }
   }, [currentTrack, queue, queueIndex, autoplay]);
 
-  // Auto-prune unplayable or undownloadable songs from queue and skip immediately
-  const pruneAndSkipTrack = (failedTrackId: string) => {
+  // Gracefully skip unplayable track without deleting or mutating the user's queue
+  const skipFailedTrack = (failedTrackId: string) => {
     const store = usePlayerStore.getState();
-    console.warn(`[WaveCraft] Removing unplayable/undownloadable song from queue: ${failedTrackId}`);
-    const remainingQueue = store.queue.filter((t) => t.id !== failedTrackId);
-
-    if (remainingQueue.length === 0) {
-      usePlayerStore.setState({ queue: [], currentTrack: null, isPlaying: false, isLoading: false });
-      stopAndroidBackgroundAudio();
-      return;
-    }
-
-    usePlayerStore.setState({ queue: remainingQueue });
+    console.warn(`[WaveCraft] Skipping unplayable track: ${failedTrackId}`);
     trackTransitionIntentRef.current = true;
     userInitiatedPauseRef.current = false;
     setIsLoading(false);
@@ -252,8 +243,9 @@ export default function YouTubeEmbed() {
       ) {
         shortDurationRetriedRef.current.add(curTrack.id);
         console.warn(`[WaveCraft] Audio source duration (${dur}s) is a 30s preview for "${curTrack.title}" (expected >= ${expectedDur}s). Rejecting preview...`);
-        audio.pause();
-        audio.src = '';
+        try { audio.pause(); } catch {}
+        audio.removeAttribute('src');
+        audio.load();
         curTrack.audioUrl = undefined;
         usePlayerStore.setState((s) => ({
           currentTrack: s.currentTrack?.id === curTrack.id ? { ...s.currentTrack, audioUrl: undefined } : s.currentTrack,
@@ -436,36 +428,9 @@ export default function YouTubeEmbed() {
         (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
         (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
       const ytPlayer = getPlayer();
-      if (isAndroidNative()) {
-        // On Android native, avoid switching to YouTube iframe which suspends in background.
-        // Attempt native audio stream recovery or graceful track advancement.
-        if (cur && retryAttemptRef.current < 2) {
-          retryAttemptRef.current++;
-          resolveDirectAudio(cur.title, cur.artist, cur.duration, effectiveYtId)
-            .then((freshUrl) => {
-              if (freshUrl && isPlayableAudioStreamUrl(freshUrl)) {
-                cur.audioUrl = freshUrl;
-                playNativeAudio(freshUrl, usePlayerStore.getState().isPlaying, audio.currentTime || 0);
-              } else {
-                pruneAndSkipTrack(cur.id);
-              }
-            })
-            .catch(() => pruneAndSkipTrack(cur.id));
-          return;
-        }
-        setIsLoading(false);
-        if (cur) {
-          pruneAndSkipTrack(cur.id);
-        } else {
-          nextTrack();
-        }
-        return;
-      }
-
       if (
         effectiveYtId &&
         ytPlayer &&
-        window.ytPlayerReady &&
         (typeof navigator === 'undefined' || navigator.onLine)
       ) {
         const curTime = audio.currentTime || 0;
@@ -482,12 +447,24 @@ export default function YouTubeEmbed() {
         }
         return;
       }
-      setIsLoading(false);
-      if (cur) {
-        pruneAndSkipTrack(cur.id);
-      } else {
-        nextTrack();
+
+      if (cur && retryAttemptRef.current < 2) {
+        retryAttemptRef.current++;
+        resolveDirectAudio(cur.title, cur.artist, cur.duration, effectiveYtId)
+          .then((freshUrl) => {
+            if (freshUrl && isPlayableAudioStreamUrl(freshUrl)) {
+              cur.audioUrl = freshUrl;
+              playNativeAudio(freshUrl, usePlayerStore.getState().isPlaying, audio.currentTime || 0);
+            } else {
+              skipFailedTrack(cur.id);
+            }
+          })
+          .catch(() => skipFailedTrack(cur.id));
+        return;
       }
+
+      setIsLoading(false);
+      skipFailedTrack(cur ? cur.id : '');
     };
 
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
@@ -711,7 +688,7 @@ export default function YouTubeEmbed() {
 
             function skipOnError() {
               if (cur) {
-                pruneAndSkipTrack(cur.id);
+                skipFailedTrack(cur.id);
               } else {
                 trackTransitionIntentRef.current = true;
                 userInitiatedPauseRef.current = false;
@@ -765,7 +742,8 @@ export default function YouTubeEmbed() {
     const audio = audioRef.current;
     if (audio) {
       try { audio.pause(); } catch {}
-      audio.src = '';
+      audio.removeAttribute('src');
+      audio.load();
     }
     const ytPlayer = getPlayer();
     if (!ytPlayer || (!window.ytPlayerReady && typeof ytPlayer.loadVideoById !== 'function')) {
@@ -915,6 +893,10 @@ export default function YouTubeEmbed() {
           usePlayerStore.setState({ isPlaying: true });
         })
         .catch((err) => {
+          if (err?.name === 'AbortError') {
+            // Expected interruption when rapid track switching interrupts in-flight play()
+            return;
+          }
           console.warn('[WaveCraft] Native audio play issue:', err);
           setIsLoading(false);
           const cur = usePlayerStore.getState().currentTrack;
@@ -925,14 +907,14 @@ export default function YouTubeEmbed() {
             : cur?.youtubeId ||
               (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
               (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
-          if (cur && effectiveYtId && (typeof navigator === 'undefined' || navigator.onLine)) {
+          if (err?.name === 'NotAllowedError') {
+            usePlayerStore.setState({ isPlaying: false, isLoading: false });
+          } else if (cur && effectiveYtId && (typeof navigator === 'undefined' || navigator.onLine)) {
             fallbackToYouTube(cur, effectiveYtId, true);
           } else if (cur && (typeof navigator === 'undefined' || navigator.onLine)) {
             searchAndPlayYouTube(cur, true);
-          } else if (err?.name === 'NotAllowedError') {
-            usePlayerStore.getState().pause();
           } else if (cur) {
-            pruneAndSkipTrack(cur.id);
+            skipFailedTrack(cur.id);
           }
         });
     } else {
@@ -1078,88 +1060,9 @@ export default function YouTubeEmbed() {
           (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
           (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
-      // 3. If YouTube video ID is already known, prioritize 320kbps resolution.
-      // On Android native, ALWAYS force direct native audio stream for rock-solid background playback!
+      // 3. If YouTube video ID is already known, prioritize 320kbps resolution with instant fallback
       if (effectiveYtId) {
-        if (isAndroidNative()) {
-          setIsLoading(true);
-          resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
-            .then((directAudioUrl) => {
-              if (resolveToken !== resolvingTokenRef.current) return;
-              if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-
-              if (isPlayableAudioStreamUrl(directAudioUrl)) {
-                track.audioUrl = directAudioUrl;
-                track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                usePlayerStore.setState((s) => ({
-                  currentTrack:
-                    s.currentTrack?.id === track.id
-                      ? { ...s.currentTrack, audioUrl: directAudioUrl, quality: track.quality }
-                      : s.currentTrack,
-                  queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directAudioUrl, quality: track.quality } : t))
-                }));
-                playNativeAudio(directAudioUrl, shouldPlay);
-              } else {
-                // Secondary resolution attempt: try by cleanTitle & cleanArtist
-                const { cleanTitle, cleanArtist, songName } = cleanTrackQuery(track.title, track.artist);
-                resolveDirectAudio(songName || cleanTitle, cleanArtist, track.duration)
-                  .then((fallbackAudioUrl) => {
-                    if (resolveToken !== resolvingTokenRef.current) return;
-                    if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-                    if (isPlayableAudioStreamUrl(fallbackAudioUrl)) {
-                      track.audioUrl = fallbackAudioUrl;
-                      track.quality = fallbackAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                      usePlayerStore.setState((s) => ({
-                        currentTrack:
-                          s.currentTrack?.id === track.id
-                            ? { ...s.currentTrack, audioUrl: fallbackAudioUrl, quality: track.quality }
-                            : s.currentTrack,
-                        queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: fallbackAudioUrl, quality: track.quality } : t))
-                      }));
-                      playNativeAudio(fallbackAudioUrl, shouldPlay);
-                    } else {
-                      fallbackToYouTube(track, effectiveYtId, shouldPlay);
-                      // Proactively resolve native audio stream in background and hot-swap when ready
-                      resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
-                        .then((bgUrl) => {
-                          if (isPlayableAudioStreamUrl(bgUrl) && resolveToken === resolvingTokenRef.current) {
-                            track.audioUrl = bgUrl;
-                            track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                            usePlayerStore.setState((s) => ({
-                              currentTrack:
-                                s.currentTrack?.id === track.id
-                                  ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality }
-                                  : s.currentTrack,
-                              queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
-                            }));
-                            if (getActiveEngine() === 'youtube') {
-                              const yt = getPlayer();
-                              let curTime = 0;
-                              try {
-                                curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
-                              } catch {
-                                curTime = usePlayerStore.getState().currentTime || 0;
-                              }
-                              console.info('[WaveCraft] Hot-swapping to native HD audio stream at', curTime, 'sec for uninterrupted background play');
-                              playNativeAudio(bgUrl, usePlayerStore.getState().isPlaying, curTime);
-                            }
-                          }
-                        })
-                        .catch(() => {});
-                    }
-                  })
-                  .catch(() => fallbackToYouTube(track, effectiveYtId, shouldPlay));
-              }
-            })
-            .catch(() => {
-              if (resolveToken !== resolvingTokenRef.current) return;
-              fallbackToYouTube(track, effectiveYtId, shouldPlay);
-            });
-          return;
-        }
-
-        // On desktop/browser: race with 1500ms window
-        const timeoutMs = 1500;
+        const timeoutMs = 1200;
         const directAudioPromise = resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId);
         const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
 
@@ -1180,36 +1083,39 @@ export default function YouTubeEmbed() {
               }));
               playNativeAudio(directAudioUrl, shouldPlay);
             } else {
-              // Start YouTube stream immediately without blocking
+              // Direct stream took > 1200ms: start YouTube immediately so audio plays with 0 delay
               fallbackToYouTube(track, effectiveYtId, shouldPlay);
 
-              // Allow background caching & hot-swap to native audio when resolved
-              directAudioPromise.then((bgUrl) => {
-                if (isPlayableAudioStreamUrl(bgUrl) && resolveToken === resolvingTokenRef.current) {
-                  track.audioUrl = bgUrl;
-                  track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                  usePlayerStore.setState((s) => ({
-                    currentTrack:
-                      s.currentTrack?.id === track.id
-                        ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality }
-                        : s.currentTrack,
-                    queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
-                  }));
+              // Concurrently continue resolving direct audio stream in background; when ready, hot-swap smoothly
+              directAudioPromise
+                .then((bgUrl) => {
+                  if (resolveToken !== resolvingTokenRef.current) return;
+                  if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+                  if (isPlayableAudioStreamUrl(bgUrl)) {
+                    track.audioUrl = bgUrl;
+                    track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                    usePlayerStore.setState((s) => ({
+                      currentTrack:
+                        s.currentTrack?.id === track.id
+                          ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality }
+                          : s.currentTrack,
+                      queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
+                    }));
 
-                  // If currently on YouTube engine, hot-swap immediately for rock-solid background play!
-                  if (getActiveEngine() === 'youtube') {
-                    const yt = getPlayer();
-                    let curTime = 0;
-                    try {
-                      curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
-                    } catch {
-                      curTime = usePlayerStore.getState().currentTime || 0;
+                    if (getActiveEngine() === 'youtube') {
+                      const yt = getPlayer();
+                      let curTime = 0;
+                      try {
+                        curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
+                      } catch {
+                        curTime = usePlayerStore.getState().currentTime || 0;
+                      }
+                      console.info('[WaveCraft] Hot-swapping to native HD audio stream at', curTime, 'sec for uninterrupted background play');
+                      playNativeAudio(bgUrl, usePlayerStore.getState().isPlaying, curTime);
                     }
-                    console.info('[WaveCraft] Hot-swapping to native HD audio stream at', curTime, 'sec for uninterrupted background play');
-                    playNativeAudio(bgUrl, usePlayerStore.getState().isPlaying, curTime);
                   }
-                }
-              }).catch(() => {});
+                })
+                .catch(() => {});
             }
           })
           .catch(() => {
@@ -1332,83 +1238,64 @@ export default function YouTubeEmbed() {
             )
           }));
 
-          if (isAndroidNative()) {
-            setIsLoading(true);
-            resolveDirectAudio(track.title, track.artist, track.duration, ytid)
-              .then((directUrl) => {
-                if (token !== resolvingTokenRef.current) return;
-                if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-                if (isPlayableAudioStreamUrl(directUrl)) {
-                  track.audioUrl = directUrl;
-                  track.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                  usePlayerStore.setState((s) => ({
-                    currentTrack:
-                      s.currentTrack?.id === track.id
-                        ? { ...s.currentTrack, audioUrl: directUrl, quality: track.quality }
-                        : s.currentTrack,
-                    queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directUrl, quality: track.quality } : t))
-                  }));
-                  playNativeAudio(directUrl, shouldPlay);
-                } else {
-                  // Fallback: try resolving by title and artist directly
-                  resolveDirectAudio(track.title, track.artist, track.duration)
-                    .then((fallbackUrl) => {
-                      if (token !== resolvingTokenRef.current) return;
-                      if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-                      if (isPlayableAudioStreamUrl(fallbackUrl)) {
-                        track.audioUrl = fallbackUrl;
-                        track.quality = fallbackUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                        usePlayerStore.setState((s) => ({
-                          currentTrack:
-                            s.currentTrack?.id === track.id
-                              ? { ...s.currentTrack, audioUrl: fallbackUrl, quality: track.quality }
-                              : s.currentTrack,
-                          queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: fallbackUrl, quality: track.quality } : t))
-                        }));
-                        playNativeAudio(fallbackUrl, shouldPlay);
-                      } else {
-                        fallbackToYouTube(track, ytid, shouldPlay);
-                      }
-                    })
-                    .catch(() => fallbackToYouTube(track, ytid, shouldPlay));
-                }
-              })
-              .catch(() => fallbackToYouTube(track, ytid, shouldPlay));
-            return;
-          }
+          const timeoutMs = 1200;
+          const directAudioPromise = resolveDirectAudio(track.title, track.artist, track.duration, ytid);
+          const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
 
-          fallbackToYouTube(track, ytid, shouldPlay);
-
-          // Proactively resolve native audio stream in background and hot-swap when ready
-          resolveDirectAudio(track.title, track.artist, track.duration, ytid)
-            .then((directUrl) => {
+          Promise.race([directAudioPromise, timeoutPromise])
+            .then((directAudioUrl) => {
               if (token !== resolvingTokenRef.current) return;
               if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-              if (!directUrl || !isPlayableAudioStreamUrl(directUrl)) return;
 
-              track.audioUrl = directUrl;
-              track.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-              usePlayerStore.setState((s) => ({
-                currentTrack:
-                  s.currentTrack?.id === track.id
-                    ? { ...s.currentTrack, audioUrl: directUrl, quality: track.quality }
-                    : s.currentTrack,
-                queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directUrl, quality: track.quality } : t))
-              }));
+              if (isPlayableAudioStreamUrl(directAudioUrl)) {
+                track.audioUrl = directAudioUrl;
+                track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                usePlayerStore.setState((s) => ({
+                  currentTrack:
+                    s.currentTrack?.id === track.id
+                      ? { ...s.currentTrack, audioUrl: directAudioUrl, quality: track.quality }
+                      : s.currentTrack,
+                  queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directAudioUrl, quality: track.quality } : t))
+                }));
+                playNativeAudio(directAudioUrl, shouldPlay);
+              } else {
+                fallbackToYouTube(track, ytid, shouldPlay);
 
-              if (getActiveEngine() === 'youtube') {
-                const yt = getPlayer();
-                let curTime = 0;
-                try {
-                  curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
-                } catch {
-                  curTime = usePlayerStore.getState().currentTime || 0;
-                }
-                console.info('[WaveCraft] Hot-swapping search result to native HD audio stream at', curTime, 'sec');
-                playNativeAudio(directUrl, usePlayerStore.getState().isPlaying, curTime);
+                directAudioPromise
+                  .then((bgUrl) => {
+                    if (token !== resolvingTokenRef.current) return;
+                    if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+                    if (!bgUrl || !isPlayableAudioStreamUrl(bgUrl)) return;
+
+                    track.audioUrl = bgUrl;
+                    track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                    usePlayerStore.setState((s) => ({
+                      currentTrack:
+                        s.currentTrack?.id === track.id
+                          ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality }
+                          : s.currentTrack,
+                      queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
+                    }));
+
+                    if (getActiveEngine() === 'youtube') {
+                      const yt = getPlayer();
+                      let curTime = 0;
+                      try {
+                        curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
+                      } catch {
+                        curTime = usePlayerStore.getState().currentTime || 0;
+                      }
+                      console.info('[WaveCraft] Hot-swapping search result to native HD audio stream at', curTime, 'sec');
+                      playNativeAudio(bgUrl, usePlayerStore.getState().isPlaying, curTime);
+                    }
+                  })
+                  .catch(() => {});
               }
             })
-            .catch(() => {});
+            .catch(() => {
+              if (token !== resolvingTokenRef.current) return;
+              fallbackToYouTube(track, ytid, shouldPlay);
+            });
 
           return;
         } else {
@@ -1416,7 +1303,7 @@ export default function YouTubeEmbed() {
           setIsLoading(false);
           isSwitchingTrackRef.current = false;
           trackTransitionIntentRef.current = false;
-          pruneAndSkipTrack(track.id);
+          skipFailedTrack(track.id);
         }
       })
       .catch((err) => {
@@ -1425,7 +1312,7 @@ export default function YouTubeEmbed() {
         setIsLoading(false);
         isSwitchingTrackRef.current = false;
         trackTransitionIntentRef.current = false;
-        pruneAndSkipTrack(track.id);
+        skipFailedTrack(track.id);
       });
   };
   searchAndPlayYouTubeRef.current = searchAndPlayYouTube;
@@ -1695,6 +1582,20 @@ export default function YouTubeEmbed() {
           }
           // On native mobile, proactively force hot-swap to native audio stream if still playing on iframe
           if (currentTrack && (isAndroidNative() || Capacitor.isNativePlatform())) {
+            if (currentTrack.audioUrl && isPlayableAudioStreamUrl(currentTrack.audioUrl)) {
+              if (getActiveEngine() === 'youtube') {
+                const yt = getPlayer();
+                let curTime = 0;
+                try {
+                  curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
+                } catch {
+                  curTime = usePlayerStore.getState().currentTime || 0;
+                }
+                console.info('[WaveCraft] Hot-swapping to pre-resolved native audio on backgrounding at', curTime, 'sec');
+                playNativeAudio(currentTrack.audioUrl, true, curTime);
+              }
+              return;
+            }
             const effectiveYtId =
               currentTrack.youtubeId ||
               (currentTrack.id.startsWith('yt_') ? currentTrack.id.replace('yt_', '') : '') ||
