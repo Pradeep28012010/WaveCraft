@@ -490,19 +490,18 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.3.1',
-        versionCode: 22,
+        version: '5.3.2',
+        versionCode: 23,
         releaseDate: '2026-10-28',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
         windowsDownloadUrl: 'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe',
         windowsInstallerUrl: 'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe',
-        title: 'WaveCraft Pro v5.3.1 (Instant Playback & Bulletproof Universal Background Play)',
+        title: 'WaveCraft Pro v5.3.2 (Bulletproof Play/Pause Resume & Uninterrupted Background Continuity)',
         releaseNotes: [
-          'Restored Instant Track Playback: Songs start playing immediately across all devices with zero queue pruning or stalling.',
-          'Seamless Background Play Architecture: Non-blocking parallel stream resolution and instant native audio hot-swapping keep music playing continuously when screen is locked or app is minimized.',
-          'Protected Queue Integrity: Eliminated track pruning loops on transient errors so playlist and search queues remain completely intact.',
-          'Synchronous Audio Gesture Unlocking: Synchronous audio context unlock eliminates browser autoplay NotAllowedError halts.',
-          'Universal Mobile & Desktop Continuity: Direct 320kbps Studio AAC with YouTube fallbacks guarantees 100% playable tracks.'
+          'Fixed Resume 1-Second Auto-Pause: Eliminated audio-focus collisions between native service and WebView so playback resumes and continues indefinitely without pausing.',
+          'Deterministic Play/Pause Media Actions: Notification and lock-screen controls now use explicit play and pause signals instead of toggles to guarantee state sync.',
+          'Engine Hot-Swap Protection: YouTube CUED and PAUSED states during engine transitions can no longer prematurely pause active playback.',
+          'Universal Mobile & Desktop Continuity: Direct 320kbps Studio AAC with YouTube fallbacks guarantees 100% playable tracks across mobile and desktop.'
         ],
         forceUpdate: true
       });

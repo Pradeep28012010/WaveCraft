@@ -651,7 +651,7 @@ export default function YouTubeEmbed() {
                 }, 450);
               }
             } else if (state === window.YT?.PlayerState?.CUED) {
-              if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
+              if (isSwitchingTrackRef.current || trackTransitionIntentRef.current || usePlayerStore.getState().isPlaying) {
                 return;
               }
               usePlayerStore.setState({ isPlaying: false, isLoading: false });
@@ -1342,14 +1342,12 @@ export default function YouTubeEmbed() {
     }
 
     const shouldPlay = usePlayerStore.getState().isPlaying || isPlaying;
-    if (shouldPlay) {
-      trackTransitionIntentRef.current = true;
-      userInitiatedPauseRef.current = false;
-    }
 
     if (!isDifferentTrack) {
       // If user clicked the same track to replay from start (progress & currentTime reset to 0)
       if (usePlayerStore.getState().currentTime === 0 && usePlayerStore.getState().progress === 0 && shouldPlay) {
+        trackTransitionIntentRef.current = true;
+        userInitiatedPauseRef.current = false;
         seekToTime(0);
         const engine = getActiveEngine();
         if (engine === 'audio' && audioRef.current?.src) {
@@ -1374,6 +1372,11 @@ export default function YouTubeEmbed() {
         }
       }
       return;
+    }
+
+    if (shouldPlay) {
+      trackTransitionIntentRef.current = true;
+      userInitiatedPauseRef.current = false;
     }
 
     startTrackPlayback(currentTrack, shouldPlay, true);
@@ -1480,6 +1483,7 @@ export default function YouTubeEmbed() {
           audio.play().catch(() => setIsLoading(false));
         }
       } else {
+        userInitiatedPauseRef.current = true;
         audio.pause();
       }
     } else if (getActiveEngine() === 'youtube') {

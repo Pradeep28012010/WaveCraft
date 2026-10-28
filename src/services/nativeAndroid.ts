@@ -174,6 +174,10 @@ if (typeof window !== 'undefined') {
     const store = usePlayerStore.getState();
     if (action === 'play_pause') {
       store.togglePlay();
+    } else if (action === 'play') {
+      store.resume();
+    } else if (action === 'pause') {
+      store.pause();
     } else if (action === 'next') {
       store.nextTrack();
     } else if (action === 'prev') {
