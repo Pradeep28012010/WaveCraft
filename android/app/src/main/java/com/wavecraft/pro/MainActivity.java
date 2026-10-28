@@ -604,6 +604,18 @@ public class MainActivity extends BridgeActivity {
             // Register native bridge for background audio foreground service & auto-updates
             webView.addJavascriptInterface(new AndroidAudioBridge(), "AndroidAudioBridge");
 
+            // Prevent Chromium WebView from freezing timers or pausing background media playback when locked
+            webView.evaluateJavascript(
+                "(function() {" +
+                "  try {" +
+                "    Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true });" +
+                "    Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true });" +
+                "    document.addEventListener('visibilitychange', function(e) { if (document.visibilityState === 'hidden') e.stopImmediatePropagation(); }, true);" +
+                "  } catch(e){}" +
+                "})();",
+                null
+            );
+
             keepWebViewAlive();
         }
     }
@@ -611,10 +623,12 @@ public class MainActivity extends BridgeActivity {
     private void keepWebViewAlive() {
         if (bridge != null && bridge.getWebView() != null) {
             final WebView webView = bridge.getWebView();
-            try {
-                webView.resumeTimers();
-                webView.onResume();
-            } catch (Exception ignored) {}
+            runOnUiThread(() -> {
+                try {
+                    webView.resumeTimers();
+                    webView.onResume();
+                } catch (Exception ignored) {}
+            });
             webView.post(() -> {
                 try {
                     webView.resumeTimers();

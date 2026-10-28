@@ -11,7 +11,7 @@ import {
   autoCacheTrack,
   precacheTrack
 } from '../../services/offlineVault';
-import { cleanTrackQuery, resolveDirectAudio } from '../../services/streamResolver';
+import { cleanTrackQuery, resolveDirectAudio, isPlayableAudioStreamUrl } from '../../services/streamResolver';
 import {
   setHtmlAudioElement,
   setYtPlayerInstance,
@@ -1038,15 +1038,7 @@ export default function YouTubeEmbed() {
       const isDirectCdnStream =
         Boolean(track.audioUrl) &&
         !isAudioPreviewUrl(track.audioUrl) &&
-        !track.audioUrl!.includes('googlevideo.com') &&
-        (track.audioUrl!.startsWith('https://aac.saavncdn.com') ||
-         track.audioUrl!.startsWith('blob:') ||
-         track.audioUrl!.includes('saavncdn') ||
-         track.audioUrl!.includes('action=proxy-stream') ||
-         track.audioUrl!.includes('/api/music') ||
-         (track.audioUrl!.startsWith('https://') &&
-          !track.audioUrl!.includes('youtube') &&
-          (track.audioUrl!.endsWith('.mp4') || track.audioUrl!.endsWith('.mp3') || track.audioUrl!.endsWith('.m4a'))));
+        isPlayableAudioStreamUrl(track.audioUrl);
 
       if (isDirectCdnStream && audio) {
         playNativeAudio(track.audioUrl!, shouldPlay);
@@ -1060,11 +1052,67 @@ export default function YouTubeEmbed() {
           (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
           (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
-      // 3. If YouTube video ID is already known, give 320kbps resolution a window.
-      // On Android native, give 2800ms so background-resilient native audio is strongly prioritized.
-      // If direct stream resolves fast, use native audiophile DSP; otherwise start YouTube immediately!
+      // 3. If YouTube video ID is already known, prioritize 320kbps resolution.
+      // On Android native, ALWAYS force direct native audio stream for rock-solid background playback!
       if (effectiveYtId) {
-        const timeoutMs = isAndroidNative() ? 2800 : 1500;
+        if (isAndroidNative()) {
+          setIsLoading(true);
+          resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
+            .then((directAudioUrl) => {
+              if (resolveToken !== resolvingTokenRef.current) return;
+              if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+
+              if (isPlayableAudioStreamUrl(directAudioUrl)) {
+                track.audioUrl = directAudioUrl;
+                track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                usePlayerStore.setState((s) => ({
+                  currentTrack:
+                    s.currentTrack?.id === track.id
+                      ? { ...s.currentTrack, audioUrl: directAudioUrl, quality: track.quality }
+                      : s.currentTrack,
+                  queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directAudioUrl, quality: track.quality } : t))
+                }));
+                playNativeAudio(directAudioUrl, shouldPlay);
+              } else {
+                fallbackToYouTube(track, effectiveYtId, shouldPlay);
+                // Proactively resolve native audio stream in background and hot-swap when ready
+                resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
+                  .then((bgUrl) => {
+                    if (isPlayableAudioStreamUrl(bgUrl) && resolveToken === resolvingTokenRef.current) {
+                      track.audioUrl = bgUrl;
+                      track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                      usePlayerStore.setState((s) => ({
+                        currentTrack:
+                          s.currentTrack?.id === track.id
+                            ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality }
+                            : s.currentTrack,
+                        queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
+                      }));
+                      if (getActiveEngine() === 'youtube') {
+                        const yt = getPlayer();
+                        let curTime = 0;
+                        try {
+                          curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
+                        } catch {
+                          curTime = usePlayerStore.getState().currentTime || 0;
+                        }
+                        console.info('[WaveCraft] Hot-swapping to native HD audio stream at', curTime, 'sec for uninterrupted background play');
+                        playNativeAudio(bgUrl, usePlayerStore.getState().isPlaying, curTime);
+                      }
+                    }
+                  })
+                  .catch(() => {});
+              }
+            })
+            .catch(() => {
+              if (resolveToken !== resolvingTokenRef.current) return;
+              fallbackToYouTube(track, effectiveYtId, shouldPlay);
+            });
+          return;
+        }
+
+        // On desktop/browser: race with 1500ms window
+        const timeoutMs = 1500;
         const directAudioPromise = resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId);
         const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
 
@@ -1073,7 +1121,7 @@ export default function YouTubeEmbed() {
             if (resolveToken !== resolvingTokenRef.current) return;
             if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
-            if (directAudioUrl && !directAudioUrl.includes('googlevideo.com')) {
+            if (isPlayableAudioStreamUrl(directAudioUrl)) {
               track.audioUrl = directAudioUrl;
               track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
               usePlayerStore.setState((s) => ({
@@ -1090,7 +1138,7 @@ export default function YouTubeEmbed() {
 
               // Allow background caching & hot-swap to native audio when resolved
               directAudioPromise.then((bgUrl) => {
-                if (bgUrl && !bgUrl.includes('googlevideo.com') && resolveToken === resolvingTokenRef.current) {
+                if (isPlayableAudioStreamUrl(bgUrl) && resolveToken === resolvingTokenRef.current) {
                   track.audioUrl = bgUrl;
                   track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
                   usePlayerStore.setState((s) => ({
@@ -1101,7 +1149,7 @@ export default function YouTubeEmbed() {
                     queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
                   }));
 
-                  // If currently on YouTube engine, hot-swap immediately for rock-solid background playback!
+                  // If currently on YouTube engine, hot-swap immediately for rock-solid background play!
                   if (getActiveEngine() === 'youtube') {
                     const yt = getPlayer();
                     let curTime = 0;
@@ -1130,7 +1178,7 @@ export default function YouTubeEmbed() {
           if (resolveToken !== resolvingTokenRef.current) return;
           if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
 
-          if (directAudioUrl && !directAudioUrl.includes('googlevideo.com')) {
+          if (isPlayableAudioStreamUrl(directAudioUrl)) {
             track.audioUrl = directAudioUrl;
             track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
             usePlayerStore.setState((s) => ({
@@ -1244,7 +1292,7 @@ export default function YouTubeEmbed() {
             .then((directUrl) => {
               if (token !== resolvingTokenRef.current) return;
               if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-              if (!directUrl || directUrl.includes('googlevideo.com')) return;
+              if (!directUrl || !isPlayableAudioStreamUrl(directUrl)) return;
 
               track.audioUrl = directUrl;
               track.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
@@ -1373,7 +1421,7 @@ export default function YouTubeEmbed() {
         nextTrackCandidate.youtubeId
       )
         .then((directUrl) => {
-          if (directUrl && !directUrl.includes('googlevideo.com')) {
+          if (isPlayableAudioStreamUrl(directUrl)) {
             usePlayerStore.setState((s) => ({
               queue: s.queue.map((t, idx) =>
                 idx === nextIdx
@@ -1528,12 +1576,18 @@ export default function YouTubeEmbed() {
   }, [isPlaying, currentTrack]);
 
   // Seamless Background Continuity:
-  // When app is minimized or phone screen is locked, verify YouTube playback continues uninterrupted
+  // When app is minimized or phone screen is locked, verify playback continues uninterrupted
   useEffect(() => {
     const ensureBackgroundPlayback = () => {
       if (isPlaying && !userInitiatedPauseRef.current) {
         const engine = getActiveEngine();
-        if (engine === 'youtube') {
+        if (engine === 'audio' && audioRef.current) {
+          const audio = audioRef.current;
+          if (audio.paused && audio.src) {
+            resumeAudioContextIfNeeded();
+            audio.play().catch(() => {});
+          }
+        } else if (engine === 'youtube') {
           const ytPlayer = getPlayer();
           if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
             const s = ytPlayer.getPlayerState();
@@ -1545,9 +1599,50 @@ export default function YouTubeEmbed() {
               } catch {}
             }
           }
+          // On native mobile, proactively force hot-swap to native audio stream if still playing on iframe
+          if (currentTrack && (isAndroidNative() || Capacitor.isNativePlatform())) {
+            const effectiveYtId =
+              currentTrack.youtubeId ||
+              (currentTrack.id.startsWith('yt_') ? currentTrack.id.replace('yt_', '') : '') ||
+              (currentTrack.id.startsWith('yt-') ? currentTrack.id.replace('yt-', '') : '');
+            resolveDirectAudio(currentTrack.title, currentTrack.artist, currentTrack.duration, effectiveYtId)
+              .then((directUrl) => {
+                if (isPlayableAudioStreamUrl(directUrl) && usePlayerStore.getState().currentTrack?.id === currentTrack.id) {
+                  currentTrack.audioUrl = directUrl;
+                  currentTrack.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                  usePlayerStore.setState((s) => ({
+                    currentTrack:
+                      s.currentTrack?.id === currentTrack.id
+                        ? { ...s.currentTrack, audioUrl: directUrl, quality: currentTrack.quality }
+                        : s.currentTrack,
+                    queue: s.queue.map((t) => (t.id === currentTrack.id ? { ...t, audioUrl: directUrl, quality: currentTrack.quality } : t))
+                  }));
+                  if (getActiveEngine() === 'youtube') {
+                    const yt = getPlayer();
+                    let curTime = 0;
+                    try {
+                      curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
+                    } catch {
+                      curTime = usePlayerStore.getState().currentTime || 0;
+                    }
+                    console.info('[WaveCraft] Hot-swapping to native audio on backgrounding at', curTime, 'sec');
+                    playNativeAudio(directUrl, true, curTime);
+                  }
+                }
+              })
+              .catch(() => {});
+          }
         }
       }
     };
+
+    const handleVisibility = () => {
+      ensureBackgroundPlayback();
+      setTimeout(ensureBackgroundPlayback, 150);
+      setTimeout(ensureBackgroundPlayback, 600);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
 
     let capHandle: { remove: () => void } | null = null;
     if (Capacitor.isNativePlatform()) {
@@ -1565,6 +1660,7 @@ export default function YouTubeEmbed() {
     }
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (capHandle) {
         try { capHandle.remove(); } catch {}
       }

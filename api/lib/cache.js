@@ -35,7 +35,11 @@ export const ALLOWED_AUDIO_DOMAINS = [
   'apple.com',
   'mzstatic.com',
   'itunes.apple.com',
-  'ytimg.com'
+  'ytimg.com',
+  'chocolatemoo53.com',
+  'invidious.io',
+  'nerdvpn.de',
+  'nadeko.net'
 ];
 
 export function isAllowedAudioProxyUrl(targetUrl) {

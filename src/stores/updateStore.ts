@@ -89,7 +89,7 @@ const resolveApkDownloadUrl = (rawUrl?: string): string => {
 
 export const useUpdateStore = create<UpdateState>((set, get) => {
   const detectedCurrent =
-    (typeof window !== 'undefined' && getNativeAppVersion()) || '5.2.8';
+    (typeof window !== 'undefined' && getNativeAppVersion()) || '5.2.9';
 
   return {
     currentVersion: detectedCurrent,

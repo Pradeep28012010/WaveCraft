@@ -10,6 +10,9 @@ import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
@@ -47,6 +50,8 @@ public class WaveCraftMediaService extends Service {
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
     private MediaSession mediaSession;
+    private AudioManager audioManager;
+    private AudioFocusRequest audioFocusRequest;
 
     private String currentTitle = "WaveCraft Music";
     private String currentArtist = "WaveCraft Studio";
@@ -60,6 +65,7 @@ public class WaveCraftMediaService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         if (powerManager != null) {
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WaveCraft:PlaybackWakeLock");
@@ -157,6 +163,7 @@ public class WaveCraftMediaService extends Service {
     }
 
     private void startForegroundPlayback(String title, String artist, String thumbnail, boolean isPlaying, long pos, long dur) {
+        requestAudioFocus();
         if (wakeLock != null && !wakeLock.isHeld()) {
             wakeLock.acquire(12 * 60 * 60 * 1000L); // 12 hours max safety limit
         }
@@ -364,6 +371,7 @@ public class WaveCraftMediaService extends Service {
     }
 
     private void stopForegroundPlayback() {
+        abandonAudioFocus();
         if (wakeLock != null && wakeLock.isHeld()) {
             try {
                 wakeLock.release();
@@ -379,6 +387,51 @@ public class WaveCraftMediaService extends Service {
         }
         stopForeground(true);
         stopSelf();
+    }
+
+    private void requestAudioFocus() {
+        if (audioManager == null) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (audioFocusRequest == null) {
+                    AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build();
+                    audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                        .setAudioAttributes(playbackAttributes)
+                        .setAcceptsDelayedFocusGain(true)
+                        .setOnAudioFocusChangeListener(focusChange -> {
+                            if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                                MainActivity.sendMediaAction("play_pause");
+                            }
+                        })
+                        .build();
+                }
+                audioManager.requestAudioFocus(audioFocusRequest);
+            } else {
+                audioManager.requestAudioFocus(
+                    focusChange -> {
+                        if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                            MainActivity.sendMediaAction("play_pause");
+                        }
+                    },
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN
+                );
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void abandonAudioFocus() {
+        if (audioManager == null) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
+                audioManager.abandonAudioFocusRequest(audioFocusRequest);
+            } else {
+                audioManager.abandonAudioFocus(null);
+            }
+        } catch (Exception ignored) {}
     }
 
     private void createNotificationChannel() {
@@ -402,6 +455,7 @@ public class WaveCraftMediaService extends Service {
 
     @Override
     public void onDestroy() {
+        abandonAudioFocus();
         if (wakeLock != null && wakeLock.isHeld()) {
             try {
                 wakeLock.release();

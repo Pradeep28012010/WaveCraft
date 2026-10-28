@@ -169,10 +169,39 @@ export function isStrictSaavnMatch(
     }
   }
 
-  const isExactTitle = cleanTarget === cleanCand || normVowels(cleanTarget) === normVowels(cleanCand);
-  const isStrongPrefix =
-    (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) &&
-    Math.abs(cleanCand.length - cleanTarget.length) <= 10;
+  const rawParts = (rawTargetTitle || '').split(/\s*[-–—]\s*/).map((s) => s.trim()).filter(Boolean);
+  const targetVariants = [
+    cleanTarget,
+    (rawTargetTitle || '')
+      .toLowerCase()
+      .replace(/\s*[\(\[][^)\]]*?[\)\]]/g, ' ')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+    rawParts.length > 0
+      ? rawParts[0]
+          .toLowerCase()
+          .replace(/\s*[\(\[][^)\]]*?[\)\]]/g, ' ')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : null,
+    rawParts.length > 1
+      ? rawParts[1]
+          .toLowerCase()
+          .replace(/\s*[\(\[][^)\]]*?[\)\]]/g, ' ')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : null
+  ].filter((v) => Boolean(v && v.length > 1));
+
+  const isExactTitle = targetVariants.some(
+    (v) => v === cleanCand || normVowels(v) === normVowels(cleanCand)
+  );
+  const isStrongPrefix = targetVariants.some(
+    (v) => (cleanCand.startsWith(v) || v.startsWith(cleanCand)) && Math.abs(cleanCand.length - v.length) <= 10
+  );
 
   // Subtitle contains tokens of raw title (e.g. film name, composer, co-singer)
   const candSubTokens = (candSubtitle || '')
@@ -189,7 +218,7 @@ export function isStrictSaavnMatch(
   }
 
   // 1. Exact or vowel-normalized title match
-  if (isExactTitle) {
+  if (isExactTitle || isStrongPrefix) {
     return true;
   }
   if (
@@ -234,8 +263,7 @@ export function isStrictSaavnMatch(
   );
 }
 
-export async function resolveDirectAudioStream(title, artist, clientIp = '103.212.156.1') {
-  if (!title) return null;
+export function cleanTrackQuery(title, artist) {
   const raw = (title || '')
     .replace(/&amp;/g, '&')
     .replace(/&#39;/g, "'")
@@ -265,8 +293,22 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
   let songName = cleanTitle;
   let detectedArtist = cleanArtist;
   if (dashParts.length >= 2) {
-    songName = dashParts[1];
-    detectedArtist = dashParts[0];
+    const part0 = dashParts[0];
+    const part1 = dashParts[1];
+    const cleanArtLow = (cleanArtist || '').toLowerCase();
+    if (cleanArtLow && (part1.toLowerCase().includes(cleanArtLow) || cleanArtLow.includes(part1.toLowerCase()))) {
+      songName = part0;
+      detectedArtist = part1;
+    } else if (cleanArtLow && (part0.toLowerCase().includes(cleanArtLow) || cleanArtLow.includes(part0.toLowerCase()))) {
+      songName = part1;
+      detectedArtist = part0;
+    } else if (LABEL_CHANNEL_REGEX.test(part0)) {
+      songName = part1;
+      detectedArtist = part0;
+    } else {
+      songName = part0;
+      detectedArtist = part1;
+    }
   }
 
   // Strip artist name if repeated inside title (e.g. "Top Lugai (Official) Pardeep Boora" -> "Top Lugai")
@@ -295,8 +337,13 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
   }
   if (dashParts.length >= 2) {
     querySet.add(`${dashParts[0]} ${dashParts[1]}`.trim());
+    querySet.add(`${dashParts[1]} ${dashParts[0]}`.trim());
     querySet.add(dashParts[0]);
     querySet.add(dashParts[1]);
+    if (cleanArtist) {
+      querySet.add(`${dashParts[0]} ${cleanArtist}`.trim());
+      querySet.add(`${dashParts[1]} ${cleanArtist}`.trim());
+    }
   }
   if (movieContext && songName) {
     querySet.add(`${songName} ${movieContext}`.trim());
@@ -323,7 +370,22 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
   }
   phoneticQueries.forEach((pq) => querySet.add(pq));
 
-  const candidateQueries = Array.from(querySet).filter((q) => q.length > 1).slice(0, 4);
+  const candidateQueries = Array.from(querySet).filter((q) => q.length > 1);
+
+  return {
+    cleanTitle: songName || cleanTitle,
+    cleanArtist: detectedArtist || cleanArtist,
+    songName,
+    detectedArtist,
+    movieContext,
+    candidateQueries
+  };
+}
+
+export async function resolveDirectAudioStream(title, artist, clientIp = '103.212.156.1') {
+  if (!title) return null;
+  const { songName, detectedArtist, cleanArtist, candidateQueries } = cleanTrackQuery(title, artist);
+  const topQueries = candidateQueries.slice(0, 4);
 
   const ipHeader =
     clientIp && clientIp !== 'unknown' && !clientIp.startsWith('127.') && !clientIp.startsWith('192.168.') && !clientIp.startsWith('::1')

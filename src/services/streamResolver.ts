@@ -51,8 +51,22 @@ export function cleanTrackQuery(title: string, artist: string): CleanQueryDetail
   let songName = cleanTitle;
   let detectedArtist = cleanArtist;
   if (dashParts.length >= 2) {
-    songName = dashParts[1];
-    detectedArtist = dashParts[0];
+    const part0 = dashParts[0];
+    const part1 = dashParts[1];
+    const cleanArtLow = (cleanArtist || '').toLowerCase();
+    if (cleanArtLow && (part1.toLowerCase().includes(cleanArtLow) || cleanArtLow.includes(part1.toLowerCase()))) {
+      songName = part0;
+      detectedArtist = part1;
+    } else if (cleanArtLow && (part0.toLowerCase().includes(cleanArtLow) || cleanArtLow.includes(part0.toLowerCase()))) {
+      songName = part1;
+      detectedArtist = part0;
+    } else if (LABEL_CHANNEL_REGEX.test(part0)) {
+      songName = part1;
+      detectedArtist = part0;
+    } else {
+      songName = part0;
+      detectedArtist = part1;
+    }
   }
 
   // Strip artist name if repeated inside title (e.g. "Top Lugai (Official) Pardeep Boora" -> "Top Lugai")
@@ -82,8 +96,13 @@ export function cleanTrackQuery(title: string, artist: string): CleanQueryDetail
   if (dashParts.length >= 2) {
     // Both [Song - Artist] and [Artist - Song] interpretations
     querySet.add(`${dashParts[0]} ${dashParts[1]}`.trim());
+    querySet.add(`${dashParts[1]} ${dashParts[0]}`.trim());
     querySet.add(dashParts[0]);
     querySet.add(dashParts[1]);
+    if (cleanArtist) {
+      querySet.add(`${dashParts[0]} ${cleanArtist}`.trim());
+      querySet.add(`${dashParts[1]} ${cleanArtist}`.trim());
+    }
   }
   if (movieContext && songName) {
     querySet.add(`${songName} ${movieContext}`.trim());
@@ -194,10 +213,39 @@ export function isStrictSaavnMatch(
     }
   }
 
-  const isExactTitle = cleanTarget === cleanCand || normVowels(cleanTarget) === normVowels(cleanCand);
-  const isStrongPrefix =
-    (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) &&
-    Math.abs(cleanCand.length - cleanTarget.length) <= 10;
+  const rawParts = (rawTargetTitle || '').split(/\s*[-–—]\s*/).map((s) => s.trim()).filter(Boolean);
+  const targetVariants = [
+    cleanTarget,
+    (rawTargetTitle || '')
+      .toLowerCase()
+      .replace(/\s*[\(\[][^)\]]*?[\)\]]/g, ' ')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+    rawParts.length > 0
+      ? rawParts[0]
+          .toLowerCase()
+          .replace(/\s*[\(\[][^)\]]*?[\)\]]/g, ' ')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : null,
+    rawParts.length > 1
+      ? rawParts[1]
+          .toLowerCase()
+          .replace(/\s*[\(\[][^)\]]*?[\)\]]/g, ' ')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : null
+  ].filter((v): v is string => Boolean(v && v.length > 1));
+
+  const isExactTitle = targetVariants.some(
+    (v) => v === cleanCand || normVowels(v) === normVowels(cleanCand)
+  );
+  const isStrongPrefix = targetVariants.some(
+    (v) => (cleanCand.startsWith(v) || v.startsWith(cleanCand)) && Math.abs(cleanCand.length - v.length) <= 10
+  );
 
   // Subtitle contains tokens of raw title (e.g. film name, composer, co-singer)
   const candSubTokens = (candSubtitle || '')
@@ -214,7 +262,7 @@ export function isStrictSaavnMatch(
   }
 
   // 1. Exact or vowel-normalized title match
-  if (isExactTitle) {
+  if (isExactTitle || isStrongPrefix) {
     return true;
   }
   if (
@@ -257,6 +305,38 @@ export function isStrictSaavnMatch(
     (ratioVowel >= 0.5 && (artistMatches || subMatchesRawTitle)) ||
     (ratioFull >= 0.75 && (artistMatches || subMatchesRawTitle))
   );
+}
+
+/**
+ * Returns true if an audio URL is a valid, high-fidelity playable direct stream
+ * that can be safely loaded into HTML5 Audio without encountering 403 Forbidden or 30-second previews.
+ */
+export function isPlayableAudioStreamUrl(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (
+    trimmed.includes('p.scdn.co') ||
+    trimmed.includes('mzstatic.com') ||
+    trimmed.includes('itunes.apple.com') ||
+    trimmed.includes('preview')
+  ) {
+    return false;
+  }
+  // Dedicated serverless proxy stream is always reliable and safe to stream directly
+  if (
+    trimmed.includes('action=proxy-stream') ||
+    trimmed.includes('/api/music') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.includes('saavncdn')
+  ) {
+    return true;
+  }
+  // Direct raw unproxied googlevideo streams get 403 Forbidden without proxy headers
+  if (trimmed.includes('googlevideo.com')) {
+    return false;
+  }
+  return trimmed.startsWith('https://') || trimmed.startsWith('http://');
 }
 
 /**
@@ -327,14 +407,14 @@ export async function resolveDirectAudio(
     const primaryEndpoint = apiUrl(`/api/music?${apiQuery.toString()}`);
     let res: Response | null = await fetch(primaryEndpoint, {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(2200)
+      signal: AbortSignal.timeout(8000)
     }).catch(() => null);
 
     // Fallback to direct PROD_API_ORIGIN if relative endpoint failed on native/Capacitor
     if (!res?.ok && !primaryEndpoint.startsWith('http')) {
       res = await fetch(`${PROD_API_ORIGIN}/api/music?${apiQuery.toString()}`, {
         headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(2200)
+        signal: AbortSignal.timeout(8000)
       }).catch(() => null);
     }
 
@@ -343,7 +423,7 @@ export async function resolveDirectAudio(
       if (
         data?.audioUrl &&
         typeof data.audioUrl === 'string' &&
-        !data.audioUrl.includes('googlevideo.com')
+        isPlayableAudioStreamUrl(data.audioUrl)
       ) {
         const fullUrl = data.audioUrl.startsWith('/') ? apiUrl(data.audioUrl) : data.audioUrl;
         if (fullUrl.startsWith('http')) {
@@ -365,12 +445,12 @@ export async function resolveDirectAudio(
       const saavnTarget = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
       const proxyEndpoint = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`);
       let res = await fetch(proxyEndpoint, {
-        signal: AbortSignal.timeout(2000)
+        signal: AbortSignal.timeout(8000)
       }).catch(() => null);
 
       if (!res?.ok && !proxyEndpoint.startsWith('http')) {
         res = await fetch(`${PROD_API_ORIGIN}/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`, {
-          signal: AbortSignal.timeout(2000)
+          signal: AbortSignal.timeout(8000)
         }).catch(() => null);
       }
 

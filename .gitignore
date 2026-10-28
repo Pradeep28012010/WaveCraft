@@ -55,6 +55,7 @@ android/local.properties
 android/app/src/main/assets/public/
 *.apk
 !public/WaveCraft.apk
+!public/WaveCraft-Pro.apk
 release/
 dist-electron/
 *.exe

@@ -14,6 +14,20 @@ export const isAndroidNative = (): boolean => {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 };
 
+// Prevent mobile WebView Chromium from throttling timers or pausing audio when backgrounded / locked
+if (typeof document !== 'undefined') {
+  try {
+    Object.defineProperty(document, 'hidden', {
+      get: () => false,
+      configurable: true
+    });
+    Object.defineProperty(document, 'visibilityState', {
+      get: () => 'visible',
+      configurable: true
+    });
+  } catch {}
+}
+
 /**
  * Native Android subtle tactile haptic feedback for user interactions.
  */

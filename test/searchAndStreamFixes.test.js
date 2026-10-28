@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { cleanTrackQuery, isStrictSaavnMatch } from '../api/lib/stream.js';
 
 test('Search Ranking & Stream Fixes Validation', async (t) => {
   const BGM_OR_INSTRUMENTAL_REGEX =
@@ -315,4 +316,71 @@ test('Search Ranking & Stream Fixes Validation', async (t) => {
     handleWatchdogTick();
     assert.equal(stallCount, 1, 'Recovery must not trigger again in a recurring loop');
   });
+
+  await t.test('Bidirectional Dash Query Parsing & Variant Matching', () => {
+    // 1. Dash format: Title - Artist
+    const res1 = cleanTrackQuery('Blinding Lights - The Weeknd', 'The Weeknd');
+    assert.equal(res1.cleanTitle.toLowerCase(), 'blinding lights');
+    assert.equal(res1.cleanArtist.toLowerCase(), 'the weeknd');
+
+    // 2. Dash format: Artist - Title
+    const res2 = cleanTrackQuery('The Weeknd - Blinding Lights', 'The Weeknd');
+    assert.equal(res2.cleanTitle.toLowerCase(), 'blinding lights');
+    assert.equal(res2.cleanArtist.toLowerCase(), 'the weeknd');
+
+    // 3. Variant matching in isStrictSaavnMatch
+    const matchedTitleArtist = isStrictSaavnMatch(
+      'Blinding Lights - The Weeknd',
+      'The Weeknd',
+      'Blinding Lights',
+      'The Weeknd'
+    );
+    assert.equal(matchedTitleArtist, true, 'Should match Blinding Lights - The Weeknd to Blinding Lights');
+
+    const matchedDespacito = isStrictSaavnMatch(
+      'Despacito - Luis Fonsi',
+      'Luis Fonsi',
+      'Despacito',
+      'Luis Fonsi'
+    );
+    assert.equal(matchedDespacito, true, 'Should match Despacito - Luis Fonsi to Despacito');
+  });
+
+  await t.test('Playable Audio Stream URL Validator', () => {
+    const isPlayableAudioStreamUrl = (url) => {
+      if (!url || typeof url !== 'string') return false;
+      const trimmed = url.trim();
+      if (!trimmed) return false;
+      if (trimmed.includes('p.scdn.co') || trimmed.includes('/preview/')) return false;
+      if (trimmed.includes('googlevideo.com')) {
+        return (
+          trimmed.startsWith('/api/') ||
+          (trimmed.startsWith('http') && trimmed.includes('/api/music?action=proxy-stream'))
+        );
+      }
+      return (
+        trimmed.startsWith('https://aac.saavncdn.com') ||
+        trimmed.startsWith('blob:') ||
+        trimmed.includes('saavncdn') ||
+        trimmed.startsWith('/api/music?action=proxy-stream') ||
+        (trimmed.startsWith('https://') &&
+          !trimmed.includes('youtube.com') &&
+          (trimmed.endsWith('.mp4') || trimmed.endsWith('.mp3') || trimmed.endsWith('.m4a')))
+      );
+    };
+
+    assert.equal(isPlayableAudioStreamUrl('https://rr3---sn.googlevideo.com/videoplayback?expire=123'), false);
+    assert.equal(
+      isPlayableAudioStreamUrl('/api/music?action=proxy-stream&url=https%3A%2F%2Frr3---sn.googlevideo.com%2Fvideoplayback'),
+      true
+    );
+    assert.equal(
+      isPlayableAudioStreamUrl('https://wavecraft-alpha.vercel.app/api/music?action=proxy-stream&url=https%3A%2F%2Frr3---sn.googlevideo.com'),
+      true
+    );
+    assert.equal(isPlayableAudioStreamUrl('https://aac.saavncdn.com/123/song_320.mp4'), true);
+    assert.equal(isPlayableAudioStreamUrl('blob:http://localhost:5173/uuid-stream'), true);
+    assert.equal(isPlayableAudioStreamUrl('https://p.scdn.co/mp3-preview/badpreview'), false);
+  });
 });
+
