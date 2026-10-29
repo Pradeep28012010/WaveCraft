@@ -196,7 +196,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         isLoading: true,
         progress: 0,
         currentTime: 0,
-        duration: track.duration || 0
+        duration: track.duration || 0,
+        playTriggerId: Date.now()
       };
     });
     savePlayerSessionSync(get());
@@ -298,7 +299,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         currentTime: 0,
         duration: next?.duration || 0,
         isPlaying: true,
-        isLoading: true
+        isLoading: true,
+        playTriggerId: Date.now()
       };
     });
     savePlayerSessionSync(get());
@@ -338,7 +340,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         currentTime: 0,
         duration: prev?.duration || 0,
         isPlaying: true,
-        isLoading: true
+        isLoading: true,
+        playTriggerId: Date.now()
       };
     });
     savePlayerSessionSync(get());

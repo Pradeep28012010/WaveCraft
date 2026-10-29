@@ -74,6 +74,7 @@ export interface PlayerState {
   crossfadeDuration: number;
   playbackSpeed: number;
   isLoading: boolean;
+  playTriggerId?: number;
 }
 
 export interface LibraryState {
