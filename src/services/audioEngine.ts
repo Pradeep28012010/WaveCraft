@@ -387,7 +387,7 @@ function createStudioImpulseResponse(
 
 export function getTargetOutputGain(): number {
   const pState = usePlayerStore.getState();
-  const userVol = pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume));
+  const userVol = pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume ?? 0.8));
   const studioState = useStudioStore.getState();
   const sleepScale =
     studioState.sleepActive && !studioState.sleepEndAtTrack && studioState.sleepSeconds <= 10
@@ -1037,7 +1037,7 @@ export function applyStudioFXToAudio(
 
   const pState = usePlayerStore.getState();
   const isPlaying = pState.isPlaying;
-  const userVol = pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume));
+  const userVol = pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume ?? 0.8));
   const now = ctx ? ctx.currentTime : 0;
 
   // 1. Real-time 3D Spatial Audio processing (orbit loop drives stereoPanner on actual music)

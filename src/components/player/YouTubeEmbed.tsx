@@ -274,6 +274,9 @@ export default function YouTubeEmbed() {
     const onCanPlay = () => {
       if (getActiveEngine() === 'audio') {
         setIsLoading(false);
+        if (audio) {
+          setSmoothOutputGain(audio, getTargetOutputGain(), 0.02);
+        }
       }
     };
 
@@ -438,6 +441,12 @@ export default function YouTubeEmbed() {
         const curTime = audio.currentTime || 0;
         setActiveEngine('youtube');
         setIsLoading(true);
+        try {
+          ytPlayer.unMute?.();
+          const pState = usePlayerStore.getState();
+          const targetVol = Math.round((pState.isMuted ? 0 : pState.volume ?? 0.8) * 100);
+          ytPlayer.setVolume?.(targetVol);
+        } catch {}
         if (usePlayerStore.getState().isPlaying) {
           try {
             ytPlayer.loadVideoById?.({ videoId: effectiveYtId, startSeconds: curTime });
@@ -617,6 +626,16 @@ export default function YouTubeEmbed() {
               bufferingStartTimeRef.current = 0;
               ytStallRecoveryCountRef.current = 0;
               usePlayerStore.setState({ isPlaying: true, isLoading: false });
+
+              // Strictly ensure YouTube is unmuted and restored to active volume on playback start
+              const pState = usePlayerStore.getState();
+              if (!pState.isMuted) {
+                try {
+                  e.target.unMute?.();
+                  const targetVol = Math.round((pState.volume ?? 0.8) * 100);
+                  e.target.setVolume?.(targetVol);
+                } catch {}
+              }
               const dur = e.target.getDuration?.();
               if (dur && dur > 0) {
                 const curTrack = usePlayerStore.getState().currentTrack;
@@ -792,9 +811,7 @@ export default function YouTubeEmbed() {
       const targetVol = Math.round((pState.isMuted ? 0 : pState.volume) * 100 * leveling);
       try {
         ytPlayer.unMute?.();
-        if (crossfadeDuration <= 0) {
-          ytPlayer.setVolume?.(targetVol);
-        }
+        ytPlayer.setVolume?.(targetVol);
       } catch {}
 
       if (typeof ytPlayer.loadVideoById === 'function') {
@@ -889,14 +906,19 @@ export default function YouTubeEmbed() {
       fullAudioUrl.includes('/api/music') ||
       (typeof window !== 'undefined' && fullAudioUrl.startsWith(window.location.origin));
 
-    if (isSameOriginOrProxied) {
-      audio.crossOrigin = 'anonymous';
-    } else {
-      audio.removeAttribute('crossorigin');
-    }
+    // In web browsers, Web Audio API (MediaElementAudioSourceNode) forces 0dB SILENCE on cross-origin
+    // audio elements unless they have valid CORS approval ('crossorigin="anonymous"').
+    // External CDN links (e.g. JioSaavn / saavncdn.com) MUST be proxied through /api/music?action=proxy-stream
+    // so the browser receives Access-Control-Allow-Origin: * and plays with full audible sound!
+    const effectiveStreamUrl =
+      !isAndroidNative() && !isSameOriginOrProxied && (fullAudioUrl.startsWith('http://') || fullAudioUrl.startsWith('https://'))
+        ? apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(fullAudioUrl)}`)
+        : fullAudioUrl;
 
-    if (audio.src !== fullAudioUrl) {
-      audio.src = fullAudioUrl;
+    audio.crossOrigin = 'anonymous';
+
+    if (audio.src !== effectiveStreamUrl) {
+      audio.src = effectiveStreamUrl;
       audio.load();
     }
     if (startTimeSec > 0) {
@@ -908,9 +930,6 @@ export default function YouTubeEmbed() {
 
     if (shouldPlay) {
       resumeAudioContextIfNeeded();
-      if (crossfadeDuration > 0) {
-        setSmoothOutputGain(audio, 0.001, 0.01);
-      }
       audio
         .play()
         .then(() => {
@@ -922,11 +941,7 @@ export default function YouTubeEmbed() {
           isSwitchingTrackRef.current = false;
           trackTransitionIntentRef.current = false;
           userInitiatedPauseRef.current = false;
-          if (crossfadeDuration > 0) {
-            setSmoothOutputGain(audio, getTargetOutputGain(), Math.min(crossfadeDuration, 2.5) * 0.45);
-          } else {
-            setSmoothOutputGain(audio, getTargetOutputGain(), 0.035);
-          }
+          setSmoothOutputGain(audio, getTargetOutputGain(), 0.035);
           setIsLoading(false);
           usePlayerStore.setState({ isPlaying: true });
         })
@@ -1121,10 +1136,10 @@ export default function YouTubeEmbed() {
               }));
               playNativeAudio(directAudioUrl, shouldPlay);
             } else {
-              // Direct stream took > 1200ms: start YouTube immediately so audio plays with 0 delay
+              // Direct stream took > 1800ms: start YouTube immediately so audio plays with 0 delay
               fallbackToYouTube(track, effectiveYtId, shouldPlay);
 
-              // Concurrently continue resolving direct audio stream in background; when ready, hot-swap smoothly
+              // Concurrently continue resolving direct audio stream in background for offline vault & future replay
               directAudioPromise
                 .then((bgUrl) => {
                   if (resolveToken !== resolvingTokenRef.current) return;
@@ -1139,18 +1154,6 @@ export default function YouTubeEmbed() {
                           : s.currentTrack,
                       queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
                     }));
-
-                    if (getActiveEngine() === 'youtube') {
-                      const yt = getPlayer();
-                      let curTime = 0;
-                      try {
-                        curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
-                      } catch {
-                        curTime = usePlayerStore.getState().currentTime || 0;
-                      }
-                      console.info('[WaveCraft] Hot-swapping to native HD audio stream at', curTime, 'sec for uninterrupted background play');
-                      playNativeAudio(bgUrl, usePlayerStore.getState().isPlaying, curTime);
-                    }
                   }
                 })
                 .catch(() => {});
@@ -1317,18 +1320,6 @@ export default function YouTubeEmbed() {
                           : s.currentTrack,
                       queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
                     }));
-
-                    if (getActiveEngine() === 'youtube') {
-                      const yt = getPlayer();
-                      let curTime = 0;
-                      try {
-                        curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
-                      } catch {
-                        curTime = usePlayerStore.getState().currentTime || 0;
-                      }
-                      console.info('[WaveCraft] Hot-swapping search result to native HD audio stream at', curTime, 'sec');
-                      playNativeAudio(bgUrl, usePlayerStore.getState().isPlaying, curTime);
-                    }
                   })
                   .catch(() => {});
               }
@@ -1637,24 +1628,6 @@ export default function YouTubeEmbed() {
             audio.play().catch(() => {});
           }
         } else if (engine === 'youtube') {
-          // On native mobile, proactively force hot-swap to native audio stream if pre-resolved
-          if (currentTrack && (isAndroidNative() || Capacitor.isNativePlatform())) {
-            if (currentTrack.audioUrl && isPlayableAudioStreamUrl(currentTrack.audioUrl)) {
-              if (getActiveEngine() === 'youtube') {
-                const yt = getPlayer();
-                let curTime = 0;
-                try {
-                  curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
-                } catch {
-                  curTime = usePlayerStore.getState().currentTime || 0;
-                }
-                console.info('[WaveCraft] Hot-swapping to pre-resolved native audio on backgrounding at', curTime, 'sec');
-                playNativeAudio(currentTrack.audioUrl, true, curTime);
-              }
-              return;
-            }
-          }
-
           const ytPlayer = getPlayer();
           if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
             const s = ytPlayer.getPlayerState();
@@ -1665,38 +1638,6 @@ export default function YouTubeEmbed() {
                 }
               } catch {}
             }
-          }
-          if (currentTrack && (isAndroidNative() || Capacitor.isNativePlatform())) {
-            const effectiveYtId =
-              currentTrack.youtubeId ||
-              (currentTrack.id.startsWith('yt_') ? currentTrack.id.replace('yt_', '') : '') ||
-              (currentTrack.id.startsWith('yt-') ? currentTrack.id.replace('yt-', '') : '');
-            resolveDirectAudio(currentTrack.title, currentTrack.artist, currentTrack.duration, effectiveYtId)
-              .then((directUrl) => {
-                if (isPlayableAudioStreamUrl(directUrl) && usePlayerStore.getState().currentTrack?.id === currentTrack.id) {
-                  currentTrack.audioUrl = directUrl;
-                  currentTrack.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                  usePlayerStore.setState((s) => ({
-                    currentTrack:
-                      s.currentTrack?.id === currentTrack.id
-                        ? { ...s.currentTrack, audioUrl: directUrl, quality: currentTrack.quality }
-                        : s.currentTrack,
-                    queue: s.queue.map((t) => (t.id === currentTrack.id ? { ...t, audioUrl: directUrl, quality: currentTrack.quality } : t))
-                  }));
-                  if (getActiveEngine() === 'youtube') {
-                    const yt = getPlayer();
-                    let curTime = 0;
-                    try {
-                      curTime = yt?.getCurrentTime?.() || usePlayerStore.getState().currentTime || 0;
-                    } catch {
-                      curTime = usePlayerStore.getState().currentTime || 0;
-                    }
-                    console.info('[WaveCraft] Hot-swapping to native audio on backgrounding at', curTime, 'sec');
-                    playNativeAudio(directUrl, true, curTime);
-                  }
-                }
-              })
-              .catch(() => {});
           }
         }
       }
@@ -1900,11 +1841,11 @@ export default function YouTubeEmbed() {
       aria-hidden="true"
       style={{
         position: 'fixed',
-        bottom: 0,
-        right: 0,
-        width: '4px',
-        height: '4px',
-        opacity: 0.001,
+        top: '-9999px',
+        left: '-9999px',
+        width: '320px',
+        height: '180px',
+        opacity: 1,
         pointerEvents: 'none',
         zIndex: -100,
         overflow: 'hidden'
