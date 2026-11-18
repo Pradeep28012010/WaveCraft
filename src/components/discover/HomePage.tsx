@@ -1028,14 +1028,14 @@ export default function HomePage() {
         </div>
 
         {/* Unified Discovery & Navigation Control Bar */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pt-1 w-full min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 w-full min-w-0">
           {/* Category Filter Pills */}
           <div
-            className="w-full xl:w-auto overflow-x-auto no-scrollbar py-0.5 min-w-0 flex items-center"
+            className="overflow-x-auto no-scrollbar py-0.5 max-w-full flex items-center flex-shrink-0"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
             <div
-              className="inline-flex items-center gap-1.5 p-1.5 rounded-full liquid-glass border-0 flex-nowrap flex-shrink-0 self-start relative shadow-sm"
+              className="inline-flex items-center gap-1.5 p-1.5 rounded-full liquid-glass border-0 flex-nowrap flex-shrink-0 relative shadow-sm"
             >
               {FILTER_CHIPS.map((chip) => {
                 const isSelected = activeFilter === chip.id;
@@ -1069,12 +1069,11 @@ export default function HomePage() {
                 );
               })}
             </div>
-            <div className="w-6 flex-shrink-0 xl:hidden pointer-events-none" aria-hidden="true" />
           </div>
 
           {/* Quick Soundstage Telemetry & Studio Shortcuts */}
           <div
-            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 w-full min-w-0 xl:w-auto xl:max-w-[65%] xl:justify-end scroll-smooth"
+            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 max-w-full flex-shrink-0 scroll-smooth"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
             {/* Liked Songs */}
