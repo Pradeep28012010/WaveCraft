@@ -34,7 +34,8 @@ export default memo(function UpdateModal() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isModalOpen, closeModal, status]);
 
-  if (!isModalOpen) return null;
+  // Strictly block rendering on web platform; updating is only for native Android APK or Electron Windows desktop
+  if (!isModalOpen || (!isNative && !isElectron)) return null;
 
   return (
     <AnimatePresence>

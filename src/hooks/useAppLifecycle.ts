@@ -8,6 +8,7 @@ import { useMediaSession } from './useMediaSession';
 import { searchTracks } from '../services/youtube';
 import { prewarmCoreRoutes } from '../utils/routePreloader';
 import { initNativeAndroid } from '../services/nativeAndroid';
+import { isAndroidNative, isElectronApp } from '../services/apiConfig';
 import { useUpdateStore } from '../stores/updateStore';
 
 /**
@@ -81,8 +82,9 @@ export function useAppLifecycle(): void {
   // Hardware Media Keys & OS Lock Screen integration
   useMediaSession();
 
-  // Background check for latest mobile app updates shortly after startup
+  // Background check for latest mobile/desktop app updates (Android APK or Electron Windows only)
   useEffect(() => {
+    if (!isAndroidNative() && !isElectronApp()) return;
     const timer = setTimeout(() => {
       useUpdateStore.getState().checkForUpdates(false);
     }, 2500);

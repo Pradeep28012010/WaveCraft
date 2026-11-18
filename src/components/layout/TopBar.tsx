@@ -7,6 +7,7 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useJamStore } from '../../stores/jamStore';
 import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { isAndroidNative, isElectronApp } from '../../services/apiConfig';
 import { useSearchHistory } from '../../utils/searchHistory';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUpdateStore } from '../../stores/updateStore';
@@ -156,6 +157,7 @@ export default function TopBar() {
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
 
   useEffect(() => {
+    if (!isAndroidNative() && !isElectronApp()) return;
     const timer = setTimeout(() => {
       checkForUpdates(false);
     }, 4000);
@@ -601,7 +603,7 @@ export default function TopBar() {
 
         {/* Right Action Icons (Studio FX, Active Timers & Drawer) */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {hasUpdate && !isSearch && (
+          {hasUpdate && !isSearch && (isAndroidNative() || isElectronApp()) && (
             <button
               onClick={() => {
                 triggerAndroidHaptic('medium');

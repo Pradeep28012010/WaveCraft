@@ -6,6 +6,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
 import { useUpdateStore } from '../../stores/updateStore';
 import { isAndroidNative, triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { isElectronApp } from '../../services/apiConfig';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { clearAllData } from '../../services/storage';
 import { useOfflineVault } from '../../services/offlineVault';
@@ -109,6 +110,8 @@ export default function SettingsPage() {
     hasUpdate
   } = useUpdateStore();
   const isNative = isAndroidNative();
+  const isElectron = isElectronApp();
+  const isWeb = !isNative && !isElectron;
   const { isInstalled } = usePWAInstall();
 
   // Active Category & Live Search Filter
@@ -1295,7 +1298,7 @@ export default function SettingsPage() {
                       v{currentVersion}
                     </span>
                   </h3>
-                  {hasUpdate && (
+                  {hasUpdate && !isWeb && (
                     <span className="px-2 py-0.5 rounded-full bg-[var(--color-accent)]/20 border-0 text-[10px] font-black text-[var(--color-accent)] animate-pulse">
                       Update Ready
                     </span>
@@ -1304,7 +1307,9 @@ export default function SettingsPage() {
                 <p className="text-xs text-white/55 mt-1.5 leading-relaxed">
                   {isNative
                     ? 'Seamless in-app update checks: downloads directly and opens package installer without browsing.'
-                    : 'Stay current with latest streaming performance optimizations, acoustic algorithms, and new features.'}
+                    : isElectron
+                    ? 'Seamless desktop update checks: downloads and installs latest Windows releases.'
+                    : 'Web & Cloud Edition: You are always running the latest live build served directly from the cloud.'}
                 </p>
               </div>
 
@@ -1312,7 +1317,9 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (hasUpdate) {
+                    if (isWeb) {
+                      checkForUpdates(true);
+                    } else if (hasUpdate) {
                       openUpdateModal();
                     } else {
                       checkForUpdates(true);
@@ -1326,7 +1333,7 @@ export default function SettingsPage() {
                       <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       <span>Checking...</span>
                     </>
-                  ) : hasUpdate ? (
+                  ) : hasUpdate && !isWeb ? (
                     <span>⚡ Install Update Now</span>
                   ) : (
                     <span>🔄 Check for Updates</span>

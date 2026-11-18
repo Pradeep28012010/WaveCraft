@@ -6,6 +6,7 @@ import {
   downloadAndInstallNativeUpdate,
   triggerNativePendingInstall
 } from '../services/nativeAndroid';
+import { isElectronApp } from '../services/apiConfig';
 import { isVersionGreater } from '../utils/versionUtils';
 
 export interface AppVersionInfo {
@@ -89,7 +90,7 @@ const resolveApkDownloadUrl = (rawUrl?: string): string => {
 
 export const useUpdateStore = create<UpdateState>((set, get) => {
   const detectedCurrent =
-    (typeof window !== 'undefined' && getNativeAppVersion()) || '5.2.9';
+    (typeof window !== 'undefined' && getNativeAppVersion()) || '5.3.3';
 
   return {
     currentVersion: detectedCurrent,
@@ -101,7 +102,11 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
     isModalOpen: false,
     lastCheckedTime: null,
 
-    openModal: () => set({ isModalOpen: true }),
+    openModal: () => {
+      // Never open updater modal on web platform
+      if (!isAndroidNative() && !isElectronApp()) return;
+      set({ isModalOpen: true });
+    },
     closeModal: () => set({ isModalOpen: false, errorMessage: null }),
 
     setProgress: (percent: number) =>
@@ -112,6 +117,26 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
     setError: (error: string) => set({ status: 'error', errorMessage: error }),
 
     checkForUpdates: async (manual = false) => {
+      const isNative = isAndroidNative();
+      const isElectron = isElectronApp();
+      const isNativePlatform = isNative || isElectron;
+
+      // On web platform: never ask to update, never show installer modal, always stay clean and up-to-date
+      if (!isNativePlatform) {
+        if (manual) {
+          set({ status: 'checking', errorMessage: null });
+          await new Promise((resolve) => setTimeout(resolve, 350));
+        }
+        set({
+          status: 'up-to-date',
+          hasUpdate: false,
+          isModalOpen: false,
+          currentVersion: '5.3.3',
+          lastCheckedTime: Date.now()
+        });
+        return false;
+      }
+
       set({ status: 'checking', errorMessage: null });
       if (manual) {
         set({ isModalOpen: true });
@@ -119,7 +144,6 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
 
       try {
         let versionData: AppVersionInfo | null = null;
-        const isNative = isAndroidNative();
 
         const t = Date.now();
         // Endpoints to check: live remote Vercel API, remote version.json, github raw, or local
