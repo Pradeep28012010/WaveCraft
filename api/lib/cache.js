@@ -13,6 +13,16 @@ export const ipRequestCounts = new Map();
 export function checkRateLimit(ip, cost = 1) {
   if (!ip || ip === 'unknown') return true;
   const now = Date.now();
+
+  // Prune expired IP records when the map grows large to prevent memory leaks
+  if (ipRequestCounts.size > 2000) {
+    for (const [key, rec] of ipRequestCounts.entries()) {
+      if (now > rec.resetAt) {
+        ipRequestCounts.delete(key);
+      }
+    }
+  }
+
   const record = ipRequestCounts.get(ip);
   if (!record || now > record.resetAt) {
     ipRequestCounts.set(ip, { count: cost, resetAt: now + RATE_LIMIT_WINDOW_MS });
@@ -53,14 +63,17 @@ export function isAllowedAudioProxyUrl(targetUrl) {
       return false;
     }
     const hostname = parsed.hostname.toLowerCase();
-    // Deny loopback, private, and local metadata IP ranges
+    // Deny loopback, 0.0.0.0, private, and local metadata IP ranges
     if (
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
       hostname === '::1' ||
+      hostname === '[::1]' ||
       hostname.startsWith('10.') ||
       hostname.startsWith('192.168.') ||
       hostname.startsWith('169.254.') ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname) ||
       hostname.endsWith('.internal') ||
       hostname.endsWith('.local')
     ) {

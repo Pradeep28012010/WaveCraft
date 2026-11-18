@@ -132,12 +132,19 @@ export async function toggleChorusPreview(track: Track) {
 
   if (!previewAudio) {
     previewAudio = new Audio();
-    previewAudio.crossOrigin = 'anonymous';
     previewAudio.preload = 'auto';
   }
 
   const audio = previewAudio;
-  audio.volume = Math.max(0.25, playerState.isMuted ? 0.7 : playerState.volume);
+  // Apply CORS crossOrigin only for same-origin or proxied streams; direct CDNs reject CORS preflights
+  if (streamUrl.startsWith('/') || streamUrl.includes('proxy-stream')) {
+    audio.crossOrigin = 'anonymous';
+  } else {
+    audio.removeAttribute('crossOrigin');
+  }
+
+  const baseVol = playerState.isMuted ? 0 : Math.max(0, Math.min(1, playerState.volume));
+  audio.volume = baseVol;
 
   let hasStarted = false;
   const startPlaying = () => {
@@ -169,11 +176,12 @@ export async function toggleChorusPreview(track: Track) {
           const rem = Math.max(0, Math.ceil(PREVIEW_DURATION_SEC - elapsed));
 
           // Smooth fade-out during the last 1.8 seconds of the 15s chorus snippet
-          const baseVol = usePlayerStore.getState().isMuted ? 0.7 : usePlayerStore.getState().volume;
+          const currentStore = usePlayerStore.getState();
+          const curBaseVol = currentStore.isMuted ? 0 : Math.max(0, Math.min(1, currentStore.volume));
           if (PREVIEW_DURATION_SEC - elapsed <= 1.8) {
-            previewAudio.volume = Math.max(0, baseVol * ((PREVIEW_DURATION_SEC - elapsed) / 1.8));
+            previewAudio.volume = Math.max(0, curBaseVol * ((PREVIEW_DURATION_SEC - elapsed) / 1.8));
           } else {
-            previewAudio.volume = baseVol;
+            previewAudio.volume = curBaseVol;
           }
 
           if (

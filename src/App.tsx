@@ -7,6 +7,7 @@ import HomePage from './components/discover/HomePage';
 import { AppErrorBoundary } from './components/ui/AppErrorBoundary';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { useAppLifecycle } from './hooks/useAppLifecycle';
+import { isAndroidNative, isElectronApp } from './services/apiConfig';
 
 // Code-split route components with resilient network-failure retry
 const GenreBrowser = lazyWithRetry(() => import('./components/search/GenreBrowser'));
@@ -24,11 +25,15 @@ const DownloadsPage = lazyWithRetry(() => import('./components/library/Downloads
 const SetupPage = lazyWithRetry(() => import('./components/setup/SetupPage'));
 const DownloadPage = lazyWithRetry(() => import('./components/download/DownloadPage'));
 
-const isElectronOrFile =
+const shouldUseHashRouter =
   typeof window !== 'undefined' &&
-  (window.location.protocol === 'file:' || Boolean(window.electronAPI));
+  (window.location.protocol === 'file:' ||
+    Boolean((window as unknown as { electronAPI?: unknown }).electronAPI) ||
+    isElectronApp() ||
+    isAndroidNative() ||
+    (window.location.protocol === 'https:' && window.location.hostname === 'localhost'));
 
-const RouterComponent = isElectronOrFile ? HashRouter : BrowserRouter;
+const RouterComponent = shouldUseHashRouter ? HashRouter : BrowserRouter;
 
 function AppContent() {
   // Global lifecycle hooks: platform shortcuts, IndexedDB sync, media session, preloading

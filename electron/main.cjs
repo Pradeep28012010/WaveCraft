@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, globalShortcut, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, globalShortcut, powerSaveBlocker, shell } = require('electron');
 const path = require('path');
 
 let mainWindow = null;
@@ -53,11 +53,37 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false,
-      allowRunningInsecureContent: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
       spellcheck: false, // Saves 35-50MB RAM by disabling dictionary engine
       backgroundThrottling: false, // Prevents background audio stuttering
       v8CacheOptions: 'bypassHeatCheck'
+    }
+  });
+
+  // Open external links in system browser and prevent untrusted in-app navigation
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https:') || url.startsWith('http:')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    try {
+      const parsed = new URL(navigationUrl);
+      if (devServerUrl) {
+        const devParsed = new URL(devServerUrl);
+        if (parsed.origin !== devParsed.origin) {
+          event.preventDefault();
+          shell.openExternal(navigationUrl);
+        }
+      } else if (parsed.protocol !== 'file:') {
+        event.preventDefault();
+        shell.openExternal(navigationUrl);
+      }
+    } catch {
+      event.preventDefault();
     }
   });
 
@@ -292,6 +318,19 @@ function downloadFileWithProgress(urlStr, destPath, onProgress, maxRedirects = 5
         (res) => {
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
             const redirectUrl = new URL(res.headers.location, curUrl).toString();
+            try {
+              const redParsed = new URL(redirectUrl);
+              const isAllowedHost =
+                redParsed.protocol === 'https:' &&
+                (redParsed.hostname === 'github.com' ||
+                  redParsed.hostname.endsWith('.github.com') ||
+                  redParsed.hostname.endsWith('.githubusercontent.com'));
+              if (!isAllowedHost) {
+                return reject(new Error('Insecure or unapproved redirect blocked during update download'));
+              }
+            } catch (urlErr) {
+              return reject(urlErr);
+            }
             return download(redirectUrl, redirectsLeft - 1);
           }
 
@@ -333,16 +372,12 @@ function downloadFileWithProgress(urlStr, destPath, onProgress, maxRedirects = 5
   });
 }
 
-// Windows Desktop Updater IPC Handler
+// Windows Desktop Updater IPC Handler (Hardened against arbitrary binary execution)
 ipcMain.handle('app:download-and-install-update', async (_event, updateUrl) => {
   try {
     const fs = require('fs');
     const path = require('path');
     const { spawn } = require('child_process');
-
-    const userProfile = process.env.USERPROFILE || process.env.HOME || '';
-    const desktopInstaller = path.join(userProfile, 'Desktop', 'WaveCraft-Pro-Setup.exe');
-    const distInstaller = path.join(__dirname, '../dist-electron/WaveCraft-Pro-Setup.exe');
 
     const launchInstaller = (installerPath) => {
       mainWindow?.webContents.send('update:status', 'installing');
@@ -364,20 +399,27 @@ ipcMain.handle('app:download-and-install-update', async (_event, updateUrl) => {
       }, 600);
     };
 
-    // 1. If freshly compiled local installer exists, use it immediately
-    if (fs.existsSync(desktopInstaller)) {
-      launchInstaller(desktopInstaller);
-      return { success: true };
-    }
-    if (fs.existsSync(distInstaller)) {
-      launchInstaller(distInstaller);
-      return { success: true };
-    }
-
-    // 2. Otherwise download from remote release URL
-    const targetUrl =
-      updateUrl ||
+    // Strictly validate update download URL: must be HTTPS and originate from official release repository
+    let targetUrl =
       'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe';
+
+    if (updateUrl && typeof updateUrl === 'string') {
+      try {
+        const parsed = new URL(updateUrl);
+        if (
+          parsed.protocol === 'https:' &&
+          parsed.hostname === 'github.com' &&
+          parsed.pathname.startsWith('/Pradeep28012010/WaveCraft/releases/') &&
+          parsed.pathname.endsWith('.exe')
+        ) {
+          targetUrl = updateUrl;
+        } else {
+          return { success: false, error: 'Untrusted or unapproved update source domain' };
+        }
+      } catch {
+        return { success: false, error: 'Invalid update URL format' };
+      }
+    }
 
     mainWindow?.webContents.send('update:status', 'downloading');
     mainWindow?.webContents.send('update:progress', 1);

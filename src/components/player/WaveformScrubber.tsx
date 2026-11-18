@@ -241,9 +241,11 @@ export const WaveformScrubber = memo(({
     };
   }, []);
 
-  const playbackRatio = Math.min(1, Math.max(0, currentTime / activeDuration));
+  const safeTime = Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0;
+  const safeDuration = Number.isFinite(activeDuration) && activeDuration > 0 ? activeDuration : 210;
+  const playbackRatio = Math.min(1, Math.max(0, safeTime / safeDuration));
   const activeRatio = isDragging ? dragRatio : playbackRatio;
-  const activeDisplayTime = isDragging ? dragRatio * activeDuration : currentTime;
+  const activeDisplayTime = isDragging ? dragRatio * safeDuration : safeTime;
 
   // Generate unique acoustic waveform fingerprint tailored specifically to this song
   const waveformBars = useMemo(
@@ -298,7 +300,9 @@ export const WaveformScrubber = memo(({
       const rect = trackRef.current.getBoundingClientRect();
       const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
       setHoverX(x);
-      setHoverTime((x / rect.width) * activeDuration);
+      if (rect.width > 0) {
+        setHoverTime((x / rect.width) * safeDuration);
+      }
     }
   };
 

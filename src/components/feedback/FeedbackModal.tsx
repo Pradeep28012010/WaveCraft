@@ -5,6 +5,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useUpdateStore } from '../../stores/updateStore';
 import { getActiveEngine } from '../../services/audioEngine';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { apiUrl, PROD_API_ORIGIN } from '../../services/apiConfig';
 import { LiquidGlassToggle } from '../ui/LiquidGlassToggle';
 
 const CATEGORIES: Record<FeedbackType, string[]> = {
@@ -110,13 +111,24 @@ export default function FeedbackModal() {
     };
 
     try {
-      // 1. Submit to API gateway
-      const res = await fetch('/api/music?action=feedback', {
+      // 1. Submit to API gateway (supports Android Capacitor and Electron via apiUrl)
+      const endpoint = apiUrl('/api/music?action=feedback');
+      let res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      });
-      await res.json().catch(() => ({}));
+      }).catch(() => null);
+
+      if (!res?.ok && !endpoint.startsWith('http')) {
+        res = await fetch(`${PROD_API_ORIGIN}/api/music?action=feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => null);
+      }
+      if (res?.ok) {
+        await res.json().catch(() => ({}));
+      }
 
       // 2. Persist locally to user's feedback vault
       try {

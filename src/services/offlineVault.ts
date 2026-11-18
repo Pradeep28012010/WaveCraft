@@ -603,6 +603,27 @@ export async function savePlaylistOffline(
  * with 0ms network latency and zero internet connection.
  */
 const activeObjectUrls = new Map<string, string>();
+const MAX_ACTIVE_OBJECT_URLS = 6;
+
+function storeActiveObjectUrl(trackId: string, url: string): void {
+  if (activeObjectUrls.has(trackId)) {
+    try {
+      URL.revokeObjectURL(activeObjectUrls.get(trackId)!);
+    } catch {}
+    activeObjectUrls.delete(trackId);
+  }
+  // Evict and revoke oldest active Blob URL when exceeding cache limit
+  if (activeObjectUrls.size >= MAX_ACTIVE_OBJECT_URLS) {
+    const oldestKey = activeObjectUrls.keys().next().value;
+    if (oldestKey) {
+      try {
+        URL.revokeObjectURL(activeObjectUrls.get(oldestKey)!);
+      } catch {}
+      activeObjectUrls.delete(oldestKey);
+    }
+  }
+  activeObjectUrls.set(trackId, url);
+}
 
 export async function getOfflineAudioObjectUrl(trackId: string): Promise<string | null> {
   if (!trackId) return null;
@@ -615,7 +636,7 @@ export async function getOfflineAudioObjectUrl(trackId: string): Promise<string 
     const blob = await idbGet(`audio_${trackId}`, vaultBlobStore);
     if (blob && blob instanceof Blob && blob.size > 1024) {
       const objectUrl = URL.createObjectURL(blob);
-      activeObjectUrls.set(trackId, objectUrl);
+      storeActiveObjectUrl(trackId, objectUrl);
       return objectUrl;
     }
   } catch {}
@@ -629,7 +650,7 @@ export async function getOfflineAudioObjectUrl(trackId: string): Promise<string 
         const blob = await match.blob();
         if (blob && blob.size > 1024) {
           const objectUrl = URL.createObjectURL(blob);
-          activeObjectUrls.set(trackId, objectUrl);
+          storeActiveObjectUrl(trackId, objectUrl);
           return objectUrl;
         }
       }

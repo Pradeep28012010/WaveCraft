@@ -94,7 +94,17 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public String fetchUrlNative(String urlString) {
             try {
+                if (urlString == null) return null;
                 URL url = new URL(urlString);
+                if (!"https".equalsIgnoreCase(url.getProtocol())) {
+                    return null;
+                }
+                String host = url.getHost().toLowerCase();
+                if (host.equals("localhost") || host.equals("127.0.0.1") || host.equals("::1") ||
+                    host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("169.254.") ||
+                    host.endsWith(".local") || host.endsWith(".internal")) {
+                    return null;
+                }
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setConnectTimeout(4500);
@@ -170,6 +180,22 @@ public class MainActivity extends BridgeActivity {
                 InputStream in = null;
                 FileOutputStream out = null;
                 try {
+                    if (apkUrl == null || !apkUrl.toLowerCase().endsWith(".apk")) {
+                        notifyUpdateError("Invalid update package URL");
+                        return;
+                    }
+                    URL url = new URL(apkUrl);
+                    if (!"https".equalsIgnoreCase(url.getProtocol())) {
+                        notifyUpdateError("Insecure update URL protocol");
+                        return;
+                    }
+                    String host = url.getHost().toLowerCase();
+                    boolean isAllowedHost = host.equals("github.com") || host.endsWith(".github.com") || host.endsWith(".githubusercontent.com");
+                    if (!isAllowedHost) {
+                        notifyUpdateError("Untrusted update source domain");
+                        return;
+                    }
+
                     notifyUpdateStatus("downloading");
                     notifyUpdateProgress(1);
 
@@ -182,7 +208,6 @@ public class MainActivity extends BridgeActivity {
                         apkFile.delete();
                     }
 
-                    URL url = new URL(apkUrl);
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("GET");
                     conn.setConnectTimeout(15000);
@@ -199,6 +224,15 @@ public class MainActivity extends BridgeActivity {
                         if (newUrl != null && !newUrl.isEmpty()) {
                             conn.disconnect();
                             url = new URL(newUrl);
+                            if (!"https".equalsIgnoreCase(url.getProtocol())) {
+                                notifyUpdateError("Insecure redirect in update URL");
+                                return;
+                            }
+                            String redHost = url.getHost().toLowerCase();
+                            if (!redHost.equals("github.com") && !redHost.endsWith(".github.com") && !redHost.endsWith(".githubusercontent.com")) {
+                                notifyUpdateError("Unapproved update redirect target");
+                                return;
+                            }
                             conn = (HttpURLConnection) url.openConnection();
                             conn.setConnectTimeout(15000);
                             conn.setReadTimeout(45000);

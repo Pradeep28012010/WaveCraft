@@ -56,6 +56,10 @@ class JamWebRtcManager {
     signalSender: (signal: WebRtcSignalPayload) => void
   ): void {
     this.cleanup();
+    if (typeof RTCPeerConnection === 'undefined') {
+      this.setStatus('disconnected');
+      return;
+    }
     this.selfId = selfId;
     this.isHost = isHost;
     this.onMessageCallback = onMessage;
@@ -204,7 +208,11 @@ class JamWebRtcManager {
       // Flush any queued candidates
       while (peerEntry.pendingCandidates.length > 0) {
         const cand = peerEntry.pendingCandidates.shift();
-        if (cand) await pc.addIceCandidate(cand);
+        if (cand) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(cand));
+          } catch {}
+        }
       }
 
       const answer = await pc.createAnswer();
@@ -300,7 +308,11 @@ class JamWebRtcManager {
             await this.guestPc.setRemoteDescription(new RTCSessionDescription(signal.sdp as RTCSessionDescriptionInit));
             while (this.guestPendingCandidates.length > 0) {
               const cand = this.guestPendingCandidates.shift();
-              if (cand) await this.guestPc.addIceCandidate(cand);
+              if (cand) {
+                try {
+                  await this.guestPc.addIceCandidate(new RTCIceCandidate(cand));
+                } catch {}
+              }
             }
           }
         } catch (err) {

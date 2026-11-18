@@ -280,6 +280,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
   }, [artist, title]);
 
   useEffect(() => {
+    lineRefs.current.clear();
     let isMounted = true;
     const fetchLyrics = async () => {
       if (!artist || !title) {

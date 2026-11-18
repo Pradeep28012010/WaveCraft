@@ -163,8 +163,8 @@ export function useMediaSession() {
       [
         'seekto',
         (details) => {
-          if (details.seekTime !== undefined) {
-            usePlayerStore.getState().seekTo(details.seekTime);
+          if (typeof details.seekTime === 'number' && Number.isFinite(details.seekTime)) {
+            usePlayerStore.getState().seekTo(Math.max(0, details.seekTime));
           }
         }
       ],
@@ -276,7 +276,8 @@ export function useMediaSession() {
         try {
           navigator.mediaSession.setPositionState({
             duration,
-            playbackRate: playing ? playbackSpeed || 1 : 0,
+            // W3C Media Session spec requires playbackRate > 0; passing 0 throws a TypeError in browser engines!
+            playbackRate: Math.max(0.1, Number.isFinite(playbackSpeed) ? playbackSpeed : 1),
             position: Math.max(0, Math.min(duration, currentTime || 0))
           });
         } catch {

@@ -302,62 +302,65 @@ export async function fetchSpotifyTrending(categoryKey = 'global') {
             };
           });
 
-          // Pre-resolve YouTube IDs for the top tracks in parallel batches for zero-latency, full-length playback
-          const candidatesToResolve = mappedTracks.slice(0, 30);
+          // Pre-resolve YouTube IDs for top tracks in a single parallel batch for instant playback.
+          // Limit initial batch to 8 to guarantee completion within serverless function timeouts (< 3s).
+          const candidatesToResolve = mappedTracks.slice(0, 8);
           const resolvedTracks = [];
           const seenVideoIds = new Set();
 
-          for (let b = 0; b < candidatesToResolve.length; b += 6) {
-            const batch = candidatesToResolve.slice(b, b + 6);
-            const batchResults = await Promise.allSettled(
-              batch.map((tr) => fetchYouTubeSearch(`${tr.title} ${tr.artist} audio`, 5))
-            );
+          const batchResults = await Promise.allSettled(
+            candidatesToResolve.map((tr) => fetchYouTubeSearch(`${tr.title} ${tr.artist} audio`, 5))
+          );
 
-            batch.forEach((tr, idx) => {
-              const res = batchResults[idx];
-              if (res.status === 'fulfilled' && Array.isArray(res.value) && res.value.length > 0) {
-                const candidates = res.value;
-                const targetDur = tr.duration || 210;
+          candidatesToResolve.forEach((tr, idx) => {
+            const res = batchResults[idx];
+            if (res.status === 'fulfilled' && Array.isArray(res.value) && res.value.length > 0) {
+              const candidates = res.value;
+              const targetDur = tr.duration || 210;
 
-                // Filter out shorts / teasers (< 60s when original song is >= 90s)
-                const validCandidates = candidates.filter(
-                  (c) =>
-                    c.youtubeId &&
-                    !seenVideoIds.has(c.youtubeId) &&
-                    (targetDur >= 90 ? (c.duration || 0) >= 60 : (c.duration || 0) >= 30)
-                );
+              // Filter out shorts / teasers (< 60s when original song is >= 90s)
+              const validCandidates = candidates.filter(
+                (c) =>
+                  c.youtubeId &&
+                  !seenVideoIds.has(c.youtubeId) &&
+                  (targetDur >= 90 ? (c.duration || 0) >= 60 : (c.duration || 0) >= 30)
+              );
 
-                // Pick the candidate closest to target duration (avoiding snippets/reels)
-                let matched = null;
-                if (validCandidates.length > 0) {
-                  matched = validCandidates.reduce((best, curr) => {
-                    if (!best) return curr;
-                    const diffBest = Math.abs((best.duration || 210) - targetDur);
-                    const diffCurr = Math.abs((curr.duration || 210) - targetDur);
-                    return diffCurr < diffBest ? curr : best;
-                  }, null);
+              // Pick the candidate closest to target duration (avoiding snippets/reels)
+              let matched = null;
+              if (validCandidates.length > 0) {
+                matched = validCandidates.reduce((best, curr) => {
+                  if (!best) return curr;
+                  const diffBest = Math.abs((best.duration || 210) - targetDur);
+                  const diffCurr = Math.abs((curr.duration || 210) - targetDur);
+                  return diffCurr < diffBest ? curr : best;
+                }, null);
+              }
+
+              if (matched && matched.youtubeId && !seenVideoIds.has(matched.youtubeId)) {
+                seenVideoIds.add(matched.youtubeId);
+                tr.youtubeId = matched.youtubeId;
+                tr.id = `yt_${matched.youtubeId}`;
+                if (matched.thumbnail) {
+                  tr.thumbnail = matched.thumbnail;
+                  tr.thumbnailLarge = matched.thumbnailLarge || matched.thumbnail;
+                  tr.thumbnailUrl = matched.thumbnail;
                 }
-
-                if (matched && matched.youtubeId && !seenVideoIds.has(matched.youtubeId)) {
-                  seenVideoIds.add(matched.youtubeId);
-                  tr.youtubeId = matched.youtubeId;
-                  tr.id = `yt_${matched.youtubeId}`;
-                  if (matched.thumbnail) {
-                    tr.thumbnail = matched.thumbnail;
-                    tr.thumbnailLarge = matched.thumbnailLarge || matched.thumbnail;
-                    tr.thumbnailUrl = matched.thumbnail;
-                  }
-                  if (matched.duration && matched.duration > 0) {
-                    tr.duration = matched.duration;
-                  }
-                  resolvedTracks.push(tr);
-                } else {
-                  resolvedTracks.push(tr);
+                if (matched.duration && matched.duration > 0) {
+                  tr.duration = matched.duration;
                 }
+                resolvedTracks.push(tr);
               } else {
                 resolvedTracks.push(tr);
               }
-            });
+            } else {
+              resolvedTracks.push(tr);
+            }
+          });
+
+          // Append remaining tracks for full chart browsing (resolved on-demand on playback)
+          for (let i = candidatesToResolve.length; i < mappedTracks.length; i++) {
+            resolvedTracks.push(mappedTracks[i]);
           }
 
           if (resolvedTracks.length >= 6) {

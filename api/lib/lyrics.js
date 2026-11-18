@@ -341,17 +341,38 @@ export async function fetchMultiSourceLyrics(rawTitle, rawArtist, duration = 0) 
     if (r2b.ok) {
       const list = await r2b.json();
       if (Array.isArray(list) && list.length > 0) {
-        // Find best match with synced lyrics
+        // Find best match with score verification
         const withLyrics = list.filter((item) => item.syncedLyrics || item.plainLyrics);
         if (withLyrics.length > 0) {
-          const syncedFirst = withLyrics.sort((a, b) => (b.syncedLyrics ? 1 : 0) - (a.syncedLyrics ? 1 : 0));
-          const best = syncedFirst[0];
-          return {
-            synced: Boolean(best.syncedLyrics),
-            lyrics: best.syncedLyrics || best.plainLyrics,
-            source: best.syncedLyrics ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics',
-            verified: true
-          };
+          const scored = withLyrics
+            .map((item) => ({
+              item,
+              score: calculateMatchScore(
+                cleanTitle,
+                primaryArtist || cleanArtist,
+                item.trackName,
+                item.artistName,
+                item.duration,
+                duration
+              )
+            }))
+            .filter((c) => c.score >= 0.55)
+            .sort((a, b) => {
+              if (Boolean(b.item.syncedLyrics) !== Boolean(a.item.syncedLyrics)) {
+                return b.item.syncedLyrics ? 1 : -1;
+              }
+              return b.score - a.score;
+            });
+
+          if (scored.length > 0) {
+            const best = scored[0].item;
+            return {
+              synced: Boolean(best.syncedLyrics),
+              lyrics: best.syncedLyrics || best.plainLyrics,
+              source: best.syncedLyrics ? 'WaveSync • Time-Synced' : 'WaveSync Lyrics',
+              verified: true
+            };
+          }
         }
       }
     }

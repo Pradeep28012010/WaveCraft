@@ -70,10 +70,12 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
   const trackRef = useRef<HTMLDivElement>(null);
   const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const activeDuration = duration || fallbackDuration || 210;
-  const playbackRatio = Math.min(1, Math.max(0, currentTime / activeDuration));
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : Number.isFinite(fallbackDuration) && fallbackDuration > 0 ? fallbackDuration : 210;
+  const safeCurrentTime = Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0;
+  const activeDuration = safeDuration;
+  const playbackRatio = Math.min(1, Math.max(0, safeCurrentTime / activeDuration));
   const activeRatio = isDragging ? dragRatio : playbackRatio;
-  const activeDisplayTime = isDragging ? dragRatio * activeDuration : currentTime;
+  const activeDisplayTime = isDragging ? dragRatio * activeDuration : safeCurrentTime;
 
   const calculateRatioAndOffset = (clientX: number) => {
     if (!trackRef.current) return { ratio: 0, offset: 0 };
@@ -122,7 +124,9 @@ const NowPlayingScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
       const rect = trackRef.current.getBoundingClientRect();
       const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
       setHoverX(x);
-      setHoverTime((x / rect.width) * activeDuration);
+      if (rect.width > 0) {
+        setHoverTime((x / rect.width) * activeDuration);
+      }
     }
   };
 
@@ -305,7 +309,8 @@ const NowPlayingVolumeBar = memo(({
     }
   };
 
-  const pct = Math.round((isMuted ? 0 : volume) * 100);
+  const safeVolume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1;
+  const pct = Math.round((isMuted ? 0 : safeVolume) * 100);
 
   return (
     <div

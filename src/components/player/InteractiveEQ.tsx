@@ -42,27 +42,30 @@ export default function InteractiveEQ() {
   const [activeDraggingIdx, setActiveDraggingIdx] = useState<number | null>(null);
   const [activeBandDraggingIdx, setActiveBandDraggingIdx] = useState<number | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [spectrumLevels, setSpectrumLevels] = useState<number[]>(() => Array(10).fill(0));
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const barRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Real-time Audio Spectrum Analyser behind the curve
+  // Real-time Audio Spectrum Analyser behind the curve (Direct DOM updates - zero React re-renders)
   useEffect(() => {
     let isMounted = true;
     let raf = 0;
     const freqData = new Uint8Array(64);
+    const levels = Array(10).fill(0);
 
     const updateSpectrum = () => {
       if (!isMounted) return;
       const hasAudio = getAudioFrequencyData(freqData);
-      if (hasAudio) {
-        // Map 64 FFT bins into the 10 octave bands
-        const levels = EQ_FREQUENCIES.map((_, i) => {
+      for (let i = 0; i < 10; i++) {
+        const bar = barRefs.current[i];
+        if (!bar) continue;
+        if (hasAudio) {
           const bin = Math.min(freqData.length - 1, Math.floor((i / 9) * 48));
-          return Math.max(0, freqData[bin] / 255);
-        });
-        setSpectrumLevels(levels);
-      } else {
-        setSpectrumLevels((prev) => prev.map((v) => Math.max(0, v * 0.92)));
+          const target = Math.max(0, freqData[bin] / 255);
+          levels[i] = levels[i] * 0.7 + target * 0.3;
+        } else {
+          levels[i] = Math.max(0, levels[i] * 0.92);
+        }
+        bar.style.height = `${Math.max(4, levels[i] * 130)}px`;
       }
       raf = requestAnimationFrame(updateSpectrum);
     };
@@ -300,13 +303,16 @@ export default function InteractiveEQ() {
 
       {/* ── Interactive Spline Curve Display Card ── */}
       <div className="relative rounded-2xl liquid-glass border-0 overflow-hidden p-3 sm:p-4 bg-gradient-to-b from-[#080b14]/90 via-[#070913]/95 to-[#04060c]">
-        {/* Real-Time Spectrum Glow Bars behind the curve */}
+        {/* Real-Time Spectrum Glow Bars behind the curve (Ref-driven, 0 re-renders) */}
         <div className="absolute inset-0 pointer-events-none flex items-end justify-between px-10 sm:px-14 pb-8 opacity-25">
-          {spectrumLevels.map((lvl, i) => (
+          {EQ_FREQUENCIES.map((_, i) => (
             <div
               key={i}
-              className="w-4 sm:w-6 rounded-t-full bg-gradient-to-t from-cyan-500 via-purple-500 to-rose-500 transition-all duration-75"
-              style={{ height: `${Math.max(4, lvl * 130)}px` }}
+              ref={(el) => {
+                barRefs.current[i] = el;
+              }}
+              className="w-4 sm:w-6 rounded-t-full bg-gradient-to-t from-cyan-500 via-purple-500 to-rose-500"
+              style={{ height: '4px' }}
             />
           ))}
         </div>

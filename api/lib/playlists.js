@@ -8,20 +8,40 @@ export async function importExternalPlaylist(playlistUrl) {
   if (!playlistUrl) return { error: 'Missing playlist URL' };
 
   let targetUrl = playlistUrl.trim();
+  let parsedUrl = null;
 
-  // Handle Spotify shortlinks (e.g., https://spotify.link/AbCdEf123)
-  if (targetUrl.includes('spotify.link/')) {
+  if (!targetUrl.startsWith('spotify:')) {
+    try {
+      parsedUrl = new URL(targetUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return { error: 'Invalid URL protocol' };
+      }
+    } catch {
+      return { error: 'Invalid playlist URL format' };
+    }
+  }
+
+  // Handle Spotify shortlinks safely with strict domain validation & manual redirect checking
+  if (parsedUrl && (parsedUrl.hostname === 'spotify.link' || parsedUrl.hostname.endsWith('.spotify.link'))) {
     try {
       const red = await fetch(targetUrl, {
-        redirect: 'follow',
+        redirect: 'manual',
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
       });
-      if (red.url) targetUrl = red.url;
+      const location = red.headers.get('location');
+      if (location) {
+        const resolved = new URL(location, targetUrl);
+        if (resolved.hostname === 'spotify.com' || resolved.hostname.endsWith('.spotify.com')) {
+          targetUrl = resolved.toString();
+          parsedUrl = resolved;
+        }
+      }
     } catch {}
   }
 
   // 1. Spotify Playlist / Album / Track Link
-  if (targetUrl.includes('spotify.com') || targetUrl.startsWith('spotify:')) {
+  const isSpotifyDomain = parsedUrl && (parsedUrl.hostname === 'spotify.com' || parsedUrl.hostname.endsWith('.spotify.com') || parsedUrl.hostname === 'open.spotify.com');
+  if (targetUrl.startsWith('spotify:') || isSpotifyDomain) {
     const typeMatch =
       targetUrl.match(/spotify\.com\/(?:intl-[a-zA-Z-]+\/)?(?:user\/[^/]+\/)?(playlist|album|track)\/([a-zA-Z0-9]+)/i) ||
       targetUrl.match(/spotify:(playlist|album|track):([a-zA-Z0-9]+)/i);
@@ -121,7 +141,12 @@ export async function importExternalPlaylist(playlistUrl) {
   }
 
   // 2. YouTube / YouTube Music Playlist Link
-  if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
+  const isYouTubeDomain = parsedUrl && (
+    parsedUrl.hostname === 'youtube.com' ||
+    parsedUrl.hostname.endsWith('.youtube.com') ||
+    parsedUrl.hostname === 'youtu.be'
+  );
+  if (isYouTubeDomain) {
     const listMatch = targetUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/i);
     const ytClientContext = {
       client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' }
@@ -347,7 +372,12 @@ export async function importExternalPlaylist(playlistUrl) {
   }
 
   // 3. Apple Music / iTunes Album Link
-  if (targetUrl.includes('apple.com')) {
+  const isAppleDomain = parsedUrl && (
+    parsedUrl.hostname === 'apple.com' ||
+    parsedUrl.hostname.endsWith('.apple.com') ||
+    parsedUrl.hostname === 'itunes.apple.com'
+  );
+  if (isAppleDomain) {
     const albumMatch = targetUrl.match(/album\/(?:[^\/]+\/)?(\d+)/i) || targetUrl.match(/[?&]i=(\d+)/i);
     if (albumMatch) {
       const id = albumMatch[1];

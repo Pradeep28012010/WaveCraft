@@ -233,8 +233,9 @@ function getSimilarArtists(artist: string): string[] {
 }
 
 /**
- * In-memory cache for fast, seamless lookups.
+ * In-memory cache for fast, seamless lookups (LRU bounded).
  */
+const MAX_RECS_CACHE = 100;
 const recsCache = new Map<string, { tracks: Track[]; time: number }>();
 
 /**
@@ -470,6 +471,10 @@ export async function getSmartRecommendations(
   }
 
   if (selected.length > 0) {
+    if (recsCache.size >= MAX_RECS_CACHE) {
+      const oldest = recsCache.keys().next().value;
+      if (oldest) recsCache.delete(oldest);
+    }
     recsCache.set(cacheKey, { tracks: selected, time: Date.now() });
   }
 

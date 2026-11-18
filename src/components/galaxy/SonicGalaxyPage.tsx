@@ -1080,9 +1080,11 @@ export default function SonicGalaxyPage() {
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
     };
     resize();
     window.addEventListener('resize', resize);
@@ -1269,6 +1271,10 @@ export default function SonicGalaxyPage() {
 
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
+      if (width <= 0 || height <= 0) {
+        rafId = requestAnimationFrame(render);
+        return;
+      }
       const cx = width / 2;
       const cy = height / 2;
       const baseScale = Math.min(width, height) * 0.54 * smoothZoom;

@@ -397,23 +397,41 @@ export default async function handler(req, res) {
     if (action === 'proxy-stream') {
       const audioUrl = url.searchParams.get('url') || '';
       if (!audioUrl) return res.status(400).json({ error: 'URL required' });
-      if (!isAllowedAudioProxyUrl(audioUrl)) {
-        return res.status(403).json({ error: 'Proxy URL target domain not allowed' });
-      }
+      let currentAudioUrl = audioUrl;
+      let upstream = null;
+      let redirectCount = 0;
+      const MAX_REDIRECTS = 5;
+
       try {
         const upstreamHeaders = {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         };
         // Forward HTTP Range header if requested by audio element for seamless buffering and seeking
-        if (req.headers.range) {
+        if (req.headers && req.headers.range) {
           upstreamHeaders['Range'] = req.headers.range;
         }
 
-        const upstream = await fetchWithTimeout(audioUrl, {
-          headers: upstreamHeaders
-        }, 15000);
-        if (!upstream.ok && upstream.status !== 206) {
-          return res.status(upstream.status).json({ error: 'Upstream fetch failed' });
+        while (redirectCount <= MAX_REDIRECTS) {
+          if (!isAllowedAudioProxyUrl(currentAudioUrl)) {
+            return res.status(403).json({ error: 'Proxy URL target domain not allowed' });
+          }
+
+          upstream = await fetchWithTimeout(currentAudioUrl, {
+            headers: upstreamHeaders,
+            redirect: 'manual'
+          }, 15000);
+
+          if (upstream.status >= 300 && upstream.status < 400 && upstream.headers.get('location')) {
+            const loc = upstream.headers.get('location');
+            currentAudioUrl = new URL(loc, currentAudioUrl).toString();
+            redirectCount++;
+            continue;
+          }
+          break;
+        }
+
+        if (!upstream || (!upstream.ok && upstream.status !== 206)) {
+          return res.status(upstream?.status || 502).json({ error: 'Upstream fetch failed' });
         }
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
@@ -431,7 +449,13 @@ export default async function handler(req, res) {
 
         if (upstream.body && typeof upstream.body.getReader === 'function') {
           const { Readable } = await import('node:stream');
-          Readable.fromWeb(upstream.body).pipe(res);
+          const readable = Readable.fromWeb(upstream.body);
+          if (typeof res.on === 'function') {
+            res.on('close', () => {
+              try { readable.destroy(); } catch {}
+            });
+          }
+          readable.pipe(res);
           return;
         } else {
           const arrayBuf = await upstream.arrayBuffer();

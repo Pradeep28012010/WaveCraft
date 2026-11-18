@@ -38,6 +38,7 @@ let activeEngine: 'audio' | 'youtube' = 'youtube';
 // Web Audio API Studio Mastering Graph, True 360° HRTF 3D Spatial Stage, Vocal Stem Isolator & Visualizer Analyser
 let audioCtx: AudioContext | null = null;
 let sourceNode: MediaElementAudioSourceNode | null = null;
+let connectedAudioElement: HTMLAudioElement | null = null;
 let preGainNode: GainNode | null = null;
 let eqFilters: BiquadFilterNode[] = [];
 let subBassRackNode: BiquadFilterNode | null = null;
@@ -80,7 +81,26 @@ export function setHtmlAudioElement(el: HTMLAudioElement | null): void {
   if (isAndroidNative()) {
     return;
   }
-  if (el && audioCtx && preGainNode && !sourceNode) {
+  if (!el) {
+    if (sourceNode) {
+      try {
+        sourceNode.disconnect();
+      } catch {}
+      sourceNode = null;
+    }
+    connectedAudioElement = null;
+    return;
+  }
+  if (connectedAudioElement !== el) {
+    if (sourceNode) {
+      try {
+        sourceNode.disconnect();
+      } catch {}
+      sourceNode = null;
+    }
+    connectedAudioElement = el;
+  }
+  if (audioCtx && preGainNode && !sourceNode) {
     try {
       sourceNode = audioCtx.createMediaElementSource(el);
       sourceNode.connect(preGainNode);
@@ -138,6 +158,14 @@ export function hasWebAudioGain(): boolean {
 
 export function getAnalyserNode(): AnalyserNode | null {
   return analyserNode;
+}
+
+export function getMasterLimiterNode(): DynamicsCompressorNode | null {
+  return masterLimiter;
+}
+
+export function getPreGainNode(): GainNode | null {
+  return preGainNode;
 }
 
 export function getAudioContext(): AudioContext {
@@ -601,13 +629,24 @@ export function initAudioGraph(
     }
   }
 
-  if (!isAndroidNative() && audio && !sourceNode && audioCtx && preGainNode) {
-    try {
-      sourceNode = audioCtx.createMediaElementSource(audio);
-      sourceNode.connect(preGainNode);
-      htmlAudioElement = audio;
-      audio.volume = 1.0;
-    } catch {}
+  if (!isAndroidNative() && audio && audioCtx && preGainNode) {
+    if (connectedAudioElement !== audio) {
+      if (sourceNode) {
+        try {
+          sourceNode.disconnect();
+        } catch {}
+        sourceNode = null;
+      }
+      connectedAudioElement = audio;
+    }
+    if (!sourceNode) {
+      try {
+        sourceNode = audioCtx.createMediaElementSource(audio);
+        sourceNode.connect(preGainNode);
+        htmlAudioElement = audio;
+        audio.volume = 1.0;
+      } catch {}
+    }
   }
 
   if (audioCtx && audioCtx.state === 'suspended') {

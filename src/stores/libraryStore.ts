@@ -129,10 +129,26 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
 
   toggleLike: (trackOrId) => {
     const { likedSongs, likedIds } = get();
-    const track: Track | null =
-      typeof trackOrId === 'string'
-        ? likedSongs.find((t) => t.id === trackOrId) || usePlayerStore.getState().currentTrack
-        : trackOrId;
+    let track: Track | null = null;
+
+    if (typeof trackOrId === 'string') {
+      const fromLiked = likedSongs.find((t) => t.id === trackOrId);
+      if (fromLiked) {
+        track = fromLiked;
+      } else {
+        const current = usePlayerStore.getState().currentTrack;
+        if (current && current.id === trackOrId) {
+          track = current;
+        } else {
+          const inQueue = usePlayerStore.getState().queue?.find((t) => t.id === trackOrId);
+          if (inQueue) {
+            track = inQueue;
+          }
+        }
+      }
+    } else {
+      track = trackOrId;
+    }
 
     if (!track || !track.id) return;
 

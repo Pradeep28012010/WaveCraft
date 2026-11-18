@@ -10,7 +10,7 @@ export function broadcastToRoom(roomCode, data) {
   const subs = roomSubscribers.get(roomCode);
   if (!subs || subs.size === 0) return;
   const msg = `data: ${JSON.stringify(data)}\n\n`;
-  for (const client of subs) {
+  for (const client of Array.from(subs)) {
     try {
       if (typeof client.write === 'function') {
         client.write(msg);
@@ -23,7 +23,7 @@ export function broadcastToRoom(roomCode, data) {
 
 export function handleJamRoomSseStream(req, res, roomCode) {
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (typeof res.flushHeaders === 'function') res.flushHeaders();
@@ -34,22 +34,47 @@ export function handleJamRoomSseStream(req, res, roomCode) {
   const subs = roomSubscribers.get(roomCode);
   subs.add(res);
 
-  res.write(': connected\n\n');
+  if (typeof res.write === 'function') {
+    res.write(': connected\n\n');
+  }
   const room = jamRooms.get(roomCode);
-  if (room) {
+  if (room && typeof res.write === 'function') {
     res.write(`data: ${JSON.stringify(room)}\n\n`);
   }
 
   const keepAlive = setInterval(() => {
     try {
-      res.write(': ping\n\n');
+      if (typeof res.write === 'function') {
+        res.write(': ping\n\n');
+      }
     } catch {
       clearInterval(keepAlive);
       subs.delete(res);
     }
-  }, 15000);
+  }, 12000);
+
+  // Serverless execution timeout guard:
+  // Vercel / Netlify forcefully kill functions after 10-15s, triggering 504 errors.
+  // By gracefully closing before the platform cap, browser EventSource reconnects seamlessly.
+  const isServerless = Boolean(
+    process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME
+  );
+  let serverlessTimer = null;
+  if (isServerless) {
+    serverlessTimer = setTimeout(() => {
+      try {
+        if (typeof res.write === 'function') {
+          res.write(': keepalive-reconnect\n\n');
+        }
+        res.end?.();
+      } catch {}
+      clearInterval(keepAlive);
+      subs.delete(res);
+    }, 8500);
+  }
 
   req.on?.('close', () => {
+    if (serverlessTimer) clearTimeout(serverlessTimer);
     clearInterval(keepAlive);
     subs.delete(res);
     if (subs.size === 0) {

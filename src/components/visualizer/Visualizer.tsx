@@ -46,6 +46,13 @@ const Visualizer = memo(
     const starsRef = useRef<Star3D[]>([]);
     const particlesRef = useRef<Particle2D[]>([]);
 
+    const isActiveRef = useRef(isActive);
+    const styleRef = useRef(style);
+    const colorsRef = useRef(colors);
+    isActiveRef.current = isActive;
+    styleRef.current = style;
+    colorsRef.current = colors;
+
     // 3D Perspective Tilt and Audio Dynamic Physics
     const tiltRef = useRef<{ x: number; y: number; targetX: number; targetY: number }>({
       x: 0,
@@ -109,8 +116,13 @@ const Visualizer = memo(
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        const style = styleRef.current;
+        const isActive = isActiveRef.current;
+        const colors = colorsRef.current;
+
         if (typeof document !== 'undefined' && document.hidden) {
-          // Pause drawing loop when minimized or tab/app is hidden in background
+          // Pause drawing loop when minimized or tab/app is hidden in background, but keep RAF alive to resume immediately
+          requestRef.current = requestAnimationFrame(draw);
           return;
         }
 
@@ -1378,7 +1390,7 @@ const Visualizer = memo(
         ctx.restore();
         requestRef.current = requestAnimationFrame(draw);
       },
-      [isActive, style, colors]
+      []
     );
 
     useEffect(() => {

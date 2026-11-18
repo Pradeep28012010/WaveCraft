@@ -28,6 +28,15 @@ export interface LyricsResult {
 }
 
 const cache = new Map<string, LyricsResult | null>();
+const MAX_LYRICS_CACHE = 150;
+
+function setLyricsCache(key: string, val: LyricsResult | null): void {
+  if (cache.size >= MAX_LYRICS_CACHE) {
+    const oldest = cache.keys().next().value;
+    if (oldest) cache.delete(oldest);
+  }
+  cache.set(key, val);
+}
 
 export function getLyricsOffsetKey(artist: string, title: string): string {
   const cleanTitle = extractCleanSongTitle(title).toLowerCase();
@@ -333,17 +342,22 @@ export async function getLyricsData(
 
   // 1. Primary: Query WaveCraft multi-tier server-side resolver
   // (Runs with verified User-Agent, zero browser CORS/rate-limits, LRCLIB + lyrics.ovh)
-  const queryEndpoints = [
-    apiUrl(`/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}&duration=${Math.round(duration)}`),
-    `${PROD_API_ORIGIN}/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}&duration=${Math.round(duration)}`
-  ];
+  const endpointSet = new Set<string>();
+  const addEndpoint = (ep: string) => {
+    if (ep && !endpointSet.has(ep)) {
+      endpointSet.add(ep);
+    }
+  };
+
+  addEndpoint(apiUrl(`/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}&duration=${Math.round(duration)}`));
+  addEndpoint(`${PROD_API_ORIGIN}/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}&duration=${Math.round(duration)}`);
 
   if (!cleanArtist) {
-    queryEndpoints.push(
-      apiUrl(`/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&duration=${Math.round(duration)}`),
-      `${PROD_API_ORIGIN}/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&duration=${Math.round(duration)}`
-    );
+    addEndpoint(apiUrl(`/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&duration=${Math.round(duration)}`));
+    addEndpoint(`${PROD_API_ORIGIN}/api/music?action=lyrics&title=${encodeURIComponent(cleanTitle)}&duration=${Math.round(duration)}`);
   }
+
+  const queryEndpoints = Array.from(endpointSet);
 
   for (const endpoint of queryEndpoints) {
     try {
@@ -378,7 +392,7 @@ export async function getLyricsData(
               candidates: [candidate],
               activeCandidateId: candidate.id
             };
-            cache.set(cacheKey, result);
+            setLyricsCache(cacheKey, result);
             return result;
           }
         }
@@ -478,7 +492,7 @@ export async function getLyricsData(
       candidates: deduplicated,
       activeCandidateId: best.id
     };
-    cache.set(cacheKey, parsed);
+    setLyricsCache(cacheKey, parsed);
     return parsed;
   }
 

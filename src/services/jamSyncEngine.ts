@@ -12,7 +12,15 @@
  * 6. Dual-Device Acoustic Sync Test Click Generator.
  */
 
-import { getPreciseAudioTime, setPlaybackRateSteering, seekToTime, getHtmlAudioElement, getAudioContext } from './audioEngine';
+import {
+  getPreciseAudioTime,
+  setPlaybackRateSteering,
+  seekToTime,
+  getHtmlAudioElement,
+  getAudioContext,
+  getMasterLimiterNode,
+  getPreGainNode
+} from './audioEngine';
 import { usePlayerStore } from '../stores/playerStore';
 
 export interface JamAudioAnchor {
@@ -317,7 +325,8 @@ class JamSyncEngine {
       gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.018);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      const dest = getMasterLimiterNode() || getPreGainNode() || ctx.destination;
+      gain.connect(dest);
 
       osc.start(startTime);
       osc.stop(startTime + 0.02);

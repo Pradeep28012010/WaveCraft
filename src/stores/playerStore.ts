@@ -96,6 +96,10 @@ function flushPlayerSession(): void {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', flushPlayerSession);
+  window.addEventListener('pagehide', flushPlayerSession);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPlayerSession();
+  });
 }
 
 function savePlayerSessionSync(state: PlayerState): void {
@@ -350,20 +354,27 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   seekTo: (time) => {
     if (isJamGuestBlocked('seek')) return;
 
-    const dur = get().duration || 1;
-    seekToTime(time);
-    set({ currentTime: time, progress: (time / dur) * 100 });
+    const safeDuration = Number.isFinite(get().duration) && get().duration > 0 ? get().duration : 1;
+    const safeTime = Number.isFinite(time) ? Math.max(0, Math.min(safeDuration, time)) : 0;
+    seekToTime(safeTime);
+    set({ currentTime: safeTime, progress: Math.min(100, Math.max(0, (safeTime / safeDuration) * 100)) });
   },
 
-  setProgress: (progress, currentTime) => set({ progress, currentTime }),
+  setProgress: (progress, currentTime) => {
+    const safeP = Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0;
+    const safeT = Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0;
+    set({ progress: safeP, currentTime: safeT });
+  },
+
   setDuration: (duration) => {
-    if (Math.abs(get().duration - duration) > 0.5) {
+    if (Number.isFinite(duration) && duration >= 0 && Math.abs(get().duration - duration) > 0.5) {
       set({ duration });
     }
   },
 
   setVolume: (volume) => {
-    set({ volume: Math.max(0, Math.min(1, volume)), isMuted: volume === 0 });
+    const safeVol = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1;
+    set({ volume: safeVol, isMuted: safeVol === 0 });
     savePlayerSessionSync(get());
   },
   toggleMute: () => {

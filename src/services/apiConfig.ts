@@ -8,7 +8,7 @@ export const PROD_API_ORIGIN = 'https://wavecraft-alpha.vercel.app';
 export function isAndroidNative(): boolean {
   if (typeof window === 'undefined') return false;
   return (
-    Capacitor.isNativePlatform() ||
+    (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') ||
     Capacitor.getPlatform() === 'android' ||
     window.location.protocol === 'capacitor:' ||
     typeof (window as unknown as { AndroidAudioBridge?: unknown }).AndroidAudioBridge !== 'undefined'

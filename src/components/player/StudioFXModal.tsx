@@ -109,7 +109,8 @@ function AppleFluidSlider({
   const activeValueRef = useRef(value);
   activeValueRef.current = value;
 
-  const percent = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+  const range = max - min;
+  const percent = range > 0 ? Math.max(0, Math.min(100, ((value - min) / range) * 100)) : 0;
   const percentRef = useRef(percent);
   percentRef.current = percent;
 
@@ -123,7 +124,6 @@ function AppleFluidSlider({
 
   const thumbWidth = 44;
   const halfThumb = thumbWidth / 2; // 22px
-  const range = max - min;
 
   const updateFromPointer = (clientX: number, isInitialPress = false) => {
     if (!trackRef.current) return;

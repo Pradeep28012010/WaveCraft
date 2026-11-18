@@ -135,7 +135,9 @@ export default function PlaylistView() {
     const text = tracks
       .map((t, idx) => `${idx + 1}. ${t.artist} - ${t.title}`)
       .join('\n');
-    navigator.clipboard.writeText(text);
+    try {
+      navigator.clipboard?.writeText(text)?.catch(() => {});
+    } catch {}
     setCopyFeedback(true);
     setTimeout(() => setCopyFeedback(false), 2200);
   };

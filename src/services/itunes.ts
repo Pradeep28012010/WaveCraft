@@ -41,6 +41,14 @@ const artCache = new Map<string, string | null>();
 const albumsCache = new Map<string, AlbumResult[]>();
 const artistsCache = new Map<string, ArtistResult[]>();
 const albumTracksCache = new Map<string, Track[]>();
+
+function setBoundedCache<K, V>(cache: Map<K, V>, key: K, value: V, maxEntries = 120): void {
+  if (cache.size >= maxEntries) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  cache.set(key, value);
+}
 export const FALLBACK_NEW_RELEASES: AlbumResult[] = [
   {
     id: 'itunes_alb_1752214909',
@@ -218,7 +226,7 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
             audioPreviewUrl: s.previewUrl || undefined,
             quality: 'Apple Master'
           }));
-          albumTracksCache.set(cacheKey, mappedTracks);
+          setBoundedCache(albumTracksCache, cacheKey, mappedTracks);
           return mappedTracks;
         }
       }
@@ -229,7 +237,7 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
   try {
     const tracks = await searchTracks(cleanQuery);
     if (tracks.length > 0) {
-      albumTracksCache.set(cacheKey, tracks);
+      setBoundedCache(albumTracksCache, cacheKey, tracks);
       return tracks;
     }
   } catch (err) {
@@ -270,7 +278,7 @@ export async function searchAlbums(query: string): Promise<AlbumResult[]> {
             trackCount: item.trackCount || 10
           };
         });
-        albumsCache.set(key, albums);
+        setBoundedCache(albumsCache, key, albums);
         return albums;
       }
     }
@@ -304,7 +312,7 @@ export async function searchAlbums(query: string): Promise<AlbumResult[]> {
     }
 
     if (results.length > 0) {
-      albumsCache.set(key, results);
+      setBoundedCache(albumsCache, key, results);
       return results;
     }
   } catch (error) {
@@ -334,7 +342,7 @@ export async function getAlbumArt(trackTitle: string, artistName: string): Promi
       const first = data.results?.[0];
       if (first?.artworkUrl100) {
         const highRes = first.artworkUrl100.replace('100x100bb', '600x600bb');
-        artCache.set(cacheKey, highRes);
+        setBoundedCache(artCache, cacheKey, highRes);
         return highRes;
       }
     }
@@ -345,12 +353,12 @@ export async function getAlbumArt(trackTitle: string, artistName: string): Promi
     const tracks = await searchTracks(`${trackTitle} ${artistName}`);
     if (tracks.length > 0 && tracks[0].thumbnail) {
       const art = tracks[0].thumbnail || tracks[0].thumbnailLarge;
-      artCache.set(cacheKey, art);
+      setBoundedCache(artCache, cacheKey, art);
       return art;
     }
   } catch {}
 
-  artCache.set(cacheKey, null);
+  setBoundedCache(artCache, cacheKey, null);
   return null;
 }
 
@@ -516,7 +524,7 @@ export async function searchArtists(query: string): Promise<ArtistResult[]> {
             imageUrl: art
           };
         });
-        artistsCache.set(key, artists);
+        setBoundedCache(artistsCache, key, artists);
         return artists;
       }
     }
@@ -547,7 +555,7 @@ export async function searchArtists(query: string): Promise<ArtistResult[]> {
     }
 
     if (artists.length > 0) {
-      artistsCache.set(key, artists);
+      setBoundedCache(artistsCache, key, artists);
       return artists;
     }
   } catch (error) {

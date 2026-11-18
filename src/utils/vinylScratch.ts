@@ -4,20 +4,15 @@
  * scratch bursts, needle friction, and motor ramp transients with zero external asset latency.
  */
 
-let sharedScratchCtx: AudioContext | null = null;
+import { getAudioContext, getMasterLimiterNode, getPreGainNode } from '../services/audioEngine';
 
 function getScratchAudioContext(fallbackCtx?: AudioContext | null): AudioContext | null {
   if (fallbackCtx && fallbackCtx.state !== 'closed') return fallbackCtx;
-  if (!sharedScratchCtx || sharedScratchCtx.state === 'closed') {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (AudioCtx) {
-      sharedScratchCtx = new AudioCtx({ latencyHint: 'interactive' });
-    }
+  try {
+    return getAudioContext();
+  } catch {
+    return null;
   }
-  if (sharedScratchCtx && sharedScratchCtx.state === 'suspended') {
-    sharedScratchCtx.resume().catch(() => {});
-  }
-  return sharedScratchCtx;
 }
 
 // Pre-generated 1-second white/pink noise buffer for ultra-fast zero-alloc scratch playback
@@ -113,7 +108,8 @@ export function playScratchSound(
     noiseFilter.connect(noiseGain);
     noiseGain.connect(scratchMaster);
 
-    scratchMaster.connect(ctx.destination);
+    const dest = getMasterLimiterNode() || getPreGainNode() || ctx.destination;
+    scratchMaster.connect(dest);
 
     osc.start(now);
     noise.start(now);
@@ -141,7 +137,8 @@ export function playNeedleDrop(externalCtx?: AudioContext | null): void {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    const dest = getMasterLimiterNode() || getPreGainNode() || ctx.destination;
+    gain.connect(dest);
 
     osc.start(now);
     osc.stop(now + 0.09);

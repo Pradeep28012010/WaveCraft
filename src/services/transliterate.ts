@@ -562,7 +562,9 @@ export function computeWordTimings(
   const rawWords = text.trim().split(/\s+/).filter(Boolean);
   if (rawWords.length === 0) return [];
 
-  const duration = Math.max(1.2, lineEndTime - lineStartTime);
+  const start = Number.isFinite(lineStartTime) ? lineStartTime : 0;
+  const end = Number.isFinite(lineEndTime) ? lineEndTime : start + 3;
+  const duration = Math.max(1.2, end - start);
 
   // Compute proportional weights based on word length
   const weights = rawWords.map((w) => Math.max(2, w.length));
@@ -571,16 +573,16 @@ export function computeWordTimings(
   let accumulated = 0;
   return rawWords.map((word, idx) => {
     const w = weights[idx];
-    const startRatio = accumulated / totalWeight;
+    const startRatio = totalWeight > 0 ? accumulated / totalWeight : 0;
     accumulated += w;
-    const endRatio = accumulated / totalWeight;
+    const endRatio = totalWeight > 0 ? accumulated / totalWeight : 1;
 
     return {
       word,
       startRatio,
       endRatio,
-      startTime: lineStartTime + startRatio * duration,
-      endTime: lineStartTime + endRatio * duration
+      startTime: start + startRatio * duration,
+      endTime: start + endRatio * duration
     };
   });
 }

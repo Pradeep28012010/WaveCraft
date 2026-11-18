@@ -14,20 +14,6 @@ export const isAndroidNative = (): boolean => {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 };
 
-// Prevent mobile WebView Chromium from throttling timers or pausing audio when backgrounded / locked
-if (typeof document !== 'undefined') {
-  try {
-    Object.defineProperty(document, 'hidden', {
-      get: () => false,
-      configurable: true
-    });
-    Object.defineProperty(document, 'visibilityState', {
-      get: () => 'visible',
-      configurable: true
-    });
-  } catch {}
-}
-
 /**
  * Native Android subtle tactile haptic feedback for user interactions.
  */
@@ -88,7 +74,11 @@ export const initNativeAndroid = (navigate?: (to: number) => void) => {
     }
 
     // Level 5: Navigate back in history if not on root, otherwise minimize
-    if (window.location.pathname !== '/' && navigate) {
+    // Supports both HashRouter (Capacitor/Electron) and BrowserRouter (Web)
+    const isAtRoot = window.location.hash
+      ? window.location.hash === '#/' || window.location.hash === ''
+      : window.location.pathname === '/';
+    if (!isAtRoot && navigate) {
       navigate(-1);
     } else {
       CapApp.minimizeApp();

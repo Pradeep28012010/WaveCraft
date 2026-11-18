@@ -349,7 +349,7 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
       ? clientIp
       : '103.212.156.1';
 
-  const queryPromises = candidateQueries.map(async (q) => {
+  const queryPromises = topQueries.map(async (q) => {
     try {
       const saavnUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
       const res = await fetchWithTimeout(
@@ -421,8 +421,12 @@ export async function resolveYouTubeAudioStream(videoId) {
         );
         if (audioFormats.length > 0) {
           audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+          const rawUrl = audioFormats[0].url;
+          const audioUrl = rawUrl.includes('googlevideo.com')
+            ? `/api/music?action=proxy-stream&url=${encodeURIComponent(rawUrl)}`
+            : rawUrl;
           return {
-            audioUrl: audioFormats[0].url,
+            audioUrl,
             quality: `${Math.round((audioFormats[0].bitrate || 128000) / 1000)}kbps YouTube Studio`,
             title: data.title || '',
             artist: data.author || ''
@@ -461,8 +465,12 @@ export async function resolveYouTubeAudioStream(videoId) {
       );
       if (audioFormats.length > 0) {
         audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+        const rawUrl = audioFormats[0].url;
+        const audioUrl = rawUrl.includes('googlevideo.com')
+          ? `/api/music?action=proxy-stream&url=${encodeURIComponent(rawUrl)}`
+          : rawUrl;
         return {
-          audioUrl: audioFormats[0].url,
+          audioUrl,
           quality: `${Math.round((audioFormats[0].bitrate || 128000) / 1000)}kbps Audio`,
           title: data.videoDetails?.title || '',
           artist: data.videoDetails?.author || ''

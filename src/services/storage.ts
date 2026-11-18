@@ -39,27 +39,49 @@ function scheduleIdbWrite<T>(key: string, value: T, delayMs = 60): Promise<void>
   });
 }
 
+function flushPendingSynchronously(): void {
+  pendingTimers.forEach((timer) => clearTimeout(timer));
+  pendingTimers.clear();
+  pendingValues.forEach((val, k) => {
+    try {
+      set(k, val);
+    } catch {}
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(k, JSON.stringify(val));
+      }
+    } catch {}
+  });
+  pendingValues.clear();
+}
+
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    pendingTimers.forEach((timer) => clearTimeout(timer));
-    pendingTimers.clear();
-    pendingValues.forEach((val, k) => {
-      try {
-        set(k, val);
-      } catch {}
-    });
-    pendingValues.clear();
+  window.addEventListener('beforeunload', flushPendingSynchronously);
+  window.addEventListener('pagehide', flushPendingSynchronously);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushPendingSynchronously();
+    }
   });
 }
 
 export async function loadLikedSongs(): Promise<Track[]> {
   try {
     const data = await get(KEYS.LIKED_SONGS);
-    return Array.isArray(data) ? data : [];
+    if (Array.isArray(data) && data.length > 0) return data;
   } catch (error) {
-    console.error('Error loading liked songs:', error);
-    return [];
+    console.error('Error loading liked songs from IDB:', error);
   }
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const fallback = window.localStorage.getItem(KEYS.LIKED_SONGS);
+      if (fallback) {
+        const parsed = JSON.parse(fallback);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    }
+  } catch {}
+  return [];
 }
 
 export async function saveLikedSongs(tracks: Track[]): Promise<void> {
@@ -69,11 +91,20 @@ export async function saveLikedSongs(tracks: Track[]): Promise<void> {
 export async function loadPlaylists(): Promise<Playlist[]> {
   try {
     const data = await get(KEYS.PLAYLISTS);
-    return Array.isArray(data) ? data : [];
+    if (Array.isArray(data) && data.length > 0) return data;
   } catch (error) {
-    console.error('Error loading playlists:', error);
-    return [];
+    console.error('Error loading playlists from IDB:', error);
   }
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const fallback = window.localStorage.getItem(KEYS.PLAYLISTS);
+      if (fallback) {
+        const parsed = JSON.parse(fallback);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    }
+  } catch {}
+  return [];
 }
 
 export async function savePlaylists(playlists: Playlist[]): Promise<void> {

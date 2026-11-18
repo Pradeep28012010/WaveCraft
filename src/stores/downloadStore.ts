@@ -42,7 +42,7 @@ interface DownloadStore {
 
 // Internal cancellation and pause tokens
 let cancelRequested = false;
-let pausePromiseResolve: (() => void) | null = null;
+const pauseResolvers = new Set<() => void>();
 
 export const useDownloadStore = create<DownloadStore>((set, get) => ({
   activeJob: null,
@@ -61,7 +61,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     }
 
     cancelRequested = false;
-    pausePromiseResolve = null;
+    pauseResolvers.clear();
 
     const alreadyOfflineCount = tracks.filter((t) => isTrackOffline(t.id)).length;
     const missingTracks = tracks.filter((t) => !isTrackOffline(t.id));
@@ -105,7 +105,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         // Handle pause
         if (get().activeJob?.isPaused) {
           await new Promise<void>((resolve) => {
-            pausePromiseResolve = resolve;
+            pauseResolvers.add(resolve);
           });
         }
         if (cancelRequested) break;
@@ -161,7 +161,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
     set((s) => {
       if (!s.activeJob || s.activeJob.id !== id) return s;
-      const finalCompleted = isCancelled ? completed : s.activeJob.total;
+      const finalCompleted = completed;
       const finishedJob: DownloadBatchJob = {
         ...s.activeJob,
         isDownloading: false,
@@ -200,19 +200,15 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         activeJob: { ...s.activeJob, isPaused: false }
       };
     });
-    if (pausePromiseResolve) {
-      pausePromiseResolve();
-      pausePromiseResolve = null;
-    }
+    pauseResolvers.forEach((res) => res());
+    pauseResolvers.clear();
     triggerAndroidHaptic('light');
   },
 
   cancelBatchDownload: () => {
     cancelRequested = true;
-    if (pausePromiseResolve) {
-      pausePromiseResolve();
-      pausePromiseResolve = null;
-    }
+    pauseResolvers.forEach((res) => res());
+    pauseResolvers.clear();
     set((s) => {
       if (!s.activeJob) return s;
       return {

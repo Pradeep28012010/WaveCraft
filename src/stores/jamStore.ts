@@ -895,6 +895,12 @@ export const useJamStore = create<JamStore>((set, get) => {
         } catch {}
         sseSource = null;
       }
+      if (bc) {
+        try {
+          bc.close();
+        } catch {}
+        bc = null;
+      }
       jamWebRtc.cleanup();
       jamSyncEngine.stopPLL();
 

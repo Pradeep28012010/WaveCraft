@@ -8,24 +8,21 @@ import musicApiHandler from './api/music.js';
 function wavecraftApiPlugin() {
   const middleware = async (req: Connect.IncomingMessage, res: Connect.ServerResponse, next: Connect.NextFunction) => {
     if (req.url && req.url.startsWith('/api/music')) {
-      const wrappedRes = {
-        statusCode: 200,
-        setHeader: (k: string, v: string) => res.setHeader(k, v),
+      const wrappedRes = Object.assign(res, {
         status(code: number) {
-          this.statusCode = code;
           res.statusCode = code;
           return this;
         },
         json(data: unknown) {
-          res.setHeader('Content-Type', 'application/json');
+          if (!res.headersSent) res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify(data));
           return this;
         },
-        end(body?: unknown) {
-          res.end(body as string | Buffer | undefined);
+        send(data: unknown) {
+          res.end(data as string | Buffer | undefined);
           return this;
         }
-      };
+      });
       try {
         await musicApiHandler(req, wrappedRes);
       } catch (e) {

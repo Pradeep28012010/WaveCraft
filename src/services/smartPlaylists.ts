@@ -15,16 +15,21 @@ export interface SmartPlaylistDef extends Playlist {
 }
 
 export function computeSmartPlaylists(
-  likedSongs: Track[],
-  recentlyPlayed: { track: Track; playedAt: number }[],
-  playHistory: { trackId: string; title?: string; artist?: string; playedAt: number; duration: number }[],
-  userPlaylists: Playlist[]
+  likedSongs: Track[] = [],
+  recentlyPlayed: { track: Track; playedAt: number }[] = [],
+  playHistory: { trackId: string; title?: string; artist?: string; playedAt: number; duration: number }[] = [],
+  userPlaylists: Playlist[] = []
 ): SmartPlaylistDef[] {
+  const safeLiked = Array.isArray(likedSongs) ? likedSongs : [];
+  const safeRecent = Array.isArray(recentlyPlayed) ? recentlyPlayed : [];
+  const safeHistory = Array.isArray(playHistory) ? playHistory : [];
+  const safePlaylists = Array.isArray(userPlaylists) ? userPlaylists : [];
+
   // Build a track lookup dictionary from all available user libraries
   const trackMap = new Map<string, Track>();
-  likedSongs.forEach((t) => t?.id && trackMap.set(t.id, t));
-  recentlyPlayed.forEach((r) => r.track?.id && trackMap.set(r.track.id, r.track));
-  userPlaylists.forEach((p) => p.tracks?.forEach((t) => t?.id && trackMap.set(t.id, t)));
+  safeLiked.forEach((t) => t?.id && trackMap.set(t.id, t));
+  safeRecent.forEach((r) => r?.track?.id && trackMap.set(r.track.id, r.track));
+  safePlaylists.forEach((p) => p?.tracks?.forEach((t) => t?.id && trackMap.set(t.id, t)));
 
   const now = Date.now();
   const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
@@ -36,8 +41,8 @@ export function computeSmartPlaylists(
   const lastPlayedMap = new Map<string, number>();
   const lateNightIds = new Set<string>();
 
-  playHistory.forEach((item) => {
-    if (!item.trackId) return;
+  safeHistory.forEach((item) => {
+    if (!item?.trackId) return;
     playCounts.set(item.trackId, (playCounts.get(item.trackId) || 0) + 1);
     
     if (item.playedAt >= sevenDaysAgo) {
@@ -132,7 +137,7 @@ export function computeSmartPlaylists(
   const chillTracks = Array.from(trackMap.values())
     .filter((t) => {
       if (lateNightIds.has(t.id)) return true;
-      const combined = `${t.title} ${t.artist} ${t.album || ''}`.toLowerCase();
+      const combined = `${t.title || ''} ${t.artist || ''} ${t.album || ''}`.toLowerCase();
       return chillKeywords.some((kw) => combined.includes(kw));
     })
     .slice(0, 20);

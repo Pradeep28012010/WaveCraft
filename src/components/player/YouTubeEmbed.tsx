@@ -882,6 +882,19 @@ export default function YouTubeEmbed() {
     audio.loop = false;
     audio.preload = 'auto';
     const fullAudioUrl = targetUrl.startsWith('/') ? apiUrl(targetUrl) : targetUrl;
+    const isSameOriginOrProxied =
+      fullAudioUrl.startsWith('blob:') ||
+      fullAudioUrl.startsWith('data:') ||
+      fullAudioUrl.startsWith('/') ||
+      fullAudioUrl.includes('/api/music') ||
+      (typeof window !== 'undefined' && fullAudioUrl.startsWith(window.location.origin));
+
+    if (isSameOriginOrProxied) {
+      audio.crossOrigin = 'anonymous';
+    } else {
+      audio.removeAttribute('crossorigin');
+    }
+
     if (audio.src !== fullAudioUrl) {
       audio.src = fullAudioUrl;
       audio.load();
@@ -1902,7 +1915,6 @@ export default function YouTubeEmbed() {
         ref={audioRef}
         playsInline
         preload="auto"
-        crossOrigin="anonymous"
       />
       <audio
         ref={audioAnchorRef}

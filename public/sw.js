@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wavecraft-shell-v7.9-v5.2.6';
+const CACHE_NAME = 'wavecraft-shell-v8.0-v5.3.3';
 const SHELL_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -42,7 +42,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests: always fetch fresh from network with no-cache, fallback to cache only when offline
+  // Navigation requests: fetch fresh with no-cache, fallback to cached index.html when offline
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request, { cache: 'no-cache' })
@@ -53,23 +53,33 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(async () => {
+          const match = await caches.match('/index.html');
+          return (
+            match ||
+            new Response('Offline - WaveCraft is disconnected', {
+              status: 503,
+              headers: { 'Content-Type': 'text/plain' }
+            })
+          );
+        })
     );
     return;
   }
 
-  // Hashed Vite build assets: network first to guarantee latest code chunks
+  // Hashed Vite build assets: cache-first with network fallback (instant loading & robust offline resilience)
   if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }
           return response;
-        })
-        .catch(() => caches.match(request))
+        });
+      })
     );
     return;
   }

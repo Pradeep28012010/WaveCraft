@@ -48,10 +48,12 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
     };
   }, []);
 
-  const activeDuration = duration || fallbackDuration || 210;
-  const playbackRatio = Math.min(1, Math.max(0, currentTime / activeDuration));
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : Number.isFinite(fallbackDuration) && fallbackDuration > 0 ? fallbackDuration : 210;
+  const safeCurrentTime = Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0;
+  const activeDuration = safeDuration;
+  const playbackRatio = Math.min(1, Math.max(0, safeCurrentTime / activeDuration));
   const activeRatio = isDragging ? dragRatio : playbackRatio;
-  const activeDisplayTime = isDragging ? dragRatio * activeDuration : currentTime;
+  const activeDisplayTime = isDragging ? dragRatio * activeDuration : safeCurrentTime;
 
   const calculateRatioAndOffset = (clientX: number) => {
     if (!trackRef.current) return { ratio: 0, offset: 0 };
@@ -98,7 +100,9 @@ const MiniPlayerScrubber = memo(({ fallbackDuration }: { fallbackDuration: numbe
       const rect = trackRef.current.getBoundingClientRect();
       const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
       setHoverX(x);
-      setHoverTime((x / rect.width) * activeDuration);
+      if (rect.width > 0) {
+        setHoverTime((x / rect.width) * activeDuration);
+      }
     }
   };
 
@@ -801,14 +805,14 @@ export default function MiniPlayer() {
                 className="flex-1 h-6 -my-2 flex items-center cursor-pointer relative group touch-none select-none"
                 role="slider"
                 aria-label="Volume"
-                aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
+                aria-valuenow={Math.round((isMuted ? 0 : Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1) * 100)}
                 aria-valuemin={0}
                 aria-valuemax={100}
               >
                 <div className="w-full h-1.5 bg-white/20 group-hover:h-2 rounded-full overflow-hidden transition-all duration-150 relative border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]">
                   <div
                     className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full group-hover:from-[var(--color-accent)] group-hover:to-rose-500 transition-all shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                    style={{ width: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
+                    style={{ width: `${(((isMuted ? 0 : Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1) * 100)).toFixed(1)}%` }}
                   />
                 </div>
                 {/* Elevated subtle thumb on hover/drag */}
@@ -816,7 +820,7 @@ export default function MiniPlayer() {
                   className={`absolute w-3 h-3 rounded-full bg-white shadow-md top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none transition-transform duration-100 ${
                     isVolumeDragging ? 'scale-125 opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
-                  style={{ left: `${((isMuted ? 0 : volume) * 100).toFixed(1)}%` }}
+                  style={{ left: `${(((isMuted ? 0 : Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1) * 100)).toFixed(1)}%` }}
                 />
               </div>
             </div>

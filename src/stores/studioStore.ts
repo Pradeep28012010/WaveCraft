@@ -252,6 +252,10 @@ function flushStudioPrefs(): void {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', flushStudioPrefs);
+  window.addEventListener('pagehide', flushStudioPrefs);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushStudioPrefs();
+  });
 }
 
 function saveStudioPrefsSync(state: StudioState): void {
