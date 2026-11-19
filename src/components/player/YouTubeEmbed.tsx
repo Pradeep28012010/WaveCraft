@@ -46,8 +46,37 @@ import type { Track, YTPlayerEvent } from '../../types';
 // Re-export audio engine controls so existing consumers continue to work seamlessly
 export { getAudioFrequencyData, getPlayer, unlockAudioEngine, seekToTime };
 
-const SILENT_AUDIO_URI =
-  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+let cachedSilentAudioUrl: string | null = null;
+function getSilentAudioUrl(): string {
+  if (cachedSilentAudioUrl) return cachedSilentAudioUrl;
+  if (typeof window === 'undefined') return '';
+  try {
+    const sampleRate = 44100;
+    const numFrames = sampleRate; // 1.0 second of genuine audio frames to prevent mobile OS idling
+    const buffer = new ArrayBuffer(44 + numFrames * 2);
+    const view = new DataView(buffer);
+
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    view.setUint32(4, 36 + numFrames * 2, true);
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM format
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    view.setUint32(36, 0x64617461, false); // "data"
+    view.setUint32(40, numFrames * 2, true);
+
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    cachedSilentAudioUrl = URL.createObjectURL(blob);
+    return cachedSilentAudioUrl;
+  } catch {
+    return 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+  }
+}
 
 export default function YouTubeEmbed() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,6 +106,7 @@ export default function YouTubeEmbed() {
   const autoResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoCachedTracksRef = useRef<Set<string>>(new Set());
   const shortDurationRetriedRef = useRef<Set<string>>(new Set());
+  const eagerPreloadedNextTrackIdRef = useRef<string | null>(null);
   const searchAndPlayYouTubeRef = useRef<((track: Track, shouldPlay: boolean) => void) | null>(null);
   const fallbackToYouTubeRef = useRef<((track: Track, ytId: string, shouldPlay: boolean) => void) | null>(null);
 
@@ -122,7 +152,7 @@ export default function YouTubeEmbed() {
       unlockAudioEngine();
       if (audioAnchorRef.current) {
         audioAnchorRef.current.volume = 0.001;
-        audioAnchorRef.current.src = SILENT_AUDIO_URI;
+        audioAnchorRef.current.src = getSilentAudioUrl();
         audioAnchorRef.current
           .play()
           .then(() => {
@@ -304,6 +334,27 @@ export default function YouTubeEmbed() {
         }
       }
 
+      // Eager lookahead for upcoming track in background / zero-gap queue transition
+      if (dur > 10 && cur >= dur * 0.65) {
+        const { queue: q, queueIndex: qIdx } = usePlayerStore.getState();
+        const nextSong = q[qIdx + 1];
+        if (nextSong && !nextSong.audioUrl && eagerPreloadedNextTrackIdRef.current !== nextSong.id) {
+          eagerPreloadedNextTrackIdRef.current = nextSong.id;
+          const effNextYt = nextSong.youtubeId || (nextSong.id.startsWith('yt_') ? nextSong.id.replace('yt_', '') : '');
+          resolveDirectAudio(nextSong.title, nextSong.artist, nextSong.duration, effNextYt)
+            .then((directUrl) => {
+              if (isPlayableAudioStreamUrl(directUrl)) {
+                nextSong.audioUrl = directUrl;
+                nextSong.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                usePlayerStore.setState((s) => ({
+                  queue: s.queue.map((t) => (t.id === nextSong.id ? { ...t, audioUrl: directUrl, quality: nextSong.quality } : t))
+                }));
+              }
+            })
+            .catch(() => {});
+        }
+      }
+
       // Smooth audio crossfading transition near track completion
       const activeCrossfade = crossfadeDurationRef.current;
       const isRepeatOne = usePlayerStore.getState().repeatMode === 'one';
@@ -461,7 +512,27 @@ export default function YouTubeEmbed() {
         (cur?.id.startsWith('yt_') ? cur.id.replace('yt_', '') : '') ||
         (cur?.id.startsWith('yt-') ? cur.id.replace('yt-', '') : '');
       const ytPlayer = getPlayer();
+      const isHidden = typeof document !== 'undefined' && document.hidden;
+
+      // In background tabs/screens, hidden YouTube iframes are strictly blocked by browsers.
+      // Prioritize re-resolving direct audio streams so audio stays in native <audio>!
+      if (isHidden && cur && retryAttemptRef.current < 2) {
+        retryAttemptRef.current++;
+        resolveDirectAudio(cur.title, cur.artist, cur.duration, effectiveYtId)
+          .then((freshUrl) => {
+            if (freshUrl && isPlayableAudioStreamUrl(freshUrl)) {
+              cur.audioUrl = freshUrl;
+              playNativeAudio(freshUrl, usePlayerStore.getState().isPlaying, audio.currentTime || 0);
+            } else {
+              skipFailedTrack(cur.id);
+            }
+          })
+          .catch(() => skipFailedTrack(cur.id));
+        return;
+      }
+
       if (
+        !isHidden &&
         effectiveYtId &&
         ytPlayer &&
         (typeof navigator === 'undefined' || navigator.onLine)
@@ -708,6 +779,35 @@ export default function YouTubeEmbed() {
                 return;
               }
 
+              // Background Tab Protection & Hot-Swap to Native Audio:
+              // Mobile and desktop browsers pause background iframes automatically.
+              // If the tab is hidden or unintended pauses occur, DO NOT stop playback!
+              // Hot-swap immediately to native HTML5 <audio> so audio continues playing seamlessly!
+              const isHidden = typeof document !== 'undefined' && document.hidden;
+              const curTrack = usePlayerStore.getState().currentTrack;
+              if (curTrack && !userInitiatedPauseRef.current && usePlayerStore.getState().isPlaying) {
+                const curTime = e.target.getCurrentTime?.() || 0;
+                const effectiveId =
+                  activeLoadedYtIdRef.current ||
+                  curTrack.youtubeId ||
+                  (curTrack.id.startsWith('yt_') ? curTrack.id.replace('yt_', '') : '');
+
+                if (curTrack.audioUrl && isPlayableAudioStreamUrl(curTrack.audioUrl)) {
+                  playNativeAudio(curTrack.audioUrl, true, curTime);
+                  return;
+                } else if (isHidden || unintendedPauseCountRef.current >= 2) {
+                  resolveDirectAudio(curTrack.title, curTrack.artist, curTrack.duration, effectiveId)
+                    .then((bgUrl) => {
+                      if (isPlayableAudioStreamUrl(bgUrl) && !userInitiatedPauseRef.current && usePlayerStore.getState().isPlaying) {
+                        curTrack.audioUrl = bgUrl;
+                        playNativeAudio(bgUrl, true, curTime);
+                      }
+                    })
+                    .catch(() => {});
+                  if (isHidden) return;
+                }
+              }
+
               // Guard against synchronous postMessage ping-pong recursion storms:
               // If YouTube repeatedly rejects play commands in an unplayable state,
               // prevent tight synchronous looping that starves the browser JS event loop!
@@ -718,14 +818,15 @@ export default function YouTubeEmbed() {
               lastUnintendedPauseTimeRef.current = now;
               unintendedPauseCountRef.current++;
 
-              if (unintendedPauseCountRef.current > 3) {
-                console.warn('[WaveCraft] Halting unintended YouTube pause loop to protect thread responsiveness.');
+              if (unintendedPauseCountRef.current > 4) {
                 unintendedPauseCountRef.current = 0;
                 if (autoResumeTimerRef.current) {
                   clearTimeout(autoResumeTimerRef.current);
                   autoResumeTimerRef.current = null;
                 }
-                usePlayerStore.setState({ isPlaying: false, isLoading: false });
+                if (!document.hidden && userInitiatedPauseRef.current) {
+                  usePlayerStore.setState({ isPlaying: false, isLoading: false });
+                }
                 return;
               }
 
@@ -1122,6 +1223,7 @@ export default function YouTubeEmbed() {
       if (nextSong && !isTrackOffline(nextSong.id)) {
         precacheTrack(nextSong);
       }
+      eagerPreloadedNextTrackIdRef.current = null;
     }
 
     // 0. Instant playback for local imported files (MP3/FLAC/WAV/M4A)
@@ -1242,10 +1344,34 @@ export default function YouTubeEmbed() {
           return;
         }
 
+        // If app/tab is currently in background (document.hidden):
+        // Browsers block hidden YouTube iframes from auto-starting new videos.
+        // Await direct audio stream resolution so it begins immediately on native HTML5 <audio>!
+        if (typeof document !== 'undefined' && document.hidden) {
+          resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
+            .then((directUrl) => {
+              if (resolveToken !== resolvingTokenRef.current) return;
+              if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+              if (isPlayableAudioStreamUrl(directUrl) && audio) {
+                track.audioUrl = directUrl;
+                track.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                usePlayerStore.setState((s) => ({
+                  currentTrack: s.currentTrack?.id === track.id ? { ...s.currentTrack, audioUrl: directUrl, quality: track.quality } : s.currentTrack,
+                  queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directUrl, quality: track.quality } : t))
+                }));
+                playNativeAudio(directUrl, shouldPlay);
+              } else {
+                fallbackToYouTube(track, effectiveYtId, shouldPlay);
+              }
+            })
+            .catch(() => fallbackToYouTube(track, effectiveYtId, shouldPlay));
+          return;
+        }
+
         // Direct audio not cached: Immediately start YouTube playback with ZERO delay!
         fallbackToYouTube(track, effectiveYtId, shouldPlay);
 
-        // Concurrently resolve 320kbps direct stream in background for offline vault & future replay
+        // Concurrently resolve 320kbps direct stream in background for seamless audio upgrade
         resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
           .then((bgUrl) => {
             if (resolveToken !== resolvingTokenRef.current) return;
@@ -1260,6 +1386,14 @@ export default function YouTubeEmbed() {
                     : s.currentTrack,
                 queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
               }));
+
+              const yt = getPlayer();
+              const isHiddenNow = typeof document !== 'undefined' && document.hidden;
+              const isStillPlaying = usePlayerStore.getState().isPlaying;
+              if (isStillPlaying && (isHiddenNow || getActiveEngine() === 'youtube')) {
+                const curTime = (yt && typeof yt.getCurrentTime === 'function' ? yt.getCurrentTime() : 0) || 0;
+                playNativeAudio(bgUrl, true, curTime);
+              }
             }
           })
           .catch(() => {});
@@ -1268,8 +1402,9 @@ export default function YouTubeEmbed() {
       }
 
       // External imported track without YouTube ID: quick 750ms race for direct audio, else instant YouTube query
+      const isHiddenMode = typeof document !== 'undefined' && document.hidden;
       const directAudioPromise = resolveDirectAudio(track.title, track.artist, track.duration);
-      const fastRaceTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 750));
+      const fastRaceTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), isHiddenMode ? 2500 : 750));
 
       Promise.race([directAudioPromise, fastRaceTimeout])
         .then((directAudioUrl) => {
@@ -1386,10 +1521,32 @@ export default function YouTubeEmbed() {
             )
           }));
 
-          // Start YouTube playback immediately with ZERO delay
+          const isHidden = typeof document !== 'undefined' && document.hidden;
+          if (isHidden) {
+            resolveDirectAudio(track.title, track.artist, track.duration, ytid)
+              .then((bgUrl) => {
+                if (token !== resolvingTokenRef.current) return;
+                if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+                if (isPlayableAudioStreamUrl(bgUrl)) {
+                  track.audioUrl = bgUrl;
+                  track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                  usePlayerStore.setState((s) => ({
+                    currentTrack: s.currentTrack?.id === track.id ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality } : s.currentTrack,
+                    queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
+                  }));
+                  playNativeAudio(bgUrl, shouldPlay);
+                } else {
+                  fallbackToYouTube(track, ytid, shouldPlay);
+                }
+              })
+              .catch(() => fallbackToYouTube(track, ytid, shouldPlay));
+            return;
+          }
+
+          // Foreground: Start YouTube playback immediately with ZERO delay
           fallbackToYouTube(track, ytid, shouldPlay);
 
-          // Concurrently resolve direct audio stream in background for offline vault & future replay
+          // Concurrently resolve direct audio stream in background for audio promotion & offline vault
           resolveDirectAudio(track.title, track.artist, track.duration, ytid)
             .then((bgUrl) => {
               if (token !== resolvingTokenRef.current) return;
@@ -1405,10 +1562,16 @@ export default function YouTubeEmbed() {
                     : s.currentTrack,
                 queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
               }));
+
+              const yt = getPlayer();
+              const isHiddenNow = typeof document !== 'undefined' && document.hidden;
+              const isStillPlaying = usePlayerStore.getState().isPlaying;
+              if (isStillPlaying && (isHiddenNow || getActiveEngine() === 'youtube')) {
+                const curTime = (yt && typeof yt.getCurrentTime === 'function' ? yt.getCurrentTime() : 0) || 0;
+                playNativeAudio(bgUrl, true, curTime);
+              }
             })
             .catch(() => {});
-
-          return;
 
           return;
         } else {
@@ -1683,8 +1846,8 @@ export default function YouTubeEmbed() {
     if (isPlaying && currentTrack && getActiveEngine() === 'youtube') {
       anchor.volume = 0.001;
       anchor.loop = true;
-      if (!anchor.src || !anchor.src.startsWith('data:audio/wav')) {
-        anchor.src = SILENT_AUDIO_URI;
+      if (!anchor.src || (!anchor.src.startsWith('blob:') && !anchor.src.startsWith('data:audio/wav'))) {
+        anchor.src = getSilentAudioUrl();
       }
       if (anchor.paused) {
         anchor.play().catch(() => {});
@@ -1709,6 +1872,34 @@ export default function YouTubeEmbed() {
             audio.play().catch(() => {});
           }
         } else if (engine === 'youtube') {
+          const isHidden = typeof document !== 'undefined' && document.hidden;
+          const curTrack = usePlayerStore.getState().currentTrack;
+          // When app/tab is backgrounded, mobile & desktop browsers throttle YouTube iframes.
+          // Immediately hot-swap to native audio stream to guarantee 100% uninterrupted playback!
+          if (isHidden && curTrack) {
+            const ytPlayer = getPlayer();
+            const curTime = (ytPlayer && typeof ytPlayer.getCurrentTime === 'function' ? ytPlayer.getCurrentTime() : 0) || 0;
+            if (curTrack.audioUrl && isPlayableAudioStreamUrl(curTrack.audioUrl)) {
+              playNativeAudio(curTrack.audioUrl, true, curTime);
+              return;
+            } else {
+              const effectiveId =
+                activeLoadedYtIdRef.current ||
+                curTrack.youtubeId ||
+                (curTrack.id.startsWith('yt_') ? curTrack.id.replace('yt_', '') : '');
+              resolveDirectAudio(curTrack.title, curTrack.artist, curTrack.duration, effectiveId)
+                .then((bgUrl) => {
+                  if (isPlayableAudioStreamUrl(bgUrl) && !userInitiatedPauseRef.current && usePlayerStore.getState().isPlaying) {
+                    curTrack.audioUrl = bgUrl;
+                    const yt2 = getPlayer();
+                    const curTime2 = (yt2 && typeof yt2.getCurrentTime === 'function' ? yt2.getCurrentTime() : 0) || 0;
+                    playNativeAudio(bgUrl, true, curTime2);
+                  }
+                })
+                .catch(() => {});
+            }
+          }
+
           const ytPlayer = getPlayer();
           if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
             const s = ytPlayer.getPlayerState();
@@ -1836,6 +2027,27 @@ export default function YouTubeEmbed() {
             setDuration(duration);
           }
 
+          // Eager lookahead for upcoming track in background / zero-gap queue transition
+          if (duration > 10 && current >= duration * 0.65) {
+            const { queue: q, queueIndex: qIdx } = usePlayerStore.getState();
+            const nextSong = q[qIdx + 1];
+            if (nextSong && !nextSong.audioUrl && eagerPreloadedNextTrackIdRef.current !== nextSong.id) {
+              eagerPreloadedNextTrackIdRef.current = nextSong.id;
+              const effNextYt = nextSong.youtubeId || (nextSong.id.startsWith('yt_') ? nextSong.id.replace('yt_', '') : '');
+              resolveDirectAudio(nextSong.title, nextSong.artist, nextSong.duration, effNextYt)
+                .then((directUrl) => {
+                  if (isPlayableAudioStreamUrl(directUrl)) {
+                    nextSong.audioUrl = directUrl;
+                    nextSong.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+                    usePlayerStore.setState((s) => ({
+                      queue: s.queue.map((t) => (t.id === nextSong.id ? { ...t, audioUrl: directUrl, quality: nextSong.quality } : t))
+                    }));
+                  }
+                })
+                .catch(() => {});
+            }
+          }
+
           // Smooth Audio Crossfading when approaching end of track
           const fadeSec = crossfadeDuration;
           const isRepeatOne = usePlayerStore.getState().repeatMode === 'one';
@@ -1879,15 +2091,42 @@ export default function YouTubeEmbed() {
           trackLoadStartTimeRef.current > 0 &&
           Date.now() - trackLoadStartTimeRef.current > 2400;
 
-        if (
-          (isStalledBuffering || isStalledLoad) &&
-          typeof document !== 'undefined' &&
-          !document.hidden
-        ) {
+        const isHidden = typeof document !== 'undefined' && document.hidden;
+
+        if (isStalledBuffering || isStalledLoad) {
           const stallMs = Math.max(
             isStalledBuffering ? Date.now() - bufferingStartTimeRef.current : 0,
             isStalledLoad ? Date.now() - trackLoadStartTimeRef.current : 0
           );
+
+          // Background Tab Protection:
+          // In background tabs / locked screens, iframes cannot decode video and stall easily.
+          // Transfer immediately to native HTML5 <audio> with high-quality direct stream!
+          if (isHidden && stallMs >= 1500) {
+            bufferingStartTimeRef.current = 0;
+            trackLoadStartTimeRef.current = 0;
+            const curTrack = usePlayerStore.getState().currentTrack;
+            if (curTrack) {
+              const curTime = ytPlayer.getCurrentTime?.() || 0;
+              const effectiveId =
+                activeLoadedYtIdRef.current ||
+                curTrack.youtubeId ||
+                (curTrack.id.startsWith('yt_') ? curTrack.id.replace('yt_', '') : '');
+
+              if (curTrack.audioUrl && isPlayableAudioStreamUrl(curTrack.audioUrl)) {
+                playNativeAudio(curTrack.audioUrl, true, curTime);
+              } else {
+                resolveDirectAudio(curTrack.title, curTrack.artist, curTrack.duration, effectiveId)
+                  .then((bgUrl) => {
+                    if (isPlayableAudioStreamUrl(bgUrl) && !userInitiatedPauseRef.current && usePlayerStore.getState().isPlaying) {
+                      curTrack.audioUrl = bgUrl;
+                      playNativeAudio(bgUrl, true, curTime);
+                    }
+                  })
+                  .catch(() => {});
+              }
+            }
+          } else if (!isHidden) {
 
           // Tier 1 (after 2.4s): Force un-mute, nudge playVideo, or force load if cued/unstarted
           if (stallMs >= 2400 && stallMs < 5000) {
@@ -1952,7 +2191,8 @@ export default function YouTubeEmbed() {
           }
         }
       }
-    }, 250);
+    }
+  }, 250);
 
     return () => {
       clearInterval(interval);
