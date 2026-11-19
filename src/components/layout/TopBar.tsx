@@ -76,6 +76,8 @@ export default function TopBar() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const { history, saveSearchTerm, clearSearchHistory, removeSearchTerm } = useSearchHistory();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRouteDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionAbortRef = useRef<AbortController | null>(null);
   const searchRequestIdRef = useRef(0);
   const lastPushedQueryRef = useRef<string>(urlQuery);
   const isFocusedRef = useRef<boolean>(false);
@@ -193,6 +195,10 @@ export default function TopBar() {
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
+      if (searchRouteDebounceTimer.current) {
+        clearTimeout(searchRouteDebounceTimer.current);
+      }
+      suggestionAbortRef.current?.abort();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -337,37 +343,55 @@ export default function TopBar() {
 
     const reqId = ++searchRequestIdRef.current;
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
+    suggestionAbortRef.current?.abort();
 
     const trimmed = val.trim();
     if (!trimmed) {
       setSuggestions([]);
       setShowSuggestions(false);
       lastPushedQueryRef.current = '';
-      navigate('/search', { replace: true });
+      if (location.pathname.startsWith('/search')) {
+        navigate('/search', { replace: true });
+      }
       return;
     }
 
+    // 1. Fetch autocomplete suggestions with fast debounce (180ms) and cancellation
     debounceTimer.current = setTimeout(async () => {
       if (reqId !== searchRequestIdRef.current) return;
-      lastPushedQueryRef.current = trimmed;
-      navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
+      const ac = new AbortController();
+      suggestionAbortRef.current = ac;
       try {
-        const sugs = await searchSuggestions(trimmed);
-        if (reqId === searchRequestIdRef.current && isFocusedRef.current) {
-          setSuggestions(sugs.slice(0, 5));
-          setShowSuggestions(true);
+        const sugs = await searchSuggestions(trimmed, ac.signal);
+        if (reqId === searchRequestIdRef.current && isFocusedRef.current && !ac.signal.aborted) {
+          setSuggestions(sugs.slice(0, 6));
+          setShowSuggestions(sugs.length > 0);
         }
       } catch {
         if (reqId === searchRequestIdRef.current) {
           setSuggestions([]);
         }
       }
-    }, 280);
+    }, 180);
+
+    // 2. Only if already on the /search page, sync search results after typing pauses (550ms idle)
+    if (location.pathname.startsWith('/search')) {
+      searchRouteDebounceTimer.current = setTimeout(() => {
+        if (reqId !== searchRequestIdRef.current) return;
+        if (lastPushedQueryRef.current !== trimmed) {
+          lastPushedQueryRef.current = trimmed;
+          navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
+        }
+      }, 550);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
+      suggestionAbortRef.current?.abort();
       setShowSuggestions(false);
       const trimmed = searchQuery.trim();
       lastPushedQueryRef.current = trimmed;
@@ -385,11 +409,15 @@ export default function TopBar() {
   const handleClear = () => {
     searchRequestIdRef.current++;
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
+    suggestionAbortRef.current?.abort();
     lastPushedQueryRef.current = '';
     setSearchQuery('');
     setSuggestions([]);
     setShowSuggestions(false);
-    navigate('/search', { replace: true });
+    if (location.pathname.startsWith('/search')) {
+      navigate('/search', { replace: true });
+    }
   };
 
   const getMobileTitle = (path: string) => {
@@ -459,7 +487,6 @@ export default function TopBar() {
                 </div>
                 <input
                   type="text"
-                  autoFocus={!urlQuery}
                   value={searchQuery}
                   onChange={handleSearchChange}
                   onKeyDown={handleKeyDown}
@@ -523,6 +550,9 @@ export default function TopBar() {
                       <button
                         key={i}
                         onMouseDown={() => {
+                          if (debounceTimer.current) clearTimeout(debounceTimer.current);
+                          if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
+                          suggestionAbortRef.current?.abort();
                           const clean = sug.split(' - ')[0];
                           saveSearchTerm(clean);
                           lastPushedQueryRef.current = clean;
@@ -556,6 +586,9 @@ export default function TopBar() {
                         key={term}
                         className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-xs text-white/80 hover:bg-white/10 cursor-pointer"
                         onMouseDown={() => {
+                          if (debounceTimer.current) clearTimeout(debounceTimer.current);
+                          if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
+                          suggestionAbortRef.current?.abort();
                           lastPushedQueryRef.current = term;
                           setSearchQuery(term);
                           navigate(`/search?q=${encodeURIComponent(term)}`);
@@ -816,6 +849,9 @@ export default function TopBar() {
                   <button
                     key={i}
                     onMouseDown={() => {
+                      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+                      if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
+                      suggestionAbortRef.current?.abort();
                       const clean = sug.split(' - ')[0];
                       saveSearchTerm(clean);
                       lastPushedQueryRef.current = clean;
@@ -853,6 +889,9 @@ export default function TopBar() {
                     key={term}
                     className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                     onMouseDown={() => {
+                      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+                      if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
+                      suggestionAbortRef.current?.abort();
                       lastPushedQueryRef.current = term;
                       setSearchQuery(term);
                       navigate(`/search?q=${encodeURIComponent(term)}`);

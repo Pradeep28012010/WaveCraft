@@ -82,6 +82,62 @@ const KNOWN_COMPOSERS_REGEX =
 const STUDIO_LABEL_DISCARD_REGEX =
   /\b(sun\s*pictures|lyca\s*productions|sithara\s*entertainments|mythri\s*movie\s*makers|t-series|sony\s*music|aditya\s*music|zee\s*music|lahari|saregama|think\s*music|tips|yrf|hombale|pen\s*movies|geetha\s*arts|dvo|shree\s*music|times\s*music|vevo|official|channel|records|films|movies)\b/i;
 
+const JUNK_DISCARD_REGEX =
+  /\b(karaoke|minus\s*one|backing\s*track|no\s*vocals?|without\s*vocals?|vocal\s*cut|off\s*vocal|sing\s*along|maa\s*paata\s*mee\s*nota|dance\s*performance|dance\s*cover|choreography|choreographed|duet\s*dance|college\s*dance|stage\s*performance|drama\s*company|reactions?|review|tutorial|lesson|ringtone|whatsapp\s*status|shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i;
+
+const INSTRUMENTAL_REGEX =
+  /\b(instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|without\s*vocals?|off\s*vocal|vocal\s*cut|piano\s*(?:cover|version)|flute\s*(?:cover|version)|guitar\s*(?:cover|version)|violin\s*(?:cover|version)|sax\s*(?:cover|version)|bgm|theme\s*music|theme\s*song|theme\s*track|background\s*score|background\s*music|original\s*score|shehnai|sitar|veena|bansuri)\b/i;
+
+const BGM_REGEX = /\b(bgm|background\s*score|background\s*music|theme\s*music)\b/i;
+
+const JUNK_AUDIO_REGEX =
+  /\b(ringtone|sound\s*effect|sfx|notification|alarm|asmr|status|whatsapp\s*status|short\s*audio)\b/i;
+
+const OFFICIAL_SONG_REGEX =
+  /\b(official\s*(?:video|audio)|full\s*(?:video\s*)?song|lyrical(?:\s*video)?|video\s*song)\b/i;
+
+const TRIBUTE_REGEX = /\b(tribute|cover\s+by|covered\s+by|cover\s+version)\b/i;
+const REMIX_REGEX = /\b(remix|mashup|bootleg)\b/i;
+const LOFI_REGEX = /\b(lofi|lo-fi|slowed|reverb|8d\s*audio|sped\s*up|nightcore|daycore)\b/i;
+
+function combineSignals(signalA?: AbortSignal, signalB?: AbortSignal): AbortSignal | undefined {
+  if (!signalA) return signalB;
+  if (!signalB) return signalA;
+  if (typeof AbortSignal.any === 'function') {
+    return AbortSignal.any([signalA, signalB]);
+  }
+  const controller = new AbortController();
+  const onAbort = () => {
+    controller.abort();
+    signalA.removeEventListener('abort', onAbort);
+    signalB.removeEventListener('abort', onAbort);
+  };
+  if (signalA.aborted || signalB.aborted) {
+    controller.abort();
+    return controller.signal;
+  }
+  signalA.addEventListener('abort', onAbort);
+  signalB.addEventListener('abort', onAbort);
+  return controller.signal;
+}
+
+function deduplicateSuggestions(items: string[], currentQuery: string): string[] {
+  const seen = new Set<string>();
+  const normalizedQuery = currentQuery.trim().toLowerCase();
+  const results: string[] = [];
+
+  for (const raw of items) {
+    if (typeof raw !== 'string') continue;
+    const clean = raw.trim();
+    const lower = clean.toLowerCase();
+    if (!clean || lower === normalizedQuery || seen.has(lower)) continue;
+    seen.add(lower);
+    results.push(clean);
+    if (results.length >= 7) break;
+  }
+  return results;
+}
+
 export function mapYouTubeItemToTrack(v: RawYouTubeTrackItem): Track {
   const rawTitle = decodeHtmlEntities(v.title || 'Unknown Title');
   const channelAuthor = decodeHtmlEntities(v.author || 'WaveCraft Artist')
@@ -369,6 +425,7 @@ export function findStrictTrackMatch(
 }
 
 function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
+  if (!tracks || tracks.length <= 1) return tracks;
   const q = rawQuery.toLowerCase().trim();
   const qTokens = q.split(/\s+/).filter(Boolean);
 
@@ -403,9 +460,14 @@ function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
     if (q.includes(artist) && artist.length > 2) score += 300;
 
     // 6. Token matching: every token matched in title or artist
-    const matchedTokens = qTokens.filter((tok) => cleanTitle.includes(tok) || artist.includes(tok));
-    score += matchedTokens.length * 80;
-    if (matchedTokens.length === qTokens.length) score += 250;
+    let matchedCount = 0;
+    for (let i = 0; i < qTokens.length; i++) {
+      if (cleanTitle.includes(qTokens[i]) || artist.includes(qTokens[i])) {
+        matchedCount++;
+      }
+    }
+    score += matchedCount * 80;
+    if (matchedCount === qTokens.length && qTokens.length > 0) score += 250;
 
     // 7. Sensible track duration (between 1.5 and 7 minutes)
     if (track.duration && track.duration >= 90 && track.duration <= 450) {
@@ -416,29 +478,24 @@ function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
     if (!wantsInstrumental) {
       const isInst =
         Boolean(track.isInstrumental) ||
-        /\b(instrumental|karaoke|backing\s*track|minus\s*one|no\s*vocals?|without\s*vocals?|off\s*vocal|vocal\s*cut|piano\s*(?:cover|version)|flute\s*(?:cover|version)|guitar\s*(?:cover|version)|violin\s*(?:cover|version)|sax\s*(?:cover|version)|bgm|theme\s*music|theme\s*song|theme\s*track|background\s*score|background\s*music|original\s*score|shehnai|sitar|veena|bansuri)\b/i.test(
-          title
-        ) ||
-        /\b(bgm|background\s*score|background\s*music|theme\s*music)\b/i.test(combined);
+        INSTRUMENTAL_REGEX.test(title) ||
+        BGM_REGEX.test(combined);
 
       if (isInst) {
         score -= 1500;
       }
-
-      const JUNK_DISCARD_REGEX =
-        /\b(karaoke|minus\s*one|backing\s*track|no\s*vocals?|without\s*vocals?|vocal\s*cut|off\s*vocal|sing\s*along|maa\s*paata\s*mee\s*nota|dance\s*performance|dance\s*cover|choreography|choreographed|duet\s*dance|college\s*dance|stage\s*performance|drama\s*company|reactions?|review|tutorial|lesson|ringtone|whatsapp\s*status|shorts|sound\s*effect|sfx|status\s*video|tiktok\s*audio)\b/i;
 
       if (JUNK_DISCARD_REGEX.test(title) || JUNK_DISCARD_REGEX.test(artist) || JUNK_DISCARD_REGEX.test(combined)) {
         score -= 2500;
       }
 
       // Boost official releases, lyrical video and full songs
-      if (/\b(official\s*(?:video|audio)|full\s*(?:video\s*)?song|lyrical(?:\s*video)?|video\s*song)\b/i.test(title)) {
+      if (OFFICIAL_SONG_REGEX.test(title)) {
         score += 350;
       }
     }
     if (!wantsCover) {
-      if (/\b(tribute|cover\s+by|covered\s+by|cover\s+version)\b/i.test(title)) {
+      if (TRIBUTE_REGEX.test(title)) {
         score -= 500;
       }
       if (/\bcover\b/i.test(title) && !/\bcover\s*art|discover|uncover/i.test(title)) {
@@ -446,22 +503,18 @@ function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
       }
     }
     if (!wantsRemix) {
-      if (/\b(remix|mashup|bootleg)\b/i.test(title)) {
+      if (REMIX_REGEX.test(title)) {
         score -= 250;
       }
     }
     if (!wantsLofi) {
-      if (/\b(lofi|lo-fi|slowed|reverb|8d\s*audio|sped\s*up|nightcore|daycore)\b/i.test(title)) {
+      if (LOFI_REGEX.test(title)) {
         score -= 400;
       }
     }
 
     // 9. Hard penalty for ringtones, sound effects, ASMR, and junk
-    if (
-      /\b(ringtone|sound\s*effect|sfx|notification|alarm|asmr|status|whatsapp\s*status|short\s*audio)\b/i.test(
-        combined
-      )
-    ) {
+    if (JUNK_AUDIO_REGEX.test(combined)) {
       score -= 1200;
     }
     if (track.duration && track.duration < 60) {
@@ -474,7 +527,10 @@ function rankTracksByRelevance(tracks: Track[], rawQuery: string): Track[] {
     return score;
   };
 
-  return [...tracks].sort((a, b) => getScore(b) - getScore(a));
+  // Pre-calculate score once per track: O(N) scoring instead of O(N log N) during sort
+  const scored = tracks.map((track) => ({ track, score: getScore(track) }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((s) => s.track);
 }
 
 function deduplicateTracks(tracks: Track[]): Track[] {
@@ -491,8 +547,11 @@ function deduplicateTracks(tracks: Track[]): Track[] {
   return result;
 }
 
-async function fetchClientYouTubeSearch(query: string): Promise<Track[]> {
+async function fetchClientYouTubeSearch(query: string, signal?: AbortSignal): Promise<Track[]> {
+  if (signal?.aborted) return [];
   try {
+    const timeoutSignal = AbortSignal.timeout(5000);
+    const combined = combineSignals(signal, timeoutSignal);
     const res = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -507,10 +566,11 @@ async function fetchClientYouTubeSearch(query: string): Promise<Track[]> {
         },
         query: `${query.trim()} song`
       }),
-      signal: AbortSignal.timeout(5000)
+      signal: combined
     });
-    if (!res.ok) return [];
+    if (!res.ok || signal?.aborted) return [];
     const data = await res.json();
+    if (signal?.aborted) return [];
     const sections =
       data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
     const tracks: Track[] = [];
@@ -547,7 +607,8 @@ async function fetchClientYouTubeSearch(query: string): Promise<Track[]> {
   }
 }
 
-export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
+export async function searchTracks(query: string, _page = 1, signal?: AbortSignal): Promise<Track[]> {
+  if (signal?.aborted) return [];
   const cleanKey = query.trim().toLowerCase();
   if (!cleanKey) return [];
 
@@ -562,20 +623,28 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
   const requestPromise = (async () => {
     // 1. Primary backend API call with robust timeout and automatic absolute-URL retry (pure YouTube)
     try {
+      if (signal?.aborted) return [];
       const endpoint = apiUrl(`/api/music?action=search&q=${encodeURIComponent(query.trim())}`);
+      const timeoutSignal = AbortSignal.timeout(6500);
       let res = await fetch(endpoint, {
-        signal: AbortSignal.timeout(6500)
+        signal: combineSignals(signal, timeoutSignal)
       }).catch(() => null);
+
+      if (signal?.aborted) return [];
 
       // On Android / mobile if relative endpoint failed, retry with full PROD_API_ORIGIN
       if (!res?.ok && !endpoint.startsWith('http')) {
+        const retryTimeout = AbortSignal.timeout(5500);
         res = await fetch(`${PROD_API_ORIGIN}/api/music?action=search&q=${encodeURIComponent(query.trim())}`, {
-          signal: AbortSignal.timeout(5500)
+          signal: combineSignals(signal, retryTimeout)
         }).catch(() => null);
       }
 
+      if (signal?.aborted) return [];
+
       if (res?.ok) {
         const data = await res.json();
+        if (signal?.aborted) return [];
         const rawTracks: Track[] = data.tracks || data.youtube || [];
         const deduped = deduplicateTracks(rawTracks);
         const ranked = rankTracksByRelevance(deduped, query);
@@ -585,13 +654,17 @@ export async function searchTracks(query: string, _page = 1): Promise<Track[]> {
           return ranked;
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      if (signal?.aborted || (err as { name?: string })?.name === 'AbortError') return [];
       console.warn('Primary /api/music search error, trying direct YouTube client:', err);
     }
 
+    if (signal?.aborted) return [];
+
     // 2. Direct client-side YouTube fallback (pure YouTube, no other sources)
     try {
-      const directYtTracks = await fetchClientYouTubeSearch(query);
+      const directYtTracks = await fetchClientYouTubeSearch(query, signal);
+      if (signal?.aborted) return [];
       if (directYtTracks.length > 0) {
         const deduped = deduplicateTracks(directYtTracks);
         const ranked = rankTracksByRelevance(deduped, query);
@@ -747,7 +820,8 @@ export async function getRelatedVideos(videoId: string): Promise<Track[]> {
   return searchTracks(videoId);
 }
 
-export async function searchSuggestions(query: string): Promise<string[]> {
+export async function searchSuggestions(query: string, signal?: AbortSignal): Promise<string[]> {
+  if (signal?.aborted) return [];
   const key = query.trim().toLowerCase();
   if (!key) return [];
   if (suggestionsCache.has(key)) {
@@ -757,34 +831,44 @@ export async function searchSuggestions(query: string): Promise<string[]> {
     return hit;
   }
 
+  const timeoutSignal = AbortSignal.timeout(3500);
+  const combined = combineSignals(signal, timeoutSignal);
+
   try {
     const endpoint = apiUrl(`/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`);
-    let res = await fetch(endpoint, { signal: AbortSignal.timeout(4000) }).catch(() => null);
+    let res = await fetch(endpoint, { signal: combined }).catch(() => null);
     if (!res?.ok && !endpoint.startsWith('http')) {
+      const retryTimeout = AbortSignal.timeout(3000);
       res = await fetch(`${PROD_API_ORIGIN}/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`, {
-        signal: AbortSignal.timeout(3500)
+        signal: combineSignals(signal, retryTimeout)
       }).catch(() => null);
     }
+    if (signal?.aborted) return [];
     if (res?.ok) {
       const data = await res.json();
+      if (signal?.aborted) return [];
       const sugs: string[] = data.suggestions || [];
       if (sugs.length > 0) {
-        setBoundedCache(suggestionsCache, key, sugs, MAX_SUGGESTIONS_CACHE_ENTRIES);
-        return sugs;
+        const unique = deduplicateSuggestions(sugs, key);
+        setBoundedCache(suggestionsCache, key, unique, MAX_SUGGESTIONS_CACHE_ENTRIES);
+        return unique;
       }
     }
   } catch {
     // client-side direct suggest fallback
     try {
+      if (signal?.aborted) return [];
+      const fallbackSignal = combineSignals(signal, AbortSignal.timeout(2500));
       const fallbackRes = await fetch(
         `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query.trim())}`,
-        { signal: AbortSignal.timeout(3000) }
+        { signal: fallbackSignal }
       );
-      if (fallbackRes.ok) {
+      if (fallbackRes.ok && !signal?.aborted) {
         const d = await fallbackRes.json();
-        const sugs = Array.isArray(d?.[1]) ? (d[1] as string[]).slice(0, 10) : [];
-        setBoundedCache(suggestionsCache, key, sugs, MAX_SUGGESTIONS_CACHE_ENTRIES);
-        return sugs;
+        const sugs = Array.isArray(d?.[1]) ? (d[1] as string[]) : [];
+        const unique = deduplicateSuggestions(sugs, key);
+        setBoundedCache(suggestionsCache, key, unique, MAX_SUGGESTIONS_CACHE_ENTRIES);
+        return unique;
       }
     } catch {}
   }

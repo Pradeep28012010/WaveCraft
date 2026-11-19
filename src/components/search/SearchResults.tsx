@@ -240,40 +240,43 @@ export default function SearchResults() {
       return;
     }
 
-    let isMounted = true;
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     const cached = getCachedSearch(clean);
-    if (cached) {
+    if (cached && cached.length > 0) {
       setTracks(cached);
       setIsLoading(false);
     } else {
       setIsLoading(true);
     }
 
-    searchTracks(clean)
-      .then((tracksData) => {
-        if (isMounted) {
-          setTracks(tracksData);
-          setIsLoading(false);
-        }
-      })
-      .catch(() => {
-        if (isMounted) setIsLoading(false);
-      });
+    // Execute search queries concurrently with cancellation and batched state updates
+    Promise.allSettled([
+      searchTracks(clean, 1, signal),
+      searchAlbums(clean, signal),
+      searchArtists(clean, signal)
+    ]).then(([tracksResult, albumsResult, artistsResult]) => {
+      if (signal.aborted) return;
 
-    searchAlbums(clean)
-      .then((albumsData) => {
-        if (isMounted) setAlbums(albumsData);
-      })
-      .catch(() => {});
-
-    searchArtists(clean)
-      .then((artistsData) => {
-        if (isMounted) setArtists(artistsData);
-      })
-      .catch(() => {});
+      if (tracksResult.status === 'fulfilled' && tracksResult.value.length > 0) {
+        setTracks(tracksResult.value);
+      }
+      if (albumsResult.status === 'fulfilled') {
+        setAlbums(albumsResult.value);
+      }
+      if (artistsResult.status === 'fulfilled') {
+        setArtists(artistsResult.value);
+      }
+      setIsLoading(false);
+    }).catch(() => {
+      if (!signal.aborted) {
+        setIsLoading(false);
+      }
+    });
 
     return () => {
-      isMounted = false;
+      abortController.abort();
     };
   }, [query]);
 

@@ -49,6 +49,27 @@ function setBoundedCache<K, V>(cache: Map<K, V>, key: K, value: V, maxEntries = 
   }
   cache.set(key, value);
 }
+
+function combineSignals(signalA?: AbortSignal, signalB?: AbortSignal): AbortSignal | undefined {
+  if (!signalA) return signalB;
+  if (!signalB) return signalA;
+  if (typeof AbortSignal.any === 'function') {
+    return AbortSignal.any([signalA, signalB]);
+  }
+  const controller = new AbortController();
+  const onAbort = () => {
+    controller.abort();
+    signalA.removeEventListener('abort', onAbort);
+    signalB.removeEventListener('abort', onAbort);
+  };
+  if (signalA.aborted || signalB.aborted) {
+    controller.abort();
+    return controller.signal;
+  }
+  signalA.addEventListener('abort', onAbort);
+  signalB.addEventListener('abort', onAbort);
+  return controller.signal;
+}
 export const FALLBACK_NEW_RELEASES: AlbumResult[] = [
   {
     id: 'itunes_alb_1752214909',
@@ -247,7 +268,8 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
   return [];
 }
 
-export async function searchAlbums(query: string): Promise<AlbumResult[]> {
+export async function searchAlbums(query: string, signal?: AbortSignal): Promise<AlbumResult[]> {
+  if (signal?.aborted) return [];
   const key = query.trim().toLowerCase();
   if (!key) return [];
   if (albumsCache.has(key)) return albumsCache.get(key)!;
@@ -255,11 +277,14 @@ export async function searchAlbums(query: string): Promise<AlbumResult[]> {
   try {
     // 1. Direct Apple iTunes Album Search (instant, verified albums with high-res art)
     const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=15`;
+    const timeoutSignal = AbortSignal.timeout(4500);
     const res = await fetch(itunesUrl, {
-      signal: AbortSignal.timeout(4500)
+      signal: combineSignals(signal, timeoutSignal)
     }).catch(() => null);
+    if (signal?.aborted) return [];
     if (res?.ok) {
       const data = await res.json();
+      if (signal?.aborted) return [];
       const results: RawItunesAlbum[] = data?.results || [];
       if (results.length > 0) {
         const albums: AlbumResult[] = results.map((item) => {
@@ -284,9 +309,12 @@ export async function searchAlbums(query: string): Promise<AlbumResult[]> {
     }
   } catch {}
 
+  if (signal?.aborted) return [];
+
   // 2. Fallback: Extract distinct albums from track search
   try {
-    const tracks = await searchTracks(`${query} album`);
+    const tracks = await searchTracks(`${query} album`, 1, signal);
+    if (signal?.aborted) return [];
     const seen = new Set<string>();
     const results: AlbumResult[] = [];
 
@@ -316,6 +344,7 @@ export async function searchAlbums(query: string): Promise<AlbumResult[]> {
       return results;
     }
   } catch (error) {
+    if (signal?.aborted) return [];
     console.error('Error in searchAlbums fallback:', error);
   }
 
@@ -489,7 +518,8 @@ export async function getNewReleases(): Promise<AlbumResult[]> {
   }
 }
 
-export async function searchArtists(query: string): Promise<ArtistResult[]> {
+export async function searchArtists(query: string, signal?: AbortSignal): Promise<ArtistResult[]> {
+  if (signal?.aborted) return [];
   const key = query.trim().toLowerCase();
   if (!key) return [];
   if (artistsCache.has(key)) return artistsCache.get(key)!;
@@ -497,31 +527,24 @@ export async function searchArtists(query: string): Promise<ArtistResult[]> {
   try {
     // 1. Direct Apple iTunes Artist search (verified artist profiles with high reliability)
     const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=musicArtist&limit=10`;
+    const timeoutSignal = AbortSignal.timeout(4500);
     const res = await fetch(itunesUrl, {
-      signal: AbortSignal.timeout(4500)
+      signal: combineSignals(signal, timeoutSignal)
     }).catch(() => null);
+    if (signal?.aborted) return [];
     if (res?.ok) {
       const data = await res.json();
+      if (signal?.aborted) return [];
       const results: RawItunesArtist[] = data?.results || [];
       if (results.length > 0) {
-        const tracks = await searchTracks(query).catch(() => []);
-        const artistArtMap = new Map<string, string>();
-        for (const t of tracks) {
-          const lead = t.artist.split(/[,&/]/)[0].trim().toLowerCase();
-          if (lead && !artistArtMap.has(lead) && t.thumbnail) {
-            artistArtMap.set(lead, t.thumbnailLarge || t.thumbnail);
-          }
-        }
-
         const artists: ArtistResult[] = results.map((item) => {
           const name = item.artistName || 'Unknown Artist';
-          const art = artistArtMap.get(name.toLowerCase()) || (tracks[0]?.thumbnailLarge || tracks[0]?.thumbnail || DEFAULT_THUMBNAIL);
           return {
             id: `itunes_artist_${item.artistId}`,
             name,
             genre: item.primaryGenreName || 'Music',
-            thumbnail: art,
-            imageUrl: art
+            thumbnail: DEFAULT_THUMBNAIL,
+            imageUrl: DEFAULT_THUMBNAIL
           };
         });
         setBoundedCache(artistsCache, key, artists);
@@ -530,9 +553,12 @@ export async function searchArtists(query: string): Promise<ArtistResult[]> {
     }
   } catch {}
 
+  if (signal?.aborted) return [];
+
   // 2. Fallback: extract distinct artists from searchTracks
   try {
-    const tracks = await searchTracks(query);
+    const tracks = await searchTracks(query, 1, signal);
+    if (signal?.aborted) return [];
     const seen = new Set<string>();
     const artists: ArtistResult[] = [];
 
@@ -559,6 +585,7 @@ export async function searchArtists(query: string): Promise<ArtistResult[]> {
       return artists;
     }
   } catch (error) {
+    if (signal?.aborted) return [];
     console.error('Error in searchArtists fallback:', error);
   }
 
