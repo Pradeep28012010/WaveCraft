@@ -281,12 +281,18 @@ export default function SearchResults() {
   }, [query]);
 
   const handlePlayTrack = useCallback((track: Track) => {
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     unlockAudioEngine();
     playTrackWithSmartQueue(track);
   }, []);
 
   const handlePlayAlbumTrack = useCallback(
     (t: Track) => {
+      if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       unlockAudioEngine();
       setAlbumTracks((currentAlbumTracks) => {
         const idx = currentAlbumTracks.findIndex((track) => track.id === t.id);

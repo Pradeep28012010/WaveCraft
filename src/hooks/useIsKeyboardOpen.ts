@@ -43,16 +43,8 @@ export function useIsKeyboardOpen(): boolean {
         const heightDiff = window.innerHeight - window.visualViewport.height;
         if (heightDiff > 140) {
           setIsKeyboardOpen(true);
-        } else if (heightDiff < 60) {
-          const active = document.activeElement as HTMLElement | null;
-          if (
-            !active ||
-            (active.tagName !== 'INPUT' &&
-              active.tagName !== 'TEXTAREA' &&
-              !active.isContentEditable)
-          ) {
-            setIsKeyboardOpen(false);
-          }
+        } else if (heightDiff <= 80) {
+          setIsKeyboardOpen(false);
         }
       }
     };

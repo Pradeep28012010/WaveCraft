@@ -191,6 +191,14 @@ export default function TopBar() {
   }, [urlQuery]);
 
   useEffect(() => {
+    // Whenever navigation path changes, immediately clear any pending search debounce timers and suggestions
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
+    suggestionAbortRef.current?.abort();
+    setShowSuggestions(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
     return () => {
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
@@ -395,6 +403,9 @@ export default function TopBar() {
       setShowSuggestions(false);
       const trimmed = searchQuery.trim();
       lastPushedQueryRef.current = trimmed;
+      if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       if (trimmed) {
         saveSearchTerm(trimmed);
         navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
