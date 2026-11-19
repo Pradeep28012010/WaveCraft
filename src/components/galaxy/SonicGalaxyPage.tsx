@@ -1636,9 +1636,16 @@ export default function SonicGalaxyPage() {
         });
       }
 
-      const backToFront = Array.from(projectedMap.values()).sort(
-        (a, b) => b.depthZ - a.depthZ
-      );
+      const backToFront = Array.from(projectedMap.values()).sort((a, b) => {
+        // Active hovered star must always render on top in the foreground so its artwork is fully visible
+        if (a.node.id === currentHoveredId) return 1;
+        if (b.node.id === currentHoveredId) return -1;
+        // Selected star renders right below hovered star, but above background stars
+        if (a.node.id === currentSelected?.id) return 1;
+        if (b.node.id === currentSelected?.id) return -1;
+        // Standard 3D depth sort (far to near)
+        return b.depthZ - a.depthZ;
+      });
 
       // 6. Draw Harmonic Resonance Constellation Filaments (Delicate & Minimal Starlight Threads)
       const showFilaments = showConstellationFilamentsRef.current;
@@ -1874,41 +1881,34 @@ export default function SonicGalaxyPage() {
               : '600 10px Inter, sans-serif';
           const labelText = `${shortTitle} • ${node.affinityScore}%`;
           const textWidth = ctx.measureText(labelText).width;
-          const pillW = textWidth + 18;
-          const pillH = hoverMix > 0.25 ? 32 : 18;
+          const pillW = textWidth + 20;
+          const pillH = 22;
           const pillX = sx - pillW / 2;
-          const pillY = sy + r + 7;
+          const pillY = sy + r + 8;
 
           ctx.fillStyle =
             activeMix > 0.25 || isPlayingNow
-              ? 'rgba(15, 23, 42, 0.95)'
-              : 'rgba(10, 10, 20, 0.8)';
+              ? 'rgba(10, 15, 30, 0.94)'
+              : 'rgba(10, 10, 20, 0.85)';
           ctx.beginPath();
-          ctx.roundRect(pillX, pillY, pillW, pillH, 9);
+          ctx.roundRect(pillX, pillY, pillW, pillH, 11);
           ctx.fill();
 
-          if (activeMix > 0.25 || isPlayingNow) {
-            ctx.strokeStyle = isPlayingNow ? '#10b981' : node.color;
-            ctx.lineWidth = 1.2;
-            ctx.stroke();
-          }
+          ctx.strokeStyle = isPlayingNow
+            ? '#10b981'
+            : activeMix > 0.25
+            ? node.color
+            : 'rgba(255, 255, 255, 0.16)';
+          ctx.lineWidth = activeMix > 0.25 || isPlayingNow ? 1.4 : 0.8;
+          ctx.stroke();
 
           ctx.fillStyle =
             activeMix > 0.25 || isPlayingNow
               ? '#ffffff'
-              : 'rgba(255,255,255,0.88)';
+              : 'rgba(255,255,255,0.92)';
           ctx.textAlign = 'center';
-          ctx.fillText(labelText, sx, pillY + 12.5);
-
-          if (hoverMix > 0.25) {
-            ctx.fillStyle = node.secondaryColor;
-            ctx.font = '700 9px Inter, sans-serif';
-            ctx.fillText(
-              currentSelected?.id === node.id ? '▶ Click to Play Now' : '✦ Click to Inspect DNA',
-              sx,
-              pillY + 25
-            );
-          }
+          ctx.textBaseline = 'middle';
+          ctx.fillText(labelText, sx, pillY + pillH / 2);
         }
 
         ctx.restore();

@@ -1055,49 +1055,32 @@ export default function SettingsPage() {
                   icon={<span className="text-sm">🎬</span>}
                   iconBg="bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
                   label="Scroll Dynamics Mode"
-                  description="Choose between all-in-one cinematic suite, kinetic momentum tilt, glass pulse, or blur"
+                  description="Selects active physics model: Kinetic tilt, glass pulse, or directional blur"
                 >
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-1 rounded-2xl bg-white/[0.03] border border-white/5 w-full sm:w-auto">
-                    {[
-                      { id: 'all', label: 'Cinematic Pro', desc: 'All Effects Combined' },
-                      { id: 'momentum', label: 'Kinetic Tilt', desc: '120fps Skew (Sharp Text)' },
-                      { id: 'glass', label: 'Glass Pulse', desc: 'Header & Dock Deepen' },
-                      { id: 'artwork', label: 'Artwork Blur', desc: 'Covers Only Blur' },
-                      { id: 'cinematic', label: 'Full Page Blur', desc: 'Viewport Motion Blur' },
-                      { id: 'off', label: 'Off', desc: 'Raw Native Scroll' }
-                    ].map((item) => {
-                      const isSelected = (settings.scrollMotionMode ?? 'all') === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            triggerAndroidHaptic('light');
-                            settings.setScrollMotionMode(item.id as ScrollMotionMode);
-                          }}
-                          className={`relative px-3 py-2 rounded-xl text-left transition-all cursor-pointer select-none ${
-                            isSelected
-                              ? 'bg-[var(--color-accent)] text-white shadow-lg'
-                              : 'hover:bg-white/[0.06] text-white/70 hover:text-white'
-                          }`}
-                        >
-                          <div className="text-xs font-bold leading-tight">{item.label}</div>
-                          <div className={`text-[10px] mt-0.5 leading-tight ${isSelected ? 'text-white/80' : 'text-white/40'}`}>
-                            {item.desc}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <GlassSelect
+                    value={settings.scrollMotionMode || 'all'}
+                    onChange={(val) => {
+                      triggerAndroidHaptic('light');
+                      settings.setScrollMotionMode(val as ScrollMotionMode);
+                    }}
+                    options={[
+                      { value: 'all', label: '🌌 Cinematic Pro (All Effects)' },
+                      { value: 'momentum', label: '🚀 Kinetic Tilt (120fps Skew)' },
+                      { value: 'glass', label: '💎 Glass Aura Pulse (Header/Dock)' },
+                      { value: 'artwork', label: '🖼️ Artwork Blur (Covers Only)' },
+                      { value: 'cinematic', label: '🎬 Full Page Motion Blur' },
+                      { value: 'off', label: '🚫 Off (Raw Native Scroll)' }
+                    ]}
+                  />
                 </InsetSettingRow>
 
                 <InsetSettingRow
                   icon={<span className="text-sm">⚡</span>}
                   iconBg="bg-teal-500/20 text-teal-300 border-teal-500/30"
                   label="Motion Dynamics Intensity"
-                  description="Controls velocity multiplier, tilt degree, and blur diffusion distance"
+                  description="Adjusts momentum multiplier, tilt degree, and blur diffusion distance"
                 >
-                  <div className="flex gap-1.5 p-1 rounded-full bg-white/[0.03] relative">
+                  <div className="flex gap-1.5 p-1 rounded-full liquid-glass bg-white/[0.04] backdrop-blur-xl border border-white/10 relative">
                     {[
                       { id: 'subtle', label: '🍃 Subtle' },
                       { id: 'balanced', label: '⚡ Balanced' },
@@ -1112,12 +1095,12 @@ export default function SettingsPage() {
                             triggerAndroidHaptic('light');
                             settings.setScrollMotionIntensity(item.id as ScrollMotionIntensity);
                           }}
-                          className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
+                          className="relative px-3.5 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
                         >
                           {isSelected && (
                             <motion.div
                               layoutId="settings-scroll-intensity-pill"
-                              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                              transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
                               className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                             />
                           )}
