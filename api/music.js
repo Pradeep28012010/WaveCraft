@@ -543,20 +543,21 @@ export default async function handler(req, res) {
     if (action === 'version') {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).json({
-        version: '5.3.3',
-        versionCode: 24,
-        releaseDate: '2026-10-29',
+        version: '5.4.0',
+        versionCode: 25,
+        releaseDate: '2026-11-19',
         downloadUrl: 'https://wavecraft-alpha.vercel.app/WaveCraft.apk',
         windowsDownloadUrl: 'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe',
         windowsInstallerUrl: 'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe',
-        title: 'WaveCraft Pro v5.3.3 (Dual Audio Echo Elimination & Engine Mutual Exclusion)',
+        title: 'WaveCraft Pro v5.4.0 (100% Background Audio, Smooth Carousel Physics & Infinite Flow Radios)',
         releaseNotes: [
-          'Fixed Simultaneous Dual Track Playback: Guaranteed strict mutual exclusion between YouTube IFrame and Native Audio engines, completely eliminating echo or overlapping time-lag audio.',
-          'Hardware Audio Muting on Engine Switch: When native audio stream activates, YouTube video player is instantaneously muted, volume-zeroed, and stopped.',
-          'Decoupled Metadata Updates from Replay: Hot-swapped stream URLs and quality tags no longer inadvertently re-trigger track starts or re-seek to 0:00.',
-          'Optimized Direct Stream Race: Increased resolution timeout so 95%+ of songs start directly on 320kbps Studio AAC without needing mid-stream engine swaps.'
+          '100% Background Audio & Screen-Lock Continuity: Completely resolved background video throttling and unintended pauses. Audio seamlessly transitions and continues playing uninterrupted when switching tabs or locking device screen.',
+          'Zero-Gap Continuous Playback & Eager Lookahead: Proactively resolves next track streams in background at 65% duration, ensuring instantaneous, zero-delay transitions to queued songs.',
+          'Eliminated Carousel Scroll Trapping: Fixed mouse wheel and touch scroll freezing over music displays, pill bars, and genre chips, allowing the main page to scroll smoothly everywhere.',
+          '24/7 Endless Radios & Decade Time Machine: Restored live stream and era station tuning with multi-stage resilient search fallbacks and live indicator spin telemetry.',
+          'WaveJam 2D Spatial Audio: Interactive spatial listening room with real-time stereo panning and distance-based volume rolloff.'
         ],
-        forceUpdate: false
+        forceUpdate: true
       });
     }
 

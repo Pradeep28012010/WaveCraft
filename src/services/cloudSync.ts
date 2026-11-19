@@ -30,7 +30,7 @@ export async function createSyncPayload(): Promise<LibraryBackupPayload> {
   ]);
 
   return {
-    wavecraftVersion: '5.3.3',
+    wavecraftVersion: '5.4.0',
     exportedAt: new Date().toISOString(),
     type: 'full-library-backup',
     likedSongs,
