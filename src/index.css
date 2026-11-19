@@ -859,14 +859,17 @@ textarea,
   --scroll-scale-y: 1;
 }
 
-/* 1. Velocity Inertial Tilt / Skew */
-.scroll-motion-skew {
+/* 1. Velocity Inertial Tilt / Skew - scoped strictly to album art, cards & visual thumbnails so typography remains 100% crisp, zero DirectWrite cache invalidation, and zero tile shedding */
+.scroll-motion-skew img,
+.scroll-motion-skew .album-artwork,
+.scroll-motion-skew .track-artwork,
+.scroll-motion-skew .aspect-square,
+.scroll-motion-skew .card-artwork {
   transform: skewY(var(--scroll-skew, 0deg));
   transform-origin: center top;
-  transition: transform 0.05s ease-out;
 }
 
-/* 2. Visual Motion Blur (applied to artwork, cards & banners — NEVER the root 8000px container) */
+/* 2. Visual Motion Blur - applied to artwork, cards & banners with pure rAF spring interpolation (no CSS transition conflicts) */
 .scroll-motion-blur-page img,
 .scroll-motion-blur-page .album-artwork,
 .scroll-motion-blur-page .track-artwork,
@@ -875,21 +878,26 @@ textarea,
 .scroll-motion-blur-artwork .track-artwork,
 .scroll-motion-blur-artwork .album-artwork {
   filter: blur(var(--scroll-blur, 0px));
-  transition: filter 0.05s ease-out;
 }
 
-/* 4. Glass Velocity Pulse for TopBar, MiniPlayer & Mobile Nav */
+/* 3. Glass Velocity Pulse for TopBar, MiniPlayer & Mobile Nav */
 .glass-velocity-pulse {
   backdrop-filter: blur(calc(24px + var(--scroll-glass-blur, 0px))) saturate(calc(140% + var(--scroll-glass-sat, 0%))) !important;
   -webkit-backdrop-filter: blur(calc(24px + var(--scroll-glass-blur, 0px))) saturate(calc(140% + var(--scroll-glass-sat, 0%))) !important;
-  transition: backdrop-filter 0.08s ease-out, -webkit-backdrop-filter 0.08s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scroll-motion-skew {
+  .scroll-motion-skew img,
+  .scroll-motion-skew .album-artwork,
+  .scroll-motion-skew .track-artwork,
+  .scroll-motion-skew .aspect-square,
+  .scroll-motion-skew .card-artwork {
     transform: none !important;
   }
-  .scroll-motion-blur-page,
+  .scroll-motion-blur-page img,
+  .scroll-motion-blur-page .album-artwork,
+  .scroll-motion-blur-page .track-artwork,
+  .scroll-motion-blur-page .aspect-square,
   .scroll-motion-blur-artwork img,
   .scroll-motion-blur-artwork .track-artwork,
   .scroll-motion-blur-artwork .album-artwork {

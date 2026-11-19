@@ -17,7 +17,16 @@ export default function RecentlyPlayed() {
     return `${Math.floor(diff / 86400)}d ago`;
   };
 
-  const allRecentTracks = recentlyPlayed.map((r) => r.track).filter(Boolean);
+  const extractTrack = (item: { track?: Track; playedAt?: number } | Track): Track | null => {
+    if (!item) return null;
+    if ('track' in item && item.track) return item.track;
+    if ('id' in item && ('title' in item || 'name' in item)) return item as unknown as Track;
+    return null;
+  };
+
+  const allRecentTracks = recentlyPlayed
+    .map(extractTrack)
+    .filter(Boolean) as Track[];
 
   return (
     <div className="pb-44 sm:pb-24 pt-2 text-white min-h-screen">
@@ -42,19 +51,21 @@ export default function RecentlyPlayed() {
           </div>
         ) : (
           recentlyPlayed.map((item, i) => {
-            if (!item.track) return null;
+            const track = extractTrack(item);
+            if (!track) return null;
+            const playedAt = ('playedAt' in item && typeof item.playedAt === 'number') ? item.playedAt : Date.now();
             return (
-              <div key={`${item.track.id}-${item.playedAt}`} className="flex items-center gap-3">
+              <div key={`${track.id}-${playedAt}-${i}`} className="flex items-center gap-3">
                 <div className="flex-grow min-w-0">
                   <TrackRow
-                    track={item.track}
+                    track={track}
                     tracks={allRecentTracks}
                     index={i + 1}
                     onPlay={(t) => playTrack(t, allRecentTracks, i)}
                   />
                 </div>
                 <div className="text-xs text-white/40 w-16 text-right whitespace-nowrap hidden sm:block">
-                  {formatRelativeTime(item.playedAt)}
+                  {formatRelativeTime(playedAt)}
                 </div>
               </div>
             );

@@ -400,9 +400,9 @@ const TrackRow = memo(({
         {showAlbumArt && (
           <div className="relative z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden flex-shrink-0 bg-white/10 shadow-md">
             <img
-              src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
-              alt={track.title}
-              loading="lazy"
+              src={track.thumbnail || track.thumbnailUrl || track.albumArt || DEFAULT_THUMBNAIL}
+              alt={track.title || 'Track'}
+              loading="eager"
               decoding="async"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
@@ -430,7 +430,7 @@ const TrackRow = memo(({
                   : 'text-white/90'
               }`}
             >
-              {track.title}
+              {track.title || track.name || 'Unknown Track'}
             </span>
             {trackIsOffline && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border-0 whitespace-nowrap flex-shrink-0">
@@ -439,7 +439,7 @@ const TrackRow = memo(({
             )}
           </div>
           <span className="text-xs text-white/55 truncate mt-0.5">
-            {track.artist} {track.album && track.album !== 'Single' ? `• ${track.album}` : ''}
+            {track.artist || track.subtitle || 'Unknown Artist'} {track.album && track.album !== 'Single' ? `• ${track.album}` : ''}
           </span>
         </div>
 
