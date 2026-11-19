@@ -175,8 +175,9 @@ export async function fetchYouTubeSearch(query, limit = 25) {
       if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
       else if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
 
-      const wantsLong = /\b(mix|playlist|compilation|jukebox|hours?|live\s*stream)\b/i.test(clean);
-      if (seconds < 55 || (!wantsLong && seconds > 900)) continue;
+      const wantsLong = /\b(mix|playlist|compilation|jukebox|hours?|live\s*stream|radio|station|hits|classics?|session|anthem|decade|throwback|retro)\b/i.test(clean);
+      if (seconds === 0 && wantsLong) seconds = 3600; // Live flows or 24/7 radio streams
+      if (!wantsLong && (seconds < 45 || seconds > 900)) continue;
 
       const rawTitle = v.title?.runs?.[0]?.text || 'Unknown Title';
       const rawAuthor =

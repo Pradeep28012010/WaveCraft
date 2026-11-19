@@ -102,7 +102,7 @@ const CURATED_RADIOS = [
     id: 'lofi-radio',
     name: 'Lofi Girl Study & Beats',
     desc: 'Gentle vinyl crackle, mellow rhodes & chill beats',
-    query: 'lofi hip hop radio beats to relax study to',
+    query: 'lofi hip hop mix beats to relax study to',
     tag: 'Theta 432Hz',
     gradient: 'from-amber-600/30 via-orange-900/30 to-black/80',
     icon: '☕',
@@ -112,7 +112,7 @@ const CURATED_RADIOS = [
     id: 'synthwave-radio',
     name: 'Synthwave 2088 Neon Drive',
     desc: 'Analog arpeggios, retro synthesizers & neon night highway',
-    query: 'synthwave radio chill retro beats night drive',
+    query: 'synthwave mix chill retro beats night drive',
     tag: '110 BPM Flow',
     gradient: 'from-fuchsia-600/30 via-purple-900/30 to-black/80',
     icon: '🌌',
@@ -122,7 +122,7 @@ const CURATED_RADIOS = [
     id: 'phonk-radio',
     name: 'Beast Mode Workout Phonk',
     desc: 'Drift 808 cowbells & high adrenaline gym motivation',
-    query: 'drift phonk workout gym motivation radio hits',
+    query: 'drift phonk mix workout gym motivation hits',
     tag: 'High Octane',
     gradient: 'from-rose-600/30 via-red-950/30 to-black/80',
     icon: '🏃',
@@ -132,7 +132,7 @@ const CURATED_RADIOS = [
     id: 'ambient-radio',
     name: 'Binaural Rain & 432Hz Sleep',
     desc: 'Deep restorative frequencies & soft thunderstorm wash',
-    query: 'binaural beats deep sleep rain ambient soundscape',
+    query: 'binaural beats deep sleep rain ambient soundscape mix',
     tag: 'Delta Waves',
     gradient: 'from-indigo-600/30 via-slate-900/30 to-black/80',
     icon: '🌧️',
@@ -142,7 +142,7 @@ const CURATED_RADIOS = [
     id: 'jazz-radio',
     name: 'Nocturnal Velvet Jazz',
     desc: 'Warm acoustic upright bass, muted trumpets & piano bar',
-    query: 'cozy coffee shop jazz cafe radio relaxed instrumental',
+    query: 'cozy coffee shop jazz cafe relaxed instrumental mix',
     tag: 'Acoustic Warmth',
     gradient: 'from-yellow-700/30 via-amber-950/30 to-black/80',
     icon: '🎷',
@@ -152,7 +152,7 @@ const CURATED_RADIOS = [
     id: 'club-radio',
     name: 'Tropical & Deep House Sessions',
     desc: 'Sun-drenched chords, melodic 4x4 groove & sunset vibes',
-    query: 'tropical house deep chill radio sunset session',
+    query: 'tropical house deep chill sunset session mix',
     tag: '122 BPM Groove',
     gradient: 'from-cyan-600/30 via-blue-900/30 to-black/80',
     icon: '🏖️',
@@ -165,7 +165,7 @@ const ERA_DECINTERS = [
     era: '80s',
     title: '80s Retro Synth & Pop Classics',
     artists: 'Michael Jackson • Queen • Prince • Madonna • Whitney Houston',
-    query: '80s greatest hits top songs michael jackson queen prince',
+    query: '80s greatest hits playlist top songs',
     icon: '📼',
     gradient: 'from-pink-600 via-rose-600 to-purple-950',
     tag: 'Analog Magic'
@@ -174,7 +174,7 @@ const ERA_DECINTERS = [
     era: '90s',
     title: '90s Golden Era & Grunge Anthems',
     artists: 'Nirvana • 2Pac • Oasis • Britney Spears • TLC',
-    query: '90s greatest hits top songs nirvana 2pac oasis britney',
+    query: '90s greatest hits playlist top songs',
     icon: '📻',
     gradient: 'from-amber-600 via-yellow-600 to-stone-950',
     tag: 'Golden Era'
@@ -183,7 +183,7 @@ const ERA_DECINTERS = [
     era: '00s',
     title: '2000s Pop, Rock & Nu-Metal',
     artists: 'Eminem • Linkin Park • Beyoncé • Coldplay • Rihanna',
-    query: '2000s greatest hits top songs eminem linkin park beyonce coldplay',
+    query: '2000s greatest hits playlist top songs',
     icon: '💿',
     gradient: 'from-cyan-600 via-blue-700 to-slate-950',
     tag: 'Millennium'
@@ -192,7 +192,7 @@ const ERA_DECINTERS = [
     era: '10s',
     title: '2010s Streaming Era & Global EDM',
     artists: 'Avicii • Drake • The Weeknd • Taylor Swift • Chainsmokers',
-    query: '2010s greatest hits top songs avicii drake the weeknd taylor swift',
+    query: '2010s greatest hits playlist top songs',
     icon: '📱',
     gradient: 'from-violet-600 via-indigo-700 to-zinc-950',
     tag: 'Streaming Boom'
@@ -201,7 +201,7 @@ const ERA_DECINTERS = [
     era: '20s',
     title: '2020s Hyperpop, Phonk & Viral Beats',
     artists: 'Dua Lipa • Olivia Rodrigo • Bad Bunny • Burna Boy • Phonk',
-    query: '2020s hits viral trending songs dua lipa bad bunny olivia rodrigo',
+    query: '2020s hits viral trending songs playlist',
     icon: '⚡',
     gradient: 'from-emerald-500 via-teal-600 to-neutral-950',
     tag: 'Modern Waves'
@@ -328,7 +328,7 @@ const HorizontalScroll = memo(({
       </div>
       <div
         ref={scrollRef}
-        className="flex gap-3.5 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pt-3 pb-8 -mb-3 px-2"
+        className="flex gap-3.5 sm:gap-5 overflow-x-auto overflow-y-hidden overscroll-y-auto no-scrollbar scroll-smooth snap-x snap-mandatory pt-3 pb-8 -mb-3 px-2"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {children}
@@ -373,6 +373,8 @@ export default function HomePage() {
   const [isCategoryTrendingLoading, setIsCategoryTrendingLoading] = useState<boolean>(false);
   const [loadingMoodId, setLoadingMoodId] = useState<string | null>(null);
   const [playingAlbumId, setPlayingAlbumId] = useState<string | null>(null);
+  const [tuningStationId, setTuningStationId] = useState<string | null>(null);
+  const [tuningEra, setTuningEra] = useState<string | null>(null);
   const [playingChartKey, setPlayingChartKey] = useState<string | null>(null);
   const [loadingDailyMixId, setLoadingDailyMixId] = useState<string | null>(null);
 
@@ -924,6 +926,10 @@ export default function HomePage() {
       if (!tracks || tracks.length === 0) {
         tracks = await searchTracks(mixDef.query);
       }
+      if (!tracks || tracks.length === 0) {
+        const safePool = trendingTracks.length > 0 ? trendingTracks : FALLBACK_TRENDING_TRACKS;
+        tracks = safePool;
+      }
       if (tracks && tracks.length > 0) {
         playTrack(tracks[0], tracks, 0);
         showToast(`Now Playing ${mixDef.name} 🎵`);
@@ -941,36 +947,85 @@ export default function HomePage() {
   const handlePlayRadioStation = async (station: typeof CURATED_RADIOS[0]) => {
     unlockAudioEngine();
     triggerAndroidHaptic('medium');
+    setTuningStationId(station.id);
     showToast(`Tuning into ${station.name}... 📻`);
     try {
-      const tracks = await searchTracks(station.query);
-      if (tracks.length > 0) {
+      let tracks = await searchTracks(station.query);
+      if (!tracks || tracks.length === 0) {
+        // Fallback 1: Query with explicit mix playlist terms
+        tracks = await searchTracks(`${station.name} mix playlist`);
+      }
+      if (!tracks || tracks.length === 0) {
+        // Fallback 2: Query by tag and genre
+        tracks = await searchTracks(`${station.tag} music mix`);
+      }
+
+      if (tracks && tracks.length > 0) {
         playTrack(tracks[0], tracks, 0);
         showToast(`Tuned into ${station.name} ✨`);
       } else {
-        showToast(`Unable to tune into ${station.name}`);
+        // Fallback 3: Fall back to trending tracks so playback always starts immediately
+        const safePool = trendingTracks.length > 0 ? trendingTracks : FALLBACK_TRENDING_TRACKS;
+        if (safePool.length > 0) {
+          playTrack(safePool[0], safePool, 0);
+          showToast(`Tuned into ${station.name} Flow ✨`);
+        } else {
+          showToast(`Unable to tune into ${station.name}`);
+        }
       }
     } catch (err) {
       console.error('Failed to play radio station:', err);
-      showToast('Failed to load station');
+      const safePool = trendingTracks.length > 0 ? trendingTracks : FALLBACK_TRENDING_TRACKS;
+      if (safePool.length > 0) {
+        playTrack(safePool[0], safePool, 0);
+        showToast(`Tuned into ${station.name} ✨`);
+      } else {
+        showToast('Failed to load station');
+      }
+    } finally {
+      setTuningStationId(null);
     }
   };
 
   const handlePlayEra = async (eraItem: typeof ERA_DECINTERS[0]) => {
     unlockAudioEngine();
     triggerAndroidHaptic('medium');
+    setTuningEra(eraItem.era);
     showToast(`Traveling to the ${eraItem.era}... ⏳`);
     try {
-      const tracks = await searchTracks(eraItem.query);
-      if (tracks.length > 0) {
+      let tracks = await searchTracks(eraItem.query);
+      if (!tracks || tracks.length === 0) {
+        // Fallback 1: Era greatest hits playlist
+        tracks = await searchTracks(`${eraItem.era} greatest hits songs playlist`);
+      }
+      if (!tracks || tracks.length === 0) {
+        // Fallback 2: Era title playlist
+        tracks = await searchTracks(`${eraItem.title} playlist`);
+      }
+
+      if (tracks && tracks.length > 0) {
         playTrack(tracks[0], tracks, 0);
         showToast(`Now Playing ${eraItem.title} 📼`);
       } else {
-        showToast(`No tracks found for ${eraItem.era}`);
+        const safePool = trendingTracks.length > 0 ? trendingTracks : FALLBACK_TRENDING_TRACKS;
+        if (safePool.length > 0) {
+          playTrack(safePool[0], safePool, 0);
+          showToast(`Now Playing ${eraItem.title} 📼`);
+        } else {
+          showToast(`No tracks found for ${eraItem.era}`);
+        }
       }
     } catch (err) {
       console.error('Failed to play era tracks:', err);
-      showToast(`Failed to load ${eraItem.era}`);
+      const safePool = trendingTracks.length > 0 ? trendingTracks : FALLBACK_TRENDING_TRACKS;
+      if (safePool.length > 0) {
+        playTrack(safePool[0], safePool, 0);
+        showToast(`Now Playing ${eraItem.title} 📼`);
+      } else {
+        showToast(`Failed to load ${eraItem.era}`);
+      }
+    } finally {
+      setTuningEra(null);
     }
   };
 
@@ -1031,7 +1086,7 @@ export default function HomePage() {
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1 w-full min-w-0">
           {/* Category Filter Pills */}
           <div
-            className="overflow-x-auto no-scrollbar py-0.5 max-w-full flex items-center flex-shrink-0"
+            className="overflow-x-auto overflow-y-hidden overscroll-y-auto no-scrollbar py-0.5 max-w-full flex items-center flex-shrink-0"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
             <div
@@ -1073,7 +1128,7 @@ export default function HomePage() {
 
           {/* Quick Soundstage Telemetry & Studio Shortcuts */}
           <div
-            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 max-w-full flex-shrink-0 scroll-smooth"
+            className="flex items-center gap-2 overflow-x-auto overflow-y-hidden overscroll-y-auto no-scrollbar py-1 px-0.5 max-w-full flex-shrink-0 scroll-smooth"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
             {/* Liked Songs */}
@@ -1795,12 +1850,22 @@ export default function HomePage() {
                     e.stopPropagation();
                     handlePlayRadioStation(radio);
                   }}
-                  className="px-3 py-1.5 rounded-full glass-button-primary text-white text-xs font-black flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-md"
+                  disabled={tuningStationId === radio.id}
+                  className="px-3 py-1.5 rounded-full glass-button-primary text-white text-xs font-black flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-md disabled:opacity-75"
                 >
-                  <span>Tune In</span>
-                  <svg className="w-3 h-3 fill-current ml-0.5" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
+                  {tuningStationId === radio.id ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Tuning...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Tune In</span>
+                      <svg className="w-3 h-3 fill-current ml-0.5" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1854,9 +1919,13 @@ export default function HomePage() {
                     {era.era} ERA
                   </span>
                   <div className="w-7 h-7 rounded-full glass-button-primary text-white flex items-center justify-center active:scale-90 transition-transform">
-                    <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
+                    {tuningEra === era.era ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
                   </div>
                 </div>
               </div>

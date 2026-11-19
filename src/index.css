@@ -37,10 +37,19 @@
 
   /* Hardware Momentum & Smooth Physics for Mobile Web & PWA */
   main,
-  .overflow-y-auto,
-  .overflow-x-auto {
+  .overflow-y-auto {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+  }
+
+  /* Horizontal carousels, music displays, pill bars & filter chips:
+     Never trap or block vertical page scrolling when cursor or touch is over them! */
+  .overflow-x-auto,
+  .overflow-x-scroll {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: hidden !important;
+    overscroll-behavior-y: auto !important;
+    overscroll-behavior-x: contain;
   }
 }
 
