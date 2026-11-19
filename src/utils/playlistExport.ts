@@ -210,6 +210,25 @@ export function parseJSONPlaylistString(content: string, defaultName = 'Imported
   });
 
   const parsed = JSON.parse(content);
+
+  // Support Full Library Backup imports directly
+  if (parsed.type === 'full-library-backup' || (Array.isArray(parsed.likedSongs) && Array.isArray(parsed.playlists))) {
+    const allTracks: RawJsonTrack[] = [];
+    if (Array.isArray(parsed.likedSongs)) {
+      allTracks.push(...parsed.likedSongs);
+    }
+    if (Array.isArray(parsed.playlists)) {
+      parsed.playlists.forEach((p: { tracks?: RawJsonTrack[] }) => {
+        if (Array.isArray(p.tracks)) allTracks.push(...p.tracks);
+      });
+    }
+    return {
+      name: parsed.name || 'Restored Library Backup',
+      description: `Restored from library backup (${allTracks.length} tracks)`,
+      tracks: allTracks.map(mapTrack)
+    };
+  }
+
   if (parsed.playlist && typeof parsed.playlist === 'object') {
     return {
       name: parsed.playlist.name || defaultName,

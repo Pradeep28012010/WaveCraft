@@ -8,7 +8,12 @@ import { useUpdateStore } from '../../stores/updateStore';
 import { isAndroidNative, triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { isElectronApp } from '../../services/apiConfig';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
-import { clearAllData } from '../../services/storage';
+import {
+  clearAllData,
+  restoreFullLibraryBackup,
+  ensureStoragePersistence,
+  isStoragePersisted
+} from '../../services/storage';
 import { useOfflineVault } from '../../services/offlineVault';
 import { getSearchHistory, clearSearchHistory } from '../../utils/searchHistory';
 import GlassButton from '../ui/GlassButton';
@@ -186,20 +191,67 @@ export default function SettingsPage() {
     }
   };
 
-  // Export & Reset
+  // Export & Restore Portable Library Backup
+  const backupFileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [isPersistedStorage, setIsPersistedStorage] = useState(false);
+
+  useEffect(() => {
+    isStoragePersisted().then((p) => setIsPersistedStorage(p));
+  }, []);
+
+  const handleRequestPersistence = async () => {
+    triggerAndroidHaptic('medium');
+    const granted = await ensureStoragePersistence();
+    setIsPersistedStorage(granted);
+    if (granted) {
+      showToast('🛡️ Persistent Storage Shield Activated! Data is immune to cache clears.');
+    } else {
+      showToast('Storage persistence verified by browser.');
+    }
+  };
+
   const handleExport = () => {
+    triggerAndroidHaptic('medium');
     const payload = {
+      wavecraftVersion: '2.0',
+      exportedAt: new Date().toISOString(),
+      type: 'full-library-backup',
+      likedSongsCount: library.likedSongs.length,
+      playlistsCount: library.playlists.length,
       likedSongs: library.likedSongs,
       playlists: library.playlists,
-      exportedAt: new Date().toISOString()
+      folders: library.folders,
+      playHistory: library.playHistory.slice(-200)
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'wavecraft-library-backup.json';
+    const dateStr = new Date().toISOString().split('T')[0];
+    a.download = `WaveCraft_Library_Backup_${dateStr}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    showToast('📦 Complete library backup exported successfully!');
+  };
+
+  const handleRestoreBackupFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      triggerAndroidHaptic('medium');
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await restoreFullLibraryBackup(parsed);
+      await library.loadFromStorage();
+      showToast(`🎉 Restored ${res.likedRestored} songs and ${res.playlistsRestored} playlists!`);
+    } catch (err) {
+      console.error('Backup restore failed:', err);
+      showToast('⚠️ Failed to restore backup. Invalid or corrupted JSON file.');
+    } finally {
+      if (backupFileInputRef.current) {
+        backupFileInputRef.current.value = '';
+      }
+    }
   };
 
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
@@ -1214,17 +1266,46 @@ export default function SettingsPage() {
             {/* Library Backup & Reset */}
             <div className="rounded-[22px] glass-bloom-menu p-4 flex flex-col justify-between shadow-md md:col-span-2">
               <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span>📥 Portable Backup & Factory Reset</span>
-                </h3>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>📥 Portable Backup & Factory Reset</span>
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleRequestPersistence}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold border-0 flex items-center gap-1.5 transition-all cursor-pointer ${
+                      isPersistedStorage
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                    }`}
+                    title="Click to verify or activate persistent storage protection"
+                  >
+                    <span>{isPersistedStorage ? '🛡️ Persistent Storage: Active' : '⚡ Enable Storage Shield'}</span>
+                  </button>
+                </div>
                 <p className="text-xs text-white/55 mt-1 leading-relaxed">
-                  Export your complete playlists, favorite tracks, and folders to portable JSON format, or reset WaveCraft back to default state.
+                  Export your complete playlists, favorite tracks, and folders to portable JSON format, restore from a previous backup file, or reset WaveCraft back to default state.
                 </p>
               </div>
+
+              <input
+                type="file"
+                ref={backupFileInputRef}
+                accept=".json"
+                onChange={handleRestoreBackupFile}
+                className="hidden"
+              />
 
               <div className="flex flex-wrap gap-3 mt-4">
                 <GlassButton size="sm" onClick={handleExport} className="flex-1 min-w-[140px]">
                   <span>Export Backup (.json)</span>
+                </GlassButton>
+                <GlassButton
+                  size="sm"
+                  onClick={() => backupFileInputRef.current?.click()}
+                  className="flex-1 min-w-[140px] border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20"
+                >
+                  <span>Restore Backup (.json)</span>
                 </GlassButton>
                 <GlassButton
                   size="sm"

@@ -10,8 +10,24 @@ import GlassSelect from '../ui/GlassSelect';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { loadGalaxyPrefs, saveGalaxyPrefs } from '../../services/storage';
 import WaveCardModal from '../player/WaveCardModal';
 import type { Track } from '../../types';
+
+function getInitialGalaxyLayout(): 'quadrants' | 'rings' | 'spiral' {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem('wavecraft_galaxy_prefs');
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p?.layout === 'quadrants' || p?.layout === 'rings' || p?.layout === 'spiral') {
+          return p.layout;
+        }
+      }
+    }
+  } catch {}
+  return 'quadrants';
+}
 
 const getThemeForCluster = (clusterIndex: number) => {
   switch (clusterIndex) {
@@ -574,7 +590,7 @@ export default function SonicGalaxyPage() {
   const [selectedStar, setSelectedStar] = useState<StarNode3D | null>(null);
   const [hoveredStarId, setHoveredStarId] = useState<string | null>(null);
   const [activeClusterFilter, setActiveClusterFilter] = useState<number | null>(null);
-  const [galaxyLayout, setGalaxyLayout] = useState<'quadrants' | 'rings' | 'spiral'>('quadrants');
+  const [galaxyLayout, setGalaxyLayout] = useState<'quadrants' | 'rings' | 'spiral'>(getInitialGalaxyLayout);
   const [inspectorTab, setInspectorTab] = useState<'dna' | 'neighbors' | 'roster'>('dna');
   const [rosterSearch, setRosterSearch] = useState('');
   const [rosterSort, setRosterSort] = useState<'match' | 'title' | 'artist'>('match');
@@ -586,6 +602,18 @@ export default function SonicGalaxyPage() {
   const [audioReactivityMode, setAudioReactivityMode] = useState<'dynamic' | 'ambient' | 'off'>('dynamic');
   const [isOrbitLocked, setIsOrbitLocked] = useState(false);
   const [showStoryModal, setShowStoryModal] = useState(false);
+
+  // Load and hydrate persisted galaxy layout & audio reactivity settings across cache sweeps
+  useEffect(() => {
+    loadGalaxyPrefs().then((p) => {
+      if (p.layout) setGalaxyLayout(p.layout);
+      if (p.audioReactivityMode) setAudioReactivityMode(p.audioReactivityMode);
+      if (typeof p.showCoordinateGrid === 'boolean') setShowCoordinateGrid(p.showCoordinateGrid);
+      if (typeof p.showConstellationFilaments === 'boolean') setShowConstellationFilaments(p.showConstellationFilaments);
+      if (typeof p.autoOrbit === 'boolean') setAutoOrbit(p.autoOrbit);
+      if (typeof p.zoom === 'number') setZoom(p.zoom);
+    });
+  }, []);
 
   // 3D Camera Rotation, Target Focus Coordinates & Pinch-to-Zoom Refs
   const cameraRef = useRef({
@@ -2066,7 +2094,9 @@ export default function SonicGalaxyPage() {
                   type="button"
                   onClick={() => {
                     triggerAndroidHaptic('light');
-                    setGalaxyLayout(fmt.id as any);
+                    const targetLayout = fmt.id as any;
+                    setGalaxyLayout(targetLayout);
+                    saveGalaxyPrefs({ layout: targetLayout });
                   }}
                   className="relative px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap select-none"
                 >

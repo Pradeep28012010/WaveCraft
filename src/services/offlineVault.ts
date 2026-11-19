@@ -97,8 +97,55 @@ function saveOfflineTracksMeta(tracks: Track[], changedTrackId?: string) {
     localStorage.setItem(VAULT_META_KEY, JSON.stringify(tracks));
     notifyListeners(changedTrackId);
   } catch (e) {
-    console.warn('Failed to persist offline vault metadata', e);
+    console.warn('Failed to persist offline vault metadata to localStorage', e);
   }
+  // Dual-tier survival: also persist metadata into IndexedDB vaultBlobStore
+  idbSet(VAULT_META_KEY, tracks, vaultBlobStore).catch(() => {});
+}
+
+/**
+ * Rehydrates offline vault metadata across both localStorage and IndexedDB.
+ * If a system cleaner wiped localStorage, metadata is immediately restored from IndexedDB.
+ */
+export async function rehydrateOfflineVault(): Promise<Track[]> {
+  try {
+    let localTracks: Track[] = [];
+    try {
+      const rawLocal = localStorage.getItem(VAULT_META_KEY);
+      if (rawLocal) {
+        const parsed = JSON.parse(rawLocal);
+        if (Array.isArray(parsed)) localTracks = parsed.filter((t) => t && t.id && t.title);
+      }
+    } catch {}
+
+    let idbTracks: Track[] = [];
+    try {
+      const fromIdb = await idbGet(VAULT_META_KEY, vaultBlobStore);
+      if (Array.isArray(fromIdb)) idbTracks = fromIdb.filter((t) => t && t.id && t.title);
+    } catch {}
+
+    const best = localTracks.length >= idbTracks.length ? localTracks : idbTracks;
+    if (best.length > 0) {
+      syncMemoryCache(best);
+      if (localTracks.length < best.length) {
+        try {
+          localStorage.setItem(VAULT_META_KEY, JSON.stringify(best));
+        } catch {}
+      }
+      if (idbTracks.length < best.length) {
+        idbSet(VAULT_META_KEY, best, vaultBlobStore).catch(() => {});
+      }
+      notifyListeners();
+      return best;
+    }
+  } catch (err) {
+    console.warn('[OfflineVault] Rehydration check failed:', err);
+  }
+  return cachedOfflineTracks || [];
+}
+
+if (typeof window !== 'undefined') {
+  rehydrateOfflineVault().catch(() => {});
 }
 
 /**

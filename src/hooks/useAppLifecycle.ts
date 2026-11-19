@@ -10,6 +10,7 @@ import { prewarmCoreRoutes } from '../utils/routePreloader';
 import { initNativeAndroid } from '../services/nativeAndroid';
 import { isAndroidNative, isElectronApp } from '../services/apiConfig';
 import { useUpdateStore } from '../stores/updateStore';
+import { ensureStoragePersistence } from '../services/storage';
 
 /**
  * Encapsulates global platform lifecycle hooks:
@@ -49,8 +50,9 @@ export function useAppLifecycle(): void {
     }
   }, []);
 
-  // Initialize stores from IndexedDB on mount + pre-warm core route chunks during idle
+  // Initialize stores with multi-tier self-healing on mount + request browser persistent storage
   useEffect(() => {
+    ensureStoragePersistence().catch(() => {});
     loadLibrary();
     loadSettings();
 
