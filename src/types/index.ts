@@ -124,6 +124,9 @@ export interface SettingsState {
   doubleClickToPlay?: boolean;
   showTrackNumbers?: boolean;
   compactMiniPlayer?: boolean;
+  // Fluid Scroll Dynamics & Motion Blur
+  scrollMotionMode?: ScrollMotionMode;
+  scrollMotionIntensity?: ScrollMotionIntensity;
 }
 
 export interface SearchResult {
@@ -263,5 +266,8 @@ export type VisualizerStyle =
 export type AudioQuality = SettingsState['audioQuality'];
 export type PerformanceProfile = SettingsState['performanceProfile'];
 export type AmbientGlowIntensity = SettingsState['ambientGlowIntensity'];
+export type ScrollMotionMode = 'off' | 'momentum' | 'glass' | 'artwork' | 'cinematic' | 'all';
+export type ScrollMotionIntensity = 'subtle' | 'balanced' | 'intense';
+
 
 

@@ -850,4 +850,73 @@ textarea,
   transform: scale3d(0.94, 0.94, 1);
 }
 
+/* ━━━ Fluid Scroll Motion Dynamics & Glass Velocity Engine ━━━━━━━━ */
+:root {
+  --scroll-skew: 0deg;
+  --scroll-blur: 0px;
+  --scroll-glass-blur: 0px;
+  --scroll-glass-sat: 0%;
+  --scroll-scale-y: 1;
+}
+
+/* 1. Velocity Inertial Tilt / Skew */
+.scroll-motion-skew {
+  transform: skewY(var(--scroll-skew, 0deg)) scaleY(var(--scroll-scale-y, 1)) translateZ(0);
+  transform-origin: center center;
+  transition: transform 0.06s cubic-bezier(0.16, 1, 0.3, 1);
+  backface-visibility: hidden;
+}
+
+[data-scrolling="true"] .scroll-motion-skew {
+  will-change: transform;
+}
+
+/* 2. Full Page Motion Blur (hardware-accelerated) */
+.scroll-motion-blur-page {
+  filter: blur(var(--scroll-blur, 0px));
+  transition: filter 0.06s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-scrolling="true"] .scroll-motion-blur-page {
+  will-change: filter;
+}
+
+/* 3. Scoped Artwork Motion Blur */
+.scroll-motion-blur-artwork img,
+.scroll-motion-blur-artwork .track-artwork,
+.scroll-motion-blur-artwork .album-artwork {
+  filter: blur(var(--scroll-blur, 0px));
+  transition: filter 0.06s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-scrolling="true"] .scroll-motion-blur-artwork img,
+[data-scrolling="true"] .scroll-motion-blur-artwork .track-artwork,
+[data-scrolling="true"] .scroll-motion-blur-artwork .album-artwork {
+  will-change: filter;
+}
+
+/* 4. Glass Velocity Pulse for TopBar, MiniPlayer & Mobile Nav */
+.glass-velocity-pulse {
+  backdrop-filter: blur(calc(24px + var(--scroll-glass-blur, 0px))) saturate(calc(140% + var(--scroll-glass-sat, 0%))) !important;
+  -webkit-backdrop-filter: blur(calc(24px + var(--scroll-glass-blur, 0px))) saturate(calc(140% + var(--scroll-glass-sat, 0%))) !important;
+  transition: backdrop-filter 0.08s ease-out, -webkit-backdrop-filter 0.08s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-motion-skew {
+    transform: none !important;
+  }
+  .scroll-motion-blur-page,
+  .scroll-motion-blur-artwork img,
+  .scroll-motion-blur-artwork .track-artwork,
+  .scroll-motion-blur-artwork .album-artwork {
+    filter: none !important;
+  }
+  .glass-velocity-pulse {
+    backdrop-filter: blur(24px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
+  }
+}
+
+
 

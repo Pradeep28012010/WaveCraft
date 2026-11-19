@@ -29,7 +29,9 @@ import type {
   AudioQuality,
   AmbientGlowIntensity,
   VisualizerStyle,
-  PerformanceProfile
+  PerformanceProfile,
+  ScrollMotionMode,
+  ScrollMotionIntensity
 } from '../../types';
 
 // ============================================================================
@@ -821,7 +823,7 @@ export default function SettingsPage() {
       {/* ===================================================================== */}
       {/* 3. APPEARANCE, THEMES & LIQUID GLASS                                  */}
       {/* ===================================================================== */}
-      {shouldShowSection('appearance', ['appearance', 'theme', 'color', 'glass', 'aura', 'ambient', 'visualizer', 'fps', 'profile', 'accent', 'miniplayer']) && (
+      {shouldShowSection('appearance', ['appearance', 'theme', 'color', 'glass', 'aura', 'ambient', 'visualizer', 'fps', 'profile', 'accent', 'miniplayer', 'scroll', 'motion', 'blur', 'physics', 'skew']) && (
         <section className="flex flex-col gap-3">
           <div className="px-1">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -1030,6 +1032,111 @@ export default function SettingsPage() {
                 onChange={settings.setShowTrackNumbers}
               />
             </InsetSettingRow>
+
+            {/* ━━━ Fluid Scroll Motion Dynamics & Glass Velocity Suite ━━━ */}
+            <InsetSettingRow
+              icon={<span className="text-sm">💫</span>}
+              iconBg="bg-violet-500/20 text-violet-300 border-violet-500/30"
+              label="Fluid Scroll Physics & Motion Blur"
+              description="Real-time velocity momentum skew, dynamic glass pulse, and directional motion blur"
+            >
+              <AppleToggle
+                checked={(settings.scrollMotionMode ?? 'all') !== 'off'}
+                onChange={(enabled) => {
+                  triggerAndroidHaptic('light');
+                  settings.setScrollMotionMode(enabled ? 'all' : 'off');
+                }}
+              />
+            </InsetSettingRow>
+
+            {(settings.scrollMotionMode ?? 'all') !== 'off' && (
+              <>
+                <InsetSettingRow
+                  icon={<span className="text-sm">🎬</span>}
+                  iconBg="bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
+                  label="Scroll Dynamics Mode"
+                  description="Choose between all-in-one cinematic suite, kinetic momentum tilt, glass pulse, or blur"
+                >
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-1 rounded-2xl bg-white/[0.03] border border-white/5 w-full sm:w-auto">
+                    {[
+                      { id: 'all', label: 'Cinematic Pro', desc: 'All Effects Combined' },
+                      { id: 'momentum', label: 'Kinetic Tilt', desc: '120fps Skew (Sharp Text)' },
+                      { id: 'glass', label: 'Glass Pulse', desc: 'Header & Dock Deepen' },
+                      { id: 'artwork', label: 'Artwork Blur', desc: 'Covers Only Blur' },
+                      { id: 'cinematic', label: 'Full Page Blur', desc: 'Viewport Motion Blur' },
+                      { id: 'off', label: 'Off', desc: 'Raw Native Scroll' }
+                    ].map((item) => {
+                      const isSelected = (settings.scrollMotionMode ?? 'all') === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            settings.setScrollMotionMode(item.id as ScrollMotionMode);
+                          }}
+                          className={`relative px-3 py-2 rounded-xl text-left transition-all cursor-pointer select-none ${
+                            isSelected
+                              ? 'bg-[var(--color-accent)] text-white shadow-lg'
+                              : 'hover:bg-white/[0.06] text-white/70 hover:text-white'
+                          }`}
+                        >
+                          <div className="text-xs font-bold leading-tight">{item.label}</div>
+                          <div className={`text-[10px] mt-0.5 leading-tight ${isSelected ? 'text-white/80' : 'text-white/40'}`}>
+                            {item.desc}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </InsetSettingRow>
+
+                <InsetSettingRow
+                  icon={<span className="text-sm">⚡</span>}
+                  iconBg="bg-teal-500/20 text-teal-300 border-teal-500/30"
+                  label="Motion Dynamics Intensity"
+                  description="Controls velocity multiplier, tilt degree, and blur diffusion distance"
+                >
+                  <div className="flex gap-1.5 p-1 rounded-full bg-white/[0.03] relative">
+                    {[
+                      { id: 'subtle', label: '🍃 Subtle' },
+                      { id: 'balanced', label: '⚡ Balanced' },
+                      { id: 'intense', label: '🌋 Cinematic' }
+                    ].map((item) => {
+                      const isSelected = (settings.scrollMotionIntensity ?? 'balanced') === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            settings.setScrollMotionIntensity(item.id as ScrollMotionIntensity);
+                          }}
+                          className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
+                        >
+                          {isSelected && (
+                            <motion.div
+                              layoutId="settings-scroll-intensity-pill"
+                              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                              className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                            />
+                          )}
+                          <span
+                            className={`relative z-10 transition-colors duration-150 ${
+                              isSelected
+                                ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                                : 'text-white/60 hover:text-white'
+                            }`}
+                          >
+                            {item.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </InsetSettingRow>
+              </>
+            )}
           </div>
         </section>
       )}

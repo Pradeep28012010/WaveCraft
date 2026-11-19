@@ -377,7 +377,7 @@ export default function MiniPlayer() {
                 handleMiniPlayerTouchStart(e);
               }}
               onTouchEnd={handleMiniPlayerTouchEnd}
-              className="h-15 liquid-glass bg-[#080812]/90 backdrop-blur-3xl rounded-[24px] flex items-center justify-between px-3 relative overflow-hidden shadow-[0_18px_48px_rgba(0,0,0,0.85)] border-0 cursor-pointer active:scale-[0.99] transition-transform"
+              className="h-15 liquid-glass bg-[#080812]/90 backdrop-blur-3xl glass-velocity-pulse rounded-[24px] flex items-center justify-between px-3 relative overflow-hidden shadow-[0_18px_48px_rgba(0,0,0,0.85)] border-0 cursor-pointer active:scale-[0.99] transition-transform"
             >
               <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />
 
@@ -513,7 +513,7 @@ export default function MiniPlayer() {
         <div
           onMouseEnter={prefetchPlayerPanels}
           onTouchStart={prefetchPlayerPanels}
-          className="h-20 liquid-glass rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)] border-0"
+          className="h-20 liquid-glass glass-velocity-pulse rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)] border-0"
         >
           {/* Isolated 120fps Progress Scrubber */}
           <MiniPlayerScrubber fallbackDuration={currentTrack.duration || 210} />

@@ -15,6 +15,8 @@ import YouTubeEmbed from '../player/YouTubeEmbed';
 import { useColorExtract } from '../../hooks/useColorExtract';
 import GlobalDownloadIndicator from '../ui/GlobalDownloadIndicator';
 import { useIsKeyboardOpen } from '../../hooks/useIsKeyboardOpen';
+import { useScrollMotionDynamics } from '../../hooks/useScrollMotionDynamics';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 const CommandPalette = lazy(() => import('./CommandPalette'));
 const StudioFXModal = lazy(() => import('../player/StudioFXModal'));
@@ -86,6 +88,17 @@ export default function MainLayout() {
   const isKeyboardOpen = useIsKeyboardOpen();
   const hideMobileBars = isPhone && isKeyboardOpen;
 
+  useScrollMotionDynamics(mainRef);
+  const scrollMotionMode = useSettingsStore((s) => s.scrollMotionMode ?? 'all');
+
+  const contentMotionClasses = [
+    (scrollMotionMode === 'momentum' || scrollMotionMode === 'all') && 'scroll-motion-skew',
+    (scrollMotionMode === 'cinematic' || scrollMotionMode === 'all') && 'scroll-motion-blur-page',
+    (scrollMotionMode === 'artwork') && 'scroll-motion-blur-artwork'
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTop = 0;
@@ -144,7 +157,7 @@ export default function MainLayout() {
               ref={mainRef}
               className="h-full overflow-y-auto overflow-x-hidden overscroll-y-contain flex flex-col"
             >
-              <div className={`flex-1 w-full max-w-7xl mx-auto min-w-0 ${
+              <div className={`flex-1 w-full max-w-7xl mx-auto min-w-0 ${contentMotionClasses} ${
                 isPhone
                   ? `px-3.5 pt-2 ${hideMobileBars ? 'pb-8' : (hasCurrentTrack ? 'pb-44' : 'pb-28')}`
                   : `px-6 lg:px-8 pt-4 ${hasCurrentTrack ? 'pb-32' : 'pb-24'}`

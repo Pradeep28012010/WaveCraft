@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SettingsState, VisualizerStyle } from '../types';
+import type { SettingsState, VisualizerStyle, ScrollMotionMode, ScrollMotionIntensity } from '../types';
 import { loadSettings, saveSettings } from '../services/storage';
 import { EQ_PRESETS } from '../utils/constants';
 
@@ -14,6 +14,8 @@ interface SettingsStore extends SettingsState {
   loudnessNormalization: boolean;
   offlineModeOnly: boolean;
   performanceProfile: 'ultra' | 'balanced' | 'performance';
+  scrollMotionMode: ScrollMotionMode;
+  scrollMotionIntensity: ScrollMotionIntensity;
   loadFromStorage: () => Promise<void>;
   setTheme: (theme: 'dark' | 'light' | 'auto') => void;
   setAccentColor: (color: string) => void;
@@ -37,6 +39,8 @@ interface SettingsStore extends SettingsState {
   setOfflineModeOnly: (enabled: boolean) => void;
   toggleOfflineModeOnly: () => void;
   setPerformanceProfile: (profile: 'ultra' | 'balanced' | 'performance') => void;
+  setScrollMotionMode: (mode: ScrollMotionMode) => void;
+  setScrollMotionIntensity: (intensity: ScrollMotionIntensity) => void;
   setAutoMixerFilterSweeps: (enabled: boolean) => void;
   toggleAutoMixerFilterSweeps: () => void;
   setAutoCachePlayingTracks: (enabled: boolean) => void;
@@ -101,7 +105,9 @@ const defaultSettings: SettingsState = {
   keepSearchHistory: true,
   doubleClickToPlay: false,
   showTrackNumbers: true,
-  compactMiniPlayer: false
+  compactMiniPlayer: false,
+  scrollMotionMode: 'all',
+  scrollMotionIntensity: 'balanced'
 };
 
 /**
@@ -152,7 +158,9 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
     keepSearchHistory: state.keepSearchHistory ?? true,
     doubleClickToPlay: state.doubleClickToPlay ?? false,
     showTrackNumbers: state.showTrackNumbers ?? true,
-    compactMiniPlayer: state.compactMiniPlayer ?? false
+    compactMiniPlayer: state.compactMiniPlayer ?? false,
+    scrollMotionMode: state.scrollMotionMode ?? 'all',
+    scrollMotionIntensity: state.scrollMotionIntensity ?? 'balanced'
   };
 }
 
@@ -360,6 +368,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     persistSettings(get());
   },
 
+  setScrollMotionMode: (mode: ScrollMotionMode) => {
+    set({ scrollMotionMode: mode });
+    persistSettings(get());
+  },
+
+  setScrollMotionIntensity: (intensity: ScrollMotionIntensity) => {
+    set({ scrollMotionIntensity: intensity });
+    persistSettings(get());
+  },
+
   setAutoMixerFilterSweeps: (enabled) => {
     set({ autoMixerFilterSweeps: enabled });
     persistSettings(get());
@@ -487,7 +505,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       keepSearchHistory: true,
       doubleClickToPlay: false,
       showTrackNumbers: true,
-      compactMiniPlayer: false
+      compactMiniPlayer: false,
+      scrollMotionMode: 'all',
+      scrollMotionIntensity: 'balanced'
     });
     persistSettings(defaultSettings);
   }
