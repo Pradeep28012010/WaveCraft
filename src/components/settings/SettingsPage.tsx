@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -449,44 +449,53 @@ export default function SettingsPage() {
           className="flex items-center gap-2 overflow-x-auto no-scrollbar py-4 -my-1.5 px-2"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {[
-            { id: 'all', label: 'All Settings' },
-            { id: 'eq', label: '10-Band EQ & DSP' },
-            { id: 'streaming', label: 'Audio & Playback' },
-            { id: 'appearance', label: 'Liquid Glass' },
-            { id: 'lyrics', label: 'Live Lyrics' },
-            { id: 'controls', label: 'Gestures & Haptics' },
-            { id: 'storage', label: 'Storage & Vault' },
-            { id: 'about', label: 'Updates & About' }
-          ].map((cat) => {
-            const isActive = activeCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setActiveCategory(cat.id as SettingsCategory);
-                }}
-                className="relative px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer select-none"
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="settings-category-pill"
-                    transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                    className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
-                  />
-                )}
-                <span
-                  className={`relative z-10 transition-colors duration-150 ${
-                    isActive ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
-                  }`}
+          <LayoutGroup id="settings-category-tabs">
+            {[
+              { id: 'all', label: 'All Settings' },
+              { id: 'eq', label: '10-Band EQ & DSP' },
+              { id: 'streaming', label: 'Audio & Playback' },
+              { id: 'appearance', label: 'Liquid Glass' },
+              { id: 'lyrics', label: 'Live Lyrics' },
+              { id: 'controls', label: 'Gestures & Haptics' },
+              { id: 'storage', label: 'Storage & Vault' },
+              { id: 'about', label: 'Updates & About' }
+            ].map((cat) => {
+              const isActive = activeCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    setActiveCategory(cat.id as SettingsCategory);
+                  }}
+                  className="relative px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer select-none"
                 >
-                  {cat.label}
-                </span>
-              </button>
-            );
-          })}
+                  {isActive && (
+                    <motion.div
+                      layoutId="settings-category-pill"
+                      layout="position"
+                      initial={false}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 450,
+                        damping: 34,
+                        mass: 0.5
+                      }}
+                      className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                    />
+                  )}
+                  <span
+                    className={`relative z-10 transition-colors duration-150 ${
+                      isActive ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    {cat.label}
+                  </span>
+                </button>
+              );
+            })}
+          </LayoutGroup>
         </div>
       </div>
 
@@ -524,37 +533,41 @@ export default function SettingsPage() {
 
           {/* Preset Pills */}
           <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl bg-white/[0.03] relative">
-            {Object.keys(EQ_PRESETS).map((presetName) => {
-              const active = (settings.eqPreset || 'Flat') === presetName;
-              return (
-                <button
-                  key={presetName}
-                  type="button"
-                  onClick={() => {
-                    triggerAndroidHaptic('light');
-                    settings.setEqPreset(presetName);
-                  }}
-                  className="relative px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer select-none"
-                >
-                  {active && (
-                    <motion.div
-                      layoutId="settings-eq-preset-liquid-pill"
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                      className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
-                    />
-                  )}
-                  <span
-                    className={`relative z-10 transition-colors duration-150 ${
-                      active
-                        ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
-                        : 'text-white/65 hover:text-white'
-                    }`}
+            <LayoutGroup id="settings-eq-presets">
+              {Object.keys(EQ_PRESETS).map((presetName) => {
+                const active = (settings.eqPreset || 'Flat') === presetName;
+                return (
+                  <button
+                    key={presetName}
+                    type="button"
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      settings.setEqPreset(presetName);
+                    }}
+                    className="relative px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer select-none"
                   >
-                    {presetName}
-                  </span>
-                </button>
-              );
-            })}
+                    {active && (
+                      <motion.div
+                        layoutId="settings-eq-preset-liquid-pill"
+                        layout="position"
+                        initial={false}
+                        transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.5 }}
+                        className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                      />
+                    )}
+                    <span
+                      className={`relative z-10 transition-colors duration-150 ${
+                        active
+                          ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                          : 'text-white/65 hover:text-white'
+                      }`}
+                    >
+                      {presetName}
+                    </span>
+                  </button>
+                );
+              })}
+            </LayoutGroup>
           </div>
 
           {/* Equalizer Visual Fader Rack */}
@@ -855,41 +868,45 @@ export default function SettingsPage() {
                 description="Controls atmospheric diffusion and brightness of the backdrop mesh"
               >
                 <div className="flex gap-1.5 p-1 rounded-full bg-white/[0.03] relative">
-                  {[
-                    { id: 'subtle', label: 'Subtle' },
-                    { id: 'vibrant', label: 'Radiant' },
-                    { id: 'aurora', label: 'Aurora Mesh' }
-                  ].map((item) => {
-                    const isSelected = (settings.ambientGlowIntensity ?? 'vibrant') === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          triggerAndroidHaptic('light');
-                          settings.setAmbientGlowIntensity(item.id as AmbientGlowIntensity);
-                        }}
-                        className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
-                      >
-                        {isSelected && (
-                          <motion.div
-                            layoutId="settings-aura-intensity-pill"
-                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                            className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
-                          />
-                        )}
-                        <span
-                          className={`relative z-10 transition-colors duration-150 ${
-                            isSelected
-                              ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
-                              : 'text-white/60 hover:text-white'
-                          }`}
+                  <LayoutGroup id="settings-aura-intensity">
+                    {[
+                      { id: 'subtle', label: 'Subtle' },
+                      { id: 'vibrant', label: 'Radiant' },
+                      { id: 'aurora', label: 'Aurora Mesh' }
+                    ].map((item) => {
+                      const isSelected = (settings.ambientGlowIntensity ?? 'vibrant') === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            settings.setAmbientGlowIntensity(item.id as AmbientGlowIntensity);
+                          }}
+                          className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
                         >
-                          {item.label}
-                        </span>
-                      </button>
-                    );
-                  })}
+                          {isSelected && (
+                            <motion.div
+                              layoutId="settings-aura-intensity-pill"
+                              layout="position"
+                              initial={false}
+                              transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.5 }}
+                              className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                            />
+                          )}
+                          <span
+                            className={`relative z-10 transition-colors duration-150 ${
+                              isSelected
+                                ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                                : 'text-white/60 hover:text-white'
+                            }`}
+                          >
+                            {item.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </LayoutGroup>
                 </div>
               </InsetSettingRow>
             )}
@@ -973,39 +990,43 @@ export default function SettingsPage() {
               description="Adjusts backdrop filter passes, aurora nodes, and particle counts"
             >
               <div className="flex gap-1.5 relative">
-                {[
-                  { id: 'ultra', label: 'Ultra 120fps' },
-                  { id: 'balanced', label: 'Balanced 60fps' },
-                  { id: 'performance', label: 'Battery Saver' }
-                ].map((item) => {
-                  const isSelected = (settings.performanceProfile ?? 'ultra') === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        triggerAndroidHaptic('light');
-                        settings.setPerformanceProfile(item.id as PerformanceProfile);
-                      }}
-                      className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
-                    >
-                      {isSelected && (
-                        <motion.div
-                          layoutId="settings-fps-profile-pill"
-                          transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                          className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
-                        />
-                      )}
-                      <span
-                        className={`relative z-10 transition-colors duration-150 ${
-                          isSelected ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
-                        }`}
+                <LayoutGroup id="settings-fps-profile">
+                  {[
+                    { id: 'ultra', label: 'Ultra 120fps' },
+                    { id: 'balanced', label: 'Balanced 60fps' },
+                    { id: 'performance', label: 'Battery Saver' }
+                  ].map((item) => {
+                    const isSelected = (settings.performanceProfile ?? 'ultra') === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          settings.setPerformanceProfile(item.id as PerformanceProfile);
+                        }}
+                        className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
                       >
-                        {item.label}
-                      </span>
-                    </button>
-                  );
-                })}
+                        {isSelected && (
+                          <motion.div
+                            layoutId="settings-fps-profile-pill"
+                            layout="position"
+                            initial={false}
+                            transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.5 }}
+                            className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                          />
+                        )}
+                        <span
+                          className={`relative z-10 transition-colors duration-150 ${
+                            isSelected ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/60 hover:text-white'
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </LayoutGroup>
               </div>
             </InsetSettingRow>
 
@@ -1058,44 +1079,48 @@ export default function SettingsPage() {
                   description="Selects active physics model: Kinetic tilt, glass pulse, or directional blur"
                 >
                   <div className="flex flex-wrap gap-1.5 relative items-center">
-                    {[
-                      { id: 'all', label: 'Cinematic Pro' },
-                      { id: 'momentum', label: 'Kinetic Tilt' },
-                      { id: 'glass', label: 'Glass Pulse' },
-                      { id: 'artwork', label: 'Artwork Blur' },
-                      { id: 'cinematic', label: 'Motion Blur' },
-                      { id: 'off', label: 'Off' }
-                    ].map((item) => {
-                      const isSelected = (settings.scrollMotionMode ?? 'all') === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            triggerAndroidHaptic('light');
-                            settings.setScrollMotionMode(item.id as ScrollMotionMode);
-                          }}
-                          className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
-                        >
-                          {isSelected && (
-                            <motion.div
-                              layoutId="settings-scroll-mode-pill"
-                              transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                              className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
-                            />
-                          )}
-                          <span
-                            className={`relative z-10 transition-colors duration-150 ${
-                              isSelected
-                                ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
-                                : 'text-white/60 hover:text-white'
-                            }`}
+                    <LayoutGroup id="settings-scroll-mode">
+                      {[
+                        { id: 'all', label: 'Cinematic Pro' },
+                        { id: 'momentum', label: 'Kinetic Tilt' },
+                        { id: 'glass', label: 'Glass Pulse' },
+                        { id: 'artwork', label: 'Artwork Blur' },
+                        { id: 'cinematic', label: 'Motion Blur' },
+                        { id: 'off', label: 'Off' }
+                      ].map((item) => {
+                        const isSelected = (settings.scrollMotionMode ?? 'all') === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              triggerAndroidHaptic('light');
+                              settings.setScrollMotionMode(item.id as ScrollMotionMode);
+                            }}
+                            className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
                           >
-                            {item.label}
-                          </span>
-                        </button>
-                      );
-                    })}
+                            {isSelected && (
+                              <motion.div
+                                layoutId="settings-scroll-mode-pill"
+                                layout="position"
+                                initial={false}
+                                transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.5 }}
+                                className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                              />
+                            )}
+                            <span
+                              className={`relative z-10 transition-colors duration-150 ${
+                                isSelected
+                                  ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                                  : 'text-white/60 hover:text-white'
+                              }`}
+                            >
+                              {item.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </LayoutGroup>
                   </div>
                 </InsetSettingRow>
 
@@ -1106,32 +1131,46 @@ export default function SettingsPage() {
                   description="Adjusts momentum multiplier, tilt degree, and blur diffusion distance"
                 >
                   <div className="flex gap-1.5 relative items-center">
-                    {[
-                      { id: 'subtle', label: 'Subtle' },
-                      { id: 'balanced', label: 'Balanced' },
-                      { id: 'intense', label: 'Cinematic' }
-                    ].map((item) => {
-                      const isSelected = (settings.scrollMotionIntensity ?? 'balanced') === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            triggerAndroidHaptic('light');
-                            settings.setScrollMotionIntensity(item.id as ScrollMotionIntensity);
-                          }}
-                          className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
-                        >
-                          {isSelected && (
-                            <motion.div
-                              layoutId="settings-scroll-intensity-pill"
-                              transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                              className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
-                            />
-                          )}
-                          <span
-                            className={`relative z-10 transition-colors duration-150 ${
-                              isSelected
+                    <LayoutGroup id="settings-scroll-intensity">
+                      {[
+                        { id: 'subtle', label: 'Subtle' },
+                        { id: 'balanced', label: 'Balanced' },
+                        { id: 'intense', label: 'Cinematic' }
+                      ].map((item) => {
+                        const isSelected = (settings.scrollMotionIntensity ?? 'balanced') === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              triggerAndroidHaptic('light');
+                              settings.setScrollMotionIntensity(item.id as ScrollMotionIntensity);
+                            }}
+                            className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
+                          >
+                            {isSelected && (
+                              <motion.div
+                                layoutId="settings-scroll-intensity-pill"
+                                layout="position"
+                                initial={false}
+                                transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.5 }}
+                                className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                              />
+                            )}
+                            <span
+                              className={`relative z-10 transition-colors duration-150 ${
+                                isSelected
+                                  ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                                  : 'text-white/60 hover:text-white'
+                              }`}
+                            >
+                              {item.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </LayoutGroup>
+                  </div>
                                 ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
                                 : 'text-white/60 hover:text-white'
                             }`}
@@ -1183,42 +1222,46 @@ export default function SettingsPage() {
               description="Adjusts the readable font size of karaoke lines"
             >
               <div className="flex gap-1.5 p-1 rounded-full bg-white/[0.03] relative">
-                {[
-                  { id: 'compact', label: 'Compact' },
-                  { id: 'normal', label: 'Standard' },
-                  { id: 'large', label: 'Large' },
-                  { id: 'massive', label: 'Cinema' }
-                ].map((item) => {
-                  const isSelected = (settings.lyricsFontSize ?? 'normal') === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        triggerAndroidHaptic('light');
-                        settings.setLyricsFontSize(item.id as any);
-                      }}
-                      className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
-                    >
-                      {isSelected && (
-                        <motion.div
-                          layoutId="settings-lyrics-font-size-pill"
-                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                          className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
-                        />
-                      )}
-                      <span
-                        className={`relative z-10 transition-colors duration-150 ${
-                          isSelected
-                            ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
-                            : 'text-white/60 hover:text-white'
-                        }`}
+                <LayoutGroup id="settings-lyrics-font-size">
+                  {[
+                    { id: 'compact', label: 'Compact' },
+                    { id: 'normal', label: 'Standard' },
+                    { id: 'large', label: 'Large' },
+                    { id: 'massive', label: 'Cinema' }
+                  ].map((item) => {
+                    const isSelected = (settings.lyricsFontSize ?? 'normal') === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          triggerAndroidHaptic('light');
+                          settings.setLyricsFontSize(item.id as any);
+                        }}
+                        className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
                       >
-                        {item.label}
-                      </span>
-                    </button>
-                  );
-                })}
+                        {isSelected && (
+                          <motion.div
+                            layoutId="settings-lyrics-font-size-pill"
+                            layout="position"
+                            initial={false}
+                            transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.5 }}
+                            className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                          />
+                        )}
+                        <span
+                          className={`relative z-10 transition-colors duration-150 ${
+                            isSelected
+                              ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                              : 'text-white/60 hover:text-white'
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </LayoutGroup>
               </div>
             </InsetSettingRow>
 
@@ -1417,37 +1460,41 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-white/80">Max Cache Size</span>
                   <div className="flex gap-1 p-1 rounded-xl bg-white/[0.03] relative">
-                    {[512, 1024, 2048, 4096].map((mb) => {
-                      const isSelected = (settings.maxCacheSizeMb ?? 1024) === mb;
-                      return (
-                        <button
-                          key={mb}
-                          type="button"
-                          onClick={() => {
-                            triggerAndroidHaptic('light');
-                            settings.setMaxCacheSizeMb(mb);
-                          }}
-                          className="relative px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer select-none"
-                        >
-                          {isSelected && (
-                            <motion.div
-                              layoutId="settings-max-cache-pill"
-                              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                              className="absolute inset-0 rounded-lg liquid-sliding-pill -z-0 pointer-events-none"
-                            />
-                          )}
-                          <span
-                            className={`relative z-10 transition-colors duration-150 ${
-                              isSelected
-                                ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
-                                : 'text-white/50 hover:text-white'
-                            }`}
+                    <LayoutGroup id="settings-max-cache">
+                      {[512, 1024, 2048, 4096].map((mb) => {
+                        const isSelected = (settings.maxCacheSizeMb ?? 1024) === mb;
+                        return (
+                          <button
+                            key={mb}
+                            type="button"
+                            onClick={() => {
+                              triggerAndroidHaptic('light');
+                              settings.setMaxCacheSizeMb(mb);
+                            }}
+                            className="relative px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer select-none"
                           >
-                            {mb >= 1024 ? `${mb / 1024}GB` : `${mb}MB`}
-                          </span>
-                        </button>
-                      );
-                    })}
+                            {isSelected && (
+                              <motion.div
+                                layoutId="settings-max-cache-pill"
+                                layout="position"
+                                initial={false}
+                                transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.5 }}
+                                className="absolute inset-0 rounded-lg liquid-sliding-pill -z-0 pointer-events-none"
+                              />
+                            )}
+                            <span
+                              className={`relative z-10 transition-colors duration-150 ${
+                                isSelected
+                                  ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                                  : 'text-white/50 hover:text-white'
+                              }`}
+                            >
+                              {mb >= 1024 ? `${mb / 1024}GB` : `${mb}MB`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </LayoutGroup>
                   </div>
                 </div>
               </div>
