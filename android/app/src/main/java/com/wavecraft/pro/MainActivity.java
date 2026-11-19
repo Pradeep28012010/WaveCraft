@@ -74,7 +74,11 @@ public class MainActivity extends BridgeActivity {
                 serviceIntent.putExtra(WaveCraftMediaService.EXTRA_IS_PLAYING, isPlaying);
                 serviceIntent.putExtra(WaveCraftMediaService.EXTRA_POSITION_MS, (long) (positionSec * 1000));
                 serviceIntent.putExtra(WaveCraftMediaService.EXTRA_DURATION_MS, (long) (durationSec * 1000));
-                startService(serviceIntent);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(serviceIntent);
+                } else {
+                    startService(serviceIntent);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -190,7 +194,7 @@ public class MainActivity extends BridgeActivity {
                         return;
                     }
                     String host = url.getHost().toLowerCase();
-                    boolean isAllowedHost = host.equals("github.com") || host.endsWith(".github.com") || host.endsWith(".githubusercontent.com");
+                    boolean isAllowedHost = host.equals("github.com") || host.endsWith(".github.com") || host.endsWith(".githubusercontent.com") || host.equals("wavecraft-alpha.vercel.app") || host.equals("vercel.app") || host.endsWith(".vercel.app");
                     if (!isAllowedHost) {
                         notifyUpdateError("Untrusted update source domain");
                         return;
@@ -637,18 +641,6 @@ public class MainActivity extends BridgeActivity {
 
             // Register native bridge for background audio foreground service & auto-updates
             webView.addJavascriptInterface(new AndroidAudioBridge(), "AndroidAudioBridge");
-
-            // Prevent Chromium WebView from freezing timers or pausing background media playback when locked
-            webView.evaluateJavascript(
-                "(function() {" +
-                "  try {" +
-                "    Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true });" +
-                "    Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true });" +
-                "    document.addEventListener('visibilitychange', function(e) { if (document.visibilityState === 'hidden') e.stopImmediatePropagation(); }, true);" +
-                "  } catch(e){}" +
-                "})();",
-                null
-            );
 
             keepWebViewAlive();
         }

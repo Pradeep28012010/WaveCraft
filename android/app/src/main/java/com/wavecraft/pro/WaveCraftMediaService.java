@@ -5,11 +5,14 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioManager;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
@@ -56,6 +59,38 @@ public class WaveCraftMediaService extends Service {
     private long currentPositionMs = 0;
     private long currentDurationMs = 210000L;
     private long lastNotificationUpdateMs = 0;
+    private BroadcastReceiver noisyAudioReceiver;
+    private boolean isNoisyReceiverRegistered = false;
+
+    private void registerNoisyReceiver() {
+        if (!isNoisyReceiverRegistered) {
+            if (noisyAudioReceiver == null) {
+                noisyAudioReceiver = new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction())) {
+                            MainActivity.sendMediaAction("pause");
+                            updatePlaybackStateOnly(false, currentPositionMs, currentDurationMs);
+                        }
+                    }
+                };
+            }
+            try {
+                IntentFilter filter = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+                registerReceiver(noisyAudioReceiver, filter);
+                isNoisyReceiverRegistered = true;
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void unregisterNoisyReceiver() {
+        if (isNoisyReceiverRegistered && noisyAudioReceiver != null) {
+            try {
+                unregisterReceiver(noisyAudioReceiver);
+            } catch (Exception ignored) {}
+            isNoisyReceiverRegistered = false;
+        }
+    }
 
     @Override
     public void onCreate() {
@@ -184,6 +219,7 @@ public class WaveCraftMediaService extends Service {
         }
 
         initMediaSession();
+        registerNoisyReceiver();
         updateMediaMetadata();
         updatePlaybackSessionState();
 
@@ -271,6 +307,7 @@ public class WaveCraftMediaService extends Service {
             }
 
             Bitmap downloadedBmp = null;
+            Bitmap fallbackBmp = null;
             for (String urlStr : candidates) {
                 try {
                     URL url = new URL(urlStr);
@@ -283,11 +320,19 @@ public class WaveCraftMediaService extends Service {
                         InputStream input = conn.getInputStream();
                         Bitmap bmp = BitmapFactory.decodeStream(input);
                         if (bmp != null) {
-                            downloadedBmp = bmp;
-                            break;
+                            // YouTube returns 120x90 gray placeholder for missing maxresdefault/sddefault
+                            if (bmp.getWidth() > 120 && bmp.getHeight() > 90) {
+                                downloadedBmp = bmp;
+                                break;
+                            } else if (fallbackBmp == null) {
+                                fallbackBmp = bmp;
+                            }
                         }
                     }
                 } catch (Exception ignored) {}
+            }
+            if (downloadedBmp == null && fallbackBmp != null) {
+                downloadedBmp = fallbackBmp;
             }
 
             if (downloadedBmp != null && target.equals(currentArtUrl)) {
@@ -368,6 +413,7 @@ public class WaveCraftMediaService extends Service {
     }
 
     private void stopForegroundPlayback() {
+        unregisterNoisyReceiver();
         if (wakeLock != null && wakeLock.isHeld()) {
             try {
                 wakeLock.release();
@@ -406,6 +452,7 @@ public class WaveCraftMediaService extends Service {
 
     @Override
     public void onDestroy() {
+        unregisterNoisyReceiver();
         if (wakeLock != null && wakeLock.isHeld()) {
             try {
                 wakeLock.release();

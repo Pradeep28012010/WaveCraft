@@ -494,6 +494,16 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   reorderQueue: (fromIndex, toIndex) => {
     set((state) => {
+      if (
+        fromIndex < 0 ||
+        fromIndex >= state.queue.length ||
+        toIndex < 0 ||
+        toIndex >= state.queue.length ||
+        fromIndex === toIndex
+      ) {
+        return state;
+      }
+
       const newQueue = [...state.queue];
       const [moved] = newQueue.splice(fromIndex, 1);
       if (!moved) return state;
@@ -518,7 +528,15 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         newIndex++;
       }
 
-      return { queue: newQueue, originalQueue: newOriginalQueue, queueIndex: newIndex };
+      const currentTrack =
+        newIndex >= 0 && newIndex < newQueue.length ? newQueue[newIndex] : state.currentTrack;
+
+      return {
+        queue: newQueue,
+        originalQueue: newOriginalQueue,
+        queueIndex: newIndex,
+        currentTrack
+      };
     });
     savePlayerSessionSync(get());
   },

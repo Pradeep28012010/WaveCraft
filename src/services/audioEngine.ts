@@ -1,7 +1,6 @@
 import { usePlayerStore } from '../stores/playerStore';
 import { useStudioStore, type StudioFXMode } from '../stores/studioStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { isAndroidNative } from './apiConfig';
 
 const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -78,9 +77,6 @@ function createAnalogSaturationCurve(driveAmount: number): Float32Array<ArrayBuf
 
 export function setHtmlAudioElement(el: HTMLAudioElement | null): void {
   htmlAudioElement = el;
-  if (isAndroidNative()) {
-    return;
-  }
   if (!el) {
     if (sourceNode) {
       try {
@@ -192,7 +188,7 @@ export function setSmoothOutputGain(
   targetGain: number,
   timeConstant = 0.035
 ): void {
-  if (audioCtx && gainNode && !isAndroidNative()) {
+  if (audioCtx && gainNode) {
     if (audio) audio.volume = 1.0;
     gainNode.gain.setTargetAtTime(Math.max(0, targetGain), audioCtx.currentTime, timeConstant);
   } else if (audio) {
@@ -571,7 +567,13 @@ export function initAudioGraph(
       trebleAirRackNode.connect(exciterWaveShaper);
       prev = exciterWaveShaper;
 
-      prev.connect(msSplitter);
+      const stereoUpmixer = audioCtx.createGain();
+      stereoUpmixer.channelCount = 2;
+      stereoUpmixer.channelCountMode = 'explicit';
+      stereoUpmixer.channelInterpretation = 'speakers';
+
+      prev.connect(stereoUpmixer);
+      stereoUpmixer.connect(msSplitter);
       msSplitter.connect(midSumL, 0);
       msSplitter.connect(midSumR, 1);
       midSumL.connect(midBus);
@@ -629,7 +631,7 @@ export function initAudioGraph(
     }
   }
 
-  if (!isAndroidNative() && audio && audioCtx && preGainNode) {
+  if (audio && audioCtx && preGainNode) {
     if (connectedAudioElement !== audio) {
       if (sourceNode) {
         try {

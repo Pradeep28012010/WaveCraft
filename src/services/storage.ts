@@ -254,18 +254,23 @@ export async function loadLikedSongs(): Promise<Track[]> {
     }
   }
 
-  const candidates = [idbData, localData, cacheData].filter(
-    (d): d is Track[] => Array.isArray(d) && d.length > 0
-  );
-  candidates.sort((a, b) => b.length - a.length);
-  const best = candidates[0] || [];
+  // Prioritize populated IndexedDB data as authoritative instead of picking the longest array,
+  // preventing zombie resurrection of unliked songs.
+  let best: Track[] = [];
+  if (idbData && idbData.length > 0) {
+    best = idbData;
+  } else if (localData && localData.length > 0) {
+    best = localData;
+  } else if (cacheData && cacheData.length > 0) {
+    best = cacheData;
+  }
 
-  // SELF-HEAL: If any tier was missing or had fewer tracks, restore it immediately
+  // SELF-HEAL: If IndexedDB was empty (e.g. wiped by browser cleanup), restore from secondary tier
   if (best.length > 0) {
-    if (!idbData || idbData.length < best.length) {
+    if (!idbData) {
       set(KEYS.LIKED_SONGS, best).catch(() => {});
     }
-    if (!localData || localData.length < best.length) {
+    if (!localData || localData.length !== best.length) {
       try {
         window.localStorage?.setItem(KEYS.LIKED_SONGS, JSON.stringify(best));
       } catch {}
@@ -310,17 +315,23 @@ export async function loadPlaylists(): Promise<Playlist[]> {
     }
   }
 
-  const candidates = [idbData, localData, cacheData].filter(
-    (d): d is Playlist[] => Array.isArray(d) && d.length > 0
-  );
-  candidates.sort((a, b) => b.length - a.length);
-  const best = candidates[0] || [];
+  // Prioritize populated IndexedDB data as authoritative instead of picking the longest array,
+  // preventing zombie resurrection of deleted playlists.
+  let best: Playlist[] = [];
+  if (idbData && idbData.length > 0) {
+    best = idbData;
+  } else if (localData && localData.length > 0) {
+    best = localData;
+  } else if (cacheData && cacheData.length > 0) {
+    best = cacheData;
+  }
 
+  // SELF-HEAL: If IndexedDB was empty (e.g. wiped by browser cleanup), restore from secondary tier
   if (best.length > 0) {
-    if (!idbData || idbData.length < best.length) {
+    if (!idbData) {
       set(KEYS.PLAYLISTS, best).catch(() => {});
     }
-    if (!localData || localData.length < best.length) {
+    if (!localData || localData.length !== best.length) {
       try {
         window.localStorage?.setItem(KEYS.PLAYLISTS, JSON.stringify(best));
       } catch {}
@@ -363,17 +374,23 @@ export async function loadFolders(): Promise<PlaylistFolder[]> {
     }
   }
 
-  const candidates = [idbData, localData, cacheData].filter(
-    (d): d is PlaylistFolder[] => Array.isArray(d) && d.length > 0
-  );
-  candidates.sort((a, b) => b.length - a.length);
-  const best = candidates[0] || [];
+  // Prioritize populated IndexedDB data as authoritative instead of picking the longest array,
+  // preventing zombie resurrection of deleted folders.
+  let best: PlaylistFolder[] = [];
+  if (idbData && idbData.length > 0) {
+    best = idbData;
+  } else if (localData && localData.length > 0) {
+    best = localData;
+  } else if (cacheData && cacheData.length > 0) {
+    best = cacheData;
+  }
 
+  // SELF-HEAL: If IndexedDB was empty (e.g. wiped by browser cleanup), restore from secondary tier
   if (best.length > 0) {
-    if (!idbData || idbData.length < best.length) {
+    if (!idbData) {
       set(KEYS.FOLDERS, best).catch(() => {});
     }
-    if (!localData || localData.length < best.length) {
+    if (!localData || localData.length !== best.length) {
       try {
         window.localStorage?.setItem(KEYS.FOLDERS, JSON.stringify(best));
       } catch {}
@@ -416,17 +433,23 @@ export async function loadRecentlyPlayed(): Promise<{ track: Track; playedAt: nu
     }
   }
 
-  const candidates = [idbData, localData, cacheData].filter(
-    (d): d is { track: Track; playedAt: number }[] => Array.isArray(d) && d.length > 0
-  );
-  candidates.sort((a, b) => b.length - a.length);
-  const best = candidates[0] || [];
+  // Prioritize populated IndexedDB data as authoritative instead of picking the longest array,
+  // preventing zombie resurrection of cleared recent tracks.
+  let best: { track: Track; playedAt: number }[] = [];
+  if (idbData && idbData.length > 0) {
+    best = idbData;
+  } else if (localData && localData.length > 0) {
+    best = localData;
+  } else if (cacheData && cacheData.length > 0) {
+    best = cacheData;
+  }
 
+  // SELF-HEAL: If IndexedDB was empty (e.g. wiped by browser cleanup), restore from secondary tier
   if (best.length > 0) {
-    if (!idbData || idbData.length < best.length) {
+    if (!idbData) {
       set(KEYS.RECENTLY_PLAYED, best).catch(() => {});
     }
-    if (!localData || localData.length < best.length) {
+    if (!localData || localData.length !== best.length) {
       try {
         window.localStorage?.setItem(KEYS.RECENTLY_PLAYED, JSON.stringify(best));
       } catch {}

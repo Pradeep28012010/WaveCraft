@@ -218,22 +218,8 @@ function updateTrayMenu(trackInfo) {
 }
 
 function registerGlobalMediaKeys() {
-  try {
-    globalShortcut.register('MediaPlayPause', () => {
-      mainWindow?.webContents.send('media:action', 'togglePlay');
-    });
-    globalShortcut.register('MediaNextTrack', () => {
-      mainWindow?.webContents.send('media:action', 'nextTrack');
-    });
-    globalShortcut.register('MediaPreviousTrack', () => {
-      mainWindow?.webContents.send('media:action', 'prevTrack');
-    });
-    globalShortcut.register('MediaStop', () => {
-      mainWindow?.webContents.send('media:action', 'pause');
-    });
-  } catch (err) {
-    console.warn('Could not register global media keys:', err);
-  }
+  // Global hardware media shortcuts (MediaPlayPause, MediaNextTrack, MediaPreviousTrack, MediaStop)
+  // are delegated to Chromium's native navigator.mediaSession in the renderer without double triggers.
 }
 
 // Window Management IPC Handlers

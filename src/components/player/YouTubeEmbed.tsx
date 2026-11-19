@@ -68,6 +68,7 @@ export default function YouTubeEmbed() {
   const bufferingStartTimeRef = useRef<number>(0);
   const ytStallRecoveryCountRef = useRef<number>(0);
   const ytBufferingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const crossfadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rampTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoCachedTracksRef = useRef<Set<string>>(new Set());
@@ -301,8 +302,10 @@ export default function YouTubeEmbed() {
 
       // Smooth audio crossfading transition near track completion
       const activeCrossfade = crossfadeDurationRef.current;
+      const isRepeatOne = usePlayerStore.getState().repeatMode === 'one';
       if (
         activeCrossfade > 0 &&
+        !isRepeatOne &&
         dur > 15 &&
         cur >= dur - activeCrossfade &&
         !isCrossfadingRef.current &&
@@ -311,7 +314,12 @@ export default function YouTubeEmbed() {
         isCrossfadingRef.current = true;
         setSmoothOutputGain(audio, 0, activeCrossfade * 0.7);
         triggerFrequencyCarvedTransition(activeCrossfade);
-        setTimeout(() => {
+        if (crossfadeTimeoutRef.current) {
+          clearTimeout(crossfadeTimeoutRef.current);
+        }
+        crossfadeTimeoutRef.current = setTimeout(() => {
+          crossfadeTimeoutRef.current = null;
+          if (trackTransitionIntentRef.current) return;
           trackTransitionIntentRef.current = true;
           usePlayerStore.getState().nextTrack();
         }, Math.min(3000, activeCrossfade * 750));
@@ -320,6 +328,13 @@ export default function YouTubeEmbed() {
 
     const onEnded = () => {
       if (getActiveEngine() !== 'audio') return;
+      if (crossfadeTimeoutRef.current) {
+        clearTimeout(crossfadeTimeoutRef.current);
+        crossfadeTimeoutRef.current = null;
+      }
+      if (trackTransitionIntentRef.current) {
+        return;
+      }
       const jam = useJamStore.getState();
       if (jam.roomCode && !jam.isHost) {
         // Guest in Jam room: wait for Host to command next track
@@ -347,6 +362,7 @@ export default function YouTubeEmbed() {
         autoCacheTrack(curTrack);
       }
       // Delegate advancing queue and autoplay recommendations directly to playerStore
+      trackTransitionIntentRef.current = true;
       nextTrack();
     };
 
@@ -355,6 +371,10 @@ export default function YouTubeEmbed() {
     let audioStallHardRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const clearAudioTimers = () => {
+      if (crossfadeTimeoutRef.current) {
+        clearTimeout(crossfadeTimeoutRef.current);
+        crossfadeTimeoutRef.current = null;
+      }
       if (audioLoadingDebounceTimer) {
         clearTimeout(audioLoadingDebounceTimer);
         audioLoadingDebounceTimer = null;
@@ -570,6 +590,13 @@ export default function YouTubeEmbed() {
             }
             const state = e.data;
             if (state === window.YT?.PlayerState?.ENDED) {
+              if (fadeIntervalRef.current) {
+                clearInterval(fadeIntervalRef.current);
+                fadeIntervalRef.current = null;
+              }
+              if (trackTransitionIntentRef.current) {
+                return;
+              }
               const jam = useJamStore.getState();
               if (jam.roomCode && !jam.isHost) {
                 // Guest in Jam room: wait for Host to command next track
@@ -891,7 +918,8 @@ export default function YouTubeEmbed() {
 
     if (startTimeSec > 0) {
       const curDur = usePlayerStore.getState().duration || cur?.duration || 0;
-      setProgress(startTimeSec, curDur > 0 ? (startTimeSec / curDur) * 100 : 0);
+      const pct = curDur > 0 ? (startTimeSec / curDur) * 100 : 0;
+      setProgress(pct, startTimeSec);
     } else {
       setProgress(0, 0);
     }
@@ -1757,8 +1785,10 @@ export default function YouTubeEmbed() {
 
           // Smooth Audio Crossfading when approaching end of track
           const fadeSec = crossfadeDuration;
+          const isRepeatOne = usePlayerStore.getState().repeatMode === 'one';
           if (
             fadeSec > 0 &&
+            !isRepeatOne &&
             duration > 15 &&
             current >= duration - fadeSec &&
             !isCrossfadingRef.current &&
@@ -1781,6 +1811,7 @@ export default function YouTubeEmbed() {
                   clearInterval(fadeIntervalRef.current);
                   fadeIntervalRef.current = null;
                 }
+                if (trackTransitionIntentRef.current) return;
                 trackTransitionIntentRef.current = true;
                 usePlayerStore.getState().nextTrack();
               }

@@ -380,7 +380,9 @@ export default async function handler(req, res) {
       if (!streamData?.audioUrl && videoId) {
         const ytStream = await resolveYouTubeAudioStream(videoId);
         if (ytStream?.audioUrl) {
-          const proxiedUrl = `/api/music?action=proxy-stream&url=${encodeURIComponent(ytStream.audioUrl)}`;
+          const proxiedUrl = ytStream.audioUrl.startsWith('/api/music?action=proxy-stream')
+            ? ytStream.audioUrl
+            : `/api/music?action=proxy-stream&url=${encodeURIComponent(ytStream.audioUrl)}`;
           streamData = {
             audioUrl: proxiedUrl,
             quality: ytStream.quality || '160kbps YouTube Studio',
