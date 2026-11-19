@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Track } from '../types';
 import { usePlayerStore } from './playerStore';
 import { unlockAudioEngine } from '../components/player/YouTubeEmbed';
-import { getPreciseAudioTime, seekToTime } from '../services/audioEngine';
+import { getPreciseAudioTime, seekToTime, setSpatialStereoPan } from '../services/audioEngine';
 import { jamSyncEngine, type JamAudioAnchor } from '../services/jamSyncEngine';
 import { jamWebRtc, type WebRtcSignalPayload } from '../services/jamWebRtc';
 import { searchTracks } from '../services/youtube';
@@ -14,12 +14,19 @@ export interface JamReaction {
   emoji: string;
   sender: string;
   createdAt: number;
+  x?: number;
+  y?: number;
+  seatId?: string;
 }
 
 export interface JamMember {
   id: string;
   name: string;
   lastSeen: number;
+  seatId?: string;
+  x?: number;
+  y?: number;
+  pan?: number;
 }
 
 export interface JamMessage {
@@ -53,6 +60,7 @@ export interface JamRoomSnapshot {
     | 'p2p-ping'
     | 'p2p-pong'
     | 'p2p-anchor'
+    | 'member-seat'
     | string;
   addedTrack?: Track;
   currentTrack?: Track | null;
@@ -73,6 +81,10 @@ export interface JamRoomSnapshot {
   serverTime?: number;
   signal?: WebRtcSignalPayload;
   isHost?: boolean;
+  seatId?: string;
+  seatX?: number;
+  seatY?: number;
+  seatPan?: number;
 }
 
 interface JamStore {
@@ -86,6 +98,9 @@ interface JamStore {
   messages: JamMessage[];
   isConnected: boolean;
   lastSyncedAt: number | null;
+  selfSeatId: string;
+  selfSeatPos: { x: number; y: number; pan: number };
+  spatialAudioEnabled: boolean;
   setUserName: (name: string) => void;
   createRoom: (customName?: string) => Promise<string>;
   joinRoom: (code: string, customName?: string) => Promise<void>;
@@ -99,6 +114,8 @@ interface JamStore {
   skipTrackInJam: () => Promise<void>;
   syncNow: () => void;
   triggerSyncClick: () => void;
+  setSeat: (seatId: string, x?: number, y?: number, pan?: number) => void;
+  toggleSpatialAudio: () => void;
 }
 
 const getInitialUserId = () => {
@@ -165,6 +182,8 @@ function publishRealtimeEvent(roomCode: string, eventPayload: JamRoomSnapshot) {
       ? 'react'
       : eventPayload.eventType === 'chat'
       ? 'chat'
+      : eventPayload.eventType === 'member-seat'
+      ? 'seat'
       : 'sync';
 
   fetch(apiUrl(`/api/music?action=jam&op=${encodeURIComponent(op)}&room=${encodeURIComponent(roomCode)}`), {
@@ -201,17 +220,43 @@ export const useJamStore = create<JamStore>((set, get) => {
         if (m && m.id && now - (m.lastSeen || now) < 28_000) {
           const prev = map.get(m.id);
           if (!prev || (m.lastSeen || 0) >= prev.lastSeen) {
-            map.set(m.id, { id: m.id, name: m.name || 'Listener', lastSeen: m.lastSeen || now });
+            map.set(m.id, {
+              id: m.id,
+              name: m.name || 'Listener',
+              lastSeen: m.lastSeen || now,
+              seatId: m.seatId || prev?.seatId,
+              x: typeof m.x === 'number' ? m.x : prev?.x,
+              y: typeof m.y === 'number' ? m.y : prev?.y,
+              pan: typeof m.pan === 'number' ? m.pan : prev?.pan
+            });
           }
         }
       }
     }
     if (extraMember && extraMember.id) {
-      map.set(extraMember.id, { ...extraMember, lastSeen: now });
+      const prev = map.get(extraMember.id);
+      map.set(extraMember.id, {
+        ...extraMember,
+        lastSeen: now,
+        seatId: extraMember.seatId || prev?.seatId,
+        x: typeof extraMember.x === 'number' ? extraMember.x : prev?.x,
+        y: typeof extraMember.y === 'number' ? extraMember.y : prev?.y,
+        pan: typeof extraMember.pan === 'number' ? extraMember.pan : prev?.pan
+      });
     }
     const selfId = get().userId;
     const selfName = get().userName;
-    map.set(selfId, { id: selfId, name: selfName, lastSeen: now });
+    const selfPos = get().selfSeatPos || { x: 50, y: 62, pan: 0 };
+    const selfSeatId = get().selfSeatId || 'center-sweetspot';
+    map.set(selfId, {
+      id: selfId,
+      name: selfName,
+      lastSeen: now,
+      seatId: selfSeatId,
+      x: selfPos.x,
+      y: selfPos.y,
+      pan: selfPos.pan
+    });
     return Array.from(map.values());
   };
 
@@ -263,6 +308,23 @@ export const useJamStore = create<JamStore>((set, get) => {
         return;
       }
       jamWebRtc.handleRemoteSignal(room.signal);
+      return;
+    }
+
+    // Member Spatial Seat Position Sync
+    if (room.eventType === 'member-seat' && room.userId) {
+      const seatX = typeof room.seatX === 'number' ? room.seatX : 50;
+      const seatY = typeof room.seatY === 'number' ? room.seatY : 50;
+      const seatPan = typeof room.seatPan === 'number' ? room.seatPan : 0;
+      const targetMemberId = room.userId;
+
+      set((s) => ({
+        members: s.members.map((m) =>
+          m.id === targetMemberId
+            ? { ...m, seatId: room.seatId || m.seatId, x: seatX, y: seatY, pan: seatPan, lastSeen: Date.now() }
+            : m
+        )
+      }));
       return;
     }
 
@@ -773,6 +835,9 @@ export const useJamStore = create<JamStore>((set, get) => {
     messages: [],
     isConnected: false,
     lastSyncedAt: null,
+    selfSeatId: 'center-sweetspot',
+    selfSeatPos: { x: 50, y: 62, pan: 0 },
+    spatialAudioEnabled: true,
 
     setUserName: (name) => {
       const clean = name.trim() || 'WaveRider';
@@ -794,11 +859,15 @@ export const useJamStore = create<JamStore>((set, get) => {
       const { userId, userName } = get();
       const now = Date.now();
 
+      setSpatialStereoPan(0);
       set({
         roomCode: code,
         isHost: true,
         hostName: userName,
-        members: [{ id: userId, name: userName, lastSeen: now }],
+        selfSeatId: 'center-sweetspot',
+        selfSeatPos: { x: 50, y: 62, pan: 0 },
+        spatialAudioEnabled: true,
+        members: [{ id: userId, name: userName, lastSeen: now, seatId: 'center-sweetspot', x: 50, y: 62, pan: 0 }],
         reactions: [],
         messages: [
           {
@@ -827,10 +896,14 @@ export const useJamStore = create<JamStore>((set, get) => {
       const { userId, userName } = get();
       const now = Date.now();
 
+      setSpatialStereoPan(0);
       set({
         roomCode: cleanCode,
         isHost: false,
-        members: [{ id: userId, name: userName, lastSeen: now }],
+        selfSeatId: 'center-sweetspot',
+        selfSeatPos: { x: 50, y: 62, pan: 0 },
+        spatialAudioEnabled: true,
+        members: [{ id: userId, name: userName, lastSeen: now, seatId: 'center-sweetspot', x: 50, y: 62, pan: 0 }],
         reactions: [],
         messages: [],
         isConnected: true,
@@ -846,6 +919,10 @@ export const useJamStore = create<JamStore>((set, get) => {
         eventType: 'join',
         userId,
         userName,
+        seatId: 'center-sweetspot',
+        seatX: 50,
+        seatY: 62,
+        seatPan: 0,
         message: {
           id: `sys-join-${userId}-${now}`,
           sender: 'WaveJam',
@@ -903,6 +980,7 @@ export const useJamStore = create<JamStore>((set, get) => {
       }
       jamWebRtc.cleanup();
       jamSyncEngine.stopPLL();
+      setSpatialStereoPan(null);
 
       if (roomCode && userId) {
         fetch(
@@ -919,12 +997,15 @@ export const useJamStore = create<JamStore>((set, get) => {
         reactions: [],
         messages: [],
         isConnected: false,
-        lastSyncedAt: null
+        lastSyncedAt: null,
+        selfSeatId: 'center-sweetspot',
+        selfSeatPos: { x: 50, y: 62, pan: 0 },
+        spatialAudioEnabled: true
       });
     },
 
     sendReaction: async (emoji) => {
-      const { roomCode, userId, userName } = get();
+      const { roomCode, userId, userName, selfSeatPos, selfSeatId } = get();
       if (!roomCode) return;
 
       const now = Date.now();
@@ -932,7 +1013,10 @@ export const useJamStore = create<JamStore>((set, get) => {
         id: `react-${now}-${Math.random().toString(36).slice(2, 7)}`,
         emoji,
         sender: userName,
-        createdAt: now
+        createdAt: now,
+        x: selfSeatPos.x,
+        y: selfSeatPos.y,
+        seatId: selfSeatId
       };
 
       set((s) => ({ reactions: mergeReactions([...s.reactions, reaction]) }));
@@ -941,6 +1025,9 @@ export const useJamStore = create<JamStore>((set, get) => {
         roomCode,
         eventType: 'react',
         reaction,
+        seatId: selfSeatId,
+        seatX: selfSeatPos.x,
+        seatY: selfSeatPos.y,
         updatedAt: now
       });
 
@@ -950,7 +1037,15 @@ export const useJamStore = create<JamStore>((set, get) => {
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ emoji, userId, userName, id: reaction.id })
+            body: JSON.stringify({
+              emoji,
+              userId,
+              userName,
+              id: reaction.id,
+              x: selfSeatPos.x,
+              y: selfSeatPos.y,
+              seatId: selfSeatId
+            })
           }
         );
       } catch {}
@@ -1289,6 +1384,47 @@ export const useJamStore = create<JamStore>((set, get) => {
         );
         seekToTime(expected);
         jamSyncEngine.startPLL();
+      }
+    },
+
+    setSeat: (seatId, x = 50, y = 50, pan = 0) => {
+      const clampedPan = Math.max(-0.85, Math.min(0.85, pan));
+      const pos = { x, y, pan: clampedPan };
+      set((s) => ({
+        selfSeatId: seatId,
+        selfSeatPos: pos,
+        members: s.members.map((m) =>
+          m.id === s.userId ? { ...m, seatId, x, y, pan: clampedPan, lastSeen: Date.now() } : m
+        )
+      }));
+
+      if (get().spatialAudioEnabled) {
+        setSpatialStereoPan(clampedPan);
+      }
+
+      const { roomCode, userId, userName } = get();
+      if (roomCode) {
+        publishRealtimeEvent(roomCode, {
+          roomCode,
+          eventType: 'member-seat',
+          userId,
+          userName,
+          seatId,
+          seatX: x,
+          seatY: y,
+          seatPan: clampedPan,
+          updatedAt: Date.now()
+        });
+      }
+    },
+
+    toggleSpatialAudio: () => {
+      const next = !get().spatialAudioEnabled;
+      set({ spatialAudioEnabled: next });
+      if (next) {
+        setSpatialStereoPan(get().selfSeatPos.pan);
+      } else {
+        setSpatialStereoPan(null);
       }
     }
   };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useJamStore } from '../../stores/jamStore';
+import { useJamStore, type JamMember, type JamReaction } from '../../stores/jamStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { searchTracks, getCachedSearch } from '../../services/youtube';
 import { PROD_API_ORIGIN } from '../../services/apiConfig';
@@ -83,6 +83,413 @@ const JamStageProgress = memo<{ isHost: boolean }>(({ isHost }) => {
 });
 JamStageProgress.displayName = 'JamStageProgress';
 
+export interface SpatialZone {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  pan: number;
+  icon: string;
+  badge: string;
+  desc: string;
+}
+
+export const SPATIAL_SEATING_ZONES: SpatialZone[] = [
+  {
+    id: 'center-sweetspot',
+    name: 'Acoustic Sweetspot',
+    x: 50,
+    y: 60,
+    pan: 0,
+    icon: '🎯',
+    badge: 'Stereo Balanced',
+    desc: 'Golden-ratio balanced binaural imaging'
+  },
+  {
+    id: 'front-row',
+    name: 'Front Row Center',
+    x: 50,
+    y: 33,
+    pan: 0,
+    icon: '🔥',
+    badge: 'Front Stage',
+    desc: 'Punchy direct acoustic energy at DJ deck'
+  },
+  {
+    id: 'left-wing',
+    name: 'Left Stereo Wing',
+    x: 20,
+    y: 48,
+    pan: -0.55,
+    icon: '◀️',
+    badge: 'Left Pan (-55%)',
+    desc: 'Immersive left soundstage staging'
+  },
+  {
+    id: 'right-wing',
+    name: 'Right Stereo Wing',
+    x: 80,
+    y: 48,
+    pan: 0.55,
+    icon: '▶️',
+    badge: 'Right Pan (+55%)',
+    desc: 'Immersive right soundstage staging'
+  },
+  {
+    id: 'vip-mezzanine',
+    name: 'VIP Lounge',
+    x: 50,
+    y: 84,
+    pan: 0,
+    icon: '👑',
+    badge: 'Rear Mezzanine',
+    desc: 'Elevated wide-angle surround acoustics'
+  }
+];
+
+interface SpatialStageMapProps {
+  members: JamMember[];
+  selfId: string;
+  selfSeatId: string;
+  selfSeatPos: { x: number; y: number; pan: number };
+  spatialAudioEnabled: boolean;
+  isHost: boolean;
+  hostName: string;
+  isPlaying: boolean;
+  reactions: JamReaction[];
+  onSetSeat: (seatId: string, x?: number, y?: number, pan?: number) => void;
+  onToggleSpatial: () => void;
+}
+
+interface ParticleBurst {
+  id: string;
+  emoji: string;
+  x: number;
+  y: number;
+  offsetX: number;
+}
+
+const SpatialListeningStageMap = memo<SpatialStageMapProps>(({
+  members,
+  selfId,
+  selfSeatId,
+  selfSeatPos,
+  spatialAudioEnabled,
+  isHost,
+  hostName,
+  isPlaying,
+  reactions,
+  onSetSeat,
+  onToggleSpatial
+}) => {
+  const floorRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [stageParticles, setStageParticles] = useState<ParticleBurst[]>([]);
+  const lastReactionIdRef = useRef<string | null>(null);
+
+  // Trigger real-time particle bursts on stage when emoji reactions arrive
+  useEffect(() => {
+    if (reactions.length === 0) return;
+    const latest = reactions[reactions.length - 1];
+    if (!latest || latest.id === lastReactionIdRef.current) return;
+    lastReactionIdRef.current = latest.id;
+
+    // Find member coordinates
+    const sender = members.find((m) => m.name === latest.sender || m.id === latest.sender);
+    const originX = typeof latest.x === 'number' ? latest.x : sender?.x ?? 50;
+    const originY = typeof latest.y === 'number' ? latest.y : sender?.y ?? 60;
+
+    const burst: ParticleBurst[] = [
+      { id: `${latest.id}-p1`, emoji: latest.emoji, x: originX, y: originY, offsetX: -18 },
+      { id: `${latest.id}-p2`, emoji: latest.emoji, x: originX, y: originY, offsetX: 0 },
+      { id: `${latest.id}-p3`, emoji: latest.emoji, x: originX, y: originY, offsetX: 18 }
+    ];
+
+    setStageParticles((prev) => [...prev.slice(-18), ...burst]);
+    const timer = setTimeout(() => {
+      setStageParticles((prev) => prev.filter((p) => !burst.some((b) => b.id === p.id)));
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [reactions, members]);
+
+  const updatePositionFromPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+    const floor = floorRef.current;
+    if (!floor) return;
+    const rect = floor.getBoundingClientRect();
+    const rawX = ((e.clientX - rect.left) / rect.width) * 100;
+    const rawY = ((e.clientY - rect.top) / rect.height) * 100;
+    const clampedX = Math.max(12, Math.min(88, rawX));
+    const clampedY = Math.max(26, Math.min(90, rawY));
+
+    // Match closest zone if within radius
+    let matchedId = 'custom';
+    for (const z of SPATIAL_SEATING_ZONES) {
+      if (Math.hypot(z.x - clampedX, z.y - clampedY) < 8.5) {
+        matchedId = z.id;
+        break;
+      }
+    }
+    const delta = (clampedX - 50) / 36;
+    const pan = Math.max(-0.85, Math.min(0.85, delta * 0.85));
+    onSetSeat(matchedId, clampedX, clampedY, pan);
+  };
+
+  const currentPan = selfSeatPos.pan;
+  const panLabel = !spatialAudioEnabled
+    ? 'Spatial Bypassed'
+    : Math.abs(currentPan) < 0.05
+    ? '🎯 Center Sweetspot (Balanced 0%)'
+    : currentPan < 0
+    ? `◀️ Stereo Left (${Math.round(Math.abs(currentPan) * 100)}%)`
+    : `Stereo Right (${Math.round(currentPan * 100)}%) ▶️`;
+
+  return (
+    <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/10 p-4 sm:p-6 shadow-2xl">
+      {/* Top Header & Spatial Audio Telemetry Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-white/10">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-400/30 text-[10px] font-extrabold uppercase tracking-widest text-emerald-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              UltraSync™ 2D Spatial Floor
+            </span>
+            <span className="text-xs text-white/40">•</span>
+            <span className="text-xs font-bold text-white/70">
+              Sub-50ms P2P Stereo Field
+            </span>
+          </div>
+          <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+            Interactive Spatial Listening Stage
+          </h2>
+          <p className="text-xs text-white/60 mt-0.5">
+            Drag your avatar or tap any seat to dynamically balance your live stereo soundstage
+          </p>
+        </div>
+
+        {/* Spatial Toggle & Active Pan Readout */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="px-3.5 py-1.5 rounded-full bg-black/45 border border-white/10 text-xs font-mono font-bold text-emerald-300 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>{panLabel}</span>
+          </div>
+
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onToggleSpatial}
+            className={`px-4 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+              spatialAudioEnabled
+                ? 'bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 shadow-[0_0_15px_rgba(52,211,153,0.3)]'
+                : 'bg-white/10 border border-white/15 text-white/60'
+            }`}
+            title="Toggle Web Audio 3D Stereo Panning"
+          >
+            <span>🎧</span>
+            <span>{spatialAudioEnabled ? '3D Spatial: ON' : '3D Spatial: OFF'}</span>
+          </motion.button>
+        </div>
+      </div>
+
+      {/* 2D Acoustic Soundstage Floor */}
+      <div
+        ref={floorRef}
+        onPointerDown={(e) => {
+          setIsDragging(true);
+          updatePositionFromPointer(e);
+        }}
+        onPointerMove={(e) => {
+          if (isDragging) {
+            updatePositionFromPointer(e);
+          }
+        }}
+        onPointerUp={() => setIsDragging(false)}
+        onPointerCancel={() => setIsDragging(false)}
+        className="relative w-full h-80 sm:h-96 md:h-[400px] mt-4 rounded-2xl bg-[#090b14] border border-white/10 overflow-hidden cursor-crosshair select-none touch-none shadow-inner"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 65%), linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)',
+          backgroundSize: '100% 100%, 36px 36px, 36px 36px'
+        }}
+      >
+        {/* DJ Soundstage Deck at Top Center */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-none">
+          <div className="px-4 py-1 rounded-full bg-gradient-to-r from-emerald-500/25 via-cyan-500/25 to-rose-500/25 border border-white/15 shadow-lg flex items-center gap-2">
+            <span className="text-sm">🎧</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300">
+              DJ Soundstage Deck
+            </span>
+            {isPlaying && (
+              <span className="flex items-end gap-0.5 h-2.5">
+                <span className="w-1 bg-emerald-400 rounded-full animate-eq-1" />
+                <span className="w-1 bg-cyan-400 rounded-full animate-eq-2" />
+                <span className="w-1 bg-rose-400 rounded-full animate-eq-3" />
+              </span>
+            )}
+          </div>
+          <div className="w-32 sm:w-44 h-5 mt-1 rounded-t-xl bg-gradient-to-b from-white/10 to-transparent border-t border-x border-white/10" />
+        </div>
+
+        {/* Radiating Soundwave Rings from DJ Deck when playing */}
+        {isPlaying && (
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none">
+            <div className="w-48 h-28 rounded-full border border-emerald-400/25 animate-[ping_3.2s_cubic-bezier(0,0,0.2,1)_infinite]" />
+            <div className="w-80 h-44 rounded-full border border-cyan-400/15 animate-[ping_4.2s_cubic-bezier(0,0,0.2,1)_infinite] -mt-24 -ml-16" />
+          </div>
+        )}
+
+        {/* Stereo Stage Wing Banners */}
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 font-mono text-[9px] uppercase tracking-widest text-cyan-300 [writing-mode:vertical-lr] rotate-180">
+          ◀ LEFT STEREO STAGE
+        </div>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 font-mono text-[9px] uppercase tracking-widest text-cyan-300 [writing-mode:vertical-lr]">
+          RIGHT STEREO STAGE ▶
+        </div>
+
+        {/* 5 Preset Seating Zone Pads */}
+        {SPATIAL_SEATING_ZONES.map((zone) => {
+          const isOccupiedBySelf = selfSeatId === zone.id;
+          return (
+            <div
+              key={zone.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetSeat(zone.id, zone.x, zone.y, zone.pan);
+              }}
+              style={{ left: `${zone.x}%`, top: `${zone.y}%` }}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 p-2 rounded-2xl transition-all cursor-pointer group flex flex-col items-center ${
+                isOccupiedBySelf
+                  ? 'bg-emerald-500/15 border border-emerald-400/50 shadow-[0_0_20px_rgba(52,211,153,0.3)]'
+                  : 'bg-white/[0.03] hover:bg-white/[0.08] border border-white/10'
+              }`}
+            >
+              <div className="flex items-center gap-1 text-[11px] font-bold text-white/70 group-hover:text-white transition-colors">
+                <span>{zone.icon}</span>
+                <span className="hidden sm:inline text-[10px] uppercase tracking-wider">{zone.name}</span>
+              </div>
+              <span className="text-[9px] text-white/40 font-mono hidden sm:inline">
+                {zone.badge}
+              </span>
+            </div>
+          );
+        })}
+
+        {/* Render Active Room Member Avatars on Stage */}
+        {members.map((m) => {
+          const isSelf = m.id === selfId;
+          const posX = isSelf ? selfSeatPos.x : (typeof m.x === 'number' ? m.x : 50);
+          const posY = isSelf ? selfSeatPos.y : (typeof m.y === 'number' ? m.y : 60);
+          const isMemberHost = m.name === hostName || (isHost && isSelf);
+
+          return (
+            <motion.div
+              key={m.id}
+              layout
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              style={{
+                left: `${posX}%`,
+                top: `${posY}%`,
+                transform: 'translate(-50%, -50%)'
+              }}
+              className={`absolute z-20 flex flex-col items-center pointer-events-none select-none`}
+            >
+              {/* Avatar Bubble */}
+              <div
+                className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br ${getAvatarGradient(
+                  m.name
+                )} flex items-center justify-center text-xs font-black text-white shadow-xl ${
+                  isSelf
+                    ? 'ring-4 ring-emerald-400/80 ring-offset-2 ring-offset-[#090b14] shadow-[0_0_25px_rgba(52,211,153,0.6)] cursor-grab active:cursor-grabbing pointer-events-auto'
+                    : 'border-2 border-white/30'
+                }`}
+              >
+                {m.name.slice(0, 2).toUpperCase()}
+
+                {/* Host Crown Indicator */}
+                {isMemberHost && (
+                  <span className="absolute -top-2.5 -right-1 text-xs filter drop-shadow">
+                    👑
+                  </span>
+                )}
+
+                {/* Self "YOU" Pill */}
+                {isSelf && (
+                  <span className="absolute -bottom-2 px-1.5 py-0.5 rounded-full bg-emerald-400 text-black font-black text-[8px] uppercase tracking-wider shadow">
+                    YOU
+                  </span>
+                )}
+              </div>
+
+              {/* Name Tag Pill */}
+              <div className="mt-1 px-2 py-0.5 rounded-full bg-black/75 border border-white/10 text-[10px] font-extrabold text-white/90 whitespace-nowrap shadow-md flex items-center gap-1">
+                <span>{m.name}</span>
+                {isPlaying && (
+                  <span className="flex items-end gap-[1.5px] h-2">
+                    <span className="w-0.5 bg-emerald-400 rounded-full animate-eq-1" />
+                    <span className="w-0.5 bg-cyan-400 rounded-full animate-eq-2" />
+                  </span>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
+
+        {/* Reaction Emoji Particle Bursts shooting up from Avatars */}
+        <AnimatePresence>
+          {stageParticles.map((p) => (
+            <motion.div
+              key={p.id}
+              initial={{ opacity: 1, y: 0, x: p.offsetX, scale: 0.6 }}
+              animate={{ opacity: 0, y: -75, x: p.offsetX * 1.6, scale: 1.4 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.8, ease: 'easeOut' }}
+              className="absolute pointer-events-none text-2xl z-30 select-none drop-shadow-[0_0_12px_rgba(255,255,255,0.7)]"
+              style={{
+                left: `${p.x}%`,
+                top: `${p.y}%`,
+                transform: 'translate(-50%, -50%)'
+              }}
+            >
+              {p.emoji}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Preset Seating Zone Teleporters Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-4 mt-4 border-t border-white/10">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+          <span className="text-[11px] font-extrabold text-white/50 uppercase tracking-wider whitespace-nowrap mr-1">
+            Seating Teleport:
+          </span>
+          {SPATIAL_SEATING_ZONES.map((zone) => {
+            const isSelected = selfSeatId === zone.id;
+            return (
+              <button
+                key={zone.id}
+                type="button"
+                onClick={() => onSetSeat(zone.id, zone.x, zone.y, zone.pan)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-emerald-400 to-cyan-400 text-black shadow-[0_0_15px_rgba(52,211,153,0.4)]'
+                    : 'bg-white/5 hover:bg-white/12 border border-white/10 text-white/80'
+                }`}
+              >
+                <span>{zone.icon}</span>
+                <span>{zone.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="text-[11px] text-emerald-300/80 font-medium hidden lg:inline">
+          ✨ Tip: Drag your avatar anywhere on the floor map to adjust stereo balance
+        </div>
+      </div>
+    </div>
+  );
+});
+SpatialListeningStageMap.displayName = 'SpatialListeningStageMap';
+
 export default function JamRoomPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlRoom = searchParams.get('room') || '';
@@ -90,12 +497,16 @@ export default function JamRoomPage() {
   const {
     roomCode,
     isHost,
+    userId,
     userName,
     hostName,
     members,
     reactions,
     messages,
     isConnected,
+    selfSeatId,
+    selfSeatPos,
+    spatialAudioEnabled,
     setUserName,
     createRoom,
     joinRoom,
@@ -106,7 +517,9 @@ export default function JamRoomPage() {
     playTrackInJam,
     togglePlayInJam,
     skipTrackInJam,
-    syncNow
+    syncNow,
+    setSeat,
+    toggleSpatialAudio
   } = useJamStore();
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -359,7 +772,19 @@ export default function JamRoomPage() {
   };
 
   const activeMembers =
-    members.length > 0 ? members : [{ id: 'self', name: userName || 'Listener', lastSeen: Date.now() }];
+    members.length > 0
+      ? members
+      : [
+          {
+            id: userId || 'self',
+            name: userName || 'Listener',
+            lastSeen: Date.now(),
+            seatId: selfSeatId,
+            x: selfSeatPos.x,
+            y: selfSeatPos.y,
+            pan: selfSeatPos.pan
+          }
+        ];
 
   return (
     <div className="pb-44 sm:pb-28 pt-1 px-3 sm:px-6 max-w-[1400px] mx-auto space-y-6 relative select-none text-white overflow-x-hidden">
@@ -877,6 +1302,21 @@ export default function JamRoomPage() {
             </div>
           </div>
 
+          {/* ================= 2D SPATIAL LISTENING STAGE & SEATING MAP ================= */}
+          <SpatialListeningStageMap
+            members={activeMembers}
+            selfId={userId}
+            selfSeatId={selfSeatId}
+            selfSeatPos={selfSeatPos}
+            spatialAudioEnabled={spatialAudioEnabled}
+            isHost={isHost}
+            hostName={hostName}
+            isPlaying={isPlaying}
+            reactions={reactions}
+            onSetSeat={setSeat}
+            onToggleSpatial={toggleSpatialAudio}
+          />
+
           {/* ================= BENTO 3-ZONE JAM STUDIO GRID ================= */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* LEFT COLUMN: Connected Listeners Radar + Song Dropper */}
@@ -896,10 +1336,24 @@ export default function JamRoomPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {activeMembers.map((m, idx) => {
                     const isMemberHost = m.name === hostName || (idx === 0 && isHost);
+                    const zoneName =
+                      SPATIAL_SEATING_ZONES.find((z) => z.id === m.seatId)?.name ||
+                      (typeof m.pan === 'number' && Math.abs(m.pan) > 0.05
+                        ? m.pan < 0
+                          ? `Left Wing (${Math.round(Math.abs(m.pan) * 100)}%)`
+                          : `Right Wing (${Math.round(m.pan * 100)}%)`
+                        : 'Acoustic Sweetspot');
+
                     return (
                       <div
                         key={m.id}
-                        className="p-2.5 rounded-2xl bg-white/[0.04] border-0 flex items-center justify-between gap-2.5"
+                        onClick={() => {
+                          if (m.seatId && typeof m.x === 'number' && typeof m.y === 'number') {
+                            setSeat(m.seatId, m.x, m.y, m.pan ?? 0);
+                          }
+                        }}
+                        className="p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border-0 flex items-center justify-between gap-2.5 transition-colors cursor-pointer"
+                        title={`Click to sit with ${m.name} in ${zoneName}`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div
@@ -910,9 +1364,16 @@ export default function JamRoomPage() {
                             {m.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-xs font-extrabold text-white truncate">{m.name}</div>
-                            <div className="text-[10px] text-emerald-300/80 font-semibold">
-                              {isMemberHost ? '👑 Room Host' : '🎧 Locked In'}
+                            <div className="text-xs font-extrabold text-white truncate flex items-center gap-1">
+                              <span>{m.name}</span>
+                              {m.id === userId && (
+                                <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-black font-black text-[8px] uppercase">
+                                  YOU
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-emerald-300/80 font-semibold truncate">
+                              {isMemberHost ? '👑 Host' : '🎧'} • {zoneName}
                             </div>
                           </div>
                         </div>

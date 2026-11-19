@@ -12,6 +12,8 @@ import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
@@ -61,6 +63,104 @@ public class WaveCraftMediaService extends Service {
     private long lastNotificationUpdateMs = 0;
     private BroadcastReceiver noisyAudioReceiver;
     private boolean isNoisyReceiverRegistered = false;
+
+    private AudioManager audioManager;
+    private AudioFocusRequest audioFocusRequest;
+    private AudioManager.OnAudioFocusChangeListener audioFocusChangeListener;
+    private boolean resumeOnFocusGain = false;
+    private boolean isDucked = false;
+
+    private void initAudioFocus() {
+        if (audioManager == null) {
+            audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        }
+        if (audioFocusChangeListener == null) {
+            audioFocusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
+                @Override
+                public void onAudioFocusChange(int focusChange) {
+                    switch (focusChange) {
+                        case AudioManager.AUDIOFOCUS_LOSS:
+                            // Another app took exclusive audio focus permanently (e.g. YouTube, Spotify)
+                            resumeOnFocusGain = false;
+                            isDucked = false;
+                            MainActivity.sendMediaAction("pause");
+                            updatePlaybackStateOnly(false, currentPositionMs, currentDurationMs);
+                            break;
+
+                        case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                            // Incoming phone call or transient audio interruption
+                            if (isCurrentlyPlaying) {
+                                resumeOnFocusGain = true;
+                                MainActivity.sendMediaAction("pause");
+                                updatePlaybackStateOnly(false, currentPositionMs, currentDurationMs);
+                            }
+                            break;
+
+                        case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                            // Navigation direction prompt or notification chime: duck volume to background
+                            if (isCurrentlyPlaying) {
+                                isDucked = true;
+                                MainActivity.sendMediaAction("duck");
+                            }
+                            break;
+
+                        case AudioManager.AUDIOFOCUS_GAIN:
+                            // Focus regained after phone call or GPS direction completed
+                            if (isDucked) {
+                                isDucked = false;
+                                MainActivity.sendMediaAction("unduck");
+                            }
+                            if (resumeOnFocusGain) {
+                                resumeOnFocusGain = false;
+                                MainActivity.sendMediaAction("play");
+                                updatePlaybackStateOnly(true, currentPositionMs, currentDurationMs);
+                            }
+                            break;
+                    }
+                }
+            };
+        }
+    }
+
+    private boolean requestAudioFocus() {
+        initAudioFocus();
+        if (audioManager == null) return false;
+        int res;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
+                audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(playbackAttributes)
+                    .setAcceptsDelayedFocusGain(true)
+                    .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                    .build();
+                res = audioManager.requestAudioFocus(audioFocusRequest);
+            } else {
+                res = audioManager.requestAudioFocus(
+                    audioFocusChangeListener,
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN
+                );
+            }
+            return res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private void abandonAudioFocus() {
+        if (audioManager == null) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
+                audioManager.abandonAudioFocusRequest(audioFocusRequest);
+            } else if (audioFocusChangeListener != null) {
+                audioManager.abandonAudioFocus(audioFocusChangeListener);
+            }
+        } catch (Exception ignored) {}
+    }
 
     private void registerNoisyReceiver() {
         if (!isNoisyReceiverRegistered) {
@@ -187,6 +287,13 @@ public class WaveCraftMediaService extends Service {
         updatePlaybackSessionState();
 
         if (playStateChanged) {
+            if (playing) {
+                requestAudioFocus();
+                registerNoisyReceiver();
+            } else if (!resumeOnFocusGain) {
+                abandonAudioFocus();
+                unregisterNoisyReceiver();
+            }
             updateMediaMetadata();
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager != null) {
@@ -220,6 +327,9 @@ public class WaveCraftMediaService extends Service {
 
         initMediaSession();
         registerNoisyReceiver();
+        if (isPlaying) {
+            requestAudioFocus();
+        }
         updateMediaMetadata();
         updatePlaybackSessionState();
 
@@ -413,6 +523,7 @@ public class WaveCraftMediaService extends Service {
     }
 
     private void stopForegroundPlayback() {
+        abandonAudioFocus();
         unregisterNoisyReceiver();
         if (wakeLock != null && wakeLock.isHeld()) {
             try {
@@ -452,6 +563,7 @@ public class WaveCraftMediaService extends Service {
 
     @Override
     public void onDestroy() {
+        abandonAudioFocus();
         unregisterNoisyReceiver();
         if (wakeLock != null && wakeLock.isHeld()) {
             try {

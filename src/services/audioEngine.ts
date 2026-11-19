@@ -868,6 +868,20 @@ export function setLiveSpatialPan(pan: number): void {
   setLiveSpatialManualPosition(clamped, liveSpatialState.z);
 }
 
+let activeSpatialJamPan: number | null = null;
+
+export function setSpatialStereoPan(pan: number | null): void {
+  activeSpatialJamPan = pan;
+  if (stereoPanner && audioCtx) {
+    const val = pan !== null ? Math.max(-0.85, Math.min(0.85, pan)) : 0;
+    stereoPanner.pan.setTargetAtTime(val, audioCtx.currentTime, 0.04);
+  }
+}
+
+export function getSpatialStereoPan(): number | null {
+  return activeSpatialJamPan;
+}
+
 // Background Tab Resilience: ensure orbit continues seamlessly when tab is hidden
 if (typeof document !== 'undefined') {
   document.addEventListener(
@@ -1059,7 +1073,8 @@ export function applyStudioFXToAudio(
       } catch {}
     }
     if (stereoPanner && ctx) {
-      stereoPanner.pan.setTargetAtTime(0, now, 0.04);
+      const targetPan = activeSpatialJamPan !== null ? Math.max(-0.85, Math.min(0.85, activeSpatialJamPan)) : 0;
+      stereoPanner.pan.setTargetAtTime(targetPan, now, 0.04);
     }
     if (spatialHeadShadowFilter && ctx) {
       spatialHeadShadowFilter.frequency.setTargetAtTime(20000, now, 0.04);

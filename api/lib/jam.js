@@ -166,8 +166,20 @@ export async function handleJamRoomRequest(req, url, roomCode) {
     if (existing) {
       existing.name = userName;
       existing.lastSeen = now;
+      if (body.seatId) existing.seatId = body.seatId;
+      if (typeof body.seatX === 'number') existing.x = body.seatX;
+      if (typeof body.seatY === 'number') existing.y = body.seatY;
+      if (typeof body.seatPan === 'number') existing.pan = body.seatPan;
     } else {
-      room.members.push({ id: userId, name: userName, lastSeen: now });
+      room.members.push({
+        id: userId,
+        name: userName,
+        lastSeen: now,
+        seatId: body.seatId,
+        x: body.seatX,
+        y: body.seatY,
+        pan: body.seatPan
+      });
       room.messages.push({
         id: `sys-${now}-${Math.random().toString(36).slice(2, 6)}`,
         sender: 'WaveJam',
@@ -222,9 +234,22 @@ export async function handleJamRoomRequest(req, url, roomCode) {
         id: reactionId,
         emoji,
         sender,
-        createdAt: now
+        createdAt: now,
+        x: typeof body.x === 'number' ? body.x : undefined,
+        y: typeof body.y === 'number' ? body.y : undefined,
+        seatId: body.seatId || undefined
       });
     }
+  } else if (op === 'seat' && userId) {
+    const mem = room.members.find((m) => m.id === userId);
+    if (mem) {
+      if (body.seatId) mem.seatId = body.seatId;
+      if (typeof body.seatX === 'number') mem.x = body.seatX;
+      if (typeof body.seatY === 'number') mem.y = body.seatY;
+      if (typeof body.seatPan === 'number') mem.pan = body.seatPan;
+      mem.lastSeen = now;
+    }
+    room.updatedAt = now;
   } else if (op === 'chat' && body.text) {
     const msgId = body.id || `${now}-${Math.random().toString(36).slice(2, 6)}`;
     if (!room.messages.some((m) => m.id === msgId)) {

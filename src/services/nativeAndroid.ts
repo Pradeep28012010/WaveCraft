@@ -172,6 +172,15 @@ if (typeof window !== 'undefined') {
       store.nextTrack();
     } else if (action === 'prev') {
       store.prevTrack();
+    } else if (action === 'duck') {
+      const orig = store.volume;
+      (window as unknown as { __wavecraft_pre_duck_vol?: number }).__wavecraft_pre_duck_vol = orig;
+      store.setVolume(Math.max(0.15, orig * 0.28));
+    } else if (action === 'unduck') {
+      const orig = (window as unknown as { __wavecraft_pre_duck_vol?: number }).__wavecraft_pre_duck_vol;
+      if (typeof orig === 'number') {
+        store.setVolume(orig);
+      }
     } else if (action.startsWith('seek:')) {
       const time = parseFloat(action.replace('seek:', ''));
       if (!isNaN(time)) {

@@ -387,6 +387,8 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    private static String pendingMediaAction = null;
+
     public static void sendMediaAction(String action) {
         if (instance != null && instance.bridge != null && instance.bridge.getWebView() != null) {
             instance.runOnUiThread(() -> {
@@ -395,6 +397,8 @@ public class MainActivity extends BridgeActivity {
                     null
                 );
             });
+        } else {
+            pendingMediaAction = action;
         }
     }
 
@@ -688,6 +692,13 @@ public class MainActivity extends BridgeActivity {
         super.onResume();
         setImmersiveFullscreen();
         keepWebViewAlive();
+        if (pendingMediaAction != null && bridge != null && bridge.getWebView() != null) {
+            final String act = pendingMediaAction;
+            pendingMediaAction = null;
+            bridge.getWebView().postDelayed(() -> {
+                sendMediaAction(act);
+            }, 350);
+        }
     }
 
     @Override

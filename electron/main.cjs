@@ -218,8 +218,28 @@ function updateTrayMenu(trackInfo) {
 }
 
 function registerGlobalMediaKeys() {
-  // Global hardware media shortcuts (MediaPlayPause, MediaNextTrack, MediaPreviousTrack, MediaStop)
-  // are delegated to Chromium's native navigator.mediaSession in the renderer without double triggers.
+  const mediaKeys = [
+    { key: 'MediaPlayPause', action: 'togglePlay' },
+    { key: 'MediaNextTrack', action: 'nextTrack' },
+    { key: 'MediaPreviousTrack', action: 'prevTrack' },
+    { key: 'MediaStop', action: 'pause' }
+  ];
+
+  mediaKeys.forEach(({ key, action }) => {
+    try {
+      globalShortcut.register(key, () => {
+        // Forward global shortcut when window is unfocused/minimized/in-tray so background keys always work.
+        // When window is focused, Chromium's native navigator.mediaSession already handles media keys.
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          if (!mainWindow.isFocused()) {
+            mainWindow.webContents.send('media:action', action);
+          }
+        }
+      });
+    } catch (e) {
+      console.warn(`[WaveCraft Desktop] Failed to bind global media key ${key}:`, e);
+    }
+  });
 }
 
 // Window Management IPC Handlers
