@@ -1063,7 +1063,11 @@ export default function SonicGalaxyPage() {
     let rafId = 0;
     let time = 0;
     let lastNow = performance.now();
+    let lastFrameTime = performance.now();
     let smoothZoom = zoomRef.current;
+    const isMobile =
+      typeof window !== 'undefined' &&
+      (window.innerWidth <= 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent));
     const projectedMap = new Map<string, ProjectedStar>();
     const hoverMixMap = new Map<string, number>();
     const selectMixMap = new Map<string, number>();
@@ -1071,8 +1075,9 @@ export default function SonicGalaxyPage() {
     let pointerY = -9999;
     const freqBins = new Uint8Array(64);
 
-    // Initial background deep-space particles
-    const bgParticles: BackgroundParticle[] = Array.from({ length: 160 }, (_, i) => {
+    // Initial background deep-space particles (throttled on mobile for battery preservation)
+    const particleCount = isMobile ? 65 : 160;
+    const bgParticles: BackgroundParticle[] = Array.from({ length: particleCount }, (_, i) => {
       const palette = ['#ffffff', '#f43f5e', '#a855f7', '#06b6d4', '#f59e0b', '#38bdf8'];
       return {
         x: (Math.random() - 0.5) * 3.0,
@@ -1286,10 +1291,19 @@ export default function SonicGalaxyPage() {
     };
 
     const render = (now: number) => {
+      // 1. Tab Inactive / Hidden Optimization: Completely stop animation loop when tab is backgrounded
       if (document.hidden) {
+        rafId = 0;
+        return;
+      }
+
+      // 2. Battery & Thermal Optimization: Adaptive frame limiter (35 FPS on mobile, 65 FPS on desktop)
+      const minInterval = isMobile ? 1000 / 38 : 1000 / 68;
+      if (now - lastFrameTime < minInterval) {
         rafId = requestAnimationFrame(render);
         return;
       }
+      lastFrameTime = now;
 
       const dt = Math.min(0.05, Math.max(0.001, (now - lastNow) / 1000));
       lastNow = now;
@@ -1634,7 +1648,8 @@ export default function SonicGalaxyPage() {
       if (showFilaments) {
         ctx.save();
         const filList = constellationFilamentsRef.current;
-        for (let i = 0; i < filList.length; i++) {
+        const maxFilaments = isMobile ? Math.min(filList.length, 36) : filList.length;
+        for (let i = 0; i < maxFilaments; i++) {
           const fil = filList[i];
           const a = projectedMap.get(fil.aId);
           const b = projectedMap.get(fil.bId);
@@ -1970,9 +1985,26 @@ export default function SonicGalaxyPage() {
       rafId = requestAnimationFrame(render);
     };
 
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = 0;
+        }
+      } else {
+        if (!rafId) {
+          lastNow = performance.now();
+          lastFrameTime = performance.now();
+          rafId = requestAnimationFrame(render);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     rafId = requestAnimationFrame(render);
     return () => {
-      cancelAnimationFrame(rafId);
+      if (rafId) cancelAnimationFrame(rafId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointerleave', onPointerLeave);

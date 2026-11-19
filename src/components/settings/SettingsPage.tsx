@@ -14,6 +14,7 @@ import {
   ensureStoragePersistence,
   isStoragePersisted
 } from '../../services/storage';
+import { publishCloudSync, pullCloudSync, buildSyncUrl } from '../../services/cloudSync';
 import { useOfflineVault } from '../../services/offlineVault';
 import { getSearchHistory, clearSearchHistory } from '../../utils/searchHistory';
 import GlassButton from '../ui/GlassButton';
@@ -257,6 +258,67 @@ export default function SettingsPage() {
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const [showClearVaultConfirm, setShowClearVaultConfirm] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Cloud Device Sync state (Cross-Device Beam)
+  const [syncCodeGenerated, setSyncCodeGenerated] = useState<string | null>(null);
+  const [syncInputCode, setSyncInputCode] = useState('');
+  const [isSyncPublishing, setIsSyncPublishing] = useState(false);
+  const [isSyncPulling, setIsSyncPulling] = useState(false);
+
+  const handlePublishSync = async () => {
+    try {
+      setIsSyncPublishing(true);
+      triggerAndroidHaptic('medium');
+      const res = await publishCloudSync();
+      if (res.success && res.code) {
+        setSyncCodeGenerated(res.code);
+        showToast(`⚡ Sync Room created: ${res.code}`);
+      } else {
+        showToast(res.error || 'Failed to generate sync code');
+      }
+    } catch {
+      showToast('Error generating sync room');
+    } finally {
+      setIsSyncPublishing(false);
+    }
+  };
+
+  const handlePullSync = async () => {
+    if (!syncInputCode.trim()) {
+      showToast('Please enter a sync code');
+      return;
+    }
+    try {
+      setIsSyncPulling(true);
+      triggerAndroidHaptic('medium');
+      const res = await pullCloudSync(syncInputCode);
+      if (res.success && res.payload) {
+        const stats = await restoreFullLibraryBackup(res.payload);
+        await library.loadFromStorage();
+        showToast(`🎉 Beamed! Restored ${stats.likedRestored} songs and ${stats.playlistsRestored} playlists.`);
+        setSyncInputCode('');
+      } else {
+        showToast(res.error || 'Invalid or expired sync code');
+      }
+    } catch {
+      showToast('Error syncing library');
+    } finally {
+      setIsSyncPulling(false);
+    }
+  };
+
+  const handleCopySyncCode = () => {
+    if (!syncCodeGenerated) return;
+    navigator.clipboard?.writeText(syncCodeGenerated);
+    showToast('📋 Sync code copied to clipboard!');
+  };
+
+  const handleCopySyncLink = () => {
+    if (!syncCodeGenerated) return;
+    const url = buildSyncUrl(syncCodeGenerated);
+    navigator.clipboard?.writeText(url);
+    showToast('🔗 Sync deep-link copied to clipboard!');
+  };
 
   const showToast = (msg: string) => {
     triggerAndroidHaptic('light');
@@ -1258,6 +1320,99 @@ export default function SettingsPage() {
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cloud Device Sync (Beam to Phone / PC) */}
+            <div className="rounded-[22px] glass-bloom-menu p-4 flex flex-col justify-between shadow-md md:col-span-2 border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.04] to-transparent">
+              <div>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>⚡ Cloud Device Sync (PC ⇄ Mobile Beam)</span>
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                    Instant Relay
+                  </span>
+                </div>
+                <p className="text-xs text-white/55 mt-1 leading-relaxed">
+                  Beam your favorite tracks, custom playlists, and preferences between your phone and computer without any cables or accounts. Rooms automatically expire after 30 minutes.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                {/* Send / Beam Library */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-white/90">Send to another device</h4>
+                    <p className="text-[11px] text-white/45 mt-0.5">
+                      Generate a 6-character room code to beam your library to your phone or laptop.
+                    </p>
+                  </div>
+
+                  {syncCodeGenerated ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-violet-500/15 border border-violet-500/30">
+                        <span className="text-xs text-violet-200/80 font-medium">Sync Code:</span>
+                        <span className="text-lg font-black tracking-widest font-mono text-violet-300">
+                          {syncCodeGenerated}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCopySyncCode}
+                          className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 text-white transition-colors"
+                        >
+                          📋 Copy Code
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCopySyncLink}
+                          className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-violet-600/60 hover:bg-violet-600/80 text-white transition-colors"
+                        >
+                          🔗 Copy Link
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <GlassButton
+                      size="sm"
+                      onClick={handlePublishSync}
+                      disabled={isSyncPublishing}
+                      className="w-full border-violet-500/30 text-violet-300 hover:bg-violet-500/20"
+                    >
+                      <span>{isSyncPublishing ? 'Creating Sync Room...' : '⚡ Beam My Library'}</span>
+                    </GlassButton>
+                  )}
+                </div>
+
+                {/* Receive / Connect */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-white/90">Receive from another device</h4>
+                    <p className="text-[11px] text-white/45 mt-0.5">
+                      Enter the 6-character sync code displayed on your other device.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. WAVE-7492"
+                      value={syncInputCode}
+                      onChange={(e) => setSyncInputCode(e.target.value.toUpperCase())}
+                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 font-mono tracking-wider uppercase"
+                    />
+                    <GlassButton
+                      size="sm"
+                      onClick={handlePullSync}
+                      disabled={isSyncPulling || !syncInputCode.trim()}
+                      className="border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 flex-shrink-0"
+                    >
+                      <span>{isSyncPulling ? 'Connecting...' : 'Connect & Sync'}</span>
+                    </GlassButton>
                   </div>
                 </div>
               </div>

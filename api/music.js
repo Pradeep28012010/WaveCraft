@@ -32,6 +32,11 @@ import {
   resolveDirectAudioStream,
   resolveYouTubeAudioStream
 } from './lib/stream.js';
+import {
+  publishSyncPayload,
+  pullSyncPayload,
+  generateSyncCode
+} from './lib/sync.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -480,6 +485,28 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     }
 
+    if (action === 'sync-publish') {
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      const body = req.method === 'POST' ? await readJsonBody(req) : {};
+      const code = (url.searchParams.get('code') || body?.code || '').trim();
+      const payload = body?.payload !== undefined ? body.payload : body;
+      const result = publishSyncPayload(code, payload);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.status(200).json(result);
+    }
+
+    if (action === 'sync-pull') {
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      const code = (url.searchParams.get('code') || '').trim();
+      const result = pullSyncPayload(code);
+      if (!result.success) {
+        return res.status(404).json(result);
+      }
+      return res.status(200).json(result);
+    }
+
     if (action === 'feedback') {
       res.setHeader('Cache-Control', 'no-store, max-age=0');
       let body = {};
@@ -527,7 +554,7 @@ export default async function handler(req, res) {
           'Decoupled Metadata Updates from Replay: Hot-swapped stream URLs and quality tags no longer inadvertently re-trigger track starts or re-seek to 0:00.',
           'Optimized Direct Stream Race: Increased resolution timeout so 95%+ of songs start directly on 320kbps Studio AAC without needing mid-stream engine swaps.'
         ],
-        forceUpdate: true
+        forceUpdate: false
       });
     }
 

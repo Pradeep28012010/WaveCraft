@@ -10,7 +10,8 @@ import { prewarmCoreRoutes } from '../utils/routePreloader';
 import { initNativeAndroid } from '../services/nativeAndroid';
 import { isAndroidNative, isElectronApp } from '../services/apiConfig';
 import { useUpdateStore } from '../stores/updateStore';
-import { ensureStoragePersistence } from '../services/storage';
+import { ensureStoragePersistence, restoreFullLibraryBackup } from '../services/storage';
+import { pullCloudSync } from '../services/cloudSync';
 
 /**
  * Encapsulates global platform lifecycle hooks:
@@ -28,6 +29,7 @@ export function useAppLifecycle(): void {
   const playTrack = usePlayerStore((s) => s.playTrack);
   const [searchParams, setSearchParams] = useSearchParams();
   const handledPlayParam = useRef<string | null>(null);
+  const handledSyncParam = useRef<string | null>(null);
 
   // Initialize Native Android Hardware Back button & edge-to-edge status bar
   useEffect(() => {
@@ -77,6 +79,25 @@ export function useAppLifecycle(): void {
         .catch(() => {});
     }
   }, [searchParams, playTrack, setSearchParams]);
+
+  // Handle Cloud Beam Multi-Device Library Sync deep-link (?sync=WAVE-XXXX)
+  useEffect(() => {
+    const syncCode = searchParams.get('sync');
+    if (syncCode && handledSyncParam.current !== syncCode) {
+      handledSyncParam.current = syncCode;
+      pullCloudSync(syncCode)
+        .then(async (result) => {
+          if (result.success && result.payload) {
+            await restoreFullLibraryBackup(result.payload);
+            await loadLibrary();
+          }
+          const next = new URLSearchParams(searchParams);
+          next.delete('sync');
+          setSearchParams(next, { replace: true });
+        })
+        .catch(() => {});
+    }
+  }, [searchParams, loadLibrary, setSearchParams]);
 
   // Global keyboard shortcuts
   useKeyboardShortcuts();

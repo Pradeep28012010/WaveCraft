@@ -1154,17 +1154,55 @@ export function applyStudioFXToAudio(
 }
 
 export const getAudioFrequencyData = (out: Uint8Array): boolean => {
-  if (!analyserNode || !audioCtx || audioCtx.state !== 'running') {
-    return false;
+  // 1. If native Web Audio engine is active with real audio stream, read real hardware FFT
+  if (activeEngine === 'audio' && analyserNode && audioCtx && audioCtx.state === 'running') {
+    try {
+      analyserNode.getByteFrequencyData(out as Uint8Array<ArrayBuffer>);
+      let sum = 0;
+      for (let i = 0; i < out.length; i++) sum += out[i];
+      if (sum > 0) return true;
+    } catch {}
   }
-  try {
-    analyserNode.getByteFrequencyData(out as Uint8Array<ArrayBuffer>);
-    let sum = 0;
-    for (let i = 0; i < out.length; i++) sum += out[i];
-    return sum > 0;
-  } catch {
-    return false;
+
+  // 2. Dual-Engine Bridge: When playing via YouTube iframe or if hardware node is quiet,
+  // synthesize a rich tempo-locked harmonic frequency envelope so visualizers, vacuum tube meters,
+  // and Sonic Galaxy remain dynamically audio-reactive across all sources.
+  const player = usePlayerStore.getState();
+  if (player.isPlaying && player.currentTrack && !player.isMuted && player.volume > 0.02) {
+    const time = getPreciseAudioTime();
+    const bpm = (player.currentTrack as any).bpm || 124;
+    const beatSec = 60 / bpm;
+    const phase = (time % beatSec) / beatSec;
+    const kick = Math.pow(Math.max(0, 1 - phase * 1.8), 2.2);
+    const snare = Math.pow(Math.max(0, Math.sin(phase * Math.PI)), 3);
+    const vol = Math.min(1, player.volume * 1.2);
+    const binCount = out.length;
+
+    for (let i = 0; i < binCount; i++) {
+      const freqFrac = i / binCount;
+      let amp = 0;
+
+      if (freqFrac < 0.15) {
+        // Sub-bass & Bass kick
+        amp = (kick * 190 + Math.sin(time * 8 + i) * 25 + 40) * vol;
+      } else if (freqFrac < 0.5) {
+        // Mid-range & vocal body
+        amp = (snare * 140 + Math.sin(time * 12 + i * 0.5) * 35 + 50) * vol;
+      } else {
+        // Treble sparkle & cymbals
+        amp = (Math.sin(time * 24 + i * 2) * 45 + Math.random() * 30 + 35) * vol;
+      }
+
+      out[i] = Math.max(0, Math.min(255, Math.round(amp)));
+    }
+    return true;
   }
+
+  // If paused or muted, fade out
+  for (let i = 0; i < out.length; i++) {
+    out[i] = Math.max(0, out[i] - 12);
+  }
+  return false;
 };
 
 /**
