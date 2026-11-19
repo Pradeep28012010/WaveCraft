@@ -1057,21 +1057,46 @@ export default function SettingsPage() {
                   label="Scroll Dynamics Mode"
                   description="Selects active physics model: Kinetic tilt, glass pulse, or directional blur"
                 >
-                  <GlassSelect
-                    value={settings.scrollMotionMode || 'all'}
-                    onChange={(val) => {
-                      triggerAndroidHaptic('light');
-                      settings.setScrollMotionMode(val as ScrollMotionMode);
-                    }}
-                    options={[
-                      { value: 'all', label: '🌌 Cinematic Pro (All Effects)' },
-                      { value: 'momentum', label: '🚀 Kinetic Tilt (120fps Skew)' },
-                      { value: 'glass', label: '💎 Glass Aura Pulse (Header/Dock)' },
-                      { value: 'artwork', label: '🖼️ Artwork Blur (Covers Only)' },
-                      { value: 'cinematic', label: '🎬 Full Page Motion Blur' },
-                      { value: 'off', label: '🚫 Off (Raw Native Scroll)' }
-                    ]}
-                  />
+                  <div className="flex flex-wrap gap-1.5 relative items-center">
+                    {[
+                      { id: 'all', label: 'Cinematic Pro' },
+                      { id: 'momentum', label: 'Kinetic Tilt' },
+                      { id: 'glass', label: 'Glass Pulse' },
+                      { id: 'artwork', label: 'Artwork Blur' },
+                      { id: 'cinematic', label: 'Motion Blur' },
+                      { id: 'off', label: 'Off' }
+                    ].map((item) => {
+                      const isSelected = (settings.scrollMotionMode ?? 'all') === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            settings.setScrollMotionMode(item.id as ScrollMotionMode);
+                          }}
+                          className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
+                        >
+                          {isSelected && (
+                            <motion.div
+                              layoutId="settings-scroll-mode-pill"
+                              transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                              className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                            />
+                          )}
+                          <span
+                            className={`relative z-10 transition-colors duration-150 ${
+                              isSelected
+                                ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                                : 'text-white/60 hover:text-white'
+                            }`}
+                          >
+                            {item.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </InsetSettingRow>
 
                 <InsetSettingRow
@@ -1080,11 +1105,11 @@ export default function SettingsPage() {
                   label="Motion Dynamics Intensity"
                   description="Adjusts momentum multiplier, tilt degree, and blur diffusion distance"
                 >
-                  <div className="flex gap-1.5 p-1 rounded-full liquid-glass bg-white/[0.04] backdrop-blur-xl border border-white/10 relative">
+                  <div className="flex gap-1.5 relative items-center">
                     {[
-                      { id: 'subtle', label: '🍃 Subtle' },
-                      { id: 'balanced', label: '⚡ Balanced' },
-                      { id: 'intense', label: '🌋 Cinematic' }
+                      { id: 'subtle', label: 'Subtle' },
+                      { id: 'balanced', label: 'Balanced' },
+                      { id: 'intense', label: 'Cinematic' }
                     ].map((item) => {
                       const isSelected = (settings.scrollMotionIntensity ?? 'balanced') === item.id;
                       return (
@@ -1095,7 +1120,7 @@ export default function SettingsPage() {
                             triggerAndroidHaptic('light');
                             settings.setScrollMotionIntensity(item.id as ScrollMotionIntensity);
                           }}
-                          className="relative px-3.5 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
+                          className="relative px-3 py-1 rounded-full text-xs font-bold cursor-pointer select-none"
                         >
                           {isSelected && (
                             <motion.div
