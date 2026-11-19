@@ -71,6 +71,9 @@ export default function YouTubeEmbed() {
   const crossfadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rampTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const unintendedPauseCountRef = useRef<number>(0);
+  const lastUnintendedPauseTimeRef = useRef<number>(0);
+  const autoResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoCachedTracksRef = useRef<Set<string>>(new Set());
   const shortDurationRetriedRef = useRef<Set<string>>(new Set());
   const searchAndPlayYouTubeRef = useRef<((track: Track, shouldPlay: boolean) => void) | null>(null);
@@ -646,12 +649,17 @@ export default function YouTubeEmbed() {
                 clearTimeout(ytBufferingDebounceTimerRef.current);
                 ytBufferingDebounceTimerRef.current = null;
               }
+              if (autoResumeTimerRef.current) {
+                clearTimeout(autoResumeTimerRef.current);
+                autoResumeTimerRef.current = null;
+              }
               isSwitchingTrackRef.current = false;
               trackTransitionIntentRef.current = false;
               userInitiatedPauseRef.current = false;
               isCrossfadingRef.current = false;
               bufferingStartTimeRef.current = 0;
               ytStallRecoveryCountRef.current = 0;
+              unintendedPauseCountRef.current = 0;
               usePlayerStore.setState({ isPlaying: true, isLoading: false });
 
               // Strictly ensure YouTube is unmuted and restored to active volume on playback start
@@ -678,19 +686,59 @@ export default function YouTubeEmbed() {
                 usePlayerStore.getState().setDuration(dur);
               }
             } else if (state === window.YT?.PlayerState?.PAUSED) {
+              bufferingStartTimeRef.current = 0;
               // Ignore transient PAUSED event during track transition or when awaiting a new track
               if (isSwitchingTrackRef.current || trackTransitionIntentRef.current) {
                 return;
               }
-              // If user did NOT intentionally pause playback, this pause was forced by OS/browser
-              // backgrounding or screen locking: immediately resume YouTube playback!
-              if (!userInitiatedPauseRef.current && usePlayerStore.getState().isPlaying) {
-                try {
-                  e.target.playVideo?.();
-                } catch {}
+              // If user intentionally paused or stopped, commit pause state
+              if (userInitiatedPauseRef.current || !usePlayerStore.getState().isPlaying) {
+                if (autoResumeTimerRef.current) {
+                  clearTimeout(autoResumeTimerRef.current);
+                  autoResumeTimerRef.current = null;
+                }
+                unintendedPauseCountRef.current = 0;
+                usePlayerStore.setState({ isPlaying: false, isLoading: false });
                 return;
               }
-              usePlayerStore.setState({ isPlaying: false, isLoading: false });
+
+              // Guard against synchronous postMessage ping-pong recursion storms:
+              // If YouTube repeatedly rejects play commands in an unplayable state,
+              // prevent tight synchronous looping that starves the browser JS event loop!
+              const now = Date.now();
+              if (now - lastUnintendedPauseTimeRef.current > 3000) {
+                unintendedPauseCountRef.current = 0;
+              }
+              lastUnintendedPauseTimeRef.current = now;
+              unintendedPauseCountRef.current++;
+
+              if (unintendedPauseCountRef.current > 3) {
+                console.warn('[WaveCraft] Halting unintended YouTube pause loop to protect thread responsiveness.');
+                unintendedPauseCountRef.current = 0;
+                if (autoResumeTimerRef.current) {
+                  clearTimeout(autoResumeTimerRef.current);
+                  autoResumeTimerRef.current = null;
+                }
+                usePlayerStore.setState({ isPlaying: false, isLoading: false });
+                return;
+              }
+
+              // Debounce auto-resume kick so it never starves the UI thread
+              if (autoResumeTimerRef.current) {
+                clearTimeout(autoResumeTimerRef.current);
+              }
+              autoResumeTimerRef.current = setTimeout(() => {
+                autoResumeTimerRef.current = null;
+                if (
+                  !userInitiatedPauseRef.current &&
+                  usePlayerStore.getState().isPlaying &&
+                  getActiveEngine() === 'youtube'
+                ) {
+                  try {
+                    e.target.playVideo?.();
+                  } catch {}
+                }
+              }, 220);
             } else if (state === window.YT?.PlayerState?.BUFFERING) {
               bufferingStartTimeRef.current = Date.now();
               // Debounce visual loading state so transient sub-second frame buffers don't cause UI flashing
@@ -1059,6 +1107,26 @@ export default function YouTubeEmbed() {
       if (nextSong && !isTrackOffline(nextSong.id)) {
         precacheTrack(nextSong);
       }
+    }
+
+    // 0. Instant playback for local imported files (MP3/FLAC/WAV/M4A)
+    if (audio && (track.isLocal || track.id.startsWith('local_'))) {
+      if (track.audioUrl && track.audioUrl.startsWith('blob:')) {
+        playNativeAudio(track.audioUrl, shouldPlay);
+        return;
+      }
+      getOfflineAudioObjectUrl(track.id)
+        .then((blobUrl) => {
+          if (resolveToken !== resolvingTokenRef.current) return;
+          if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+          if (blobUrl) {
+            playNativeAudio(blobUrl, shouldPlay);
+          } else {
+            setIsLoading(false);
+          }
+        })
+        .catch(() => setIsLoading(false));
+      return;
     }
 
     // 1. Check Offline Audio Vault first for zero-latency local playback
@@ -1519,7 +1587,7 @@ export default function YouTubeEmbed() {
         })
         .catch(() => {});
     }
-  }, [currentTrack, queueIndex, queue]);
+  }, [currentTrack?.id, queueIndex, queue.length]);
 
   // Sync Play / Pause when isPlaying toggles or track switches
   useEffect(() => {
@@ -1863,6 +1931,10 @@ export default function YouTubeEmbed() {
       if (rampTimerRef.current) {
         clearInterval(rampTimerRef.current);
         rampTimerRef.current = null;
+      }
+      if (autoResumeTimerRef.current) {
+        clearTimeout(autoResumeTimerRef.current);
+        autoResumeTimerRef.current = null;
       }
     };
   }, [isPlaying, setProgress, setDuration, currentTrack?.duration, crossfadeDuration]);

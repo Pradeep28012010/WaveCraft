@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -8,6 +8,10 @@ import {
 } from '../../services/offlineVault';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useLibraryStore } from '../../stores/libraryStore';
+import { useDownloadStore } from '../../stores/downloadStore';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { importLocalAudioFiles, computeBitrateBreakdown } from '../../services/localAudio';
 import GlassCard from '../ui/GlassCard';
 import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
@@ -26,6 +30,9 @@ export default function DownloadsPage() {
   } = useOfflineVault();
   const playTrack = usePlayerStore((s) => s.playTrack);
   const setQueue = usePlayerStore((s) => s.setQueue);
+  const likedSongs = useLibraryStore((s) => s.likedSongs);
+  const startBatchDownload = useDownloadStore((s) => s.startBatchDownload);
+  const activeDownloadJob = useDownloadStore((s) => s.activeJob);
 
   // Settings
   const offlineModeOnly = useSettingsStore((s) => s.offlineModeOnly ?? false);
@@ -36,12 +43,24 @@ export default function DownloadsPage() {
   const setMaxCacheSizeMb = useSettingsStore((s) => s.setMaxCacheSizeMb);
 
   // Local UI State
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [searchQuery, setSearchQuery] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showClearCacheConfirm, setShowClearCacheConfirm] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+
+  const bitrateBreakdown = useMemo(() => computeBitrateBreakdown(offlineTracks), [offlineTracks]);
+  const unCachedLiked = useMemo(
+    () => likedSongs.filter((t) => !offlineTracks.some((ot) => ot.id === t.id)),
+    [likedSongs, offlineTracks]
+  );
+
   const [storageBreakdown, setStorageBreakdown] = useState<DetailedStorageBreakdown>({
     totalUsedBytes: 0,
     manualBytes: 0,
@@ -63,6 +82,59 @@ export default function DownloadsPage() {
     getOfflineDetailedStorageBreakdown().then((info) => {
       setStorageBreakdown(info);
     });
+  };
+
+  const processFiles = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+    triggerAndroidHaptic('medium');
+    setIsImporting(true);
+    setImportStatus(`Analyzing and importing ${files.length} audio file${files.length === 1 ? '' : 's'}...`);
+    const res = await importLocalAudioFiles(files);
+    refreshStorage();
+    setIsImporting(false);
+    setImportStatus('');
+    if (res.imported.length > 0) {
+      setToastMessage(`✓ Imported ${res.imported.length} song${res.imported.length === 1 ? '' : 's'} to Offline Vault!`);
+      setTimeout(() => setToastMessage(''), 4500);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processFiles(e.target.files);
+      e.target.value = '';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleDownloadLikedSongs = async () => {
+    if (unCachedLiked.length === 0) {
+      setToastMessage('All liked songs are already stored in Offline Vault!');
+      setTimeout(() => setToastMessage(''), 3000);
+      return;
+    }
+    triggerAndroidHaptic('medium');
+    await startBatchDownload('liked-vault-bulk', 'Liked Songs Vault', unCachedLiked);
   };
 
   useEffect(() => {
@@ -224,9 +296,45 @@ export default function DownloadsPage() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*,.mp3,.flac,.wav,.m4a,.aac,.ogg,.opus,.webm"
+            multiple
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+
           <GlassButton size="sm" onClick={() => navigate('/library')}>
             ← Library
           </GlassButton>
+
+          {/* Import Local Audio Files Button */}
+          <button
+            type="button"
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              fileInputRef.current?.click();
+            }}
+            disabled={isImporting}
+            className="px-3.5 py-1.5 rounded-full glass-button-primary text-white text-xs font-black flex items-center gap-1.5 shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            title="Import local MP3, FLAC, WAV, M4A files into WaveCraft"
+          >
+            <span>📁 Import Local Files</span>
+          </button>
+
+          {/* 1-Tap Cache Liked Songs to Vault */}
+          {unCachedLiked.length > 0 && (
+            <button
+              type="button"
+              onClick={handleDownloadLikedSongs}
+              className="px-3.5 py-1.5 rounded-full glass-button text-rose-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 transition-all"
+              title="Cache all un-downloaded liked songs directly into your device offline vault"
+            >
+              <span>❤️ Cache Liked ({unCachedLiked.length})</span>
+            </button>
+          )}
+
           {offlineTracks.length > 0 && (
             <>
               <GlassButton
@@ -261,15 +369,66 @@ export default function DownloadsPage() {
         </div>
       </div>
 
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-20 right-6 z-50 px-4 py-2.5 rounded-2xl bg-emerald-500/90 text-white text-xs font-black shadow-2xl backdrop-blur-md flex items-center gap-2 animate-bounce">
+          <span>{toastMessage}</span>
+        </div>
+      )}
+      {importStatus && (
+        <div className="fixed top-20 right-6 z-50 px-4 py-2.5 rounded-2xl bg-cyan-600/95 text-white text-xs font-black shadow-2xl backdrop-blur-md flex items-center gap-2 animate-pulse">
+          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <span>{importStatus}</span>
+        </div>
+      )}
+
+      {/* Interactive Local Audio File Drag-and-Drop Zone */}
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`relative overflow-hidden rounded-3xl p-5 mb-8 border-2 border-dashed transition-all duration-300 cursor-pointer text-center group ${
+          isDraggingOver
+            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/15 scale-[1.01] shadow-[0_0_30px_rgba(250,45,72,0.3)]'
+            : 'border-white/15 hover:border-white/35 bg-white/[0.03] hover:bg-white/[0.06]'
+        }`}
+      >
+        <div className="flex flex-col items-center justify-center gap-2.5">
+          <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+            {isDraggingOver ? '📥' : '🎵'}
+          </div>
+          <div>
+            <h3 className="text-sm sm:text-base font-black text-white">
+              {isDraggingOver ? 'Drop your audio files here to import!' : 'Drag & Drop Local Songs Here (MP3, FLAC, WAV, M4A)'}
+            </h3>
+            <p className="text-xs text-white/50 mt-1 max-w-lg mx-auto">
+              Or click to browse your computer or phone storage. Songs are stored permanently in IndexedDB with full Web Audio Equalizer, 8D Spatial, and Visualizer DSP.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-black uppercase tracking-wider">
+              Lossless FLAC / WAV
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-black uppercase tracking-wider">
+              320k Studio AAC / MP3
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider">
+              100% Offline
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Storage & Breakdown Dashboard */}
-      <GlassCard variant="liquid" padding="lg" className="border-0 mb-8 space-y-5">
+      <GlassCard variant="liquid" padding="lg" className="border-0 mb-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span className="text-xs font-bold text-white/50 uppercase tracking-wider">
-              Local Device Storage Breakdown
+              Local Device Storage & Bitrate Manager
             </span>
             <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-2xl font-black text-white">
+              <span className="text-2xl sm:text-3xl font-black text-white">
                 {storageBreakdown.totalFormatted}
               </span>
               <span className="text-xs text-white/50">
@@ -278,56 +437,77 @@ export default function DownloadsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-medium">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-md bg-emerald-400" />
-              <span>
-                Saved Playlists ({storageBreakdown.manualFormatted})
-              </span>
+          <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-400" />
+              <span>Lossless ({bitrateBreakdown.losslessFormatted})</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-md bg-cyan-400" />
-              <span>
-                Smart Auto-Cache ({storageBreakdown.autoCacheFormatted})
-              </span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+              <span>320k Studio ({bitrateBreakdown.studio320Formatted})</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+              <span>Standard HD ({bitrateBreakdown.standardFormatted})</span>
             </div>
           </div>
         </div>
 
-        {/* High-Fidelity Stacked Storage Progress Bar */}
-        <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden flex p-0.5 border-0">
-          <div
-            style={{ width: `${Math.max(2, manualRatio)}%` }}
-            className="h-full bg-emerald-400 rounded-l-full transition-all duration-500"
-            title={`Manual downloads: ${storageBreakdown.manualFormatted}`}
-          />
-          <div
-            style={{ width: `${Math.max(1, autoCacheRatio)}%` }}
-            className="h-full bg-cyan-400 transition-all duration-500"
-            title={`Smart Auto-Cache: ${storageBreakdown.autoCacheFormatted}`}
-          />
+        {/* High-Fidelity Stacked Bitrate & Storage Progress Bar */}
+        <div>
+          <div className="flex items-center justify-between text-[11px] text-white/50 font-bold mb-1.5">
+            <span>Bitrate Distribution</span>
+            <span>{offlineTracks.length} Total Tracks</span>
+          </div>
+          <div className="w-full h-3.5 rounded-full bg-white/10 overflow-hidden flex p-0.5 border-0 shadow-inner">
+            <div
+              style={{
+                width: `${bitrateBreakdown.totalBytes > 0 ? (bitrateBreakdown.losslessBytes / bitrateBreakdown.totalBytes) * 100 : 0}%`
+              }}
+              className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-l-full transition-all duration-500"
+              title={`Lossless Hi-Res: ${bitrateBreakdown.losslessFormatted} (${bitrateBreakdown.losslessCount} tracks)`}
+            />
+            <div
+              style={{
+                width: `${bitrateBreakdown.totalBytes > 0 ? (bitrateBreakdown.studio320Bytes / bitrateBreakdown.totalBytes) * 100 : 0}%`
+              }}
+              className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500"
+              title={`320kbps Studio: ${bitrateBreakdown.studio320Formatted} (${bitrateBreakdown.studio320Count} tracks)`}
+            />
+            <div
+              style={{
+                width: `${bitrateBreakdown.totalBytes > 0 ? (bitrateBreakdown.standardBytes / bitrateBreakdown.totalBytes) * 100 : 0}%`
+              }}
+              className="h-full bg-emerald-400 rounded-r-full transition-all duration-500"
+              title={`Standard HD Audio: ${bitrateBreakdown.standardFormatted} (${bitrateBreakdown.standardCount} tracks)`}
+            />
+          </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-0 text-xs">
-          <div>
-            <p className="text-white/40">Total Saved Tracks</p>
-            <p className="text-base font-bold text-white">{offlineTracks.length} Songs</p>
-          </div>
-          <div>
-            <p className="text-white/40">Total Audio Time</p>
-            <p className="text-base font-bold text-white">{formatTime(totalDuration)}</p>
-          </div>
-          <div>
-            <p className="text-white/40">Manual Downloads</p>
-            <p className="text-base font-bold text-emerald-300">
-              {storageBreakdown.manualCount} tracks
+        {/* Quality Tiers Breakdown Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 border-0 text-xs">
+          <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+            <p className="text-white/40">Lossless FLAC / WAV</p>
+            <p className="text-base font-black text-purple-300 mt-0.5">
+              {bitrateBreakdown.losslessCount} <span className="text-xs font-normal text-white/50">({bitrateBreakdown.losslessFormatted})</span>
             </p>
           </div>
-          <div>
-            <p className="text-white/40">Smart Auto-Cached</p>
-            <p className="text-base font-bold text-cyan-300">
-              {storageBreakdown.autoCacheCount} tracks
+          <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+            <p className="text-white/40">320k Studio AAC/MP3</p>
+            <p className="text-base font-black text-cyan-300 mt-0.5">
+              {bitrateBreakdown.studio320Count} <span className="text-xs font-normal text-white/50">({bitrateBreakdown.studio320Formatted})</span>
+            </p>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+            <p className="text-white/40">Standard HD Streams</p>
+            <p className="text-base font-black text-emerald-300 mt-0.5">
+              {bitrateBreakdown.standardCount} <span className="text-xs font-normal text-white/50">({bitrateBreakdown.standardFormatted})</span>
+            </p>
+          </div>
+          <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+            <p className="text-white/40">Total Audio Time</p>
+            <p className="text-base font-black text-white mt-0.5">
+              {formatTime(totalDuration)}
             </p>
           </div>
         </div>

@@ -17,11 +17,17 @@ import {
 } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useDownloadStore } from '../../stores/downloadStore';
+import { computeSmartPlaylists, type SmartPlaylistDef } from '../../services/smartPlaylists';
 
 export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const playlists = useLibraryStore((state) => state.playlists);
+  const likedSongs = useLibraryStore((state) => state.likedSongs);
+  const recentlyPlayed = useLibraryStore((state) => state.recentlyPlayed);
+  const playHistory = useLibraryStore((state) => state.playHistory);
+  const createPlaylist = useLibraryStore((state) => state.createPlaylist);
+  const addTracksToPlaylist = useLibraryStore((state) => state.addTracksToPlaylist);
   const isLoading = useLibraryStore((state) => state.isLoading);
   const folders = useLibraryStore((state) => state.folders);
   const removeFromPlaylist = useLibraryStore((state) => state.removeFromPlaylist);
@@ -43,6 +49,7 @@ export default function PlaylistView() {
   const [showAttachSource, setShowAttachSource] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [saveSmartSuccess, setSaveSmartSuccess] = useState(false);
   const activeDownloadJob = useDownloadStore((s) => s.activeJob);
   const startBatchDownload = useDownloadStore((s) => s.startBatchDownload);
   const [isAddingTag, setIsAddingTag] = useState(false);
@@ -105,11 +112,34 @@ export default function PlaylistView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showAttachSource]);
 
-  const playlist = playlists.find((p) => p.id === id);
+  const isSmartId = Boolean(id?.startsWith('smart-'));
+  const smartPlaylists = useMemo(
+    () => (isSmartId ? computeSmartPlaylists(likedSongs, recentlyPlayed, playHistory, playlists) : []),
+    [isSmartId, likedSongs, recentlyPlayed, playHistory, playlists]
+  );
+  const smartMatch = isSmartId ? smartPlaylists.find((sp) => sp.id === id) : undefined;
+  const playlist = smartMatch || playlists.find((p) => p.id === id);
+  const isSmartPlaylist = Boolean(smartMatch);
+
   const currentFolder = playlist?.folderId ? folders.find((f) => f.id === playlist.folderId) : undefined;
   const isSyncing = Boolean(id && syncingPlaylistIds[id]);
 
   const tracks = useMemo(() => (Array.isArray(playlist?.tracks) ? playlist.tracks : []), [playlist?.tracks]);
+
+  const handleSaveSmartToLibrary = () => {
+    if (!smartMatch) return;
+    triggerAndroidHaptic('medium');
+    const newPl = createPlaylist(
+      smartMatch.name,
+      `${smartMatch.description} (Saved from WaveCraft Smart Playlists)`
+    );
+    addTracksToPlaylist(newPl.id, smartMatch.tracks);
+    setSaveSmartSuccess(true);
+    setTimeout(() => {
+      setSaveSmartSuccess(false);
+      navigate(`/playlist/${newPl.id}`);
+    }, 1200);
+  };
 
   const isCurrentDownloading = Boolean(
     activeDownloadJob && activeDownloadJob.id === playlist?.id && activeDownloadJob.isDownloading
@@ -299,7 +329,29 @@ export default function PlaylistView() {
     }
     return `${mins} min`;
   }, [totalDuration]);
-  const lastSyncFormatted = playlist.lastSyncedAt
+  if (!playlist) {
+    return (
+      <div className="py-24 text-center space-y-4 text-white">
+        <div className="w-16 h-16 mx-auto rounded-full bg-white/10 flex items-center justify-center text-3xl mb-2">
+          🧠
+        </div>
+        <h2 className="text-2xl font-black">Playlist not found</h2>
+        <p className="text-white/60 text-sm max-w-sm mx-auto">
+          This playlist may have been moved, removed, or has not yet generated listening history.
+        </p>
+        <button
+          onClick={() => navigate('/library')}
+          className="px-6 py-2.5 rounded-full glass-button-primary text-xs font-bold text-white cursor-pointer"
+        >
+          ← Return to Library
+        </button>
+      </div>
+    );
+  }
+
+  const lastSyncFormatted = smartMatch
+    ? 'Intelligent Auto-Curation'
+    : playlist.lastSyncedAt
     ? new Date(playlist.lastSyncedAt).toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit'
@@ -308,6 +360,13 @@ export default function PlaylistView() {
 
   return (
     <div className="relative pb-44 sm:pb-24 pt-4 text-white min-h-screen">
+      {/* Save Smart Playlist Toast */}
+      {saveSmartSuccess && (
+        <div className="fixed top-20 right-6 z-50 px-4 py-2.5 rounded-2xl bg-emerald-500/90 text-white text-xs font-black shadow-2xl backdrop-blur-md animate-bounce flex items-center gap-2">
+          <span>✓</span> Saved to your Library Playlists!
+        </div>
+      )}
+
       {/* Navigation Breadcrumb */}
       <div className="relative z-10 flex items-center gap-2 text-xs font-semibold text-white/50 mb-6">
         <button
@@ -320,7 +379,11 @@ export default function PlaylistView() {
           <span>Library</span>
         </button>
         <span className="text-white/20">/</span>
-        {currentFolder ? (
+        {smartMatch ? (
+          <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+            <span>🧠</span> <span>Smart Dynamic</span>
+          </span>
+        ) : currentFolder ? (
           <span
             className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border border-white/10"
             style={{
@@ -341,29 +404,49 @@ export default function PlaylistView() {
       {/* Editorial Playlist Hero */}
       <div className="relative z-10 flex flex-col sm:flex-row gap-5 sm:gap-6 items-start sm:items-end mb-5">
         {/* Compact Squircle Cover Artwork with 3D Specular Sheen */}
-        <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 flex-shrink-0 rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_16px_36px_rgba(0,0,0,0.6)] bg-white/10 [clip-path:inset(0_round_1.25rem)] [-webkit-clip-path:inset(0_round_1.25rem)] group/cover">
-          <PlaylistArtwork
-            playlist={playlist}
-            imgClassName="group-hover/cover:scale-105 transition-transform duration-700"
-          />
-          {/* Subtle Top-Light Specular Sheen */}
-          <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
-
-          {playlist.isLiveSync && (
-            <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-emerald-500/30 flex items-center gap-1 shadow-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[9px] font-black text-emerald-300 tracking-wider whitespace-nowrap">
-                LIVE SYNC
+        {smartMatch ? (
+          <div className={`relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 flex-shrink-0 rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-gradient-to-br ${smartMatch.gradient} p-4 sm:p-5 flex flex-col justify-between select-none`}>
+            <div className="flex items-center justify-between">
+              <span className="px-2.5 py-0.5 rounded-full bg-black/50 border-0 text-[10px] font-black uppercase tracking-wider text-white">
+                {smartMatch.badge}
               </span>
+              <span className="text-2xl sm:text-3xl drop-shadow">{smartMatch.icon}</span>
             </div>
-          )}
-        </div>
+            <div>
+              <span className="text-xs sm:text-sm font-extrabold text-white drop-shadow line-clamp-1">{smartMatch.tagline}</span>
+              <span className="text-[11px] text-white/70 block mt-0.5 font-bold">{tracks.length} tracks</span>
+            </div>
+          </div>
+        ) : (
+          <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 flex-shrink-0 rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_16px_36px_rgba(0,0,0,0.6)] bg-white/10 [clip-path:inset(0_round_1.25rem)] [-webkit-clip-path:inset(0_round_1.25rem)] group/cover">
+            <PlaylistArtwork
+              playlist={playlist}
+              imgClassName="group-hover/cover:scale-105 transition-transform duration-700"
+            />
+            {/* Subtle Top-Light Specular Sheen */}
+            <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
+
+            {playlist.isLiveSync && (
+              <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-emerald-500/30 flex items-center gap-1 shadow-lg">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[9px] font-black text-emerald-300 tracking-wider whitespace-nowrap">
+                  LIVE SYNC
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-col gap-1.5 flex-grow min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="uppercase text-[11px] font-black tracking-widest text-white/50 whitespace-nowrap">
-              {playlist.isLiveSync ? 'Live Synced Playlist' : 'Playlist'}
+              {smartMatch ? '🧠 Smart Dynamic Playlist' : playlist.isLiveSync ? 'Live Synced Playlist' : 'Playlist'}
             </span>
+            {smartMatch && (
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-extrabold border border-rose-500/30 flex items-center gap-1 whitespace-nowrap">
+                <span>{smartMatch.icon}</span> {smartMatch.badge}
+              </span>
+            )}
             {playlist.sourcePlatform && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#1ed760]/15 text-[#1ed760] border border-[#1ed760]/25 whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#1ed760] animate-pulse" />
@@ -638,6 +721,17 @@ export default function PlaylistView() {
         >
           <span>📌</span>
         </button>
+
+        {smartMatch && (
+          <button
+            type="button"
+            onClick={handleSaveSmartToLibrary}
+            className="h-10 sm:h-11 px-4 rounded-full text-xs font-black glass-button-primary text-white flex items-center gap-1.5 cursor-pointer flex-shrink-0 hover:scale-105 active:scale-95 transition-all shadow-lg"
+            title="Duplicate this dynamic mix into your permanent playlists"
+          >
+            <span>+ Save to Library</span>
+          </button>
+        )}
 
         <div className="flex-grow" />
 

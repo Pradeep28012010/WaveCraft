@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useOfflineVault } from '../../services/offlineVault';
@@ -18,6 +18,7 @@ import GlassModal from '../ui/GlassModal';
 import type { PlaylistFolder, Playlist } from '../../types';
 
 export default function LibraryPage() {
+  const navigate = useNavigate();
   const playlists = useLibraryStore((state) => state.playlists);
   const folders = useLibraryStore((state) => state.folders);
   const deleteFolder = useLibraryStore((state) => state.deleteFolder);
@@ -477,11 +478,18 @@ export default function LibraryPage() {
                 key={smart.id}
                 variant="liquid"
                 padding="md"
-                className="relative overflow-hidden flex flex-col justify-between group  transition-all border-0"
+                className="relative overflow-hidden flex flex-col justify-between group transition-all border-0 hover:scale-[1.01]"
               >
-                <div>
+                <div
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    navigate(`/playlist/${smart.id}`);
+                  }}
+                  className="cursor-pointer"
+                  title={`Open ${smart.name}`}
+                >
                   <div
-                    className={`w-full h-28 rounded-2xl bg-gradient-to-br ${smart.gradient} p-3.5 flex flex-col justify-between shadow-lg relative overflow-hidden`}
+                    className={`w-full h-28 rounded-2xl bg-gradient-to-br ${smart.gradient} p-3.5 flex flex-col justify-between shadow-lg relative overflow-hidden group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.5)] transition-all`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="px-2 py-0.5 rounded-full bg-black/45 border-0 text-[9px] font-black uppercase tracking-wider text-white">
@@ -491,7 +499,7 @@ export default function LibraryPage() {
                     </div>
 
                     <div>
-                      <h3 className="text-base font-black text-white drop-shadow-md truncate">
+                      <h3 className="text-base font-black text-white drop-shadow-md truncate group-hover:underline">
                         {smart.name}
                       </h3>
                       <p className="text-[10px] text-white/80 font-medium truncate drop-shadow">
@@ -504,7 +512,7 @@ export default function LibraryPage() {
                     {smart.description}
                   </p>
                   <span className="text-[11px] font-bold text-white/45 block mt-1">
-                    {smart.tracks.length} tracks
+                    {smart.tracks.length} tracks • Click to inspect
                   </span>
                 </div>
 
@@ -517,6 +525,18 @@ export default function LibraryPage() {
                   >
                     ▶ Play
                   </GlassButton>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      const shuffled = [...smart.tracks].sort(() => Math.random() - 0.5);
+                      playTrack(shuffled[0], shuffled, 0);
+                    }}
+                    className="w-8 h-8 rounded-full glass-button text-xs flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer"
+                    title="Shuffle"
+                  >
+                    🔀
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleSaveSmartPlaylist(smart)}

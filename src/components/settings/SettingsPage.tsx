@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -105,6 +106,7 @@ type SettingsCategory =
   | 'about';
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const settings = useSettingsStore();
   const library = useLibraryStore();
   const openFeedback = useFeedbackStore((s) => s.openFeedback);
@@ -1249,6 +1251,17 @@ export default function SettingsPage() {
                       ? `Saving (${bulkProgress.current}/${bulkProgress.total})...`
                       : `Download Liked (${library.likedSongs.length})`}
                   </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    navigate('/downloads');
+                  }}
+                  className="py-2 px-3 rounded-xl glass-button text-xs font-bold text-white/90 hover:text-white hover:bg-white/10 cursor-pointer flex items-center gap-1.5"
+                  title="Open Offline Vault Manager & Import Local Audio Files"
+                >
+                  <span>📁 Vault & Import</span>
                 </button>
                 {offlineTracks.length > 0 && (
                   <button
