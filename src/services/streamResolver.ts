@@ -9,6 +9,15 @@ function getCacheKey(title: string, artist: string): string {
   return `${(artist || '').toLowerCase().trim()}:::${(title || '').toLowerCase().trim()}`;
 }
 
+/**
+ * Returns immediately with cached direct stream URL if already resolved, or null.
+ */
+export function getCachedDirectAudio(title: string, artist: string, videoId?: string): string | null {
+  const queryDetails = cleanTrackQuery(title, artist);
+  const cacheKey = videoId ? `vid:${videoId}` : getCacheKey(queryDetails.cleanTitle, queryDetails.cleanArtist);
+  return streamCache.get(cacheKey) || null;
+}
+
 const LABEL_CHANNEL_REGEX =
   /(?:t-series|aditya|sony|zee|saregama|think|lahari|junglee|tips|yrf|mythri|hombale|vevo|speed|white\s*hill|records|films|movies|music|media|studios|entertainment|international|audio|series|channel|official|ap\s*international)/i;
 
@@ -364,14 +373,14 @@ export async function resolveDirectAudio(
     const primaryEndpoint = apiUrl(`/api/music?${apiQuery.toString()}`);
     let res: Response | null = await fetch(primaryEndpoint, {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(2800)
     }).catch(() => null);
 
     // Fallback to direct PROD_API_ORIGIN if relative endpoint failed on native/Capacitor
     if (!res?.ok && !primaryEndpoint.startsWith('http')) {
       res = await fetch(`${PROD_API_ORIGIN}/api/music?${apiQuery.toString()}`, {
         headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(2800)
       }).catch(() => null);
     }
 
@@ -402,12 +411,12 @@ export async function resolveDirectAudio(
       const saavnTarget = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&p=1&n=5&q=${encodeURIComponent(q)}`;
       const proxyEndpoint = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`);
       let res = await fetch(proxyEndpoint, {
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(2200)
       }).catch(() => null);
 
       if (!res?.ok && !proxyEndpoint.startsWith('http')) {
         res = await fetch(`${PROD_API_ORIGIN}/api/music?action=proxy-stream&url=${encodeURIComponent(saavnTarget)}`, {
-          signal: AbortSignal.timeout(8000)
+          signal: AbortSignal.timeout(2200)
         }).catch(() => null);
       }
 

@@ -402,41 +402,7 @@ export async function resolveDirectAudioStream(title, artist, clientIp = '103.21
 export async function resolveYouTubeAudioStream(videoId) {
   if (!videoId) return null;
 
-  // Invidious Mirrors Waterfall for Direct Stream Extraction
-  const mirrors = [
-    'https://yt.chocolatemoo53.com',
-    'https://invidious.jing.rocks',
-    'https://invidious.privacydev.net',
-    'https://iv.ggtyler.dev'
-  ];
-
-  for (const mirror of mirrors) {
-    try {
-      const res = await fetchWithTimeout(`${mirror}/api/v1/videos/${encodeURIComponent(videoId)}`, {}, 4500);
-      if (res.ok) {
-        const data = await res.json();
-        const formats = data?.adaptiveFormats || [];
-        const audioFormats = formats.filter(
-          (f) => f.type && f.type.startsWith('audio') && f.url
-        );
-        if (audioFormats.length > 0) {
-          audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-          const rawUrl = audioFormats[0].url;
-          const audioUrl = rawUrl.includes('googlevideo.com')
-            ? `/api/music?action=proxy-stream&url=${encodeURIComponent(rawUrl)}`
-            : rawUrl;
-          return {
-            audioUrl,
-            quality: `${Math.round((audioFormats[0].bitrate || 128000) / 1000)}kbps YouTube Studio`,
-            title: data.title || '',
-            artist: data.author || ''
-          };
-        }
-      }
-    } catch {}
-  }
-
-  // 2. Direct InnerTube Fallback
+  // 1. Direct High-Speed InnerTube Resolution (Instant ~250ms Android Client API)
   try {
     const res = await fetchWithTimeout(
       'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
@@ -455,7 +421,7 @@ export async function resolveYouTubeAudioStream(videoId) {
           videoId
         })
       },
-      3000
+      2500
     );
     if (res.ok) {
       const data = await res.json();
@@ -478,6 +444,46 @@ export async function resolveYouTubeAudioStream(videoId) {
       }
     }
   } catch {}
+
+  // 2. Parallel Invidious Mirrors Waterfall with short 2000ms race
+  const mirrors = [
+    'https://yt.chocolatemoo53.com',
+    'https://invidious.jing.rocks',
+    'https://invidious.privacydev.net',
+    'https://iv.ggtyler.dev'
+  ];
+
+  const mirrorPromises = mirrors.map(async (mirror) => {
+    try {
+      const res = await fetchWithTimeout(`${mirror}/api/v1/videos/${encodeURIComponent(videoId)}`, {}, 2200);
+      if (res.ok) {
+        const data = await res.json();
+        const formats = data?.adaptiveFormats || [];
+        const audioFormats = formats.filter(
+          (f) => f.type && f.type.startsWith('audio') && f.url
+        );
+        if (audioFormats.length > 0) {
+          audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+          const rawUrl = audioFormats[0].url;
+          const audioUrl = rawUrl.includes('googlevideo.com')
+            ? `/api/music?action=proxy-stream&url=${encodeURIComponent(rawUrl)}`
+            : rawUrl;
+          return {
+            audioUrl,
+            quality: `${Math.round((audioFormats[0].bitrate || 128000) / 1000)}kbps YouTube Studio`,
+            title: data.title || '',
+            artist: data.author || ''
+          };
+        }
+      }
+    } catch {}
+    return null;
+  });
+
+  const results = await Promise.all(mirrorPromises);
+  for (const r of results) {
+    if (r) return r;
+  }
 
   return null;
 }

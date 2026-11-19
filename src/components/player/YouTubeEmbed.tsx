@@ -11,7 +11,7 @@ import {
   autoCacheTrack,
   precacheTrack
 } from '../../services/offlineVault';
-import { cleanTrackQuery, resolveDirectAudio, isPlayableAudioStreamUrl } from '../../services/streamResolver';
+import { cleanTrackQuery, resolveDirectAudio, isPlayableAudioStreamUrl, getCachedDirectAudio } from '../../services/streamResolver';
 import {
   setHtmlAudioElement,
   setYtPlayerInstance,
@@ -66,6 +66,7 @@ export default function YouTubeEmbed() {
   const isCrossfadingRef = useRef<boolean>(false);
   const retryAttemptRef = useRef<number>(0);
   const bufferingStartTimeRef = useRef<number>(0);
+  const trackLoadStartTimeRef = useRef<number>(0);
   const ytStallRecoveryCountRef = useRef<number>(0);
   const ytBufferingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const crossfadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -428,20 +429,24 @@ export default function YouTubeEmbed() {
         }, 2000);
       }
 
-      // Step 2: After 7.5s of persistent stall on native audio, switch to reliable YouTube stream
+      // Step 2: After 2.8s of persistent stall on native audio, switch to reliable YouTube stream
       if (!audioStallHardRecoveryTimer) {
         audioStallHardRecoveryTimer = setTimeout(() => {
           audioStallHardRecoveryTimer = null;
           if (getActiveEngine() === 'audio' && usePlayerStore.getState().isPlaying && audio.readyState < 3) {
-            console.warn('[WaveCraft] Persistent native audio stall after 7.5s, switching to reliable YouTube stream');
+            console.warn('[WaveCraft] Persistent native audio stall after 2.8s, switching to reliable YouTube stream');
             onError();
           }
-        }, 7500);
+        }, 2800);
       }
     };
 
     const onPlaying = () => {
       clearAudioTimers();
+      trackLoadStartTimeRef.current = 0;
+      bufferingStartTimeRef.current = 0;
+      isSwitchingTrackRef.current = false;
+      trackTransitionIntentRef.current = false;
       if (getActiveEngine() === 'audio') {
         setIsLoading(false);
       }
@@ -658,6 +663,7 @@ export default function YouTubeEmbed() {
               userInitiatedPauseRef.current = false;
               isCrossfadingRef.current = false;
               bufferingStartTimeRef.current = 0;
+              trackLoadStartTimeRef.current = 0;
               ytStallRecoveryCountRef.current = 0;
               unintendedPauseCountRef.current = 0;
               usePlayerStore.setState({ isPlaying: true, isLoading: false });
@@ -750,7 +756,11 @@ export default function YouTubeEmbed() {
                 }, 450);
               }
             } else if (state === window.YT?.PlayerState?.CUED) {
-              if (isSwitchingTrackRef.current || trackTransitionIntentRef.current || usePlayerStore.getState().isPlaying) {
+              if (usePlayerStore.getState().isPlaying) {
+                try {
+                  e.target.unMute?.();
+                  e.target.playVideo?.();
+                } catch {}
                 return;
               }
               usePlayerStore.setState({ isPlaying: false, isLoading: false });
@@ -846,17 +856,19 @@ export default function YouTubeEmbed() {
     }
     const ytPlayer = getPlayer();
     if (!ytPlayer || (!window.ytPlayerReady && typeof ytPlayer.loadVideoById !== 'function')) {
-      activeLoadedYtIdRef.current = effectiveYtId;
       setTimeout(() => {
         const retryPlayer = getPlayer();
         if (retryPlayer && (window.ytPlayerReady || typeof retryPlayer.loadVideoById === 'function')) {
           fallbackToYouTube(_track, effectiveYtId, shouldPlay);
         }
-      }, 350);
+      }, 200);
       return;
     }
 
-    if (activeLoadedYtIdRef.current === effectiveYtId) {
+    const ytPlayerState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+    const isCuedOrUnstarted = ytPlayerState === window.YT?.PlayerState?.CUED || ytPlayerState === -1;
+
+    if (activeLoadedYtIdRef.current === effectiveYtId && !isCuedOrUnstarted) {
       isSwitchingTrackRef.current = false;
       trackTransitionIntentRef.current = false;
       if (shouldPlay) {
@@ -875,6 +887,8 @@ export default function YouTubeEmbed() {
     }
 
     activeLoadedYtIdRef.current = effectiveYtId;
+    trackLoadStartTimeRef.current = Date.now();
+    bufferingStartTimeRef.current = Date.now();
     isSwitchingTrackRef.current = true;
     trackTransitionIntentRef.current = true;
     setIsLoading(true);
@@ -1072,7 +1086,8 @@ export default function YouTubeEmbed() {
     if (isNewTrack) {
       retryAttemptRef.current = 0;
       isCrossfadingRef.current = false;
-      bufferingStartTimeRef.current = 0;
+      bufferingStartTimeRef.current = Date.now();
+      trackLoadStartTimeRef.current = Date.now();
       ytStallRecoveryCountRef.current = 0;
       isSwitchingTrackRef.current = true;
       trackTransitionIntentRef.current = true;
@@ -1209,61 +1224,54 @@ export default function YouTubeEmbed() {
           (track.id.startsWith('yt_') ? track.id.replace('yt_', '') : '') ||
           (track.id.startsWith('yt-') ? track.id.replace('yt-', '') : '');
 
-      // 3. If YouTube video ID is already known, prioritize 320kbps resolution with instant fallback
+      // 3. If YouTube video ID is already known, prioritize instant playback without artificial delay
       if (effectiveYtId) {
-        const timeoutMs = 1800;
-        const directAudioPromise = resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId);
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
+        // Instant check: If direct 320kbps audio is already in memory cache, play native immediately (0ms delay)
+        const cachedDirectAudio = getCachedDirectAudio(track.title, track.artist, effectiveYtId);
+        if (cachedDirectAudio && isPlayableAudioStreamUrl(cachedDirectAudio) && audio) {
+          track.audioUrl = cachedDirectAudio;
+          track.quality = cachedDirectAudio.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+          usePlayerStore.setState((s) => ({
+            currentTrack:
+              s.currentTrack?.id === track.id
+                ? { ...s.currentTrack, audioUrl: cachedDirectAudio, quality: track.quality }
+                : s.currentTrack,
+            queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: cachedDirectAudio, quality: track.quality } : t))
+          }));
+          playNativeAudio(cachedDirectAudio, shouldPlay);
+          return;
+        }
 
-        Promise.race([directAudioPromise, timeoutPromise])
-          .then((directAudioUrl) => {
+        // Direct audio not cached: Immediately start YouTube playback with ZERO delay!
+        fallbackToYouTube(track, effectiveYtId, shouldPlay);
+
+        // Concurrently resolve 320kbps direct stream in background for offline vault & future replay
+        resolveDirectAudio(track.title, track.artist, track.duration, effectiveYtId)
+          .then((bgUrl) => {
             if (resolveToken !== resolvingTokenRef.current) return;
             if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-
-            if (isPlayableAudioStreamUrl(directAudioUrl)) {
-              track.audioUrl = directAudioUrl;
-              track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+            if (isPlayableAudioStreamUrl(bgUrl)) {
+              track.audioUrl = bgUrl;
+              track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
               usePlayerStore.setState((s) => ({
                 currentTrack:
                   s.currentTrack?.id === track.id
-                    ? { ...s.currentTrack, audioUrl: directAudioUrl, quality: track.quality }
+                    ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality }
                     : s.currentTrack,
-                queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directAudioUrl, quality: track.quality } : t))
+                queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
               }));
-              playNativeAudio(directAudioUrl, shouldPlay);
-            } else {
-              // Direct stream took > 1800ms: start YouTube immediately so audio plays with 0 delay
-              fallbackToYouTube(track, effectiveYtId, shouldPlay);
-
-              // Concurrently continue resolving direct audio stream in background for offline vault & future replay
-              directAudioPromise
-                .then((bgUrl) => {
-                  if (resolveToken !== resolvingTokenRef.current) return;
-                  if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-                  if (isPlayableAudioStreamUrl(bgUrl)) {
-                    track.audioUrl = bgUrl;
-                    track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                    usePlayerStore.setState((s) => ({
-                      currentTrack:
-                        s.currentTrack?.id === track.id
-                          ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality }
-                          : s.currentTrack,
-                      queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
-                    }));
-                  }
-                })
-                .catch(() => {});
             }
           })
-          .catch(() => {
-            if (resolveToken !== resolvingTokenRef.current) return;
-            fallbackToYouTube(track, effectiveYtId, shouldPlay);
-          });
+          .catch(() => {});
+
         return;
       }
 
-      // External imported track without YouTube ID: resolve direct audio or query YouTube
-      resolveDirectAudio(track.title, track.artist, track.duration)
+      // External imported track without YouTube ID: quick 750ms race for direct audio, else instant YouTube query
+      const directAudioPromise = resolveDirectAudio(track.title, track.artist, track.duration);
+      const fastRaceTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 750));
+
+      Promise.race([directAudioPromise, fastRaceTimeout])
         .then((directAudioUrl) => {
           if (resolveToken !== resolvingTokenRef.current) return;
           if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
@@ -1378,52 +1386,29 @@ export default function YouTubeEmbed() {
             )
           }));
 
-          const timeoutMs = 1800;
-          const directAudioPromise = resolveDirectAudio(track.title, track.artist, track.duration, ytid);
-          const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
+          // Start YouTube playback immediately with ZERO delay
+          fallbackToYouTube(track, ytid, shouldPlay);
 
-          Promise.race([directAudioPromise, timeoutPromise])
-            .then((directAudioUrl) => {
+          // Concurrently resolve direct audio stream in background for offline vault & future replay
+          resolveDirectAudio(track.title, track.artist, track.duration, ytid)
+            .then((bgUrl) => {
               if (token !== resolvingTokenRef.current) return;
               if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
+              if (!bgUrl || !isPlayableAudioStreamUrl(bgUrl)) return;
 
-              if (isPlayableAudioStreamUrl(directAudioUrl)) {
-                track.audioUrl = directAudioUrl;
-                track.quality = directAudioUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                usePlayerStore.setState((s) => ({
-                  currentTrack:
-                    s.currentTrack?.id === track.id
-                      ? { ...s.currentTrack, audioUrl: directAudioUrl, quality: track.quality }
-                      : s.currentTrack,
-                  queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: directAudioUrl, quality: track.quality } : t))
-                }));
-                playNativeAudio(directAudioUrl, shouldPlay);
-              } else {
-                fallbackToYouTube(track, ytid, shouldPlay);
-
-                directAudioPromise
-                  .then((bgUrl) => {
-                    if (token !== resolvingTokenRef.current) return;
-                    if (usePlayerStore.getState().currentTrack?.id !== track.id) return;
-                    if (!bgUrl || !isPlayableAudioStreamUrl(bgUrl)) return;
-
-                    track.audioUrl = bgUrl;
-                    track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-                    usePlayerStore.setState((s) => ({
-                      currentTrack:
-                        s.currentTrack?.id === track.id
-                          ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality }
-                          : s.currentTrack,
-                      queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
-                    }));
-                  })
-                  .catch(() => {});
-              }
+              track.audioUrl = bgUrl;
+              track.quality = bgUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+              usePlayerStore.setState((s) => ({
+                currentTrack:
+                  s.currentTrack?.id === track.id
+                    ? { ...s.currentTrack, audioUrl: bgUrl, quality: track.quality }
+                    : s.currentTrack,
+                queue: s.queue.map((t) => (t.id === track.id ? { ...t, audioUrl: bgUrl, quality: track.quality } : t))
+              }));
             })
-            .catch(() => {
-              if (token !== resolvingTokenRef.current) return;
-              fallbackToYouTube(track, ytid, shouldPlay);
-            });
+            .catch(() => {});
+
+          return;
 
           return;
         } else {
@@ -1888,23 +1873,47 @@ export default function YouTubeEmbed() {
         }
 
         // Proactive Multi-Stage Buffering Stall Recovery Watchdog
-        // Only run foreground nudge if tab is visible and not actively transitioning
+        // Recovers both mid-song buffering stalls and initial track load stalls
+        const isStalledBuffering = bufferingStartTimeRef.current > 0;
+        const isStalledLoad =
+          trackLoadStartTimeRef.current > 0 &&
+          Date.now() - trackLoadStartTimeRef.current > 2400;
+
         if (
-          bufferingStartTimeRef.current > 0 &&
+          (isStalledBuffering || isStalledLoad) &&
           typeof document !== 'undefined' &&
-          !document.hidden &&
-          !isSwitchingTrackRef.current &&
-          !trackTransitionIntentRef.current
+          !document.hidden
         ) {
-          const stallMs = Date.now() - bufferingStartTimeRef.current;
-          // Tier 1 (after 3.5s): Gentle wake-up play kick
-          if (stallMs >= 3500 && stallMs < 4000) {
-            try { ytPlayer.playVideo?.(); } catch {}
+          const stallMs = Math.max(
+            isStalledBuffering ? Date.now() - bufferingStartTimeRef.current : 0,
+            isStalledLoad ? Date.now() - trackLoadStartTimeRef.current : 0
+          );
+
+          // Tier 1 (after 2.4s): Force un-mute, nudge playVideo, or force load if cued/unstarted
+          if (stallMs >= 2400 && stallMs < 5000) {
+            isSwitchingTrackRef.current = false;
+            trackTransitionIntentRef.current = false;
+            const pState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+            const curTrack = usePlayerStore.getState().currentTrack;
+            const effectiveId =
+              activeLoadedYtIdRef.current ||
+              curTrack?.youtubeId ||
+              (curTrack?.id.startsWith('yt_') ? curTrack.id.replace('yt_', '') : '');
+
+            try {
+              ytPlayer.unMute?.();
+              if ((pState === window.YT?.PlayerState?.CUED || pState === -1) && effectiveId) {
+                if (typeof ytPlayer.loadVideoById === 'function') {
+                  ytPlayer.loadVideoById(effectiveId);
+                }
+              } else {
+                ytPlayer.playVideo?.();
+              }
+            } catch {}
           }
-          // Tier 2 (after 9.5s): One-time soft reload at current timestamp if completely frozen (prevents recurring reload loops)
-          else if (stallMs >= 9500 && ytStallRecoveryCountRef.current < 1) {
-            ytStallRecoveryCountRef.current++;
-            bufferingStartTimeRef.current = 0;
+          // Tier 2 (after 5.0s): Soft reload at current timestamp
+          else if (stallMs >= 5000 && stallMs < 8000 && ytStallRecoveryCountRef.current < 1) {
+            ytStallRecoveryCountRef.current = 1;
             const curTrack = usePlayerStore.getState().currentTrack;
             const curTime = ytPlayer.getCurrentTime?.() || 0;
             const effectiveId =
@@ -1914,8 +1923,31 @@ export default function YouTubeEmbed() {
 
             if (effectiveId && typeof ytPlayer.loadVideoById === 'function') {
               try {
+                ytPlayer.unMute?.();
                 ytPlayer.loadVideoById({ videoId: effectiveId, startSeconds: curTime });
-              } catch {}
+              } catch {
+                try {
+                  ytPlayer.loadVideoById(effectiveId, curTime);
+                } catch {}
+              }
+            }
+          }
+          // Tier 3 (after 8.0s): Hard Recovery - Automatically search alternative video version or skip (ZERO infinite buffering)
+          else if (stallMs >= 8000) {
+            bufferingStartTimeRef.current = 0;
+            trackLoadStartTimeRef.current = 0;
+            ytStallRecoveryCountRef.current = 0;
+            const curTrack = usePlayerStore.getState().currentTrack;
+            if (curTrack && retryAttemptRef.current < 2) {
+              retryAttemptRef.current++;
+              console.warn(
+                `[WaveCraft] Stream stalled > 8s for "${curTrack.title}". Attempting automatic alternative search #${retryAttemptRef.current}...`
+              );
+              curTrack.youtubeId = undefined;
+              searchAndPlayYouTubeRef.current?.(curTrack, true);
+            } else if (curTrack) {
+              console.warn(`[WaveCraft] Skipping unplayable track after stall: "${curTrack.title}"`);
+              skipFailedTrack(curTrack.id);
             }
           }
         }
