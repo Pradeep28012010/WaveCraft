@@ -100,9 +100,18 @@ export default function MainLayout() {
     .join(' ');
 
   useEffect(() => {
+    // When switching to a new page, immediately reset scroll, cancel velocity blur, and release previous page resources
     if (mainRef.current) {
       mainRef.current.scrollTop = 0;
+      mainRef.current.removeAttribute('data-scrolling');
     }
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--scroll-skew', '0deg');
+    rootStyle.setProperty('--scroll-blur', '0px');
+    rootStyle.setProperty('--scroll-glass-blur', '0px');
+    rootStyle.setProperty('--scroll-glass-sat', '0%');
+    rootStyle.setProperty('--scroll-scale-y', '1');
+    document.documentElement.removeAttribute('data-scrolling');
   }, [location.pathname]);
 
   const handleContextMenu = (e: React.MouseEvent) => {

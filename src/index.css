@@ -861,38 +861,21 @@ textarea,
 
 /* 1. Velocity Inertial Tilt / Skew */
 .scroll-motion-skew {
-  transform: skewY(var(--scroll-skew, 0deg)) scaleY(var(--scroll-scale-y, 1)) translateZ(0);
-  transform-origin: center center;
-  transition: transform 0.06s cubic-bezier(0.16, 1, 0.3, 1);
-  backface-visibility: hidden;
+  transform: skewY(var(--scroll-skew, 0deg));
+  transform-origin: center top;
+  transition: transform 0.05s ease-out;
 }
 
-[data-scrolling="true"] .scroll-motion-skew {
-  will-change: transform;
-}
-
-/* 2. Full Page Motion Blur (hardware-accelerated) */
-.scroll-motion-blur-page {
-  filter: blur(var(--scroll-blur, 0px));
-  transition: filter 0.06s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-[data-scrolling="true"] .scroll-motion-blur-page {
-  will-change: filter;
-}
-
-/* 3. Scoped Artwork Motion Blur */
+/* 2. Visual Motion Blur (applied to artwork, cards & banners — NEVER the root 8000px container) */
+.scroll-motion-blur-page img,
+.scroll-motion-blur-page .album-artwork,
+.scroll-motion-blur-page .track-artwork,
+.scroll-motion-blur-page .aspect-square,
 .scroll-motion-blur-artwork img,
 .scroll-motion-blur-artwork .track-artwork,
 .scroll-motion-blur-artwork .album-artwork {
   filter: blur(var(--scroll-blur, 0px));
-  transition: filter 0.06s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-[data-scrolling="true"] .scroll-motion-blur-artwork img,
-[data-scrolling="true"] .scroll-motion-blur-artwork .track-artwork,
-[data-scrolling="true"] .scroll-motion-blur-artwork .album-artwork {
-  will-change: filter;
+  transition: filter 0.05s ease-out;
 }
 
 /* 4. Glass Velocity Pulse for TopBar, MiniPlayer & Mobile Nav */

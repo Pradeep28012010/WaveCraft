@@ -17,40 +17,40 @@ interface IntensityFactors {
 
 const INTENSITY_CONFIGS: Record<ScrollMotionIntensity, IntensityFactors> = {
   subtle: {
-    maxSkew: 0.55,
-    skewFactor: 0.08,
-    maxBlur: 1.8,
-    blurFactor: 0.2,
-    maxGlassBlur: 10,
-    glassBlurFactor: 0.7,
-    maxGlassSat: 30,
-    glassSatFactor: 2.5,
+    maxSkew: 0.35,
+    skewFactor: 0.05,
+    maxBlur: 1.2,
+    blurFactor: 0.15,
+    maxGlassBlur: 8,
+    glassBlurFactor: 0.6,
+    maxGlassSat: 25,
+    glassSatFactor: 2.0,
+    maxScale: 1.004,
+    scaleFactor: 0.0003
+  },
+  balanced: {
+    maxSkew: 0.65,
+    skewFactor: 0.09,
+    maxBlur: 2.2,
+    blurFactor: 0.25,
+    maxGlassBlur: 14,
+    glassBlurFactor: 1.0,
+    maxGlassSat: 45,
+    glassSatFactor: 3.5,
     maxScale: 1.008,
     scaleFactor: 0.0006
   },
-  balanced: {
+  intense: {
     maxSkew: 1.0,
     skewFactor: 0.14,
-    maxBlur: 3.2,
-    blurFactor: 0.36,
-    maxGlassBlur: 18,
-    glassBlurFactor: 1.3,
-    maxGlassSat: 55,
-    glassSatFactor: 4.8,
-    maxScale: 1.016,
-    scaleFactor: 0.0011
-  },
-  intense: {
-    maxSkew: 1.8,
-    skewFactor: 0.22,
-    maxBlur: 5.5,
-    blurFactor: 0.6,
-    maxGlassBlur: 28,
-    glassBlurFactor: 2.2,
-    maxGlassSat: 85,
-    glassSatFactor: 8.0,
-    maxScale: 1.026,
-    scaleFactor: 0.0018
+    maxBlur: 3.5,
+    blurFactor: 0.38,
+    maxGlassBlur: 22,
+    glassBlurFactor: 1.6,
+    maxGlassSat: 70,
+    glassSatFactor: 5.5,
+    maxScale: 1.014,
+    scaleFactor: 0.0010
   }
 };
 
@@ -170,8 +170,8 @@ export function useScrollMotionDynamics(containerRef: React.RefObject<HTMLElemen
         return;
       }
 
-      // Compute instantaneous velocity (px/ms)
-      const v = clamp(-28, deltaY / deltaTime, 28);
+      // Compute instantaneous velocity (px/ms) safely clamped
+      const v = clamp(-16, deltaY / deltaTime, 16);
       targetVelocity = targetVelocity * 0.35 + v * 0.65;
 
       if (!isScrolling) {
