@@ -4,7 +4,6 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
-import { useStudioStore } from '../../stores/studioStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useOfflineVault } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
@@ -48,8 +47,6 @@ export default function Sidebar() {
   const { offlineTracks } = useOfflineVault();
 
   const isPlaying = usePlayerStore((state) => state.isPlaying);
-  const setNightstandOpen = useStudioStore((state) => state.setNightstandOpen);
-  const setSmartDJOpen = useStudioStore((state) => state.setSmartDJOpen);
 
   const { isPhone, isMobileDrawerOpen, setMobileDrawerOpen } = useDevicePreset();
   const { isInstalled } = usePWAInstall();
@@ -154,30 +151,6 @@ export default function Sidebar() {
       id: 'studio',
       title: 'Studio & Live',
       items: [
-        {
-          name: 'Smart DJ Automix',
-          badge: 'HARMONIC',
-          badgeColor: 'bg-indigo-500/20 text-indigo-300 border-0',
-          action: () => setSmartDJOpen(true),
-          icon: () => (
-            <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-              <circle cx="12" cy="12" r="2" />
-            </svg>
-          )
-        },
-        {
-          name: 'Bedside Nightstand',
-          badge: 'OLED',
-          badgeColor: 'bg-purple-500/20 text-purple-300 border-0',
-          action: () => setNightstandOpen(true),
-          icon: () => (
-            <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          )
-        },
         {
           name: 'Sonic Galaxy Map',
           path: '/galaxy',

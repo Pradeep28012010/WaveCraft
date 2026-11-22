@@ -1045,7 +1045,7 @@ export default function TopBar() {
             className="flex items-center gap-1.5 px-3 h-9 rounded-full glass-button text-xs font-extrabold text-white/90 hover:text-white cursor-pointer active:scale-95 transition-transform"
           >
             <span className="text-sm">🌙</span>
-            <span className="hidden md:inline">Nightstand</span>
+            <span className="hidden sm:inline">Nightstand</span>
           </button>
 
           {/* Download App Hub Button (only shown in standard web browsers when not installed) */}
