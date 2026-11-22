@@ -31,6 +31,12 @@ interface Particle2D {
 
 const DEFAULT_COLORS = ['#fa2d48', '#8b5cf6', '#06b6d4'];
 
+const KALEIDOSCOPE_LAYERS = [
+  { count: 12, rBaseMul: 0.5, rTipMul: 0.85, bassScale: 0.3, colorIdx: 0, freqStart: 2, rotOffsetStep: 0 },
+  { count: 12, rBaseMul: 0.25, rTipMul: 0.58, dataFreqIdx: 16, dataFreqScale: 0.25, colorIdx: 1, freqStart: 18, rotOffsetStep: 0.5 },
+  { count: 12, rBaseMul: 0.08, rTipMul: 0.32, dataFreqIdx: 32, dataFreqScale: 0.2, colorIdx: 2, freqStart: 34, rotOffsetStep: 0 }
+] as const;
+
 const Visualizer = memo(
   ({
     isActive,
@@ -83,6 +89,11 @@ const Visualizer = memo(
     const meshSxRef = useRef<Float32Array>(new Float32Array(35 * 45));
     const meshSyRef = useRef<Float32Array>(new Float32Array(35 * 45));
     const meshAlphaRef = useRef<Float32Array>(new Float32Array(35));
+    const tunnelPtsXRef = useRef<Float32Array>(new Float32Array(18 * 6));
+    const tunnelPtsYRef = useRef<Float32Array>(new Float32Array(18 * 6));
+    const tunnelRingProgRef = useRef<Float32Array>(new Float32Array(18));
+    const tunnelRingIdxRef = useRef<Int32Array>(new Int32Array(18));
+    const matrixHeadIdxRef = useRef<Int32Array>(new Int32Array(256));
 
     const initStarsAndParticles = (width: number, height: number) => {
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -946,42 +957,53 @@ const Visualizer = memo(
           ctx.fill();
 
           // Calculate ring progressions sorted strictly by depth (singularity 0 -> camera 1)
-          const ringData: Array<{ progress: number; ringIndex: number }> = [];
+          const ringProgs = tunnelRingProgRef.current;
+          const ringIdxs = tunnelRingIdxRef.current;
           for (let r = 0; r < rings; r++) {
-            const rawProg = (r / rings + tunnelZOffsetRef.current) % 1;
-            ringData.push({ progress: rawProg, ringIndex: r });
+            ringProgs[r] = (r / rings + tunnelZOffsetRef.current) % 1;
+            ringIdxs[r] = r;
           }
-          // Sort strictly by progress so rails connect from core outwards without ANY crossed wires!
-          ringData.sort((a, b) => a.progress - b.progress);
+          // Zero-allocation insertion sort in-place (18 elements)
+          for (let i = 1; i < rings; i++) {
+            const keyProg = ringProgs[i];
+            const keyIdx = ringIdxs[i];
+            let j = i - 1;
+            while (j >= 0 && ringProgs[j] > keyProg) {
+              ringProgs[j + 1] = ringProgs[j];
+              ringIdxs[j + 1] = ringIdxs[j];
+              j--;
+            }
+            ringProgs[j + 1] = keyProg;
+            ringIdxs[j + 1] = keyIdx;
+          }
 
-          const ringPoints: Array<Array<{ x: number; y: number }>> = [];
+          const ptsX = tunnelPtsXRef.current;
+          const ptsY = tunnelPtsYRef.current;
 
-          for (let i = 0; i < ringData.length; i++) {
-            const { progress, ringIndex } = ringData[i];
+          for (let i = 0; i < rings; i++) {
+            const progress = ringProgs[i];
+            const ringIndex = ringIdxs[i];
             const depth = Math.pow(progress, 2.2);
             const radius = Math.max(6, depth * maxRadius);
             const freqIdx = Math.min(63, Math.floor(ringIndex * (64 / rings)));
             const freqAudio = data[freqIdx] || 0;
             const ringAngle = tunnelRotationRef.current + progress * 0.8;
 
-            const pts: Array<{ x: number; y: number }> = [];
+            const ringBase = i * sides;
             for (let s = 0; s < sides; s++) {
               const theta = ringAngle + (s * 2 * Math.PI) / sides;
               const distortion = 1 + freqAudio * 0.28 + Math.sin(theta * 3 + now * 0.004) * 0.06 * bassEnergy;
               const rad = radius * distortion;
-              pts.push({
-                x: cx + Math.cos(theta) * rad,
-                y: cy + Math.sin(theta) * rad
-              });
+              ptsX[ringBase + s] = cx + Math.cos(theta) * rad;
+              ptsY[ringBase + s] = cy + Math.sin(theta) * rad;
             }
-            ringPoints.push(pts);
 
             // Ring perimeter with smooth sine fade-in at singularity and fade-out at screen boundary
             const ringAlpha = Math.sin(progress * Math.PI);
             ctx.beginPath();
-            ctx.moveTo(pts[0].x, pts[0].y);
+            ctx.moveTo(ptsX[ringBase], ptsY[ringBase]);
             for (let s = 1; s < sides; s++) {
-              ctx.lineTo(pts[s].x, pts[s].y);
+              ctx.lineTo(ptsX[ringBase + s], ptsY[ringBase + s]);
             }
             ctx.closePath();
 
@@ -992,18 +1014,16 @@ const Visualizer = memo(
           }
 
           // Tunnel longitudinal warp rails connecting rings strictly in depth order (never tangles!)
-          if (ringPoints.length > 1) {
-            for (let s = 0; s < sides; s++) {
-              ctx.beginPath();
-              ctx.moveTo(ringPoints[0][s].x, ringPoints[0][s].y);
-              for (let r = 1; r < ringPoints.length; r++) {
-                ctx.lineTo(ringPoints[r][s].x, ringPoints[r][s].y);
-              }
-              ctx.strokeStyle = s % 2 === 0 ? c1 : c2;
-              ctx.lineWidth = 1.4;
-              ctx.globalAlpha = 0.4 + bassEnergy * 0.4;
-              ctx.stroke();
+          for (let s = 0; s < sides; s++) {
+            ctx.beginPath();
+            ctx.moveTo(ptsX[s], ptsY[s]);
+            for (let r = 1; r < rings; r++) {
+              ctx.lineTo(ptsX[r * sides + s], ptsY[r * sides + s]);
             }
+            ctx.strokeStyle = s % 2 === 0 ? c1 : c2;
+            ctx.lineWidth = 1.4;
+            ctx.globalAlpha = 0.4 + bassEnergy * 0.4;
+            ctx.stroke();
           }
           ctx.globalAlpha = 1;
         } else if (style === 'solar-flare') {
@@ -1134,20 +1154,22 @@ const Visualizer = memo(
           ctx.translate(cx, cy);
           ctx.rotate(tunnelRotationRef.current);
 
-          const layers = [
-            { count: 12, rBase: maxRadius * 0.5, rTip: maxRadius * (0.85 + bassEnergy * 0.3), color: c0, freqStart: 2 },
-            { count: 12, rBase: maxRadius * 0.25, rTip: maxRadius * (0.58 + (data[16] || 0) * 0.25), color: c1, freqStart: 18, rotOffset: stepAngle * 0.5 },
-            { count: 12, rBase: maxRadius * 0.08, rTip: maxRadius * (0.32 + (data[32] || 0) * 0.2), color: c2, freqStart: 34 }
-          ];
-
-          for (const layer of layers) {
+          for (let l = 0; l < KALEIDOSCOPE_LAYERS.length; l++) {
+            const layer = KALEIDOSCOPE_LAYERS[l];
             ctx.save();
-            if (layer.rotOffset) ctx.rotate(layer.rotOffset);
+            if (layer.rotOffsetStep) ctx.rotate(stepAngle * layer.rotOffsetStep);
+            const layerColor = layer.colorIdx === 0 ? c0 : layer.colorIdx === 1 ? c1 : c2;
+            const rBase = maxRadius * layer.rBaseMul;
+            const extraTip =
+              l === 0
+                ? bassEnergy * layer.bassScale
+                : (data['dataFreqIdx' in layer ? layer.dataFreqIdx : 0] || 0) * ('dataFreqScale' in layer ? layer.dataFreqScale : 0);
+            const rTipBase = maxRadius * (layer.rTipMul + extraTip);
+
             for (let s = 0; s < layer.count; s++) {
               const theta = (s * 2 * Math.PI) / layer.count;
               const freqVal = data[(layer.freqStart + s) % 64] || 0;
-              const rBase = layer.rBase;
-              const rTip = layer.rTip * (1 + freqVal * 0.25);
+              const rTip = rTipBase * (1 + freqVal * 0.25);
               const halfSpread = (Math.PI / layer.count) * 0.95;
 
               const b1x = Math.cos(theta - halfSpread) * rBase;
@@ -1172,14 +1194,14 @@ const Visualizer = memo(
               ctx.closePath();
 
               const petalGrad = ctx.createLinearGradient(0, 0, tipX, tipY);
-              petalGrad.addColorStop(0, `${layer.color}15`);
-              petalGrad.addColorStop(0.6, `${layer.color}45`);
+              petalGrad.addColorStop(0, `${layerColor}15`);
+              petalGrad.addColorStop(0.6, `${layerColor}45`);
               petalGrad.addColorStop(1, '#ffffff35');
               ctx.fillStyle = petalGrad;
               ctx.globalAlpha = 0.45 + freqVal * 0.45;
               ctx.fill();
 
-              ctx.strokeStyle = layer.color;
+              ctx.strokeStyle = layerColor;
               ctx.lineWidth = Math.max(1.2, 2.2 * (1 + freqVal * 0.8));
               ctx.globalAlpha = 0.65 + freqVal * 0.35;
               ctx.stroke();
@@ -1252,7 +1274,9 @@ const Visualizer = memo(
 
           // Perspective and audio-driven fall
           const globalSpeed = (1 + bassEnergy * 2.8) * dt;
-          const headsToRender: Array<{ char: string; x: number; y: number }> = [];
+          let headCount = 0;
+          const headIdxs = matrixHeadIdxRef.current;
+          const colWidthHalf = colWidth / 2;
 
           // Pass 1: Trailing stream glyphs (zero shadow blur overhead for high 120fps throughput)
           for (let c = 0; c < matrixColsRef.current.length; c++) {
@@ -1272,7 +1296,7 @@ const Visualizer = memo(
               col.chars[charIdx] = chars[Math.floor(Math.random() * chars.length)];
             }
 
-            const colCenterX = col.x + colWidth / 2;
+            const colCenterX = col.x + colWidthHalf;
 
             // Draw trailing glyphs (from dimmest tail to brighter body)
             for (let i = 1; i < col.chars.length; i++) {
@@ -1285,24 +1309,23 @@ const Visualizer = memo(
               ctx.fillText(col.chars[i], colCenterX, charY);
             }
 
-            // Collect valid head glyphs for batched glowing head pass
-            if (col.y >= -16 && col.y <= height + 16) {
-              headsToRender.push({
-                char: col.chars[0],
-                x: colCenterX,
-                y: col.y
-              });
+            // Collect valid head glyphs into pre-allocated buffer
+            if (col.y >= -16 && col.y <= height + 16 && headCount < 256) {
+              headIdxs[headCount++] = c;
             }
           }
 
           // Pass 2: Batched glowing head glyphs (single shadow blur state switch across entire frame!)
-          if (headsToRender.length > 0) {
+          if (headCount > 0) {
             ctx.shadowColor = c2;
             ctx.shadowBlur = 8 + bassEnergy * 10;
             ctx.fillStyle = '#ffffff';
             ctx.globalAlpha = 1;
-            for (let h = 0; h < headsToRender.length; h++) {
-              ctx.fillText(headsToRender[h].char, headsToRender[h].x, headsToRender[h].y);
+            for (let h = 0; h < headCount; h++) {
+              const col = matrixColsRef.current[headIdxs[h]];
+              if (col) {
+                ctx.fillText(col.chars[0], col.x + colWidthHalf, col.y);
+              }
             }
             ctx.shadowBlur = 0;
           }

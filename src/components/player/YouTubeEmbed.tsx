@@ -107,6 +107,7 @@ export default function YouTubeEmbed() {
   const autoCachedTracksRef = useRef<Set<string>>(new Set());
   const shortDurationRetriedRef = useRef<Set<string>>(new Set());
   const eagerPreloadedNextTrackIdRef = useRef<string | null>(null);
+  const hasCheckedLookaheadRef = useRef<boolean>(false);
   const searchAndPlayYouTubeRef = useRef<((track: Track, shouldPlay: boolean) => void) | null>(null);
   const fallbackToYouTubeRef = useRef<((track: Track, ytId: string, shouldPlay: boolean) => void) | null>(null);
 
@@ -350,8 +351,9 @@ export default function YouTubeEmbed() {
         }
       }
 
-      // Eager lookahead for upcoming track in background / zero-gap queue transition
-      if (dur > 5 && cur >= 5.0) {
+      // Eager lookahead for upcoming track in background / zero-gap queue transition (evaluated once per track)
+      if (dur > 5 && cur >= 5.0 && !hasCheckedLookaheadRef.current) {
+        hasCheckedLookaheadRef.current = true;
         const { queue: q, queueIndex: qIdx } = usePlayerStore.getState();
         const nextSong = q[qIdx + 1];
         if (nextSong && !nextSong.audioUrl && eagerPreloadedNextTrackIdRef.current !== nextSong.id) {
@@ -1212,6 +1214,7 @@ export default function YouTubeEmbed() {
       }
       predictivePrecacheQueue(currentQueue, currentIdx, 3);
       eagerPreloadedNextTrackIdRef.current = null;
+      hasCheckedLookaheadRef.current = false;
     }
 
     // 0. Instant playback for local imported files (MP3/FLAC/WAV/M4A)
@@ -2064,8 +2067,9 @@ export default function YouTubeEmbed() {
             setDuration(duration);
           }
 
-          // Eager lookahead for upcoming track in background / zero-gap queue transition
-          if (duration > 5 && current >= 5.0) {
+          // Eager lookahead for upcoming track in background / zero-gap queue transition (evaluated once per track)
+          if (duration > 5 && current >= 5.0 && !hasCheckedLookaheadRef.current) {
+            hasCheckedLookaheadRef.current = true;
             const { queue: q, queueIndex: qIdx } = usePlayerStore.getState();
             const nextSong = q[qIdx + 1];
             if (nextSong && !nextSong.audioUrl && eagerPreloadedNextTrackIdRef.current !== nextSong.id) {
