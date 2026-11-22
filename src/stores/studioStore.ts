@@ -479,6 +479,11 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       sleepTotalSeconds: 0,
       sleepEndAtTrack: false
     });
+    try {
+      import('../services/audioEngine').then(({ setSmoothOutputGain, getTargetOutputGain }) => {
+        setSmoothOutputGain(null, getTargetOutputGain(), 0.1);
+      });
+    } catch {}
   },
 
   setSleepEndAtTrack: (val) => {
@@ -495,7 +500,15 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     if (!sleepActive || sleepEndAtTrack) return;
 
     if (sleepSeconds > 1) {
-      set({ sleepSeconds: sleepSeconds - 1 });
+      const nextSec = sleepSeconds - 1;
+      set({ sleepSeconds: nextSec });
+      if (nextSec <= 65) {
+        try {
+          import('../services/audioEngine').then(({ setSmoothOutputGain, getTargetOutputGain }) => {
+            setSmoothOutputGain(null, getTargetOutputGain(), 0.85);
+          });
+        } catch {}
+      }
     } else {
       // Pause music & mute ambient layers when sleep timer finishes
       usePlayerStore.getState().pause();
@@ -506,6 +519,11 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         sleepTotalSeconds: 0,
         sleepEndAtTrack: false
       });
+      try {
+        import('../services/audioEngine').then(({ setSmoothOutputGain, getTargetOutputGain }) => {
+          setSmoothOutputGain(null, getTargetOutputGain(), 0.1);
+        });
+      } catch {}
     }
   }
 }));

@@ -127,6 +127,9 @@ export interface SettingsState {
   // Fluid Scroll Dynamics & Motion Blur
   scrollMotionMode?: ScrollMotionMode;
   scrollMotionIntensity?: ScrollMotionIntensity;
+  // Smart DJ & Bedside Nightstand
+  djVinylBackspin?: boolean;
+  sleepFadeOut?: boolean;
 }
 
 export interface SearchResult {

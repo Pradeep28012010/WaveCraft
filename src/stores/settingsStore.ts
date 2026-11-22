@@ -61,6 +61,8 @@ interface SettingsStore extends SettingsState {
   setDoubleClickToPlay: (enabled: boolean) => void;
   setShowTrackNumbers: (enabled: boolean) => void;
   setCompactMiniPlayer: (enabled: boolean) => void;
+  setDjVinylBackspin: (enabled: boolean) => void;
+  setSleepFadeOut: (enabled: boolean) => void;
   resetSettings: () => void;
 }
 
@@ -107,7 +109,9 @@ const defaultSettings: SettingsState = {
   showTrackNumbers: true,
   compactMiniPlayer: false,
   scrollMotionMode: 'all',
-  scrollMotionIntensity: 'balanced'
+  scrollMotionIntensity: 'balanced',
+  djVinylBackspin: true,
+  sleepFadeOut: true
 };
 
 /**
@@ -160,7 +164,9 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
     showTrackNumbers: state.showTrackNumbers ?? true,
     compactMiniPlayer: state.compactMiniPlayer ?? false,
     scrollMotionMode: state.scrollMotionMode ?? 'all',
-    scrollMotionIntensity: state.scrollMotionIntensity ?? 'balanced'
+    scrollMotionIntensity: state.scrollMotionIntensity ?? 'balanced',
+    djVinylBackspin: state.djVinylBackspin ?? true,
+    sleepFadeOut: state.sleepFadeOut ?? true
   };
 }
 
@@ -475,6 +481,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setCompactMiniPlayer: (enabled: boolean) => {
     set({ compactMiniPlayer: enabled });
+    persistSettings(get());
+  },
+
+  setDjVinylBackspin: (enabled: boolean) => {
+    set({ djVinylBackspin: enabled });
+    persistSettings(get());
+  },
+
+  setSleepFadeOut: (enabled: boolean) => {
+    set({ sleepFadeOut: enabled });
     persistSettings(get());
   },
 

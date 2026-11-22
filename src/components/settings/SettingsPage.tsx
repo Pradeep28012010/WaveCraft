@@ -807,6 +807,30 @@ export default function SettingsPage() {
             </InsetSettingRow>
 
             <InsetSettingRow
+              icon={<span className="text-sm">🎧</span>}
+              iconBg="bg-rose-500/20 text-rose-300 border-rose-500/30"
+              label="DJ Turntable Vinyl Backspin"
+              description="Plays an authentic procedural turntable vinyl reverse spin and needle scratch when manually skipping tracks"
+            >
+              <AppleToggle
+                checked={settings.djVinylBackspin ?? true}
+                onChange={settings.setDjVinylBackspin}
+              />
+            </InsetSettingRow>
+
+            <InsetSettingRow
+              icon={<span className="text-sm">🌙</span>}
+              iconBg="bg-purple-500/20 text-purple-300 border-purple-500/30"
+              label="Gradual Bedside Sleep Fade-Out"
+              description="Exponentially lowers volume over the final 60 seconds before bedtime timer finishes instead of cutting off abruptly"
+            >
+              <AppleToggle
+                checked={settings.sleepFadeOut ?? true}
+                onChange={settings.setSleepFadeOut}
+              />
+            </InsetSettingRow>
+
+            <InsetSettingRow
               icon={<span className="text-sm">🛡️</span>}
               iconBg="bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
               label="Resilient Stream Fallback Engine"

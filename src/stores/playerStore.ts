@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Track, PlayerState } from '../types';
 import { shuffleArray } from '../utils/shuffle';
 import { seekToTime } from '../components/player/YouTubeEmbed';
-import { unlockAudioEngine } from '../services/audioEngine';
+import { unlockAudioEngine, playVinylBackspin } from '../services/audioEngine';
 import { useSettingsStore } from './settingsStore';
 import { getSmartRecommendations } from '../services/recommendationEngine';
 import { getOfflineTracks } from '../services/offlineVault';
@@ -222,6 +222,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   nextTrack: () => {
     if (isJamGuestBlocked('skip')) return;
+    try {
+      playVinylBackspin();
+    } catch {}
 
     set((state) => {
       const { queue, queueIndex, repeatMode } = state;
@@ -312,6 +315,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   prevTrack: () => {
     if (isJamGuestBlocked('skip')) return;
+    try {
+      playVinylBackspin();
+    } catch {}
 
     set((state) => {
       const { queue, queueIndex, currentTime, repeatMode } = state;

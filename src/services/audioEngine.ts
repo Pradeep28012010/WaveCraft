@@ -325,6 +325,72 @@ export function isAutoMixerFilterActive(): boolean {
 }
 
 /**
+ * Procedural Turntable DJ Vinyl Backspin / Rewind Sound Effect:
+ * Synthesizes an authentic vinyl platter reverse spin / needle-scratch transient
+ * with pitch decay, microgroove friction, and needle lift-off.
+ */
+export function playVinylBackspin(): void {
+  const isEnabled = useSettingsStore.getState().djVinylBackspin ?? true;
+  if (!isEnabled) return;
+
+  const ctx = getAudioContext();
+  if (!ctx || ctx.state === 'suspended') return;
+
+  const now = ctx.currentTime;
+  const dur = 0.48;
+
+  // 1. Friction noise buffer (vinyl needle on slipmat / groove reverse)
+  const bufferSize = Math.floor(ctx.sampleRate * dur);
+  const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const out = noiseBuffer.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    last = (last + 0.08 * white) / 1.08;
+    const pop = Math.random() > 0.995 ? (Math.random() * 2 - 1) * 0.45 : 0;
+    out[i] = (last * 0.7 + pop) * (1 - i / bufferSize);
+  }
+
+  const noiseSource = ctx.createBufferSource();
+  noiseSource.buffer = noiseBuffer;
+
+  // Resonant bandpass filter sweeping downward rapidly (the "shhh-wzzzzp" tone)
+  const bpf = ctx.createBiquadFilter();
+  bpf.type = 'bandpass';
+  bpf.Q.value = 3.6;
+  bpf.frequency.setValueAtTime(2600, now);
+  bpf.frequency.exponentialRampToValueAtTime(140, now + dur);
+
+  // Variable rewind tone (sine oscillator sweeping down)
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(1400, now);
+  osc.frequency.exponentialRampToValueAtTime(80, now + dur);
+
+  const oscGain = ctx.createGain();
+  oscGain.gain.setValueAtTime(0.09, now);
+  oscGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(0.35, now);
+  masterGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+  noiseSource.connect(bpf);
+  bpf.connect(masterGain);
+
+  osc.connect(oscGain);
+  oscGain.connect(masterGain);
+
+  const limiter = getMasterLimiterNode() || ctx.destination;
+  masterGain.connect(limiter);
+
+  noiseSource.start(now);
+  noiseSource.stop(now + dur);
+  osc.start(now);
+  osc.stop(now + dur);
+}
+
+/**
  * Generates an audiophile acoustic concert hall impulse response
  * with 22ms pre-delay (transient clarity), discrete geometric early reflections,
  * and high-frequency air damping (pure, silky decay with zero white noise wash).
@@ -385,10 +451,17 @@ export function getTargetOutputGain(): number {
   const pState = usePlayerStore.getState();
   const userVol = pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume ?? 0.8));
   const studioState = useStudioStore.getState();
-  const sleepScale =
-    studioState.sleepActive && !studioState.sleepEndAtTrack && studioState.sleepSeconds <= 10
-      ? Math.max(0, studioState.sleepSeconds / 10)
-      : 1;
+  const settings = useSettingsStore.getState();
+  const isSleepFade = settings.sleepFadeOut ?? true;
+
+  let sleepScale = 1;
+  if (studioState.sleepActive && !studioState.sleepEndAtTrack) {
+    const fadeWindow = isSleepFade ? 60 : 10;
+    if (studioState.sleepSeconds <= fadeWindow) {
+      sleepScale = Math.max(0, Math.pow(studioState.sleepSeconds / fadeWindow, 1.35));
+    }
+  }
+
   return userVol * sleepScale;
 }
 
