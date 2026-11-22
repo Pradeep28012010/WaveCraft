@@ -18,6 +18,8 @@ import { useIsKeyboardOpen } from '../../hooks/useIsKeyboardOpen';
 import { useScrollMotionDynamics } from '../../hooks/useScrollMotionDynamics';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore } from '../../stores/studioStore';
+import { useFeedbackStore } from '../../stores/feedbackStore';
+import { useUpdateStore } from '../../stores/updateStore';
 
 const CommandPalette = lazy(() => import('./CommandPalette'));
 const StudioFXModal = lazy(() => import('../player/StudioFXModal'));
@@ -95,6 +97,9 @@ export default function MainLayout() {
   const setNightstandOpen = useStudioStore((s) => s.setNightstandOpen);
   const isSmartDJOpen = useStudioStore((s) => s.isSmartDJOpen);
   const setSmartDJOpen = useStudioStore((s) => s.setSmartDJOpen);
+  const isStudioModalOpen = useStudioStore((s) => s.isStudioModalOpen);
+  const isFeedbackOpen = useFeedbackStore((s) => s.isOpen);
+  const isUpdateModalOpen = useUpdateStore((s) => s.isModalOpen);
 
   useScrollMotionDynamics(mainRef);
   const scrollMotionMode = useSettingsStore((s) => s.scrollMotionMode ?? 'all');
@@ -153,11 +158,11 @@ export default function MainLayout() {
       {/* Global Ctrl+K Command Palette, Studio FX & Context Menu */}
       <Suspense fallback={null}>
         <CommandPalette />
-        <StudioFXModal />
-        <FeedbackModal />
-        <UpdateModal />
-        <NightstandModal isOpen={isNightstandOpen} onClose={() => setNightstandOpen(false)} />
-        <SmartDJModal isOpen={isSmartDJOpen} onClose={() => setSmartDJOpen(false)} />
+        {isStudioModalOpen && <StudioFXModal />}
+        {isFeedbackOpen && <FeedbackModal />}
+        {isUpdateModalOpen && <UpdateModal />}
+        {isNightstandOpen && <NightstandModal isOpen={isNightstandOpen} onClose={() => setNightstandOpen(false)} />}
+        {isSmartDJOpen && <SmartDJModal isOpen={isSmartDJOpen} onClose={() => setSmartDJOpen(false)} />}
       </Suspense>
       <ContextMenu />
 
