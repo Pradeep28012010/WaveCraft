@@ -121,8 +121,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const queue = usePlayerStore((s) => s.queue);
   const queueIndex = usePlayerStore((s) => s.queueIndex);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const volume = usePlayerStore((s) => s.volume);
-  const isMuted = usePlayerStore((s) => s.isMuted);
   const repeatMode = usePlayerStore((s) => s.repeatMode);
   const isShuffled = usePlayerStore((s) => s.isShuffled);
   const playbackSpeed = usePlayerStore((s) => s.playbackSpeed);
@@ -131,8 +129,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const prevTrack = usePlayerStore((s) => s.prevTrack);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
-  const setVolume = usePlayerStore((s) => s.setVolume);
-  const toggleMute = usePlayerStore((s) => s.toggleMute);
   const setPlaybackSpeed = usePlayerStore((s) => s.setPlaybackSpeed);
 
   const toggleLike = useLibraryStore((s) => s.toggleLike);
@@ -2175,45 +2171,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </div>
                   ) : (
                     <div className="w-full flex items-center justify-between gap-2.5 mt-5 pt-3 border-0">
-                      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full liquid-glass border-0 flex-shrink-0">
-                        <button
-                          onClick={toggleMute}
-                          title={isMuted || volume === 0 ? 'Unmute Audio' : 'Mute Audio'}
-                          className={`w-7 h-7 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
-                            isMuted || volume === 0
-                              ? 'glass-button-primary text-rose-300'
-                              : 'glass-button text-white/85 hover:text-white'
-                          }`}
-                        >
-                          {isMuted || volume === 0 ? (
-                            <svg className="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                              <line x1="22" y1="9" x2="16" y2="15" />
-                              <line x1="16" y1="9" x2="22" y2="15" />
-                            </svg>
-                          ) : volume < 0.4 ? (
-                            <svg className="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                            </svg>
-                          ) : (
-                            <svg className="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                            </svg>
-                          )}
-                        </button>
-                        <NowPlayingVolumeBar
-                          volume={volume}
-                          isMuted={isMuted}
-                          setVolume={setVolume}
-                          toggleMute={toggleMute}
-                        />
-                        <span className="text-[10px] font-bold text-white/55 tabular-nums w-7">
-                          {Math.round((isMuted ? 0 : volume) * 100)}%
-                        </span>
-                      </div>
+                      <NowPlayingVolumeBar />
 
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button

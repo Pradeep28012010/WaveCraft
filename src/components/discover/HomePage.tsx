@@ -292,7 +292,10 @@ const HorizontalScroll = memo(({
   };
 
   return (
-    <section className="mb-8 sm:mb-12">
+    <section
+      className="mb-8 sm:mb-12"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 340px' }}
+    >
       <div className="flex items-center justify-between mb-2 px-1">
         <div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">{title}</h2>
@@ -1469,7 +1472,10 @@ export default function HomePage() {
 
       {/* ================= QUICK JUMP IN ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && quickMixTracks.length > 0 && (
-        <section className="mb-10 px-1">
+        <section
+          className="mb-10 px-1"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 360px' }}
+        >
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-black uppercase tracking-wider text-white/75 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
@@ -1703,7 +1709,10 @@ export default function HomePage() {
 
       {/* ================= GLOBAL CHARTS & CITY PULSE ================= */}
       {(activeFilter === 'all' || activeFilter === 'charts') && (
-        <section className="mb-10 px-1">
+        <section
+          className="mb-10 px-1"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 360px' }}
+        >
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
@@ -2170,7 +2179,10 @@ export default function HomePage() {
       {/* ================= MOOD PLAYLISTS ================= */}
       {(activeFilter === 'all' || activeFilter === 'moods') && (
         activeFilter === 'moods' ? (
-          <section className="mb-10 px-1">
+          <section
+            className="mb-10 px-1"
+            style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 360px' }}
+          >
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
@@ -2232,7 +2244,10 @@ export default function HomePage() {
       {/* ================= NEW RELEASES ================= */}
       {(activeFilter === 'all' || activeFilter === 'albums') && (
         activeFilter === 'albums' ? (
-          <section className="mb-10 px-1">
+          <section
+            className="mb-10 px-1"
+            style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 360px' }}
+          >
             <h2 className="text-xl sm:text-2xl font-extrabold text-white mb-1">Top Albums & Releases</h2>
             <p className="text-xs text-white/50 mb-4">Latest studio releases and chart toppers</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

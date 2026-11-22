@@ -23,7 +23,6 @@ import {
   getTargetOutputGain,
   hasWebAudioGain,
   resumeAudioContextIfNeeded,
-  syncHeadroomAndEQ,
   applyStudioFXToAudio,
   ensureAudioGraph,
   getAudioFrequencyData,
@@ -124,24 +123,12 @@ export default function YouTubeEmbed() {
   const setIsLoading = usePlayerStore((s) => s.setIsLoading);
   const playTriggerId = usePlayerStore((s) => s.playTriggerId);
 
-  const eqBands = useSettingsStore((s) => s.equalizerBands);
   const autoplay = useSettingsStore((s) => s.autoplay);
   const crossfadeDuration = useSettingsStore((s) => s.crossfadeDuration || s.crossfade || 0);
   const crossfadeDurationRef = useRef(crossfadeDuration);
   crossfadeDurationRef.current = crossfadeDuration;
   const loudnessNormalization = useSettingsStore((s) => s.loudnessNormalization ?? true);
   const offlineModeOnly = useSettingsStore((s) => s.offlineModeOnly ?? false);
-  const fxMode = useStudioStore((s) => s.fxMode);
-  const spatialOrbitAuto = useStudioStore((s) => s.spatialOrbitAuto);
-  const spatialOrbitSpeed = useStudioStore((s) => s.spatialOrbitSpeed);
-  const spatialRoomSize = useStudioStore((s) => s.spatialRoomSize);
-  const spatialManualPos = useStudioStore((s) => s.spatialManualPos);
-  const subBassBoost = useStudioStore((s) => s.subBassBoost);
-  const harmonicDrive = useStudioStore((s) => s.harmonicDrive);
-  const stereoWidth = useStudioStore((s) => s.stereoWidth);
-  const reverbMix = useStudioStore((s) => s.reverbMix);
-  const trebleAir = useStudioStore((s) => s.trebleAir);
-  const preservePitch = useStudioStore((s) => s.preservePitch);
   const pomodoroActive = useStudioStore((s) => s.pomodoroActive);
   const tickPomodoro = useStudioStore((s) => s.tickPomodoro);
   const sleepActive = useStudioStore((s) => s.sleepActive);
@@ -173,27 +160,6 @@ export default function YouTubeEmbed() {
       window.removeEventListener('touchstart', unlockOnInteraction);
     };
   }, []);
-
-  // Sync 10-band Equalizer gains + Studio FX in real time
-  useEffect(() => {
-    syncHeadroomAndEQ(eqBands, fxMode);
-    applyStudioFXToAudio(audioRef.current, fxMode, playbackSpeed || 1);
-  }, [
-    isPlaying,
-    eqBands,
-    fxMode,
-    playbackSpeed,
-    spatialOrbitAuto,
-    spatialOrbitSpeed,
-    spatialRoomSize,
-    spatialManualPos,
-    subBassBoost,
-    harmonicDrive,
-    stereoWidth,
-    reverbMix,
-    trebleAir,
-    preservePitch
-  ]);
 
   // Global Focus Pomodoro Timer 1s ticker
   useEffect(() => {
@@ -309,7 +275,7 @@ export default function YouTubeEmbed() {
     if (!audio) return;
 
     setHtmlAudioElement(audio);
-    ensureAudioGraph(audio, eqBands);
+    ensureAudioGraph(audio, useSettingsStore.getState().equalizerBands);
 
     let lastReportedTime = -1;
 

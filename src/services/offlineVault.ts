@@ -384,18 +384,22 @@ export async function removeTrackOffline(trackId: string): Promise<void> {
     activeObjectUrls.delete(trackId);
   }
 
-  // Delete from IndexedDB
+  // Delete from IndexedDB in parallel
   try {
-    await idbDel(`audio_${trackId}`, vaultBlobStore);
-    await idbDel(`art_${trackId}`, vaultBlobStore);
+    await Promise.all([
+      idbDel(`audio_${trackId}`, vaultBlobStore),
+      idbDel(`art_${trackId}`, vaultBlobStore)
+    ]);
   } catch {}
 
-  // Delete from CacheStorage
+  // Delete from CacheStorage in parallel
   if (typeof window !== 'undefined' && 'caches' in window) {
     try {
       const cache = await caches.open(VAULT_CACHE_NAME);
-      await cache.delete(`https://wavecraft.local/offline-audio/${trackId}`);
-      await cache.delete(`https://wavecraft.local/offline-art/${trackId}`);
+      await Promise.all([
+        cache.delete(`https://wavecraft.local/offline-audio/${trackId}`),
+        cache.delete(`https://wavecraft.local/offline-art/${trackId}`)
+      ]);
     } catch {}
   }
 
@@ -466,25 +470,31 @@ export async function clearAutoCacheOnly(): Promise<number> {
   const autoCacheTracks = allTracks.filter((t) => t.offlineSource === 'auto-cache');
   if (autoCacheTracks.length === 0) return 0;
 
-  for (const track of autoCacheTracks) {
-    if (activeObjectUrls.has(track.id)) {
+  await Promise.all(
+    autoCacheTracks.map(async (track) => {
+      if (activeObjectUrls.has(track.id)) {
+        try {
+          URL.revokeObjectURL(activeObjectUrls.get(track.id)!);
+        } catch {}
+        activeObjectUrls.delete(track.id);
+      }
       try {
-        URL.revokeObjectURL(activeObjectUrls.get(track.id)!);
+        await Promise.all([
+          idbDel(`audio_${track.id}`, vaultBlobStore),
+          idbDel(`art_${track.id}`, vaultBlobStore)
+        ]);
       } catch {}
-      activeObjectUrls.delete(track.id);
-    }
-    try {
-      await idbDel(`audio_${track.id}`, vaultBlobStore);
-      await idbDel(`art_${track.id}`, vaultBlobStore);
-    } catch {}
-    if (typeof window !== 'undefined' && 'caches' in window) {
-      try {
-        const cache = await caches.open(VAULT_CACHE_NAME);
-        await cache.delete(`https://wavecraft.local/offline-audio/${track.id}`);
-        await cache.delete(`https://wavecraft.local/offline-art/${track.id}`);
-      } catch {}
-    }
-  }
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+          const cache = await caches.open(VAULT_CACHE_NAME);
+          await Promise.all([
+            cache.delete(`https://wavecraft.local/offline-audio/${track.id}`),
+            cache.delete(`https://wavecraft.local/offline-art/${track.id}`)
+          ]);
+        } catch {}
+      }
+    })
+  );
 
   const remaining = allTracks.filter((t) => t.offlineSource !== 'auto-cache');
   saveOfflineTracksMeta(remaining);

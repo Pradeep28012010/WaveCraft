@@ -1290,6 +1290,11 @@ export default function SonicGalaxyPage() {
       };
     };
 
+    let lastFftSampleTime = 0;
+    let cachedBassEnergy = 0;
+    let cachedMidEnergy = 0;
+    let cachedTrebleEnergy = 0;
+
     const render = (now: number) => {
       // 1. Tab Inactive / Hidden Optimization: Completely stop animation loop when tab is backgrounded
       if (document.hidden) {
@@ -1336,31 +1341,40 @@ export default function SonicGalaxyPage() {
       cameraRef.current.focusY += (cameraRef.current.targetFocusY - cameraRef.current.focusY) * focusLerp;
       cameraRef.current.focusZ += (cameraRef.current.targetFocusZ - cameraRef.current.focusZ) * focusLerp;
 
-      let hasLiveAudio = false;
       let bassEnergy = 0;
       let midEnergy = 0;
       let trebleEnergy = 0;
       const fxMode = audioReactivityModeRef.current;
 
       if (fxMode === 'dynamic') {
-        hasLiveAudio = getAudioFrequencyData(freqBins);
-        if (hasLiveAudio) {
-          let bSum = 0;
-          for (let i = 0; i < 10; i++) bSum += freqBins[i];
-          bassEnergy = bSum / (10 * 255);
+        if (time - lastFftSampleTime >= 0.032) {
+          lastFftSampleTime = time;
+          const hasLiveAudio = getAudioFrequencyData(freqBins);
+          if (hasLiveAudio) {
+            let bSum = 0;
+            for (let i = 0; i < 10; i++) bSum += freqBins[i];
+            cachedBassEnergy = bSum / (10 * 255);
 
-          let mSum = 0;
-          for (let i = 10; i < 32; i++) mSum += freqBins[i];
-          midEnergy = mSum / (22 * 255);
+            let mSum = 0;
+            for (let i = 10; i < 32; i++) mSum += freqBins[i];
+            cachedMidEnergy = mSum / (22 * 255);
 
-          let tSum = 0;
-          for (let i = 32; i < 60; i++) tSum += freqBins[i];
-          trebleEnergy = tSum / (28 * 255);
-        } else if (usePlayerStore.getState().isPlaying) {
-          bassEnergy = 0.28 + Math.pow(Math.sin(time * 3.8) * 0.5 + 0.5, 2) * 0.35;
-          midEnergy = 0.22 + Math.sin(time * 5.2) * 0.15;
-          trebleEnergy = 0.18 + Math.cos(time * 4.4) * 0.14;
+            let tSum = 0;
+            for (let i = 32; i < 60; i++) tSum += freqBins[i];
+            cachedTrebleEnergy = tSum / (28 * 255);
+          } else if (usePlayerStore.getState().isPlaying) {
+            cachedBassEnergy = 0.28 + Math.pow(Math.sin(time * 3.8) * 0.5 + 0.5, 2) * 0.35;
+            cachedMidEnergy = 0.22 + Math.sin(time * 5.2) * 0.15;
+            cachedTrebleEnergy = 0.18 + Math.cos(time * 4.4) * 0.14;
+          } else {
+            cachedBassEnergy = 0;
+            cachedMidEnergy = 0;
+            cachedTrebleEnergy = 0;
+          }
         }
+        bassEnergy = cachedBassEnergy;
+        midEnergy = cachedMidEnergy;
+        trebleEnergy = cachedTrebleEnergy;
       } else if (fxMode === 'ambient') {
         bassEnergy = 0.14 + Math.sin(time * 1.8) * 0.08;
         midEnergy = 0.12 + Math.cos(time * 2.2) * 0.06;

@@ -92,7 +92,7 @@ export default function SearchResults() {
 
   const { history, removeSearchTerm, clearSearchHistory, saveSearchTerm } = useSearchHistory();
   const libraryPlaylists = useLibraryStore((state) => state.playlists);
-  const likedSongs = useLibraryStore((state) => state.likedSongs);
+  const likedIds = useLibraryStore((state) => state.likedIds);
   const toggleLike = useLibraryStore((state) => state.toggleLike);
 
   const [activeTab, setActiveTab] = useState<'all' | 'songs' | 'artists' | 'playlists' | 'albums'>('all');
@@ -392,7 +392,7 @@ export default function SearchResults() {
 
   const topTrack = tracks[0];
   const isTopPlaying = Boolean(currentTrackId && topTrack && currentTrackId === topTrack.id && isPlaying);
-  const isTopLiked = topTrack ? likedSongs.some((t) => t.id === topTrack.id) : false;
+  const isTopLiked = Boolean(topTrack && likedIds[topTrack.id]);
 
   const tabs: Array<{ id: 'all' | 'songs' | 'artists' | 'playlists' | 'albums'; label: string }> = [
     { id: 'all', label: 'All' },
@@ -650,6 +650,8 @@ export default function SearchResults() {
                   <img
                     src={selectedAlbum.coverUrl || selectedAlbum.thumbnail || DEFAULT_THUMBNAIL}
                     alt={selectedAlbum.title || selectedAlbum.name}
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                     }}
@@ -808,6 +810,8 @@ export default function SearchResults() {
                           <img
                             src={topTrack.thumbnail || DEFAULT_THUMBNAIL}
                             alt={topTrack.title}
+                            loading="lazy"
+                            decoding="async"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                             }}
@@ -1069,6 +1073,8 @@ export default function SearchResults() {
                             <img
                               src={artist.imageUrl || artist.thumbnail}
                               alt={artist.name}
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
@@ -1127,6 +1133,8 @@ export default function SearchResults() {
                           <img
                             src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                             alt={album.title || album.name}
+                            loading="lazy"
+                            decoding="async"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
                             }}
