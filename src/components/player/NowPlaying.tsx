@@ -400,6 +400,17 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
+                      useStudioStore.getState().setSmartDJOpen(true);
+                    }}
+                    className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
+                    title="Smart DJ Console"
+                  >
+                    <span className="text-sm">🎧</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
                       setNightstandOpen(true);
                     }}
                     className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
@@ -547,16 +558,30 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     )}
                   </button>
 
+                  {/* Smart DJ Console & Automix Button */}
+                  <button
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      useStudioStore.getState().setSmartDJOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 h-9 rounded-full glass-button text-white/80 hover:text-white cursor-pointer active:scale-95 transition-transform app-region-no-drag"
+                    title="Smart DJ Console & Harmonic Automix"
+                  >
+                    <span className="text-sm">🎧</span>
+                    <span className="hidden sm:inline text-xs font-semibold">Smart DJ</span>
+                  </button>
+
                   {/* Bedside Nightstand Mode Button */}
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
                       setNightstandOpen(true);
                     }}
-                    className="w-9 h-9 rounded-full flex items-center justify-center glass-button text-white/80 hover:text-white cursor-pointer active:scale-90 transition-transform app-region-no-drag"
+                    className="flex items-center gap-1.5 px-3 h-9 rounded-full glass-button text-white/80 hover:text-white cursor-pointer active:scale-90 transition-transform app-region-no-drag"
                     title="Open Bedside Nightstand Mode"
                   >
                     <span className="text-sm">🌙</span>
+                    <span className="hidden md:inline text-xs font-semibold">Nightstand</span>
                   </button>
 
                   {/* Single Sleek ••• Tools Menu Button & Popover */}
