@@ -157,13 +157,13 @@ body,
   will-change: transform, opacity;
 }
 
-/* High-FPS Rendering Optimization - safe style containment without breaking shared layout projections */
+/* High-FPS Rendering Optimization - safe containment without breaking layouts */
 .contain-track-row {
   contain: style;
 }
 
 .contain-card {
-  contain: layout;
+  contain: none;
 }
 
 /* Liquid Glass Blooming Menu & Panel Style */
@@ -853,24 +853,21 @@ textarea,
   --scroll-scale-y: 1;
 }
 
-/* 1. Velocity Inertial Tilt / Skew - scoped strictly to album art, cards & visual thumbnails so typography remains 100% crisp, zero DirectWrite cache invalidation, and zero tile shedding */
-.scroll-motion-skew img,
-.scroll-motion-skew .album-artwork,
-.scroll-motion-skew .track-artwork,
-.scroll-motion-skew .aspect-square,
-.scroll-motion-skew .card-artwork {
+/* 1. Velocity Inertial Tilt / Skew - scoped strictly to artwork when actively scrolling, zero DirectWrite invalidation, zero nested tile shedding */
+[data-scrolling="true"] .scroll-motion-skew img,
+[data-scrolling="true"] .scroll-motion-skew .album-artwork,
+[data-scrolling="true"] .scroll-motion-skew .track-artwork {
   transform: skewY(var(--scroll-skew, 0deg));
   transform-origin: center top;
 }
 
-/* 2. Visual Motion Blur - applied to artwork, cards & banners with pure rAF spring interpolation (no CSS transition conflicts) */
-.scroll-motion-blur-page img,
-.scroll-motion-blur-page .album-artwork,
-.scroll-motion-blur-page .track-artwork,
-.scroll-motion-blur-page .aspect-square,
-.scroll-motion-blur-artwork img,
-.scroll-motion-blur-artwork .track-artwork,
-.scroll-motion-blur-artwork .album-artwork {
+/* 2. Visual Motion Blur - applied strictly to artwork during active scrolling with pure rAF spring interpolation (never idle blur(0px) memory leaks) */
+[data-scrolling="true"] .scroll-motion-blur-page img,
+[data-scrolling="true"] .scroll-motion-blur-page .album-artwork,
+[data-scrolling="true"] .scroll-motion-blur-page .track-artwork,
+[data-scrolling="true"] .scroll-motion-blur-artwork img,
+[data-scrolling="true"] .scroll-motion-blur-artwork .track-artwork,
+[data-scrolling="true"] .scroll-motion-blur-artwork .album-artwork {
   filter: blur(var(--scroll-blur, 0px));
 }
 

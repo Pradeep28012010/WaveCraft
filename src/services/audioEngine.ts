@@ -329,6 +329,13 @@ export function isAutoMixerFilterActive(): boolean {
  * Synthesizes an authentic vinyl platter reverse spin / needle-scratch transient
  * with pitch decay, microgroove friction, and needle lift-off.
  */
+let cachedBackspinBuffer: AudioBuffer | null = null;
+let cachedBackspinSampleRate = 0;
+
+/**
+ * High-performance DJ vinyl needle backspin effect:
+ * pools noise buffer to prevent main-thread allocation and GC pauses.
+ */
 export function playVinylBackspin(): void {
   const isEnabled = useSettingsStore.getState().djVinylBackspin ?? true;
   if (!isEnabled) return;
@@ -339,20 +346,24 @@ export function playVinylBackspin(): void {
   const now = ctx.currentTime;
   const dur = 0.48;
 
-  // 1. Friction noise buffer (vinyl needle on slipmat / groove reverse)
+  // 1. Pooled friction noise buffer (vinyl needle on slipmat / groove reverse)
   const bufferSize = Math.floor(ctx.sampleRate * dur);
-  const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const out = noiseBuffer.getChannelData(0);
-  let last = 0;
-  for (let i = 0; i < bufferSize; i++) {
-    const white = Math.random() * 2 - 1;
-    last = (last + 0.08 * white) / 1.08;
-    const pop = Math.random() > 0.995 ? (Math.random() * 2 - 1) * 0.45 : 0;
-    out[i] = (last * 0.7 + pop) * (1 - i / bufferSize);
+  if (!cachedBackspinBuffer || cachedBackspinSampleRate !== ctx.sampleRate) {
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const out = noiseBuffer.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      last = (last + 0.08 * white) / 1.08;
+      const pop = Math.random() > 0.995 ? (Math.random() * 2 - 1) * 0.45 : 0;
+      out[i] = (last * 0.7 + pop) * (1 - i / bufferSize);
+    }
+    cachedBackspinBuffer = noiseBuffer;
+    cachedBackspinSampleRate = ctx.sampleRate;
   }
 
   const noiseSource = ctx.createBufferSource();
-  noiseSource.buffer = noiseBuffer;
+  noiseSource.buffer = cachedBackspinBuffer;
 
   // Resonant bandpass filter sweeping downward rapidly (the "shhh-wzzzzp" tone)
   const bpf = ctx.createBiquadFilter();
@@ -390,10 +401,14 @@ export function playVinylBackspin(): void {
   osc.stop(now + dur);
 }
 
+let cachedImpulseBuffer: AudioBuffer | null = null;
+let cachedImpulseKey = '';
+
 /**
  * Generates an audiophile acoustic concert hall impulse response
  * with 22ms pre-delay (transient clarity), discrete geometric early reflections,
  * and high-frequency air damping (pure, silky decay with zero white noise wash).
+ * Caches impulse buffer per sampleRate, duration, and decay.
  */
 function createStudioImpulseResponse(
   ctx: AudioContext,
@@ -401,6 +416,11 @@ function createStudioImpulseResponse(
   decayRate = 2.6
 ): AudioBuffer {
   const sampleRate = ctx.sampleRate;
+  const key = `${sampleRate}_${durationSec}_${decayRate}`;
+  if (cachedImpulseBuffer && cachedImpulseKey === key) {
+    return cachedImpulseBuffer;
+  }
+
   const length = Math.floor(sampleRate * durationSec);
   const impulse = ctx.createBuffer(2, length, sampleRate);
   const preDelaySamples = Math.floor(sampleRate * 0.022); // 22ms pre-delay preserves punchy attacks
@@ -444,6 +464,8 @@ function createStudioImpulseResponse(
     }
   }
 
+  cachedImpulseBuffer = impulse;
+  cachedImpulseKey = key;
   return impulse;
 }
 

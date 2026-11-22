@@ -58,9 +58,9 @@ function AppleToggle({
 }
 
 // ============================================================================
-// INSET GROUPED SETTING ROW
+// INSET GROUPED SETTING ROW (Memoized to prevent cascading re-renders)
 // ============================================================================
-function InsetSettingRow({
+const InsetSettingRow = memo(function InsetSettingRow({
   icon,
   iconBg = 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   label,
@@ -93,7 +93,8 @@ function InsetSettingRow({
       </div>
     </div>
   );
-}
+});
+InsetSettingRow.displayName = 'InsetSettingRow';
 
 const BAND_LABELS = ['32Hz', '64Hz', '125Hz', '250Hz', '500Hz', '1kHz', '2kHz', '4kHz', '8kHz', '16kHz'];
 
@@ -469,18 +470,16 @@ export default function SettingsPage() {
                     triggerAndroidHaptic('light');
                     setActiveCategory(cat.id as SettingsCategory);
                   }}
-                  className="relative px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer select-none"
+                  className="relative h-8 px-3.5 inline-flex items-center justify-center rounded-full text-xs font-bold whitespace-nowrap cursor-pointer select-none"
                 >
                   {isActive && (
                     <motion.div
                       layoutId="settings-category-pill"
-                      layout="position"
-                      initial={false}
                       transition={{
                         type: 'spring',
-                        stiffness: 450,
-                        damping: 34,
-                        mass: 0.5
+                        stiffness: 480,
+                        damping: 38,
+                        mass: 0.52
                       }}
                       className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                     />
