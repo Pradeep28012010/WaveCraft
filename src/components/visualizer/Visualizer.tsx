@@ -31,11 +31,23 @@ interface Particle2D {
 
 const DEFAULT_COLORS = ['#fa2d48', '#8b5cf6', '#06b6d4'];
 
-const KALEIDOSCOPE_LAYERS = [
+interface KaleidoscopeLayerDef {
+  count: number;
+  rBaseMul: number;
+  rTipMul: number;
+  colorIdx: number;
+  freqStart: number;
+  rotOffsetStep: number;
+  bassScale?: number;
+  dataFreqIdx?: number;
+  dataFreqScale?: number;
+}
+
+const KALEIDOSCOPE_LAYERS: readonly KaleidoscopeLayerDef[] = [
   { count: 12, rBaseMul: 0.5, rTipMul: 0.85, bassScale: 0.3, colorIdx: 0, freqStart: 2, rotOffsetStep: 0 },
   { count: 12, rBaseMul: 0.25, rTipMul: 0.58, dataFreqIdx: 16, dataFreqScale: 0.25, colorIdx: 1, freqStart: 18, rotOffsetStep: 0.5 },
   { count: 12, rBaseMul: 0.08, rTipMul: 0.32, dataFreqIdx: 32, dataFreqScale: 0.2, colorIdx: 2, freqStart: 34, rotOffsetStep: 0 }
-] as const;
+];
 
 const Visualizer = memo(
   ({
@@ -1161,9 +1173,9 @@ const Visualizer = memo(
             const layerColor = layer.colorIdx === 0 ? c0 : layer.colorIdx === 1 ? c1 : c2;
             const rBase = maxRadius * layer.rBaseMul;
             const extraTip =
-              l === 0
+              layer.bassScale !== undefined
                 ? bassEnergy * layer.bassScale
-                : (data['dataFreqIdx' in layer ? layer.dataFreqIdx : 0] || 0) * ('dataFreqScale' in layer ? layer.dataFreqScale : 0);
+                : (data[layer.dataFreqIdx || 0] || 0) * (layer.dataFreqScale || 0);
             const rTipBase = maxRadius * (layer.rTipMul + extraTip);
 
             for (let s = 0; s < layer.count; s++) {
