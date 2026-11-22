@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { useState, useRef, useEffect, memo, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useJamStore } from '../../stores/jamStore';
@@ -14,8 +14,6 @@ import WaveCardModal from './WaveCardModal';
 import { getTrackHarmonics } from '../../utils/audioHarmonics';
 import { toggleChorusPreview, isChorusPreviewActive } from '../../services/chorusPreview';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
-
-import { formatTime } from '../../utils/formatTime';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useTrackOfflineStatus } from '../../services/offlineVault';

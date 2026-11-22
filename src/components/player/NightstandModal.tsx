@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useStudioStore, type AmbientLayerId } from '../../stores/studioStore';
-import { triggerAndroidHaptic } from '../../utils/haptics';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
 interface NightstandModalProps {

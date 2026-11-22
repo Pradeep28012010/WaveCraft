@@ -224,6 +224,8 @@ const initialSyncSettings = readInitialSettingsSync();
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   ...initialSyncSettings,
+  scrollMotionMode: initialSyncSettings.scrollMotionMode ?? 'all',
+  scrollMotionIntensity: initialSyncSettings.scrollMotionIntensity ?? 'balanced',
   crossfade: initialSyncSettings.crossfadeDuration ?? 0,
   eqPreset: initialSyncSettings.equalizerPreset ?? 'Flat',
   eqBands: initialSyncSettings.equalizerBands ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],

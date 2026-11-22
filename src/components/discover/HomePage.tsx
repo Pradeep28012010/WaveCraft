@@ -2128,7 +2128,7 @@ export default function HomePage() {
       {/* ================= FEATURED ARTISTS ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <HorizontalScroll title="Featured Artists" subtitle="Top icons and creators defining music today">
-          {FEATURED_ARTISTS.map((artist, i) => (
+          {FEATURED_ARTISTS.map((artist) => (
             <div
               key={artist.id}
               onClick={() => {
@@ -2251,7 +2251,7 @@ export default function HomePage() {
             <h2 className="text-xl sm:text-2xl font-extrabold text-white mb-1">Top Albums & Releases</h2>
             <p className="text-xs text-white/50 mb-4">Latest studio releases and chart toppers</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {newReleases.map((album, i) => (
+              {newReleases.map((album) => (
                 <div
                   key={album.id}
                   className="flex flex-col group cursor-pointer"
@@ -2304,7 +2304,7 @@ export default function HomePage() {
                       <Skeleton className="w-1/2 h-3 rounded" />
                     </div>
                   ))
-              : newReleases.map((album, i) => (
+              : newReleases.map((album) => (
                   <div
                     key={album.id}
                     className="min-w-[150px] max-w-[150px] sm:min-w-[180px] sm:max-w-[180px] flex-shrink-0 snap-start group cursor-pointer"

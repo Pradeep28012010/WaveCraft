@@ -551,7 +551,8 @@ export default function YouTubeEmbed() {
         !isHidden &&
         effectiveYtId &&
         ytPlayer &&
-        (typeof navigator === 'undefined' || navigator.onLine)
+        (typeof navigator === 'undefined' || navigator.onLine) &&
+        cur
       ) {
         killNativeAudioEngine();
         fallbackToYouTube(cur, effectiveYtId, usePlayerStore.getState().isPlaying);
@@ -1494,6 +1495,8 @@ export default function YouTubeEmbed() {
                 : t
             )
           }));
+
+          const audio = audioRef.current;
 
           // A. If direct audio is already cached in memory, play native lossless immediately (0ms)
           const cachedDirectAudio = getCachedDirectAudio(track.title, track.artist, ytid);

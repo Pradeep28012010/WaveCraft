@@ -5,8 +5,8 @@
  * connects to Web Audio DSP Equalizer & Spatial 8D engine, and updates user library & playlists.
  */
 
-import type { Track, Playlist } from '../types';
-import { createStore, set as idbSet, get as idbGet, del as idbDel } from 'idb-keyval';
+import type { Track } from '../types';
+import { createStore, set as idbSet } from 'idb-keyval';
 import { useLibraryStore } from '../stores/libraryStore';
 import { getOfflineTracks, rehydrateOfflineVault } from './offlineVault';
 

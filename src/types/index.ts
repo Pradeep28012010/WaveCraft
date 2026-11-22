@@ -19,6 +19,10 @@ export interface Track {
   mood?: string;
   energy?: number;
   isInstrumental?: boolean;
+  isLocal?: boolean;
+  albumArt?: string;
+  name?: string;
+  subtitle?: string;
   offlineSource?: 'manual' | 'auto-cache';
   downloadedAt?: number;
 }

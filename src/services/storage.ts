@@ -36,6 +36,7 @@ export interface LibraryBackupPayload {
   likedSongs?: Track[];
   playlists?: Playlist[];
   folders?: PlaylistFolder[];
+  recentlyPlayed?: Track[];
   settings?: SettingsState;
   playHistory?: { trackId: string; playedAt: number; duration: number }[];
   galaxyPrefs?: GalaxyPreferences;

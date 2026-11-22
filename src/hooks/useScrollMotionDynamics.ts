@@ -155,7 +155,7 @@ export function useScrollMotionDynamics(containerRef: React.RefObject<HTMLElemen
     }
 
     function onScroll() {
-      if (modeRef.current === 'off') return;
+      if (modeRef.current === 'off' || !el) return;
 
       const now = performance.now();
       const currentScrollTop = el.scrollTop;

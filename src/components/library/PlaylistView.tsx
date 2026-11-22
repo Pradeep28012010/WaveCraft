@@ -17,7 +17,7 @@ import {
 } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useDownloadStore } from '../../stores/downloadStore';
-import { computeSmartPlaylists, type SmartPlaylistDef } from '../../services/smartPlaylists';
+import { computeSmartPlaylists } from '../../services/smartPlaylists';
 
 export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
@@ -119,7 +119,6 @@ export default function PlaylistView() {
   );
   const smartMatch = isSmartId ? smartPlaylists.find((sp) => sp.id === id) : undefined;
   const playlist = smartMatch || playlists.find((p) => p.id === id);
-  const isSmartPlaylist = Boolean(smartMatch);
 
   const currentFolder = playlist?.folderId ? folders.find((f) => f.id === playlist.folderId) : undefined;
   const isSyncing = Boolean(id && syncingPlaylistIds[id]);

@@ -25,7 +25,7 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
   const djVinylBackspin = useSettingsStore((s) => s.djVinylBackspin ?? true);
   const setDjVinylBackspin = useSettingsStore((s) => s.setDjVinylBackspin);
   const crossfadeDuration = useSettingsStore((s) => s.crossfadeDuration ?? 3);
-  const setCrossfadeDuration = useSettingsStore((s) => s.setCrossfadeDuration);
+  const setCrossfade = useSettingsStore((s) => s.setCrossfade);
 
   const smartDjAutoMix = useStudioStore((s) => s.smartDjAutoMix ?? true);
   const setSmartDjAutoMix = useStudioStore((s) => s.setSmartDjAutoMix);
@@ -170,6 +170,44 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
                   </span>
                 </div>
               )}
+
+              {/* Deck A Transport Controls */}
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    prevTrack();
+                  }}
+                  className="p-1.5 rounded-full glass-button text-white/80 hover:text-white cursor-pointer"
+                  title="Previous Track"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="19 20 9 12 19 4 19 20" />
+                    <line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" strokeWidth="2" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('medium');
+                    togglePlay();
+                  }}
+                  className="p-2 rounded-full glass-button-primary text-white cursor-pointer active:scale-95 transition-transform"
+                  title={isPlaying ? 'Pause' : 'Play'}
+                >
+                  {isPlaying ? (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16" />
+                      <rect x="14" y="4" width="4" height="16" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Center Mixer & Harmonic Matrix */}
@@ -318,6 +356,28 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
               </div>
             </div>
 
+            {/* DJ Filter Sweep */}
+            <div className="rounded-2xl p-4 bg-white/[0.02] border border-white/10">
+              <div className="flex justify-between items-center text-xs font-bold mb-2">
+                <span className="text-white/70">Low-Pass (LPF)</span>
+                <span className="text-white font-mono uppercase tracking-wider text-[11px]">Filter Sweep</span>
+                <span className="text-white/70">High-Pass (HPF)</span>
+              </div>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                value={filterSweep}
+                onChange={(e) => setFilterSweep(Number(e.target.value))}
+                className="w-full accent-cyan-400 cursor-pointer h-2 bg-white/20 rounded-lg"
+              />
+              <div className="flex justify-between items-center text-[10px] text-white/40 mt-1.5 font-mono">
+                <span>-100% LPF</span>
+                <span>{filterSweep === 0 ? 'FLAT (BYPASS)' : `${filterSweep > 0 ? '+' : ''}${filterSweep}%`}</span>
+                <span>+100% HPF</span>
+              </div>
+            </div>
+
             {/* Smart Crossfade Timing & Vinyl Backspin Setting */}
             <div className="rounded-2xl p-4 bg-white/[0.02] border border-white/10 flex flex-col justify-between">
               <div className="flex items-center justify-between text-xs font-bold mb-2">
@@ -343,7 +403,7 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
                 max="12"
                 step="1"
                 value={crossfadeDuration}
-                onChange={(e) => setCrossfadeDuration(Number(e.target.value))}
+                onChange={(e) => setCrossfade(Number(e.target.value))}
                 className="w-full accent-[var(--color-accent)] cursor-pointer h-1.5 bg-white/20 rounded-lg mt-1"
               />
             </div>

@@ -32,7 +32,6 @@ export default function DownloadsPage() {
   const setQueue = usePlayerStore((s) => s.setQueue);
   const likedSongs = useLibraryStore((s) => s.likedSongs);
   const startBatchDownload = useDownloadStore((s) => s.startBatchDownload);
-  const activeDownloadJob = useDownloadStore((s) => s.activeJob);
 
   // Settings
   const offlineModeOnly = useSettingsStore((s) => s.offlineModeOnly ?? false);
@@ -251,11 +250,6 @@ export default function DownloadsPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  // Stacked progress bar ratios
-  const totalBar = Math.max(1, storageBreakdown.quotaBytes || storageBreakdown.totalUsedBytes);
-  const manualRatio = Math.min(100, (storageBreakdown.manualBytes / totalBar) * 100);
-  const autoCacheRatio = Math.min(100, (storageBreakdown.autoCacheBytes / totalBar) * 100);
 
   return (
     <div className="pb-44 sm:pb-28 pt-2 text-white min-h-screen">

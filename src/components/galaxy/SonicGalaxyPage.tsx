@@ -1341,6 +1341,7 @@ export default function SonicGalaxyPage() {
       cameraRef.current.focusY += (cameraRef.current.targetFocusY - cameraRef.current.focusY) * focusLerp;
       cameraRef.current.focusZ += (cameraRef.current.targetFocusZ - cameraRef.current.focusZ) * focusLerp;
 
+      let hasLiveAudio = false;
       let bassEnergy = 0;
       let midEnergy = 0;
       let trebleEnergy = 0;
@@ -1349,7 +1350,7 @@ export default function SonicGalaxyPage() {
       if (fxMode === 'dynamic') {
         if (time - lastFftSampleTime >= 0.032) {
           lastFftSampleTime = time;
-          const hasLiveAudio = getAudioFrequencyData(freqBins);
+          hasLiveAudio = getAudioFrequencyData(freqBins);
           if (hasLiveAudio) {
             let bSum = 0;
             for (let i = 0; i < 10; i++) bSum += freqBins[i];

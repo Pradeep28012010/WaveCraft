@@ -3,6 +3,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import TrackRow from '../ui/TrackRow';
 import GlassButton from '../ui/GlassButton';
+import type { Track } from '../../types';
 
 export default function RecentlyPlayed() {
   const recentlyPlayed = useLibraryStore((state) => state.recentlyPlayed);
