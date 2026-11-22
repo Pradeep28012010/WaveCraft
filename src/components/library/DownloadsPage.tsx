@@ -55,10 +55,10 @@ export default function DownloadsPage() {
   const [toastMessage, setToastMessage] = useState('');
 
   const bitrateBreakdown = useMemo(() => computeBitrateBreakdown(offlineTracks), [offlineTracks]);
-  const unCachedLiked = useMemo(
-    () => likedSongs.filter((t) => !offlineTracks.some((ot) => ot.id === t.id)),
-    [likedSongs, offlineTracks]
-  );
+  const unCachedLiked = useMemo(() => {
+    const offlineSet = new Set(offlineTracks.map((ot) => ot.id));
+    return likedSongs.filter((t) => !offlineSet.has(t.id));
+  }, [likedSongs, offlineTracks]);
 
   const [storageBreakdown, setStorageBreakdown] = useState<DetailedStorageBreakdown>({
     totalUsedBytes: 0,

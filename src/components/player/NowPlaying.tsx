@@ -317,6 +317,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
               <Visualizer
                 isActive={isPlaying}
                 style={(visualizerStyle || 'cyber-mesh') as VisualizerStyle}
+                colors={[palette.primary, palette.secondary, palette.tertiary || palette.accent || palette.primary]}
                 fullScreen
               />
             </div>

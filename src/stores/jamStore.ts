@@ -635,6 +635,18 @@ export const useJamStore = create<JamStore>((set, get) => {
             }
           } catch {}
         };
+        es.onerror = () => {
+          if (get().roomCode && serverSseSource === es) {
+            setTimeout(() => {
+              const curRoom = get().roomCode;
+              if (curRoom && serverSseSource === es) {
+                try { es.close(); } catch {}
+                serverSseSource = null;
+                listenRoomEvents(curRoom);
+              }
+            }, 3500);
+          }
+        };
         serverSseSource = es;
       } catch {}
     }
@@ -664,6 +676,18 @@ export const useJamStore = create<JamStore>((set, get) => {
             }
           } catch {}
         };
+        es.onerror = () => {
+          if (get().roomCode && sseSource === es) {
+            setTimeout(() => {
+              const curRoom = get().roomCode;
+              if (curRoom && sseSource === es) {
+                try { es.close(); } catch {}
+                sseSource = null;
+                listenRoomEvents(curRoom);
+              }
+            }, 4000);
+          }
+        };
         sseSource = es;
       } catch {}
     }
@@ -689,6 +713,26 @@ export const useJamStore = create<JamStore>((set, get) => {
       clientSendEpoch: Date.now()
     });
   };
+
+  // Re-establish real-time streams and re-sync time anchor whenever tab or device wakes up
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        const room = get().roomCode;
+        if (room) {
+          listenRoomEvents(room);
+          sendSyncPing();
+        }
+      }
+    });
+    window.addEventListener('online', () => {
+      const room = get().roomCode;
+      if (room) {
+        listenRoomEvents(room);
+        sendSyncPing();
+      }
+    });
+  }
 
   let anchorPulseTick = 0;
   const broadcastHostAnchorPulse = () => {
