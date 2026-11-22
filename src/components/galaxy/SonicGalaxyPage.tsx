@@ -15,7 +15,6 @@ import WaveCardModal from '../player/WaveCardModal';
 import type { Track } from '../../types';
 import type {
   SonicDNA,
-  TasteMatchBreakdown,
   StarNode3D,
   ProjectedStar,
   BackgroundParticle,
