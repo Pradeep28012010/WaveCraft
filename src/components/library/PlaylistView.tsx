@@ -17,7 +17,7 @@ import {
 } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useDownloadStore } from '../../stores/downloadStore';
-import { computeSmartPlaylists, getSmartPlaylistById } from '../../services/smartPlaylists';
+import { getSmartPlaylistById } from '../../services/smartPlaylists';
 
 export default function PlaylistView() {
   const { id } = useParams<{ id: string }>();
