@@ -78,6 +78,11 @@ const Visualizer = memo(
     const tunnelZOffsetRef = useRef<number>(0);
     const flareAngleRef = useRef<number>(0);
     const oscPhaseRef = useRef<number>(0);
+    const laserPtsXRef = useRef<Float32Array>(new Float32Array(725));
+    const laserPtsYRef = useRef<Float32Array>(new Float32Array(725));
+    const meshSxRef = useRef<Float32Array>(new Float32Array(35 * 45));
+    const meshSyRef = useRef<Float32Array>(new Float32Array(35 * 45));
+    const meshAlphaRef = useRef<Float32Array>(new Float32Array(35));
 
     const initStarsAndParticles = (width: number, height: number) => {
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -274,7 +279,11 @@ const Visualizer = memo(
           meshOffsetRef.current =
             (meshOffsetRef.current + (isActive ? 1.2 + bassEnergy * 2.8 : 0.3) * dt) % rowSpacing;
 
-          const gridPoints: Array<Array<{ sx: number; sy: number; alpha: number }>> = [];
+          const numCols = cols + 1;
+          const msx = meshSxRef.current;
+          const msy = meshSyRef.current;
+          const malpha = meshAlphaRef.current;
+          let activeRows = 0;
 
           for (let r = 0; r < rows; r++) {
             const distZ = r * rowSpacing - meshOffsetRef.current;
@@ -284,7 +293,10 @@ const Visualizer = memo(
             const farFade = Math.min(1, Math.max(0, (maxDist - distZ) / 170));
             const rowAlpha = nearFade * farFade;
             if (rowAlpha <= 0.005) continue;
-            const rowPoints: Array<{ sx: number; sy: number; alpha: number }> = [];
+
+            malpha[activeRows] = rowAlpha;
+            const rowOffset = activeRows * numCols;
+            let colIdx = 0;
 
             for (let c = -cols / 2; c <= cols / 2; c++) {
               const normC = c / (cols / 2); // -1 to 1
@@ -304,27 +316,28 @@ const Visualizer = memo(
               const ripple = Math.sin(distZ * 0.035 - now * 0.003 + c * 0.35) * (12 + bassEnergy * 30);
               const worldY = -valley * (freqVal * 110 + 36) - ripple;
 
-              const sx = cx + worldX * proj;
-              const sy = horizonY + (camY + worldY) * proj;
-              rowPoints.push({ sx, sy, alpha: rowAlpha });
+              const pointIdx = rowOffset + colIdx;
+              msx[pointIdx] = cx + worldX * proj;
+              msy[pointIdx] = horizonY + (camY + worldY) * proj;
+              colIdx++;
             }
-            gridPoints.push(rowPoints);
+            activeRows++;
           }
 
           // Draw latitudinal lines with silky smooth curves
-          for (let r = 0; r < gridPoints.length; r++) {
-            const pts = gridPoints[r];
-            if (pts.length < 2) continue;
+          for (let r = 0; r < activeRows; r++) {
+            const rowOffset = r * numCols;
             ctx.beginPath();
-            ctx.moveTo(pts[0].sx, pts[0].sy);
-            for (let i = 0; i < pts.length - 1; i++) {
-              const mx = (pts[i].sx + pts[i + 1].sx) * 0.5;
-              const my = (pts[i].sy + pts[i + 1].sy) * 0.5;
-              ctx.quadraticCurveTo(pts[i].sx, pts[i].sy, mx, my);
+            ctx.moveTo(msx[rowOffset], msy[rowOffset]);
+            for (let i = 0; i < numCols - 1; i++) {
+              const idx = rowOffset + i;
+              const mx = (msx[idx] + msx[idx + 1]) * 0.5;
+              const my = (msy[idx] + msy[idx + 1]) * 0.5;
+              ctx.quadraticCurveTo(msx[idx], msy[idx], mx, my);
             }
-            ctx.lineTo(pts[pts.length - 1].sx, pts[pts.length - 1].sy);
+            ctx.lineTo(msx[rowOffset + numCols - 1], msy[rowOffset + numCols - 1]);
 
-            const rAlpha = pts[0].alpha;
+            const rAlpha = malpha[r];
             ctx.strokeStyle = r % 2 === 0 ? c0 : c1;
             ctx.globalAlpha = rAlpha * (0.42 + bassEnergy * 0.38);
             ctx.lineWidth = Math.max(1, 2.0 * rAlpha);
@@ -332,21 +345,14 @@ const Visualizer = memo(
           }
 
           // Draw longitudinal lines with smooth perspective curves
-          const numPtsInRow = gridPoints[0]?.length || 0;
-          for (let c = 0; c < numPtsInRow; c++) {
+          for (let c = 0; c < numCols; c++) {
             ctx.beginPath();
-            let started = false;
-            for (let r = 0; r < gridPoints.length; r++) {
-              const pt = gridPoints[r][c];
-              if (!pt) continue;
-              if (!started) {
-                ctx.moveTo(pt.sx, pt.sy);
-                started = true;
-              } else {
-                ctx.lineTo(pt.sx, pt.sy);
-              }
+            ctx.moveTo(msx[c], msy[c]);
+            for (let r = 1; r < activeRows; r++) {
+              const idx = r * numCols + c;
+              ctx.lineTo(msx[idx], msy[idx]);
             }
-            const colNorm = Math.abs((c - numPtsInRow / 2) / (numPtsInRow / 2));
+            const colNorm = Math.abs((c - numCols / 2) / (numCols / 2));
             const lineAlpha = Math.max(0.08, 1 - colNorm * 0.5);
             ctx.strokeStyle = c % 2 === 0 ? c1 : c2;
             ctx.globalAlpha = lineAlpha * (0.35 + bassEnergy * 0.45);
@@ -1330,7 +1336,8 @@ const Visualizer = memo(
           const harmonicFreqB = 3;
 
           // Build continuous closed loop points with smooth Catmull-Rom interpolation
-          const pts: Array<{ x: number; y: number }> = [];
+          const lx = laserPtsXRef.current;
+          const ly = laserPtsYRef.current;
           for (let i = 0; i <= samples; i++) {
             const t = (i / samples) * Math.PI * 2;
             // Symmetric audio envelope that wraps seamlessly with 0 discontinuity at t = 0 and 2pi
@@ -1339,19 +1346,18 @@ const Visualizer = memo(
             const audioWarp = (data[freqIdx] || 0) * 0.28 * Math.sin(t * 6 + delta);
             const amp = scale * (0.82 + bassEnergy * 0.22 + audioWarp);
 
-            const x = cx + Math.sin(harmonicFreqA * t + delta) * amp;
-            const y = cy + Math.sin(harmonicFreqB * t) * amp;
-            pts.push({ x, y });
+            lx[i] = cx + Math.sin(harmonicFreqA * t + delta) * amp;
+            ly[i] = cy + Math.sin(harmonicFreqB * t) * amp;
           }
 
           // Render with smooth quadratic splines through points
           const drawBeamPath = () => {
             ctx.beginPath();
-            ctx.moveTo(pts[0].x, pts[0].y);
-            for (let i = 0; i < pts.length - 1; i++) {
-              const mx = (pts[i].x + pts[i + 1].x) * 0.5;
-              const my = (pts[i].y + pts[i + 1].y) * 0.5;
-              ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+            ctx.moveTo(lx[0], ly[0]);
+            for (let i = 0; i < samples; i++) {
+              const mx = (lx[i] + lx[i + 1]) * 0.5;
+              const my = (ly[i] + ly[i + 1]) * 0.5;
+              ctx.quadraticCurveTo(lx[i], ly[i], mx, my);
             }
             ctx.closePath();
           };

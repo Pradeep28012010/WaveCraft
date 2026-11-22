@@ -642,7 +642,7 @@ export const useJamStore = create<JamStore>((set, get) => {
               if (curRoom && serverSseSource === es) {
                 try { es.close(); } catch {}
                 serverSseSource = null;
-                listenRoomEvents(curRoom);
+                connectRealtimeStreams(curRoom);
               }
             }, 3500);
           }
@@ -683,7 +683,7 @@ export const useJamStore = create<JamStore>((set, get) => {
               if (curRoom && sseSource === es) {
                 try { es.close(); } catch {}
                 sseSource = null;
-                listenRoomEvents(curRoom);
+                connectRealtimeStreams(curRoom);
               }
             }, 4000);
           }
@@ -720,7 +720,7 @@ export const useJamStore = create<JamStore>((set, get) => {
       if (document.visibilityState === 'visible') {
         const room = get().roomCode;
         if (room) {
-          listenRoomEvents(room);
+          connectRealtimeStreams(room);
           sendSyncPing();
         }
       }
@@ -728,7 +728,7 @@ export const useJamStore = create<JamStore>((set, get) => {
     window.addEventListener('online', () => {
       const room = get().roomCode;
       if (room) {
-        listenRoomEvents(room);
+        connectRealtimeStreams(room);
         sendSyncPing();
       }
     });
