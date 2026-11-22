@@ -9,7 +9,8 @@ import {
   getOfflineAudioObjectUrl,
   isTrackOffline,
   autoCacheTrack,
-  precacheTrack
+  precacheTrack,
+  predictivePrecacheQueue
 } from '../../services/offlineVault';
 import { cleanTrackQuery, resolveDirectAudio, isPlayableAudioStreamUrl, getCachedDirectAudio } from '../../services/streamResolver';
 import {
@@ -1213,12 +1214,13 @@ export default function YouTubeEmbed() {
       setProgress(0, 0);
       resetAutoMixerFilters();
 
-      // Pre-cache upcoming song in queue for zero-gap playback
+      // Pre-cache upcoming songs in queue for zero-gap playback and offline continuity
       const { queue: currentQueue, queueIndex: currentIdx } = usePlayerStore.getState();
       const nextSong = currentQueue[currentIdx + 1];
       if (nextSong && !isTrackOffline(nextSong.id)) {
         precacheTrack(nextSong);
       }
+      predictivePrecacheQueue(currentQueue, currentIdx, 3);
       eagerPreloadedNextTrackIdRef.current = null;
     }
 

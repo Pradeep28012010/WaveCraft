@@ -515,6 +515,57 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
 
   const dragControls = useDragControls();
 
+  // Native Pull-Down & Artwork Swipe Navigation Gestures
+  const artTouchStartX = useRef<number | null>(null);
+  const artTouchStartY = useRef<number | null>(null);
+  const artTouchStartTime = useRef<number>(0);
+  const [artSwipeOffset, setArtSwipeOffset] = useState<number>(0);
+
+  const handleArtTouchStart = (e: React.TouchEvent) => {
+    artTouchStartX.current = e.touches[0].clientX;
+    artTouchStartY.current = e.touches[0].clientY;
+    artTouchStartTime.current = Date.now();
+  };
+
+  const handleArtTouchMove = (e: React.TouchEvent) => {
+    if (artTouchStartX.current === null || artTouchStartY.current === null) return;
+    const dx = e.touches[0].clientX - artTouchStartX.current;
+    const dy = e.touches[0].clientY - artTouchStartY.current;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      const damped = Math.sign(dx) * Math.min(54, Math.pow(Math.abs(dx), 0.82));
+      setArtSwipeOffset(damped);
+    }
+  };
+
+  const handleArtTouchEnd = (e: React.TouchEvent) => {
+    if (artTouchStartX.current === null || artTouchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - artTouchStartX.current;
+    const dy = e.changedTouches[0].clientY - artTouchStartY.current;
+    const elapsed = Date.now() - artTouchStartTime.current;
+    artTouchStartX.current = null;
+    artTouchStartY.current = null;
+    setArtSwipeOffset(0);
+
+    // Pull down gesture -> Dismiss sheet
+    if (dy > 65 && dy > Math.abs(dx) * 1.2) {
+      triggerAndroidHaptic('light');
+      onClose();
+      return;
+    }
+
+    // Horizontal swipe gesture -> Skip tracks
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.2 && elapsed < 800) {
+      if (isJamGuest) return;
+      if (dx < 0) {
+        triggerAndroidHaptic('light');
+        nextTrack();
+      } else {
+        triggerAndroidHaptic('light');
+        prevTrack();
+      }
+    }
+  };
+
   const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
   const artSrc = currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL;
   const { palette } = useColorExtract(artSrc);
@@ -1790,7 +1841,14 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     </motion.div>
                   ) : (
                     <div
-                      className={`relative flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                      onTouchStart={handleArtTouchStart}
+                      onTouchMove={handleArtTouchMove}
+                      onTouchEnd={handleArtTouchEnd}
+                      style={{
+                        transform: artSwipeOffset !== 0 ? `translate3d(${artSwipeOffset}px, 0, 0)` : undefined,
+                        transition: artSwipeOffset === 0 ? 'transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1)' : 'none'
+                      }}
+                      className={`relative flex items-center justify-center flex-shrink-0 transition-all duration-300 will-change-transform ${
                         deckMode === 'vinyl'
                           ? showLyrics
                             ? 'w-[min(34vh,280px)] h-[min(24vh,195px)] sm:w-[min(40vh,330px)] sm:h-[min(28vh,230px)]'

@@ -505,6 +505,8 @@ export function autoCacheTrack(track: Track): void {
   }, 100);
 }
 
+let precacheQueueTimer: ReturnType<typeof setTimeout> | null = null;
+
 /**
  * Non-blocking pre-cache for the next upcoming track in the queue.
  */
@@ -517,6 +519,40 @@ export function precacheTrack(track: Track): void {
   setTimeout(() => {
     saveTrackOffline(track, 'auto-cache').catch(() => {});
   }, 400);
+}
+
+/**
+ * Predictive Multi-Track Pre-caching:
+ * Seamlessly caches the upcoming 2-3 tracks and their artwork in the background
+ * with staggered delays, so if internet drops, queue continues without pausing.
+ */
+export function predictivePrecacheQueue(
+  queue: Track[],
+  currentIndex: number,
+  lookaheadCount: number = 3
+): void {
+  if (!queue || queue.length === 0 || currentIndex < 0) return;
+  const isEnabled = useSettingsStore.getState().precacheNextTrack ?? true;
+  if (!isEnabled) return;
+
+  if (precacheQueueTimer) {
+    clearTimeout(precacheQueueTimer);
+    precacheQueueTimer = null;
+  }
+
+  precacheQueueTimer = setTimeout(() => {
+    precacheQueueTimer = null;
+    const candidates = queue.slice(currentIndex + 1, currentIndex + 1 + lookaheadCount);
+    let delayMs = 0;
+    for (const track of candidates) {
+      if (!track || !track.id) continue;
+      if (isTrackOffline(track.id) || activeSavingIds.has(track.id)) continue;
+      setTimeout(() => {
+        saveTrackOffline(track, 'auto-cache').catch(() => {});
+      }, delayMs);
+      delayMs += 3500;
+    }
+  }, 4000);
 }
 
 /**
@@ -891,6 +927,7 @@ export function useOfflineVault() {
     getOfflineStorageEstimate,
     getOfflineDetailedStorageBreakdown,
     autoCacheTrack,
-    precacheTrack
+    precacheTrack,
+    predictivePrecacheQueue
   };
 }

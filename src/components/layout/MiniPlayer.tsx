@@ -304,12 +304,28 @@ export default function MiniPlayer() {
     }
   };
 
+  const [swipeOffset, setSwipeOffset] = useState<number>(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const isSwipingHoriz = useRef<boolean>(false);
 
   const handleMiniPlayerTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
+    isSwipingHoriz.current = false;
+  };
+
+  const handleMiniPlayerTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (!isSwipingHoriz.current && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
+      isSwipingHoriz.current = true;
+    }
+    if (isSwipingHoriz.current) {
+      const damped = Math.sign(dx) * Math.min(54, Math.pow(Math.abs(dx), 0.82));
+      setSwipeOffset(damped);
+    }
   };
 
   const handleMiniPlayerTouchEnd = (e: React.TouchEvent) => {
@@ -318,8 +334,17 @@ export default function MiniPlayer() {
     const deltaY = e.changedTouches[0].clientY - touchStartY.current;
     touchStartX.current = null;
     touchStartY.current = null;
+    isSwipingHoriz.current = false;
+    setSwipeOffset(0);
 
-    if (Math.abs(deltaX) > 42 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+    // Swipe UP gesture -> Instant Native Full Sheet Expansion
+    if (deltaY < -42 && Math.abs(deltaY) > Math.abs(deltaX) * 1.25) {
+      triggerAndroidHaptic('light');
+      setIsNowPlayingOpen(true);
+      return;
+    }
+
+    if (Math.abs(deltaX) > 42 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
       if (isJamGuest) return;
       if (deltaX < 0) {
         // Swiped left -> Skip forward
@@ -376,6 +401,7 @@ export default function MiniPlayer() {
                 prefetchPlayerPanels();
                 handleMiniPlayerTouchStart(e);
               }}
+              onTouchMove={handleMiniPlayerTouchMove}
               onTouchEnd={handleMiniPlayerTouchEnd}
               className="h-15 liquid-glass bg-[#080812]/90 backdrop-blur-3xl glass-velocity-pulse rounded-[24px] flex items-center justify-between px-3 relative overflow-hidden shadow-[0_18px_48px_rgba(0,0,0,0.85)] border-0 cursor-pointer active:scale-[0.99] transition-transform"
             >
@@ -383,7 +409,11 @@ export default function MiniPlayer() {
 
             {/* Left: Artwork & Track Info */}
             <div
-              className="flex items-center gap-3 min-w-0 flex-1 pr-2"
+              className="flex items-center gap-3 min-w-0 flex-1 pr-2 will-change-transform"
+              style={{
+                transform: swipeOffset !== 0 ? `translate3d(${swipeOffset}px, 0, 0)` : undefined,
+                transition: swipeOffset === 0 ? 'transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1)' : 'none'
+              }}
               onContextMenu={(e) => {
                 if (e.shiftKey) return;
                 e.preventDefault();
@@ -512,7 +542,12 @@ export default function MiniPlayer() {
       >
         <div
           onMouseEnter={prefetchPlayerPanels}
-          onTouchStart={prefetchPlayerPanels}
+          onTouchStart={(e) => {
+            prefetchPlayerPanels();
+            handleMiniPlayerTouchStart(e);
+          }}
+          onTouchMove={handleMiniPlayerTouchMove}
+          onTouchEnd={handleMiniPlayerTouchEnd}
           className="h-20 liquid-glass glass-velocity-pulse rounded-2xl flex items-center px-5 relative overflow-visible shadow-[0_20px_60px_rgba(0,0,0,0.75)] border-0"
         >
           {/* Isolated 120fps Progress Scrubber */}
@@ -520,7 +555,11 @@ export default function MiniPlayer() {
 
           {/* Left: Track Artwork & Info */}
           <div
-            className="w-1/3 flex items-center min-w-0 pr-4 gap-3.5"
+            className="w-1/3 flex items-center min-w-0 pr-4 gap-3.5 will-change-transform"
+            style={{
+              transform: swipeOffset !== 0 ? `translate3d(${swipeOffset}px, 0, 0)` : undefined,
+              transition: swipeOffset === 0 ? 'transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1)' : 'none'
+            }}
             onContextMenu={(e) => {
               if (e.shiftKey) return;
               e.preventDefault();
