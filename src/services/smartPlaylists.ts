@@ -184,3 +184,68 @@ export function computeSmartPlaylists(
 
   return smartPlaylists;
 }
+
+export const SMART_PLAYLIST_METADATA: Record<string, { name: string; description: string; badge: string; gradient: string; icon: string; tagline: string }> = {
+  'smart-on-repeat': {
+    name: 'On Repeat • Top 25',
+    description: 'Your absolute most-played tracks, auto-curated from your listening stream.',
+    badge: 'TOP PLAYED',
+    gradient: 'from-rose-500 via-pink-600 to-amber-500',
+    icon: '🔥',
+    tagline: 'Most played on loop'
+  },
+  'smart-heavy-rotation': {
+    name: 'Heavy Rotation',
+    description: 'Tracks taking over your headphones this week.',
+    badge: 'THIS WEEK',
+    gradient: 'from-amber-400 via-orange-500 to-rose-600',
+    icon: '⚡',
+    tagline: 'Trending in your rotation'
+  },
+  'smart-late-night': {
+    name: 'Late Night Chill',
+    description: 'Downtempo melodies and midnight favorites for unwinding.',
+    badge: 'MIDNIGHT',
+    gradient: 'from-indigo-600 via-purple-700 to-slate-900',
+    icon: '🌙',
+    tagline: 'Midnight unwinding'
+  },
+  'smart-forgotten-gems': {
+    name: 'Forgotten Gems',
+    description: 'Liked songs you haven’t played in a while—ready for rediscovery.',
+    badge: 'REDISCOVER',
+    gradient: 'from-emerald-500 via-teal-600 to-cyan-700',
+    icon: '💎',
+    tagline: 'Rediscover your saved favorites'
+  }
+};
+
+export function getSmartPlaylistById(
+  id: string,
+  likedSongs: Track[] = [],
+  recentlyPlayed: { track: Track; playedAt: number }[] = [],
+  playHistory: { trackId: string; title?: string; artist?: string; playedAt: number; duration: number }[] = [],
+  userPlaylists: Playlist[] = []
+): SmartPlaylistDef | null {
+  const allSmart = computeSmartPlaylists(likedSongs, recentlyPlayed, playHistory, userPlaylists);
+  const found = allSmart.find((sp) => sp.id === id);
+  if (found) return found;
+
+  const meta = SMART_PLAYLIST_METADATA[id];
+  if (!meta) return null;
+
+  const now = Date.now();
+  return {
+    id,
+    name: meta.name,
+    description: meta.description,
+    tracks: likedSongs.slice(0, 15),
+    createdAt: now,
+    updatedAt: now,
+    isSmartPlaylist: true,
+    badge: meta.badge,
+    gradient: meta.gradient,
+    icon: meta.icon,
+    tagline: meta.tagline
+  };
+}

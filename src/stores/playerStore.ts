@@ -483,16 +483,25 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       }
 
       let newIndex = state.queueIndex;
+      let newCurrentTrack = state.currentTrack;
       if (index < state.queueIndex) {
         newIndex--;
       } else if (index === state.queueIndex) {
-        newIndex = Math.min(newIndex, newQueue.length - 1);
+        if (newQueue.length === 0) {
+          newIndex = -1;
+          newCurrentTrack = null;
+        } else {
+          newIndex = Math.min(newIndex, newQueue.length - 1);
+          newCurrentTrack = newQueue[newIndex];
+        }
       }
 
       return {
         queue: newQueue,
         originalQueue: newOriginalQueue,
-        queueIndex: newIndex
+        queueIndex: newIndex,
+        currentTrack: newCurrentTrack,
+        isPlaying: newQueue.length === 0 ? false : state.isPlaying
       };
     });
     savePlayerSessionSync(get());

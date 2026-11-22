@@ -419,9 +419,12 @@ export default function YouTubeEmbed() {
       }
       const pState = usePlayerStore.getState();
       if (pState.repeatMode === 'one') {
+        isCrossfadingRef.current = false;
+        trackTransitionIntentRef.current = false;
         lastRecordedTrackId.current = null;
         usePlayerStore.setState({ progress: 0, currentTime: 0 });
         audio.currentTime = 0;
+        setSmoothOutputGain(audio, 1, 0.2);
         audio.play().catch(() => {
           usePlayerStore.setState({ isPlaying: false, isLoading: false });
         });
@@ -520,6 +523,7 @@ export default function YouTubeEmbed() {
     };
 
     const onError = () => {
+      const savedPos = Math.max(audio.currentTime || 0, usePlayerStore.getState().currentTime || 0);
       clearAudioTimers();
       if (getActiveEngine() !== 'audio') return;
       const cur = usePlayerStore.getState().currentTrack;
@@ -538,7 +542,7 @@ export default function YouTubeEmbed() {
           .then((freshUrl) => {
             if (freshUrl && isPlayableAudioStreamUrl(freshUrl)) {
               cur.audioUrl = freshUrl;
-              playNativeAudio(freshUrl, usePlayerStore.getState().isPlaying, audio.currentTime || 0);
+              playNativeAudio(freshUrl, usePlayerStore.getState().isPlaying, savedPos);
             } else {
               skipFailedTrack(cur.id);
             }
@@ -555,7 +559,7 @@ export default function YouTubeEmbed() {
         cur
       ) {
         killNativeAudioEngine();
-        fallbackToYouTube(cur, effectiveYtId, usePlayerStore.getState().isPlaying);
+        fallbackToYouTube(cur, effectiveYtId, usePlayerStore.getState().isPlaying, savedPos);
         return;
       }
 
@@ -565,7 +569,7 @@ export default function YouTubeEmbed() {
           .then((freshUrl) => {
             if (freshUrl && isPlayableAudioStreamUrl(freshUrl)) {
               cur.audioUrl = freshUrl;
-              playNativeAudio(freshUrl, usePlayerStore.getState().isPlaying, audio.currentTime || 0);
+              playNativeAudio(freshUrl, usePlayerStore.getState().isPlaying, savedPos);
             } else {
               skipFailedTrack(cur.id);
             }
@@ -938,7 +942,7 @@ export default function YouTubeEmbed() {
   }, []);
 
   // Helper to fallback or play on YouTube IFrame
-  const fallbackToYouTube = (_track: Track, effectiveYtId: string, shouldPlay: boolean) => {
+  const fallbackToYouTube = (_track: Track, effectiveYtId: string, shouldPlay: boolean, startSeconds = 0) => {
     fallbackToYouTubeRef.current = fallbackToYouTube;
     updateMediaSessionMetadata(_track);
     setActiveEngine('youtube');
@@ -948,7 +952,7 @@ export default function YouTubeEmbed() {
       setTimeout(() => {
         const retryPlayer = getPlayer();
         if (retryPlayer && (window.ytPlayerReady || typeof retryPlayer.loadVideoById === 'function')) {
-          fallbackToYouTube(_track, effectiveYtId, shouldPlay);
+          fallbackToYouTube(_track, effectiveYtId, shouldPlay, startSeconds);
         }
       }, 200);
       return;
@@ -960,6 +964,9 @@ export default function YouTubeEmbed() {
     if (activeLoadedYtIdRef.current === effectiveYtId && !isCuedOrUnstarted) {
       isSwitchingTrackRef.current = false;
       trackTransitionIntentRef.current = false;
+      if (startSeconds > 0 && typeof ytPlayer.seekTo === 'function') {
+        try { ytPlayer.seekTo(startSeconds, true); } catch {}
+      }
       if (shouldPlay) {
         const pState = usePlayerStore.getState();
         const leveling = loudnessNormalization ? 0.94 : 1.0;
@@ -981,7 +988,7 @@ export default function YouTubeEmbed() {
     isSwitchingTrackRef.current = true;
     trackTransitionIntentRef.current = true;
     setIsLoading(true);
-    setProgress(0, 0);
+    setProgress(startSeconds > 0 ? (startSeconds / (_track.duration || 200)) * 100 : 0, startSeconds);
 
     if (shouldPlay) {
       const pState = usePlayerStore.getState();
@@ -993,7 +1000,15 @@ export default function YouTubeEmbed() {
       } catch {}
 
       if (typeof ytPlayer.loadVideoById === 'function') {
-        ytPlayer.loadVideoById(effectiveYtId);
+        if (startSeconds > 0) {
+          try {
+            ytPlayer.loadVideoById({ videoId: effectiveYtId, startSeconds });
+          } catch {
+            ytPlayer.loadVideoById(effectiveYtId);
+          }
+        } else {
+          ytPlayer.loadVideoById(effectiveYtId);
+        }
       }
 
       // Audiophile crossfade fade-in for YouTube streams
@@ -1165,6 +1180,14 @@ export default function YouTubeEmbed() {
     if (isNewTrack) {
       retryAttemptRef.current = 0;
       isCrossfadingRef.current = false;
+      if (crossfadeTimeoutRef.current) {
+        clearTimeout(crossfadeTimeoutRef.current);
+        crossfadeTimeoutRef.current = null;
+      }
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+        fadeIntervalRef.current = null;
+      }
       bufferingStartTimeRef.current = Date.now();
       trackLoadStartTimeRef.current = Date.now();
       ytStallRecoveryCountRef.current = 0;

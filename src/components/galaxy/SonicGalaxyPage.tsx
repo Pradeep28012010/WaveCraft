@@ -1354,15 +1354,18 @@ export default function SonicGalaxyPage() {
           if (hasLiveAudio) {
             let bSum = 0;
             for (let i = 0; i < 10; i++) bSum += freqBins[i];
-            cachedBassEnergy = bSum / (10 * 255);
+            const rawBass = bSum / (10 * 255);
+            cachedBassEnergy = Math.pow(rawBass, 1.25) * 1.2;
 
             let mSum = 0;
             for (let i = 10; i < 32; i++) mSum += freqBins[i];
-            cachedMidEnergy = mSum / (22 * 255);
+            const rawMid = mSum / (22 * 255);
+            cachedMidEnergy = Math.pow(rawMid, 1.15) * 1.1;
 
             let tSum = 0;
             for (let i = 32; i < 60; i++) tSum += freqBins[i];
-            cachedTrebleEnergy = tSum / (28 * 255);
+            const rawTreble = tSum / (28 * 255);
+            cachedTrebleEnergy = Math.pow(rawTreble, 1.15) * 1.1;
           } else if (usePlayerStore.getState().isPlaying) {
             cachedBassEnergy = 0.28 + Math.pow(Math.sin(time * 3.8) * 0.5 + 0.5, 2) * 0.35;
             cachedMidEnergy = 0.22 + Math.sin(time * 5.2) * 0.15;

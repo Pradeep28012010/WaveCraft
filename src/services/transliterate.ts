@@ -198,11 +198,16 @@ const VIRAMAS = new Set([
   '\u0D4D'  // Malayalam
 ]);
 
+const ROMANIZE_CACHE = new Map<string, string>();
+const MAX_CACHE_ENTRIES = 2000;
+
 /**
  * Transliterates an Indic character sequence (Devanagari, Telugu, Tamil, Malayalam, Kannada, Bengali, Punjabi) into Romanized phonetic text
  */
 export function romanizeIndicText(text: string): string {
   if (!text) return '';
+  const cached = ROMANIZE_CACHE.get(text);
+  if (cached !== undefined) return cached;
 
   // Clean orphan combining nukta or dotted circle artifacts first
   const cleanText = text.replace(/◌़/g, '').replace(/◌/g, '');
@@ -530,7 +535,14 @@ export function romanizeIndicText(text: string): string {
   }
 
   // Capitalize beginnings of words for pleasing aesthetics
-  return out.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+  const result = out.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+
+  if (ROMANIZE_CACHE.size >= MAX_CACHE_ENTRIES) {
+    const firstKey = ROMANIZE_CACHE.keys().next().value;
+    if (firstKey) ROMANIZE_CACHE.delete(firstKey);
+  }
+  ROMANIZE_CACHE.set(text, result);
+  return result;
 }
 
 /**
