@@ -1,10 +1,23 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import {
+import fs from 'node:fs';
+import path from 'node:path';
+import ts from 'typescript';
+
+const transliteratePath = path.resolve(process.cwd(), 'src/services/transliterate.ts');
+const rawTs = fs.readFileSync(transliteratePath, 'utf8');
+const transpiledJs = ts.transpileModule(rawTs, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS }
+}).outputText;
+
+const transliterateExports = {};
+eval('(function(exports) { ' + transpiledJs + ' })(transliterateExports);');
+
+const {
   romanizeIndicText,
   containsNonLatinScript,
   computeWordTimings
-} from '../src/services/transliterate.ts';
+} = transliterateExports;
 
 describe('Floating Picture-in-Picture & Syllable-Synced Live Lyrics', () => {
   describe('Phonetic Transliteration & Script Detection', () => {
