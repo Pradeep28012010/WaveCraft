@@ -42,7 +42,7 @@
     "build:win": "node ./scripts/build-electron.cjs --win nsis",
     "build:win:dir": "node ./scripts/build-electron.cjs --win dir",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
-    "test": "node --test test/**/*.test.js",
+    "test": "node --test test/*.test.js",
     "lint": "eslint .",
     "preview": "node ./node_modules/vite/bin/vite.js preview"
   },

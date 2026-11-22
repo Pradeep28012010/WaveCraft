@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useJamStore } from '../../stores/jamStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useStudioStore } from '../../stores/studioStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
@@ -863,6 +864,34 @@ export default function MiniPlayer() {
                 />
               </div>
             </div>
+
+            {/* Smart DJ Console & Automix Quick Launch */}
+            <motion.button
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.9 }}
+              className="hidden lg:flex w-8 h-8 p-0 items-center justify-center rounded-full glass-button text-white/75 hover:text-white cursor-pointer"
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                useStudioStore.getState().setSmartDJOpen(true);
+              }}
+              title="Smart DJ Console & Harmonic Automix"
+            >
+              <span className="text-sm">🎧</span>
+            </motion.button>
+
+            {/* Bedside Nightstand Mode Quick Launch */}
+            <motion.button
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.9 }}
+              className="hidden lg:flex w-8 h-8 p-0 items-center justify-center rounded-full glass-button text-white/75 hover:text-white cursor-pointer"
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                useStudioStore.getState().setNightstandOpen(true);
+              }}
+              title="OLED Bedside Nightstand Mode"
+            >
+              <span className="text-sm">🌙</span>
+            </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.12 }}
