@@ -5,7 +5,7 @@ import type { Track, LyricLine } from '../../types';
 import { getLyricsData } from '../../services/lyrics';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
-import { getShareBaseUrl, apiUrl } from '../../services/apiConfig';
+import { getShareBaseUrl } from '../../services/apiConfig';
 import { formatTime } from '../../utils/formatTime';
 import { resolveDirectAudio } from '../../services/streamResolver';
 import { usePlayerStore } from '../../stores/playerStore';

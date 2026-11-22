@@ -54,7 +54,7 @@ export const SettingsEqualizer = memo(function SettingsEqualizer() {
     updateSettingsBandFromPointer(index, e.currentTarget, e.clientY);
   };
 
-  const handleBandPointerUp = (index: number, e: React.PointerEvent<HTMLDivElement>) => {
+  const handleBandPointerUp = (_index: number, e: React.PointerEvent<HTMLDivElement>) => {
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}

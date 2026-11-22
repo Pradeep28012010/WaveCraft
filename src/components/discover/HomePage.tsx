@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -24,7 +24,6 @@ import { MoodCard } from './MoodCard';
 import { shuffleArray } from '../../utils/shuffle';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import type { Track, AlbumResult } from '../../types';
-import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
 import {
