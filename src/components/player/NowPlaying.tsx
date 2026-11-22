@@ -11,7 +11,6 @@ import QueuePanel from './QueuePanel';
 import LyricsView from '../lyrics/LyricsView';
 import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
 import WaveCardModal from './WaveCardModal';
-import { NightstandModal } from './NightstandModal';
 import { getTrackHarmonics } from '../../utils/audioHarmonics';
 import { toggleChorusPreview, isChorusPreviewActive } from '../../services/chorusPreview';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
@@ -149,7 +148,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const [isCreatingInTools, setIsCreatingInTools] = useState(false);
   const [newPlaylistTitleInTools, setNewPlaylistTitleInTools] = useState('');
   const [toolsToast, setToolsToast] = useState<string | null>(null);
-  const [showNightstand, setShowNightstand] = useState(false);
+  const setNightstandOpen = useStudioStore((s) => s.setNightstandOpen);
 
   const trackHarmonics = useMemo(() => {
     if (!currentTrack) return null;
@@ -405,7 +404,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
-                      setShowNightstand(true);
+                      setNightstandOpen(true);
                     }}
                     className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
                     title="Bedside Nightstand Mode"
@@ -556,7 +555,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
-                      setShowNightstand(true);
+                      setNightstandOpen(true);
                     }}
                     className="w-9 h-9 rounded-full flex items-center justify-center glass-button text-white/80 hover:text-white cursor-pointer active:scale-90 transition-transform app-region-no-drag"
                     title="Open Bedside Nightstand Mode"
@@ -1112,13 +1111,32 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                                 </span>
                               </button>
 
+                              {/* Smart DJ Console & Automix */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerAndroidHaptic('light');
+                                  setShowToolsMenu(false);
+                                  useStudioStore.getState().setSmartDJOpen(true);
+                                }}
+                                className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <span className="text-sm">🎧</span>
+                                  <span className="font-medium">Smart DJ Console</span>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold glass-button text-rose-300">
+                                  BPM & Key
+                                </span>
+                              </button>
+
                               {/* Bedside Nightstand Mode */}
                               <button
                                 type="button"
                                 onClick={() => {
                                   triggerAndroidHaptic('light');
                                   setShowToolsMenu(false);
-                                  setShowNightstand(true);
+                                  setNightstandOpen(true);
                                 }}
                                 className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
                               >
@@ -1889,8 +1907,12 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         </p>
                         {trackHarmonics && (
                           <div
-                            title={`Smart DJ Harmonic Profile: ${trackHarmonics.bpm} BPM • Camelot ${trackHarmonics.camelotKey} (${trackHarmonics.musicalKey}) • ${trackHarmonics.energy}`}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/[0.06] border border-white/10 text-white/80 shadow-sm whitespace-nowrap cursor-help hover:bg-white/10 transition-colors flex-shrink-0"
+                            onClick={() => {
+                              triggerAndroidHaptic('light');
+                              useStudioStore.getState().setSmartDJOpen(true);
+                            }}
+                            title={`Smart DJ Harmonic Profile: ${trackHarmonics.bpm} BPM • Camelot ${trackHarmonics.camelotKey} (${trackHarmonics.musicalKey}) • ${trackHarmonics.energy} — Click to open Smart DJ Console`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/[0.06] border border-white/10 text-white/80 shadow-sm whitespace-nowrap cursor-pointer hover:bg-white/15 hover:border-[var(--color-accent)]/40 active:scale-95 transition-all flex-shrink-0"
                           >
                             <span className="text-amber-400 text-[10px]">⚡</span>
                             <span className="font-mono">{trackHarmonics.bpm} BPM</span>
@@ -2274,10 +2296,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             track={currentTrack}
             currentTime={usePlayerStore.getState().currentTime}
             initialQuote={waveCardQuote}
-          />
-          <NightstandModal
-            isOpen={showNightstand}
-            onClose={() => setShowNightstand(false)}
           />
     </motion.div>
   );

@@ -329,3 +329,4 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
 });
 
 NightstandModal.displayName = 'NightstandModal';
+export default NightstandModal;

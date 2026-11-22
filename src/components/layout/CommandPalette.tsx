@@ -62,6 +62,8 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
   const ambientVolumes = useStudioStore((s) => s.ambientVolumes);
   const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
+  const setNightstandOpen = useStudioStore((s) => s.setNightstandOpen);
+  const setSmartDJOpen = useStudioStore((s) => s.setSmartDJOpen);
   const setFxMode = useStudioStore((s) => s.setFxMode);
   const resetToOriginal = useStudioStore((s) => s.resetToOriginal);
   const setAmbientVolume = useStudioStore((s) => s.setAmbientVolume);
@@ -181,6 +183,24 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         badge: 'STUDIO',
         icon: '🎛️',
         run: () => setStudioModalOpen(true)
+      },
+      {
+        id: 'open-smart-dj',
+        category: 'Focus & Workstation',
+        title: 'Open Smart DJ Console & Harmonic Automix',
+        subtitle: 'Camelot Wheel key-matching, live vinyl platter, scratch & filter sweeps',
+        badge: 'SMART DJ',
+        icon: '🎧',
+        run: () => setSmartDJOpen(true)
+      },
+      {
+        id: 'open-nightstand',
+        category: 'Focus & Workstation',
+        title: 'Open OLED Bedside Nightstand Mode',
+        subtitle: 'Minimalist clock, ambient audio glow, bedtime sleep timer & burn-in dimmer',
+        badge: 'OLED CLOCK',
+        icon: '🌙',
+        run: () => setNightstandOpen(true)
       },
       {
         id: 'nav-galaxy',

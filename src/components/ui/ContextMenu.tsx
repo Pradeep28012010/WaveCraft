@@ -361,6 +361,16 @@ function ContextMenuInner() {
     closeMenu();
   };
 
+  const handleOpenSmartDJ = () => {
+    useStudioStore.getState().setSmartDJOpen(true);
+    closeMenu();
+  };
+
+  const handleOpenNightstand = () => {
+    useStudioStore.getState().setNightstandOpen(true);
+    closeMenu();
+  };
+
   const handleToggleMute = () => {
     usePlayerStore.getState().toggleMute();
     showToast(isMuted ? 'Audio Unmuted' : 'Audio Muted');
@@ -1379,6 +1389,32 @@ function ContextMenuInner() {
                       </svg>
                     </span>
                     <span className="font-semibold flex-1">Command Palette</span>
+                  </button>
+
+                  {/* 8. Smart DJ Console */}
+                  <button
+                    type="button"
+                    onClick={handleOpenSmartDJ}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-white/[0.12] active:bg-white/[0.18] transition-colors cursor-pointer group"
+                  >
+                    <span className="text-sm flex-shrink-0">🎧</span>
+                    <span className="font-semibold flex-1">Smart DJ Console</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">
+                      MIX
+                    </span>
+                  </button>
+
+                  {/* 9. Bedside Nightstand Mode */}
+                  <button
+                    type="button"
+                    onClick={handleOpenNightstand}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-white/[0.12] active:bg-white/[0.18] transition-colors cursor-pointer group"
+                  >
+                    <span className="text-sm flex-shrink-0">🌙</span>
+                    <span className="font-semibold flex-1">Bedside Nightstand Clock</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                      OLED
+                    </span>
                   </button>
 
                   {/* 8. Mute / Unmute */}

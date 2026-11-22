@@ -17,11 +17,14 @@ import GlobalDownloadIndicator from '../ui/GlobalDownloadIndicator';
 import { useIsKeyboardOpen } from '../../hooks/useIsKeyboardOpen';
 import { useScrollMotionDynamics } from '../../hooks/useScrollMotionDynamics';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useStudioStore } from '../../stores/studioStore';
 
 const CommandPalette = lazy(() => import('./CommandPalette'));
 const StudioFXModal = lazy(() => import('../player/StudioFXModal'));
 const FeedbackModal = lazy(() => import('../feedback/FeedbackModal'));
 const UpdateModal = lazy(() => import('../updater/UpdateModal'));
+const NightstandModal = lazy(() => import('../player/NightstandModal'));
+const SmartDJModal = lazy(() => import('../player/SmartDJModal'));
 
 function RouteLoadingFallback() {
   return (
@@ -88,6 +91,11 @@ export default function MainLayout() {
   const isKeyboardOpen = useIsKeyboardOpen();
   const hideMobileBars = isPhone && isKeyboardOpen;
 
+  const isNightstandOpen = useStudioStore((s) => s.isNightstandOpen);
+  const setNightstandOpen = useStudioStore((s) => s.setNightstandOpen);
+  const isSmartDJOpen = useStudioStore((s) => s.isSmartDJOpen);
+  const setSmartDJOpen = useStudioStore((s) => s.setSmartDJOpen);
+
   useScrollMotionDynamics(mainRef);
   const scrollMotionMode = useSettingsStore((s) => s.scrollMotionMode ?? 'all');
 
@@ -148,6 +156,8 @@ export default function MainLayout() {
         <StudioFXModal />
         <FeedbackModal />
         <UpdateModal />
+        <NightstandModal isOpen={isNightstandOpen} onClose={() => setNightstandOpen(false)} />
+        <SmartDJModal isOpen={isSmartDJOpen} onClose={() => setSmartDJOpen(false)} />
       </Suspense>
       <ContextMenu />
 

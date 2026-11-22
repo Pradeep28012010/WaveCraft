@@ -65,3 +65,109 @@ export function getTrackHarmonics(
     energy
   };
 }
+
+export interface HarmonicCompatibility {
+  score: number;
+  label: string;
+  badge: string;
+  isMixable: boolean;
+  type: 'perfect' | 'boost' | 'drop' | 'mood' | 'lift' | 'contrast';
+}
+
+/**
+ * Evaluates the DJ Camelot Wheel harmonic transition between two songs.
+ * Standard DJ harmonic rules:
+ * - Same key (e.g. 8A -> 8A): 100% Harmonic Match
+ * - Relative major/minor (e.g. 8A -> 8B): 96% Match (Mood shift)
+ * - +1 Camelot key (e.g. 8A -> 9A): 92% Match (Energy Boost)
+ * - -1 Camelot key (e.g. 8A -> 7A): 88% Match (Energy Wind-down)
+ * - +2 Semitone lift (e.g. 8A -> 10A): 80% Match (Euphoric Lift)
+ */
+export function getHarmonicCompatibility(keyA?: string | null, keyB?: string | null): HarmonicCompatibility {
+  if (!keyA || !keyB) {
+    return {
+      score: 85,
+      label: 'Standard BPM Crossfade',
+      badge: 'BPM MIX',
+      isMixable: true,
+      type: 'boost'
+    };
+  }
+
+  if (keyA === keyB) {
+    return {
+      score: 100,
+      label: 'Perfect Harmonic Match • Same Key Resonance',
+      badge: 'PERFECT 100%',
+      isMixable: true,
+      type: 'perfect'
+    };
+  }
+
+  const numA = parseInt(keyA, 10);
+  const letterA = keyA.replace(/\d+/g, '').toUpperCase();
+  const numB = parseInt(keyB, 10);
+  const letterB = keyB.replace(/\d+/g, '').toUpperCase();
+
+  if (isNaN(numA) || isNaN(numB)) {
+    return {
+      score: 85,
+      label: 'Dynamic Auto-Mix Flow',
+      badge: 'HARMONIC',
+      isMixable: true,
+      type: 'boost'
+    };
+  }
+
+  // Relative Major <-> Minor (e.g. 8A <-> 8B)
+  if (numA === numB && letterA !== letterB) {
+    return {
+      score: 96,
+      label: 'Relative Mood Shift • Clean Harmonic Modulation',
+      badge: 'MOOD SHIFT 96%',
+      isMixable: true,
+      type: 'mood'
+    };
+  }
+
+  // Camelot clock arithmetic
+  const clockwiseDiff = (numB - numA + 12) % 12;
+
+  if (clockwiseDiff === 1 && letterA === letterB) {
+    return {
+      score: 93,
+      label: 'Energy Boost (+1 Key) • Floor-Filling Transition',
+      badge: 'ENERGY +1',
+      isMixable: true,
+      type: 'boost'
+    };
+  }
+
+  if (clockwiseDiff === 11 && letterA === letterB) {
+    return {
+      score: 89,
+      label: 'Deep Wind-Down (-1 Key) • Smooth Dynamic Calm',
+      badge: 'WIND-DOWN',
+      isMixable: true,
+      type: 'drop'
+    };
+  }
+
+  if (clockwiseDiff === 2 && letterA === letterB) {
+    return {
+      score: 82,
+      label: 'Euphoric Lift (+2 Keys) • Peak-Time Festival Energy',
+      badge: 'PEAK LIFT',
+      isMixable: true,
+      type: 'lift'
+    };
+  }
+
+  return {
+    score: 72,
+    label: 'Dynamic Transition • Filter Sweep Crossfade Recommended',
+    badge: 'DYNAMIC',
+    isMixable: false,
+    type: 'contrast'
+  };
+}

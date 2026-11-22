@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useStudioStore } from '../../stores/studioStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { useOfflineVault } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
@@ -16,10 +17,11 @@ const ImportPlaylistModal = lazy(() => import('../library/ImportPlaylistModal'))
 
 interface NavItem {
   name: string;
-  path: string;
+  path?: string;
   badge?: string | number;
   badgeColor?: string;
   icon: (active: boolean) => React.ReactNode;
+  action?: () => void;
 }
 
 interface NavSection {
@@ -46,6 +48,8 @@ export default function Sidebar() {
   const { offlineTracks } = useOfflineVault();
 
   const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const setNightstandOpen = useStudioStore((state) => state.setNightstandOpen);
+  const setSmartDJOpen = useStudioStore((state) => state.setSmartDJOpen);
 
   const { isPhone, isMobileDrawerOpen, setMobileDrawerOpen } = useDevicePreset();
   const { isInstalled } = usePWAInstall();
@@ -148,8 +152,32 @@ export default function Sidebar() {
     },
     {
       id: 'studio',
-      title: 'Live & Space',
+      title: 'Studio & Live',
       items: [
+        {
+          name: 'Smart DJ Automix',
+          badge: 'HARMONIC',
+          badgeColor: 'bg-indigo-500/20 text-indigo-300 border-0',
+          action: () => setSmartDJOpen(true),
+          icon: () => (
+            <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+          )
+        },
+        {
+          name: 'Bedside Nightstand',
+          badge: 'OLED',
+          badgeColor: 'bg-purple-500/20 text-purple-300 border-0',
+          action: () => setNightstandOpen(true),
+          icon: () => (
+            <svg className="w-5 h-5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          )
+        },
         {
           name: 'Sonic Galaxy Map',
           path: '/galaxy',
@@ -363,49 +391,74 @@ export default function Sidebar() {
                     <div className="px-2 pb-1 text-[10px] font-black uppercase tracking-wider text-white/40">
                       {section.title}
                     </div>
-                    {section.items.map((item) => (
-                      <NavLink
-                        key={item.name}
-                        to={item.path}
-                        end={item.path === '/'}
-                        onMouseEnter={() => preloadRoute(item.path)}
-                        onTouchStart={() => preloadRoute(item.path)}
-                        onClick={() => {
-                          triggerAndroidHaptic('light');
-                          setMobileDrawerOpen(false);
-                        }}
-                        className={({ isActive }) =>
-                          `relative flex items-center justify-between gap-2 px-3 h-10.5 rounded-xl transition-all ${
-                            isActive
-                              ? 'text-white font-bold'
-                              : 'text-white/70 hover:text-white hover:bg-white/[0.06] active:scale-98'
-                          }`
-                        }
-                      >
-                        {({ isActive }) => (
-                          <>
-                            {isActive && (
-                              <motion.div
-                                layoutId="sidebar-active-pill-mobile"
-                                transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                                className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0"
-                              />
-                            )}
-                            <div className="relative z-10 flex items-center gap-3 min-w-0">
-                              <div className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-white/70'}`}>
-                                {item.icon(isActive)}
-                              </div>
-                              <span className="text-xs font-semibold truncate">{item.name}</span>
+                    {section.items.map((item) =>
+                      item.action ? (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            setMobileDrawerOpen(false);
+                            item.action!();
+                          }}
+                          className="relative flex items-center justify-between gap-2 px-3 h-10.5 w-full rounded-xl transition-all text-white/70 hover:text-white hover:bg-white/[0.06] active:scale-98 text-left cursor-pointer"
+                        >
+                          <div className="relative z-10 flex items-center gap-3 min-w-0">
+                            <div className="w-5 h-5 flex-shrink-0 text-white/70">
+                              {item.icon(false)}
                             </div>
-                            {item.badge !== undefined && (
-                              <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
-                                {item.badge}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </NavLink>
-                    ))}
+                            <span className="text-xs font-semibold truncate">{item.name}</span>
+                          </div>
+                          {item.badge !== undefined && (
+                            <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
+                              {item.badge}
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        <NavLink
+                          key={item.name}
+                          to={item.path!}
+                          end={item.path === '/'}
+                          onMouseEnter={() => preloadRoute(item.path!)}
+                          onTouchStart={() => preloadRoute(item.path!)}
+                          onClick={() => {
+                            triggerAndroidHaptic('light');
+                            setMobileDrawerOpen(false);
+                          }}
+                          className={({ isActive }) =>
+                            `relative flex items-center justify-between gap-2 px-3 h-10.5 rounded-xl transition-all ${
+                              isActive
+                                ? 'text-white font-bold'
+                                : 'text-white/70 hover:text-white hover:bg-white/[0.06] active:scale-98'
+                            }`
+                          }
+                        >
+                          {({ isActive }) => (
+                            <>
+                              {isActive && (
+                                <motion.div
+                                  layoutId="sidebar-active-pill-mobile"
+                                  transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                                  className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0"
+                                />
+                              )}
+                              <div className="relative z-10 flex items-center gap-3 min-w-0">
+                                <div className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-white/70'}`}>
+                                  {item.icon(isActive)}
+                                </div>
+                                <span className="text-xs font-semibold truncate">{item.name}</span>
+                              </div>
+                              {item.badge !== undefined && (
+                                <span className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-bold border-0 ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
+                                  {item.badge}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </NavLink>
+                      )
+                    )}
                   </div>
                 ))}
 
@@ -555,45 +608,21 @@ export default function Sidebar() {
                   />
                 </div>
 
-                {section.items.map((item) => (
-                  <NavLink
-                    key={item.name}
-                    to={item.path}
-                    end={item.path === '/'}
-                    onMouseEnter={() => preloadRoute(item.path)}
-                    onTouchStart={() => preloadRoute(item.path)}
-                    title={collapsed ? item.name : undefined}
-                    className={({ isActive }) =>
-                      `relative flex items-center h-10 rounded-xl transition-colors duration-150 select-none ${
-                        isActive
-                          ? 'text-white font-semibold'
-                          : 'text-white/60 hover:text-white hover:bg-white/[0.06]'
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {isActive && (
-                          <motion.div
-                            layoutId="sidebar-active-pill-desktop"
-                            transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                            className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0 overflow-hidden"
-                          >
-                            <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-transparent pointer-events-none" />
-                          </motion.div>
-                        )}
-
-                        {/* Icon Slot - Anchored & Centered */}
-                        <div className="w-16 h-10 flex items-center justify-center flex-shrink-0 relative z-10">
-                          <div
-                            className={`w-5 h-5 flex items-center justify-center transition-colors duration-150 ${
-                              isActive ? 'text-[var(--color-accent)]' : 'text-white/70'
-                            }`}
-                          >
-                            {item.icon(isActive)}
-                          </div>
+                {section.items.map((item) =>
+                  item.action ? (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={item.action}
+                      title={collapsed ? item.name : undefined}
+                      className="relative flex items-center h-10 w-full rounded-xl transition-colors duration-150 select-none text-white/60 hover:text-white hover:bg-white/[0.06] text-left cursor-pointer"
+                    >
+                      {/* Icon Slot - Anchored & Centered */}
+                      <div className="w-16 h-10 flex items-center justify-center flex-shrink-0 relative z-10">
+                        <div className="w-5 h-5 flex items-center justify-center text-white/70 group-hover:text-white">
+                          {item.icon(false)}
                         </div>
+                      </div>
 
                       {/* Text & Badge Container - Seamless Glide In / Out */}
                       <div
@@ -619,10 +648,75 @@ export default function Sidebar() {
                           collapsed && item.badge !== undefined ? 'opacity-100' : 'opacity-0 pointer-events-none'
                         }`}
                       />
-                    </>
-                  )}
-                </NavLink>
-              ))}
+                    </button>
+                  ) : (
+                    <NavLink
+                      key={item.name}
+                      to={item.path!}
+                      end={item.path === '/'}
+                      onMouseEnter={() => preloadRoute(item.path!)}
+                      onTouchStart={() => preloadRoute(item.path!)}
+                      title={collapsed ? item.name : undefined}
+                      className={({ isActive }) =>
+                        `relative flex items-center h-10 rounded-xl transition-colors duration-150 select-none ${
+                          isActive
+                            ? 'text-white font-semibold'
+                            : 'text-white/60 hover:text-white hover:bg-white/[0.06]'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          {isActive && (
+                            <motion.div
+                              layoutId="sidebar-active-pill-desktop"
+                              transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                              className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0 overflow-hidden"
+                            >
+                              <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
+                              <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-transparent pointer-events-none" />
+                            </motion.div>
+                          )}
+
+                          {/* Icon Slot - Anchored & Centered */}
+                          <div className="w-16 h-10 flex items-center justify-center flex-shrink-0 relative z-10">
+                            <div
+                              className={`w-5 h-5 flex items-center justify-center transition-colors duration-150 ${
+                                isActive ? 'text-[var(--color-accent)]' : 'text-white/70'
+                              }`}
+                            >
+                              {item.icon(isActive)}
+                            </div>
+                          </div>
+
+                        {/* Text & Badge Container - Seamless Glide In / Out */}
+                        <div
+                          className={`relative z-10 flex items-center justify-between flex-1 min-w-0 pr-3 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                            collapsed
+                              ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
+                              : 'opacity-100 max-w-[170px] translate-x-0 duration-300 delay-100'
+                          }`}
+                        >
+                          <span className="text-sm truncate font-medium whitespace-nowrap">
+                            {item.name}
+                          </span>
+                          {item.badge !== undefined && (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border-0 flex-shrink-0 ml-2 whitespace-nowrap ${item.badgeColor || 'bg-white/10 text-white/70'}`}>
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Collapsed Dot Badge */}
+                        <span
+                          className={`absolute top-2 right-2.5 w-2 h-2 rounded-full bg-[var(--color-accent)] border-0 shadow-sm transition-opacity duration-200 ${
+                            collapsed && item.badge !== undefined ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                          }`}
+                        />
+                      </>
+                    )}
+                  </NavLink>
+                ))}
             </div>
           ))}
 

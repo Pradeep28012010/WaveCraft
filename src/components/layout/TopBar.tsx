@@ -135,6 +135,8 @@ export default function TopBar() {
   const sleepActive = useStudioStore((s) => s.sleepActive);
   const setStudioModalOpen = useStudioStore((s) => s.setStudioModalOpen);
   const openStudioWithTab = useStudioStore((s) => s.openStudioWithTab);
+  const setNightstandOpen = useStudioStore((s) => s.setNightstandOpen);
+  const setSmartDJOpen = useStudioStore((s) => s.setSmartDJOpen);
 
   const hasActiveAmbient = Object.values(ambientVolumes).some((v) => v > 0.01);
   const activeFxLabel =
@@ -705,6 +707,32 @@ export default function TopBar() {
             </svg>
           </button>
 
+          {/* Mobile Smart DJ Console */}
+          <button
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              setSmartDJOpen(true);
+            }}
+            aria-label="Smart DJ"
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 glass-button text-white/90 active:scale-90 cursor-pointer"
+            title="Smart DJ Console"
+          >
+            <span className="text-sm">🎧</span>
+          </button>
+
+          {/* Mobile Bedside Nightstand Mode */}
+          <button
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              setNightstandOpen(true);
+            }}
+            aria-label="Nightstand"
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 glass-button text-white/90 active:scale-90 cursor-pointer"
+            title="Bedside Nightstand Mode"
+          >
+            <span className="text-sm">🌙</span>
+          </button>
+
           {/* Mobile Download App Button (only shown in standard web browsers when not installed) */}
           {!isInstalled && (
             <button
@@ -992,6 +1020,32 @@ export default function TopBar() {
           >
             <span>🎛️</span>
             <span className="hidden sm:inline">{activeFxLabel}</span>
+          </button>
+
+          {/* Smart DJ Console & Harmonic Automix Button */}
+          <button
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              setSmartDJOpen(true);
+            }}
+            title="Smart DJ Console — Camelot Key Automix & Procedural Turntables"
+            className="flex items-center gap-1.5 px-3.5 h-9 rounded-full glass-button text-xs font-extrabold text-white/90 hover:text-white cursor-pointer active:scale-95 transition-transform"
+          >
+            <span className="text-sm">🎧</span>
+            <span className="hidden sm:inline">Smart DJ</span>
+          </button>
+
+          {/* Bedside Nightstand Clock Button */}
+          <button
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              setNightstandOpen(true);
+            }}
+            title="OLED Bedside Nightstand Mode & Sleep Clock"
+            className="flex items-center gap-1.5 px-3 h-9 rounded-full glass-button text-xs font-extrabold text-white/90 hover:text-white cursor-pointer active:scale-95 transition-transform"
+          >
+            <span className="text-sm">🌙</span>
+            <span className="hidden md:inline">Nightstand</span>
           </button>
 
           {/* Download App Hub Button (only shown in standard web browsers when not installed) */}

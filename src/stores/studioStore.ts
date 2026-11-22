@@ -143,6 +143,12 @@ interface StudioState {
   setStudioActiveTab: (tab: 'eq' | 'spatial' | 'mastering' | 'ambient' | 'atmosphere') => void;
   openStudioWithTab: (tab: 'eq' | 'spatial' | 'mastering' | 'ambient' | 'atmosphere') => void;
   setCommandPaletteOpen: (open: boolean) => void;
+  isNightstandOpen: boolean;
+  setNightstandOpen: (open: boolean) => void;
+  isSmartDJOpen: boolean;
+  setSmartDJOpen: (open: boolean) => void;
+  smartDjAutoMix: boolean;
+  setSmartDjAutoMix: (enabled: boolean) => void;
 
   startPomodoro: (mode?: 'focus' | 'break') => void;
   stopPomodoro: () => void;
@@ -289,7 +295,14 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   isStudioModalOpen: false,
   isAtmosphereOpen: false,
   isCommandPaletteOpen: false,
+  isNightstandOpen: false,
+  isSmartDJOpen: false,
+  smartDjAutoMix: true,
   studioActiveTab: 'eq',
+
+  setNightstandOpen: (isNightstandOpen) => set({ isNightstandOpen }),
+  setSmartDJOpen: (isSmartDJOpen) => set({ isSmartDJOpen }),
+  setSmartDjAutoMix: (smartDjAutoMix) => set({ smartDjAutoMix }),
 
   pomodoroActive: false,
   pomodoroMode: 'focus',
