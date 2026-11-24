@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, LayoutGroup } from 'framer-motion';
 import type { Track } from '../../types';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -189,24 +189,26 @@ export default function LikedSongs() {
       </div>
 
       {/* Tracks */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1.5">
-        {filteredAndSortedSongs.length === 0 ? (
-          <div className="text-center py-16 text-white/50 glass rounded-2xl">
-            <p className="text-lg font-semibold text-white">No liked songs yet</p>
-            <p className="text-sm mt-1">Tap the heart icon on any track to save it here.</p>
-          </div>
-        ) : (
-          filteredAndSortedSongs.map((track, index) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              tracks={filteredAndSortedSongs}
-              index={index + 1}
-              onPlay={handlePlayTrack}
-            />
-          ))
-        )}
-      </motion.div>
+      <LayoutGroup id="liked-songs-track-list">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1.5">
+          {filteredAndSortedSongs.length === 0 ? (
+            <div className="text-center py-16 text-white/50 glass rounded-2xl">
+              <p className="text-lg font-semibold text-white">No liked songs yet</p>
+              <p className="text-sm mt-1">Tap the heart icon on any track to save it here.</p>
+            </div>
+          ) : (
+            filteredAndSortedSongs.map((track, index) => (
+              <TrackRow
+                key={track.id}
+                track={track}
+                tracks={filteredAndSortedSongs}
+                index={index + 1}
+                onPlay={handlePlayTrack}
+              />
+            ))
+          )}
+        </motion.div>
+      </LayoutGroup>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, LayoutGroup } from 'framer-motion';
 import {
   searchTracks,
   getCachedSearch,
@@ -721,17 +721,19 @@ export default function SearchResults() {
                       No playable tracks found for this album.
                     </p>
                   ) : (
-                    <div className="space-y-1">
-                      {albumTracks.map((track, idx) => (
-                        <TrackRow
-                          key={`${track.id}-${idx}`}
-                          track={track}
-                          tracks={albumTracks}
-                          index={idx + 1}
-                          onPlay={handlePlayAlbumTrack}
-                        />
-                      ))}
-                    </div>
+                    <LayoutGroup id="search-album-tracks">
+                      <div className="space-y-1">
+                        {albumTracks.map((track, idx) => (
+                          <TrackRow
+                            key={`${track.id}-${idx}`}
+                            track={track}
+                            tracks={albumTracks}
+                            index={idx + 1}
+                            onPlay={handlePlayAlbumTrack}
+                          />
+                        ))}
+                      </div>
+                    </LayoutGroup>
                   )}
                 </div>
               </GlassCard>
@@ -995,17 +997,19 @@ export default function SearchResults() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      {tracks.slice(0, 4).map((track, i) => (
-                        <TrackRow
-                          key={track.id}
-                          track={track}
-                          tracks={tracks}
-                          index={i + 1}
-                          onPlay={handlePlayTrack}
-                        />
-                      ))}
-                    </div>
+                    <LayoutGroup id="search-top-tracks">
+                      <div className="flex flex-col gap-1.5">
+                        {tracks.slice(0, 4).map((track, i) => (
+                          <TrackRow
+                            key={track.id}
+                            track={track}
+                            tracks={tracks}
+                            index={i + 1}
+                            onPlay={handlePlayTrack}
+                          />
+                        ))}
+                      </div>
+                    </LayoutGroup>
                   </div>
                 </div>
               )}
@@ -1037,17 +1041,19 @@ export default function SearchResults() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    {(activeTab === 'all' ? tracks.slice(4, 20) : tracks).map((track, i) => (
-                      <TrackRow
-                        key={track.id}
-                        track={track}
-                        tracks={tracks}
-                        index={activeTab === 'all' ? i + 5 : i + 1}
-                        onPlay={handlePlayTrack}
-                      />
-                    ))}
-                  </div>
+                  <LayoutGroup id="search-all-tracks">
+                    <div className="flex flex-col gap-1.5">
+                      {(activeTab === 'all' ? tracks.slice(4, 20) : tracks).map((track, i) => (
+                        <TrackRow
+                          key={track.id}
+                          track={track}
+                          tracks={tracks}
+                          index={activeTab === 'all' ? i + 5 : i + 1}
+                          onPlay={handlePlayTrack}
+                        />
+                      ))}
+                    </div>
+                  </LayoutGroup>
                 </section>
               )}
 

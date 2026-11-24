@@ -159,9 +159,7 @@ body,
 
 /* High-FPS Rendering Optimization - safe containment without breaking layouts */
 .contain-track-row {
-  contain: style;
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 56px;
+  contain: none;
 }
 
 .contain-card {
@@ -341,6 +339,9 @@ body,
 
   /* Apple Liquid Glass Track Hover Pill (Smooth Spring Physics for Track Rows) */
   .track-liquid-glass-pill {
+    transition: none !important;
+    transform: translateZ(0);
+    backface-visibility: hidden;
     background: linear-gradient(
       135deg,
       rgba(255, 255, 255, 0.18) 0%,
@@ -360,7 +361,7 @@ body,
       inset 0 -1px 1px 0 rgba(255, 255, 255, 0.14);
     pointer-events: none;
     overflow: hidden;
-    will-change: transform, opacity;
+    will-change: transform;
   }
 
   /* Translucent Rose-Tinted Liquid Glass Primary Button */

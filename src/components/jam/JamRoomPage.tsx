@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useJamStore, type JamMember, type JamReaction } from '../../stores/jamStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { searchTracks, getCachedSearch } from '../../services/youtube';
@@ -1608,17 +1608,19 @@ export default function JamRoomPage() {
                     Party queue is empty. Search on the left to drop songs into the room!
                   </p>
                 ) : (
-                  <div className="flex flex-col gap-1.5 max-h-[340px] overflow-y-auto pr-1">
-                    {queue.map((t, idx) => (
-                      <TrackRow
-                        key={`${t.id}-${idx}`}
-                        track={t}
-                        index={idx + 1}
-                        tracks={queue}
-                        onPlay={isHost ? (selectedTrack) => playTrackInJam(selectedTrack) : undefined}
-                      />
-                    ))}
-                  </div>
+                  <LayoutGroup id="jam-queue-tracks">
+                    <div className="flex flex-col gap-1.5 max-h-[340px] overflow-y-auto pr-1">
+                      {queue.map((t, idx) => (
+                        <TrackRow
+                          key={`${t.id}-${idx}`}
+                          track={t}
+                          index={idx + 1}
+                          tracks={queue}
+                          onPlay={isHost ? (selectedTrack) => playTrackInJam(selectedTrack) : undefined}
+                        />
+                      ))}
+                    </div>
+                  </LayoutGroup>
                 )}
               </GlassCard>
 

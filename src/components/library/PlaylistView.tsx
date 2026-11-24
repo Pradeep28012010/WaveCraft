@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -997,28 +997,30 @@ export default function PlaylistView() {
       )}
 
       {/* Tracks */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1.5">
-        {tracks.length === 0 ? (
-          <div className="text-center py-12 text-white/50 border-0 bg-white/[0.03] rounded-2xl">
-            <p className="text-lg">This playlist is empty.</p>
-            <p className="text-sm mt-1">Search for songs and add them here.</p>
-            <GlassButton className="mt-4" onClick={() => navigate('/search')}>
-              Search Songs
-            </GlassButton>
-          </div>
-        ) : (
-          tracks.map((track, index) => (
-            <TrackRow
-              key={track?.id ? `${track.id}-${index}` : `track-${index}`}
-              track={track}
-              tracks={tracks}
-              index={index + 1}
-              onPlay={handlePlayTrack}
-              onRemove={handleRemoveTrack}
-            />
-          ))
-        )}
-      </motion.div>
+      <LayoutGroup id="playlist-track-list">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1.5">
+          {tracks.length === 0 ? (
+            <div className="text-center py-12 text-white/50 border-0 bg-white/[0.03] rounded-2xl">
+              <p className="text-lg">This playlist is empty.</p>
+              <p className="text-sm mt-1">Search for songs and add them here.</p>
+              <GlassButton className="mt-4" onClick={() => navigate('/search')}>
+                Search Songs
+              </GlassButton>
+            </div>
+          ) : (
+            tracks.map((track, index) => (
+              <TrackRow
+                key={track?.id ? `${track.id}-${index}` : `track-${index}`}
+                track={track}
+                tracks={tracks}
+                index={index + 1}
+                onPlay={handlePlayTrack}
+                onRemove={handleRemoveTrack}
+              />
+            ))
+          )}
+        </motion.div>
+      </LayoutGroup>
 
       <CreatePlaylist
         isOpen={isEditModalOpen}

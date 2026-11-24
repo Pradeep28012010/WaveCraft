@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import {
   useOfflineVault,
   getOfflineDetailedStorageBreakdown,
@@ -675,16 +675,18 @@ export default function DownloadsPage() {
           No downloaded tracks match &ldquo;{searchQuery}&rdquo; in this tab.
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {sortedTracks.map((track, idx) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              tracks={sortedTracks}
-              index={idx + 1}
-            />
-          ))}
-        </div>
+        <LayoutGroup id="downloads-track-list">
+          <div className="space-y-1.5">
+            {sortedTracks.map((track, idx) => (
+              <TrackRow
+                key={track.id}
+                track={track}
+                tracks={sortedTracks}
+                index={idx + 1}
+              />
+            ))}
+          </div>
+        </LayoutGroup>
       )}
 
       {/* Clear Storage Confirmation Modal */}

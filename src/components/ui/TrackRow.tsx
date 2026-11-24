@@ -22,14 +22,15 @@ const hoverListeners = new Map<string, (hovered: boolean) => void>();
 
 function setSharedHoveredRow(id: string | null) {
   if (activeHoveredRowId === id) return;
-  const prevId = activeHoveredRowId;
   activeHoveredRowId = id;
-  if (prevId) {
-    hoverListeners.get(prevId)?.(false);
-  }
-  if (id) {
-    hoverListeners.get(id)?.(true);
-  }
+  hoverListeners.forEach((listener, listenerId) => {
+    listener(listenerId === id);
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('blur', () => setSharedHoveredRow(null));
+  document.addEventListener('mouseleave', () => setSharedHoveredRow(null));
 }
 
 function useSharedTrackHover(rowId: string): {
@@ -44,7 +45,7 @@ function useSharedTrackHover(rowId: string): {
     return () => {
       hoverListeners.delete(rowId);
       if (activeHoveredRowId === rowId) {
-        activeHoveredRowId = null;
+        setSharedHoveredRow(null);
       }
     };
   }, [rowId]);
@@ -291,7 +292,7 @@ const TrackRow = memo(({
 
   return (
     <div
-      className="relative rounded-2xl group/row select-none contain-track-row"
+      className="relative rounded-2xl group/row select-none"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
@@ -299,24 +300,11 @@ const TrackRow = memo(({
       {activeVisual && (
         <motion.div
           layoutId="wavecraft-track-liquid-glass-pill"
-          initial={{ opacity: 0, scale: 0.985 }}
-          animate={{ opacity: 1, scale: 1 }}
           transition={{
-            layout: {
-              type: 'spring',
-              stiffness: 380,
-              damping: 30,
-              mass: 0.58,
-              restDelta: 0.5
-            },
-            opacity: {
-              duration: 0.16,
-              ease: [0.16, 1, 0.3, 1]
-            },
-            scale: {
-              duration: 0.2,
-              ease: [0.16, 1, 0.3, 1]
-            }
+            type: 'spring',
+            stiffness: 440,
+            damping: 32,
+            mass: 0.55
           }}
           className="absolute inset-0 track-liquid-glass-pill pointer-events-none z-0"
         >
