@@ -428,7 +428,7 @@ export default function DownloadsPage() {
               320k Studio AAC / MP3
             </span>
             <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider">
-              100% Offline
+              Local Device Vault
             </span>
           </div>
         </div>

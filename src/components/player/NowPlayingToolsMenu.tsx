@@ -4,6 +4,7 @@ import type { Track, VisualizerStyle } from '../../types';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useStudioStore, STUDIO_FX_MODES, type StudioFXMode } from '../../stores/studioStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { getShareBaseUrl } from '../../services/apiConfig';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
@@ -99,6 +100,7 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
   setPlaybackSpeed
 }: NowPlayingToolsMenuProps) {
   const playlists = useLibraryStore((s) => s.playlists);
+  const equalizerPreset = useSettingsStore((s) => s.equalizerPreset);
   const [toolsTab, setToolsTab] = useState<'tools' | 'playlist'>('tools');
   const [toolsToast, setToolsToast] = useState<string | null>(null);
   const [isCreatingInTools, setIsCreatingInTools] = useState(false);
@@ -525,7 +527,9 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
                   <span className="px-2 py-0.5 rounded-full glass-button text-[10px] font-semibold text-white/80">
                     {fxMode !== 'normal'
                       ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Custom'
-                      : 'Default'}
+                      : equalizerPreset && equalizerPreset !== 'Flat'
+                        ? equalizerPreset
+                        : 'Default'}
                   </span>
                 </button>
 
