@@ -211,20 +211,24 @@ export const LiquidGlassSlider: React.FC<LiquidGlassSliderProps> = ({
           if (disabled) return;
           if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
             e.preventDefault();
+            e.stopPropagation();
             const next = Math.max(min, Number((clampedVal - step).toFixed(4)));
             onChange(next);
             onChangeEnd?.(next);
           } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
             e.preventDefault();
+            e.stopPropagation();
             const next = Math.min(max, Number((clampedVal + step).toFixed(4)));
             onChange(next);
             onChangeEnd?.(next);
           } else if (e.key === 'Home') {
             e.preventDefault();
+            e.stopPropagation();
             onChange(min);
             onChangeEnd?.(min);
           } else if (e.key === 'End') {
             e.preventDefault();
+            e.stopPropagation();
             onChange(max);
             onChangeEnd?.(max);
           }

@@ -1,4 +1,4 @@
-import { Component, Suspense, lazy, type ErrorInfo, type ReactNode, useEffect, useRef } from 'react';
+import { Component, Suspense, type ErrorInfo, type ReactNode, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -20,13 +20,14 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useStudioStore } from '../../stores/studioStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
 import { useUpdateStore } from '../../stores/updateStore';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
-const CommandPalette = lazy(() => import('./CommandPalette'));
-const StudioFXModal = lazy(() => import('../player/StudioFXModal'));
-const FeedbackModal = lazy(() => import('../feedback/FeedbackModal'));
-const UpdateModal = lazy(() => import('../updater/UpdateModal'));
-const NightstandModal = lazy(() => import('../player/NightstandModal'));
-const SmartDJModal = lazy(() => import('../player/SmartDJModal'));
+const CommandPalette = lazyWithRetry(() => import('./CommandPalette'));
+const StudioFXModal = lazyWithRetry(() => import('../player/StudioFXModal'));
+const FeedbackModal = lazyWithRetry(() => import('../feedback/FeedbackModal'));
+const UpdateModal = lazyWithRetry(() => import('../updater/UpdateModal'));
+const NightstandModal = lazyWithRetry(() => import('../player/NightstandModal'));
+const SmartDJModal = lazyWithRetry(() => import('../player/SmartDJModal'));
 
 function RouteLoadingFallback() {
   return (
@@ -101,6 +102,18 @@ export default function MainLayout() {
   const isFeedbackOpen = useFeedbackStore((s) => s.isOpen);
   const isUpdateModalOpen = useUpdateStore((s) => s.isModalOpen);
 
+  // Latch mount once opened so AnimatePresence exit transitions finish cleanly before unmount
+  const [hasMountedFeedback, setHasMountedFeedback] = useState(isFeedbackOpen);
+  const [hasMountedUpdate, setHasMountedUpdate] = useState(isUpdateModalOpen);
+
+  useEffect(() => {
+    if (isFeedbackOpen) setHasMountedFeedback(true);
+  }, [isFeedbackOpen]);
+
+  useEffect(() => {
+    if (isUpdateModalOpen) setHasMountedUpdate(true);
+  }, [isUpdateModalOpen]);
+
   useScrollMotionDynamics(mainRef);
   const scrollMotionMode = useSettingsStore((s) => s.scrollMotionMode ?? 'all');
 
@@ -159,22 +172,28 @@ export default function MainLayout() {
       <Suspense fallback={null}>
         <CommandPalette />
         {isStudioModalOpen && <StudioFXModal />}
-        {isFeedbackOpen && <FeedbackModal />}
-        {isUpdateModalOpen && <UpdateModal />}
+        {hasMountedFeedback && <FeedbackModal />}
+        {hasMountedUpdate && <UpdateModal />}
         {isNightstandOpen && <NightstandModal isOpen={isNightstandOpen} onClose={() => setNightstandOpen(false)} />}
         {isSmartDJOpen && <SmartDJModal isOpen={isSmartDJOpen} onClose={() => setSmartDJOpen(false)} />}
       </Suspense>
       <ContextMenu />
 
       {/* Windows 11 Acrylic Frameless Title Bar (Desktop / Electron) */}
-      <WindowsTitleBar />
+      <RouteErrorBoundary resetKey="chrome-titlebar">
+        <WindowsTitleBar />
+      </RouteErrorBoundary>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
-        <Sidebar />
+        <RouteErrorBoundary resetKey="chrome-sidebar">
+          <Sidebar />
+        </RouteErrorBoundary>
 
         <div className="flex-1 overflow-hidden relative min-w-0 flex flex-col">
           {/* Pinned TopBar - Stays fixed and visible at the top during scrolls */}
-          <TopBar />
+          <RouteErrorBoundary resetKey="chrome-topbar">
+            <TopBar />
+          </RouteErrorBoundary>
 
           <div className="relative flex-1 overflow-hidden min-h-0">
             <main

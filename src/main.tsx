@@ -3,33 +3,20 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-if ('serviceWorker' in navigator) {
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshing) {
-      refreshing = true;
-      window.location.reload();
-    }
-  });
+const isNativeRuntime =
+  Boolean(
+    (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
+  ) ||
+  window.location.protocol === 'file:' ||
+  window.location.protocol === 'capacitor:';
 
+if (!isNativeRuntime && 'serviceWorker' in navigator) {
+  // Register quietly and let updates apply cleanly on next natural navigation without disrupting playback
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js')
       .then((reg) => {
-        reg.update();
-        if (reg.waiting) {
-          reg.waiting.postMessage('SKIP_WAITING');
-        }
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                newWorker.postMessage('SKIP_WAITING');
-              }
-            });
-          }
-        });
+        reg.update().catch(() => {});
       })
       .catch(() => {
         // Service worker registration optional in dev

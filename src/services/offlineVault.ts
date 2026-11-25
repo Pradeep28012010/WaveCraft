@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Track } from '../types';
 import { resolveDirectAudio, cleanTrackQuery } from './streamResolver';
-import { apiUrl } from './apiConfig';
+import { apiUrl, PROD_API_ORIGIN } from './apiConfig';
 import { createStore, get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from 'idb-keyval';
 import { useSettingsStore } from '../stores/settingsStore';
 
@@ -15,9 +15,46 @@ type VaultListener = () => void;
 const listeners = new Set<VaultListener>();
 const trackStatusListeners = new Map<string, Set<VaultListener>>();
 const activeSavingIds = new Set<string>();
+const inFlightSaves = new Map<string, Promise<boolean>>();
+const pendingSourceUpgrades = new Set<string>();
+const trackDeleteEpochs = new Map<string, number>();
 
+let vaultGlobalEpoch = 0;
+let trackOpSeq = 0;
 let cachedOfflineTracks: Track[] | null = null;
 let cachedOfflineIds = new Set<string>();
+
+function isUrlCurrentlyPlaying(url?: string): boolean {
+  if (!url || typeof document === 'undefined') return false;
+  try {
+    const audioEls = document.querySelectorAll('audio');
+    for (const el of audioEls) {
+      if (el.src === url || el.currentSrc === url) {
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+function isValidAudioResponse(res: Response, blob: Blob | null): blob is Blob {
+  if (!blob || blob.size < 1024) return false;
+  const contentType = (res.headers.get('content-type') || blob.type || '').toLowerCase();
+  if (
+    contentType &&
+    (contentType.includes('text/html') ||
+      contentType.includes('application/json') ||
+      contentType.includes('text/plain') ||
+      contentType.includes('application/xml'))
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isAlreadyProxyStreamUrl(url: string): boolean {
+  return url.includes('action=proxy-stream') || url.includes('/api/proxy');
+}
 
 function syncMemoryCache(tracks: Track[]) {
   cachedOfflineTracks = tracks;
@@ -104,14 +141,36 @@ function saveOfflineTracksMeta(tracks: Track[], changedTrackId?: string) {
 }
 
 /**
+ * Atomically merges one or more newly saved tracks into Offline Vault metadata
+ * across memory, localStorage, and IndexedDB (prevents batch overwrite races).
+ */
+export async function upsertOfflineTracksMeta(newTracks: Track[]): Promise<void> {
+  if (!Array.isArray(newTracks) || newTracks.length === 0) return;
+  const incomingIds = new Set(newTracks.map((t) => t?.id).filter(Boolean));
+  const existing = getOfflineTracks().filter((t) => !incomingIds.has(t.id));
+  const merged = [...newTracks.filter((t) => t && t.id), ...existing];
+  syncMemoryCache(merged);
+  try {
+    localStorage.setItem(VAULT_META_KEY, JSON.stringify(merged));
+  } catch (e) {
+    console.warn('Failed to persist batch offline vault metadata to localStorage', e);
+  }
+  try {
+    await idbSet(VAULT_META_KEY, merged, vaultBlobStore);
+  } catch {}
+  notifyListeners();
+}
+
+/**
  * Rehydrates offline vault metadata across both localStorage and IndexedDB.
  * If a system cleaner wiped localStorage, metadata is immediately restored from IndexedDB.
  */
 export async function rehydrateOfflineVault(): Promise<Track[]> {
   try {
+    let rawLocal: string | null = null;
     let localTracks: Track[] = [];
     try {
-      const rawLocal = localStorage.getItem(VAULT_META_KEY);
+      rawLocal = localStorage.getItem(VAULT_META_KEY);
       if (rawLocal) {
         const parsed = JSON.parse(rawLocal);
         if (Array.isArray(parsed)) localTracks = parsed.filter((t) => t && t.id && t.title);
@@ -124,9 +183,17 @@ export async function rehydrateOfflineVault(): Promise<Track[]> {
       if (Array.isArray(fromIdb)) idbTracks = fromIdb.filter((t) => t && t.id && t.title);
     } catch {}
 
-    const best = localTracks.length >= idbTracks.length ? localTracks : idbTracks;
+    // Respect explicit empty localStorage ('[]') so intentionally purged tracks do not resurrect,
+    // while still self-healing from IndexedDB when localStorage was wiped (rawLocal === null).
+    const best =
+      rawLocal !== null && localTracks.length === 0
+        ? []
+        : localTracks.length >= idbTracks.length
+        ? localTracks
+        : idbTracks;
+
+    syncMemoryCache(best);
     if (best.length > 0) {
-      syncMemoryCache(best);
       if (localTracks.length < best.length) {
         try {
           localStorage.setItem(VAULT_META_KEY, JSON.stringify(best));
@@ -135,9 +202,9 @@ export async function rehydrateOfflineVault(): Promise<Track[]> {
       if (idbTracks.length < best.length) {
         idbSet(VAULT_META_KEY, best, vaultBlobStore).catch(() => {});
       }
-      notifyListeners();
-      return best;
     }
+    notifyListeners();
+    return best;
   } catch (err) {
     console.warn('[OfflineVault] Rehydration check failed:', err);
   }
@@ -159,9 +226,21 @@ export function isTrackOffline(trackId?: string): boolean {
   return cachedOfflineIds.has(trackId);
 }
 
+async function fetchValidAudioBlob(url: string, timeoutMs = 25000): Promise<Blob | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return isValidAudioResponse(res, blob) ? blob : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Downloads and caches a track's audio stream and artwork into IndexedDB & CacheStorage.
  * Strict verification: returns true ONLY if the audio binary was genuinely saved.
+ * Deduplicates concurrent saves per track ID and guards against mid-flight deletions.
  */
 export async function saveTrackOffline(
   track: Track,
@@ -174,213 +253,257 @@ export async function saveTrackOffline(
     if (!isAutoCacheEnabled) return false;
   }
 
-  try {
-    let resolvedTrack = { ...track };
-    const videoId =
-      resolvedTrack.youtubeId ||
-      (resolvedTrack.id.startsWith('yt_') ? resolvedTrack.id.replace('yt_', '') : '') ||
-      (resolvedTrack.id.startsWith('yt-') ? resolvedTrack.id.replace('yt-', '') : '') ||
-      (resolvedTrack.id && resolvedTrack.id.length === 11 && !resolvedTrack.id.includes('-')
-        ? resolvedTrack.id
-        : undefined);
+  const existingInFlight = inFlightSaves.get(track.id);
+  if (existingInFlight) {
+    if (source === 'manual') {
+      pendingSourceUpgrades.add(track.id);
+    }
+    return existingInFlight;
+  }
 
-    // 1. Proactively resolve direct audio stream if missing or temporary Spotify preview
-    if (!resolvedTrack.audioUrl || resolvedTrack.audioUrl.includes('p.scdn.co')) {
-      // Prioritize direct YouTube video stream resolution when videoId is known
-      if (videoId) {
-        try {
-          const ytResolveUrl = apiUrl(`/api/music?action=resolve-stream&videoId=${encodeURIComponent(videoId)}`);
-          const res = await fetch(ytResolveUrl, { signal: AbortSignal.timeout(4000) });
-          if (res.ok) {
-            const data = await res.json();
-            if (data?.audioUrl) {
-              const fullUrl = data.audioUrl.startsWith('/') ? apiUrl(data.audioUrl) : data.audioUrl;
-              resolvedTrack.audioUrl = fullUrl;
-              resolvedTrack.quality = data.quality || '320kbps YouTube Studio';
+  const startGlobalEpoch = vaultGlobalEpoch;
+  const startTrackEpoch = trackDeleteEpochs.get(track.id) || 0;
+  const wasInvalidated = () =>
+    vaultGlobalEpoch !== startGlobalEpoch ||
+    (trackDeleteEpochs.get(track.id) || 0) !== startTrackEpoch;
+
+  const savePromise = (async (): Promise<boolean> => {
+    activeSavingIds.add(track.id);
+    notifyListeners(track.id);
+
+    try {
+      let resolvedTrack: Track = { ...track };
+      const videoId =
+        resolvedTrack.youtubeId ||
+        (resolvedTrack.id.startsWith('yt_') ? resolvedTrack.id.replace('yt_', '') : '') ||
+        (resolvedTrack.id.startsWith('yt-') ? resolvedTrack.id.replace('yt-', '') : '') ||
+        (resolvedTrack.id && resolvedTrack.id.length === 11 && !resolvedTrack.id.includes('-')
+          ? resolvedTrack.id
+          : undefined);
+
+      // 1. Proactively resolve direct audio stream if missing or temporary Spotify preview
+      if (!resolvedTrack.audioUrl || resolvedTrack.audioUrl.includes('p.scdn.co')) {
+        if (videoId) {
+          try {
+            const ytResolveUrl = apiUrl(`/api/music?action=resolve-stream&videoId=${encodeURIComponent(videoId)}`);
+            const res = await fetch(ytResolveUrl, { signal: AbortSignal.timeout(4000) });
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.audioUrl) {
+                resolvedTrack.audioUrl = data.audioUrl.startsWith('/')
+                  ? apiUrl(data.audioUrl)
+                  : data.audioUrl;
+                resolvedTrack.quality = data.quality || '320kbps YouTube Studio';
+              }
             }
-          }
-        } catch {}
-      }
+          } catch {}
+        }
 
-      if (!resolvedTrack.audioUrl) {
-        try {
-          let directUrl = await resolveDirectAudio(
-            resolvedTrack.title,
-            resolvedTrack.artist,
-            resolvedTrack.duration,
-            videoId || resolvedTrack.youtubeId
-          );
-          if (!directUrl) {
-            const { cleanTitle, cleanArtist } = cleanTrackQuery(resolvedTrack.title, resolvedTrack.artist);
-            directUrl = await resolveDirectAudio(
-              cleanTitle,
-              cleanArtist,
+        if (!resolvedTrack.audioUrl) {
+          try {
+            let directUrl = await resolveDirectAudio(
+              resolvedTrack.title,
+              resolvedTrack.artist,
               resolvedTrack.duration,
               videoId || resolvedTrack.youtubeId
             );
-          }
-          if (directUrl) {
-            resolvedTrack.audioUrl = directUrl;
-            resolvedTrack.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
-          }
-        } catch {}
-      }
-    }
-
-    if (!resolvedTrack.audioUrl) {
-      console.warn('Could not resolve direct audio stream for offline saving:', resolvedTrack.title);
-      return false;
-    }
-
-    const downloadAudioUrl = resolvedTrack.audioUrl.startsWith('/')
-      ? apiUrl(resolvedTrack.audioUrl)
-      : resolvedTrack.audioUrl;
-
-    // 2. Fetch the audio binary stream
-    let audioBlob: Blob | null = null;
-    try {
-      const audioRes = await fetch(downloadAudioUrl);
-      if (audioRes.ok) {
-        audioBlob = await audioRes.blob();
-      }
-    } catch (fetchErr) {
-      console.warn('Direct audio download failed, attempting proxy fallback...', fetchErr);
-    }
-
-    // Proxy Fallback 1: Dedicated proxy-stream endpoint
-    if (!audioBlob || audioBlob.size < 1024) {
-      try {
-        const proxyUrl = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(downloadAudioUrl)}`);
-        const pRes = await fetch(proxyUrl);
-        if (pRes.ok) {
-          audioBlob = await pRes.blob();
+            if (!directUrl) {
+              const { cleanTitle, cleanArtist } = cleanTrackQuery(resolvedTrack.title, resolvedTrack.artist);
+              directUrl = await resolveDirectAudio(
+                cleanTitle,
+                cleanArtist,
+                resolvedTrack.duration,
+                videoId || resolvedTrack.youtubeId
+              );
+            }
+            if (directUrl) {
+              resolvedTrack.audioUrl = directUrl;
+              resolvedTrack.quality = directUrl.includes('saavncdn') ? '320kbps Studio AAC' : 'HD Studio Audio';
+            }
+          } catch {}
         }
-      } catch {}
-    }
+      }
 
-    // Proxy Fallback 2: Direct cloud origin proxy-stream endpoint
-    if (!audioBlob || audioBlob.size < 1024) {
-      try {
-        const cloudProxyUrl = `https://wavecraft-alpha.vercel.app/api/music?action=proxy-stream&url=${encodeURIComponent(downloadAudioUrl)}`;
-        const pRes = await fetch(cloudProxyUrl);
-        if (pRes.ok) {
-          audioBlob = await pRes.blob();
-        }
-      } catch {}
-    }
+      if (wasInvalidated()) return false;
 
-    // Proxy Fallback 3: Re-resolve via serverless endpoint with sanitized query
-    if (!audioBlob || audioBlob.size < 1024) {
-      try {
-        const { cleanTitle, cleanArtist } = cleanTrackQuery(resolvedTrack.title, resolvedTrack.artist);
-        const resolveProxyUrl = `https://wavecraft-alpha.vercel.app/api/music?action=resolve-stream&title=${encodeURIComponent(
-          cleanTitle || resolvedTrack.title
-        )}&artist=${encodeURIComponent(cleanArtist || resolvedTrack.artist)}&videoId=${encodeURIComponent(
-          resolvedTrack.youtubeId || ''
-        )}`;
-        const pRes = await fetch(resolveProxyUrl);
-        if (pRes.ok) {
-          const pData = await pRes.json();
-          if (pData?.audioUrl) {
-            resolvedTrack.audioUrl = pData.audioUrl;
-            const streamRes = await fetch(pData.audioUrl);
-            if (streamRes.ok) {
-              audioBlob = await streamRes.blob();
+      if (!resolvedTrack.audioUrl) {
+        console.warn('Could not resolve direct audio stream for offline saving:', resolvedTrack.title);
+        return false;
+      }
+
+      const rawAudioUrl = resolvedTrack.audioUrl;
+      const downloadAudioUrl = rawAudioUrl.startsWith('/') ? apiUrl(rawAudioUrl) : rawAudioUrl;
+      const isAlreadyProxied = isAlreadyProxyStreamUrl(downloadAudioUrl);
+
+      // 2. Fetch the audio binary stream with timeout & MIME validation
+      let audioBlob = await fetchValidAudioBlob(downloadAudioUrl);
+
+      // Proxy fallbacks — never double-wrap URLs already routed through proxy-stream
+      if (!audioBlob && !wasInvalidated()) {
+        if (isAlreadyProxied) {
+          if (rawAudioUrl.startsWith('/') && !downloadAudioUrl.startsWith(PROD_API_ORIGIN)) {
+            audioBlob = await fetchValidAudioBlob(`${PROD_API_ORIGIN}${rawAudioUrl}`);
+          }
+        } else {
+          const proxyUrl = apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(downloadAudioUrl)}`);
+          audioBlob = await fetchValidAudioBlob(proxyUrl);
+
+          if (!audioBlob && !wasInvalidated()) {
+            const cloudProxyUrl = `${PROD_API_ORIGIN}/api/music?action=proxy-stream&url=${encodeURIComponent(downloadAudioUrl)}`;
+            if (cloudProxyUrl !== proxyUrl) {
+              audioBlob = await fetchValidAudioBlob(cloudProxyUrl);
             }
           }
         }
-      } catch {}
-    }
-
-    // Validate audio blob (must be at least 1KB of audio data)
-    if (!audioBlob || audioBlob.size < 1024) {
-      console.warn('Audio binary was empty or invalid for track:', resolvedTrack.title);
-      return false;
-    }
-
-    // Check storage quota before write to prevent corrupt partial downloads
-    const quotaInfo = await checkStorageQuota();
-    if (quotaInfo.isLow && quotaInfo.available < audioBlob.size + 10 * 1024 * 1024) {
-      console.warn('[OfflineVault] Insufficient storage space to download track:', resolvedTrack.title);
-      return false;
-    }
-
-    resolvedTrack.fileSizeBytes = audioBlob.size;
-
-    // 3. Save to IndexedDB (Works on Electron file:, Android, and Web)
-    try {
-      await idbSet(`audio_${resolvedTrack.id}`, audioBlob, vaultBlobStore);
-    } catch (idbErr) {
-      console.warn('Failed to save audio to IndexedDB (storage quota or access error):', idbErr);
-      return false;
-    }
-
-    // 4. Also store in CacheStorage if available
-    if (typeof window !== 'undefined' && 'caches' in window) {
-      try {
-        const cache = await caches.open(VAULT_CACHE_NAME);
-        const audioResponse = new Response(audioBlob, {
-          headers: {
-            'Content-Type': audioBlob.type || 'audio/mp4',
-            'Content-Length': audioBlob.size.toString()
-          }
-        });
-        await cache.put(`https://wavecraft.local/offline-audio/${resolvedTrack.id}`, audioResponse);
-      } catch {}
-    }
-
-    // 5. Cache thumbnail artwork
-    if (resolvedTrack.thumbnail) {
-      try {
-        const imgRes = await fetch(resolvedTrack.thumbnail);
-        if (imgRes.ok) {
-          const imgBlob = await imgRes.blob();
-          await idbSet(`art_${resolvedTrack.id}`, imgBlob, vaultBlobStore);
-          if (typeof window !== 'undefined' && 'caches' in window) {
-            try {
-              const cache = await caches.open(VAULT_CACHE_NAME);
-              await cache.put(
-                `https://wavecraft.local/offline-art/${resolvedTrack.id}`,
-                new Response(imgBlob)
-              );
-            } catch {}
-          }
-        }
-      } catch {}
-    }
-
-    // 6. Update metadata with source tagging & downloaded timestamp
-    const existing = getOfflineTracks().find((t) => t.id === resolvedTrack.id);
-    resolvedTrack.offlineSource = existing?.offlineSource === 'manual' ? 'manual' : source;
-    resolvedTrack.downloadedAt = existing?.downloadedAt || Date.now();
-
-    const current = getOfflineTracks().filter((t) => t.id !== resolvedTrack.id);
-    saveOfflineTracksMeta([resolvedTrack, ...current], resolvedTrack.id);
-
-    // If auto-cached, enforce cache limit
-    if (source === 'auto-cache') {
-      const maxMb = useSettingsStore.getState().maxCacheSizeMb ?? 1024;
-      if (maxMb > 0) {
-        enforceAutoCacheLimit(maxMb).catch(() => {});
       }
-    }
 
-    return true;
-  } catch (err) {
-    console.warn('Offline Vault save failed:', err);
-    return false;
-  }
+      // Proxy Fallback 3: Re-resolve via serverless endpoint with sanitized query
+      if (!audioBlob && !wasInvalidated()) {
+        try {
+          const { cleanTitle, cleanArtist } = cleanTrackQuery(resolvedTrack.title, resolvedTrack.artist);
+          const resolveProxyUrl = `${PROD_API_ORIGIN}/api/music?action=resolve-stream&title=${encodeURIComponent(
+            cleanTitle || resolvedTrack.title
+          )}&artist=${encodeURIComponent(cleanArtist || resolvedTrack.artist)}&videoId=${encodeURIComponent(
+            resolvedTrack.youtubeId || ''
+          )}`;
+          const pRes = await fetch(resolveProxyUrl, { signal: AbortSignal.timeout(12000) });
+          if (pRes.ok) {
+            const pData = await pRes.json();
+            if (pData?.audioUrl) {
+              const candidateUrl = pData.audioUrl.startsWith('/')
+                ? `${PROD_API_ORIGIN}${pData.audioUrl}`
+                : pData.audioUrl;
+              resolvedTrack.audioUrl = candidateUrl;
+              audioBlob = await fetchValidAudioBlob(candidateUrl);
+            }
+          }
+        } catch {}
+      }
+
+      if (wasInvalidated()) return false;
+
+      // Validate audio blob (must be at least 1KB of non-HTML/JSON audio data)
+      if (!audioBlob || audioBlob.size < 1024) {
+        console.warn('Audio binary was empty or invalid for track:', resolvedTrack.title);
+        return false;
+      }
+
+      // Check storage quota before write to prevent corrupt partial downloads
+      const quotaInfo = await checkStorageQuota();
+      if (quotaInfo.isLow && quotaInfo.available < audioBlob.size + 10 * 1024 * 1024) {
+        console.warn('[OfflineVault] Insufficient storage space to download track:', resolvedTrack.title);
+        return false;
+      }
+
+      if (wasInvalidated()) return false;
+
+      resolvedTrack.fileSizeBytes = audioBlob.size;
+
+      // 3. Save to IndexedDB (Works on Electron file:, Android, and Web)
+      try {
+        await idbSet(`audio_${resolvedTrack.id}`, audioBlob, vaultBlobStore);
+      } catch (idbErr) {
+        console.warn('Failed to save audio to IndexedDB (storage quota or access error):', idbErr);
+        return false;
+      }
+
+      if (wasInvalidated()) {
+        idbDel(`audio_${resolvedTrack.id}`, vaultBlobStore).catch(() => {});
+        return false;
+      }
+
+      // 4. Also store in CacheStorage if available
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+          const cache = await caches.open(VAULT_CACHE_NAME);
+          const audioResponse = new Response(audioBlob, {
+            headers: {
+              'Content-Type': audioBlob.type || 'audio/mp4',
+              'Content-Length': audioBlob.size.toString()
+            }
+          });
+          await cache.put(`https://wavecraft.local/offline-audio/${resolvedTrack.id}`, audioResponse);
+        } catch {}
+      }
+
+      // 5. Cache thumbnail artwork
+      if (resolvedTrack.thumbnail && !wasInvalidated()) {
+        try {
+          const imgRes = await fetch(resolvedTrack.thumbnail, { signal: AbortSignal.timeout(8000) });
+          if (imgRes.ok) {
+            const imgBlob = await imgRes.blob();
+            if (!wasInvalidated()) {
+              await idbSet(`art_${resolvedTrack.id}`, imgBlob, vaultBlobStore);
+              if (typeof window !== 'undefined' && 'caches' in window) {
+                try {
+                  const cache = await caches.open(VAULT_CACHE_NAME);
+                  await cache.put(
+                    `https://wavecraft.local/offline-art/${resolvedTrack.id}`,
+                    new Response(imgBlob)
+                  );
+                } catch {}
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (wasInvalidated()) {
+        idbDel(`audio_${resolvedTrack.id}`, vaultBlobStore).catch(() => {});
+        idbDel(`art_${resolvedTrack.id}`, vaultBlobStore).catch(() => {});
+        return false;
+      }
+
+      // 6. Update metadata with source tagging & downloaded timestamp
+      const existing = getOfflineTracks().find((t) => t.id === resolvedTrack.id);
+      const effectiveSource =
+        pendingSourceUpgrades.has(track.id) || existing?.offlineSource === 'manual' || source === 'manual'
+          ? 'manual'
+          : 'auto-cache';
+      resolvedTrack.offlineSource = effectiveSource;
+      resolvedTrack.downloadedAt = existing?.downloadedAt || Date.now();
+
+      const current = getOfflineTracks().filter((t) => t.id !== resolvedTrack.id);
+      saveOfflineTracksMeta([resolvedTrack, ...current], resolvedTrack.id);
+
+      // If auto-cached, enforce cache limit
+      if (effectiveSource === 'auto-cache') {
+        const maxMb = useSettingsStore.getState().maxCacheSizeMb ?? 1024;
+        if (maxMb > 0) {
+          enforceAutoCacheLimit(maxMb).catch(() => {});
+        }
+      }
+
+      return true;
+    } catch (err) {
+      console.warn('Offline Vault save failed:', err);
+      return false;
+    } finally {
+      inFlightSaves.delete(track.id);
+      activeSavingIds.delete(track.id);
+      pendingSourceUpgrades.delete(track.id);
+      notifyListeners(track.id);
+    }
+  })();
+
+  inFlightSaves.set(track.id, savePromise);
+  return savePromise;
 }
 
 /**
  * Removes a track's audio binary, artwork, and metadata from the Offline Vault.
  */
 export async function removeTrackOffline(trackId: string): Promise<void> {
-  // Release active Blob object URL
+  trackDeleteEpochs.set(trackId, ++trackOpSeq);
+
+  // Release active Blob object URL only when not actively playing in an audio element
   if (activeObjectUrls.has(trackId)) {
-    try {
-      URL.revokeObjectURL(activeObjectUrls.get(trackId)!);
-    } catch {}
+    const url = activeObjectUrls.get(trackId)!;
+    if (!isUrlCurrentlyPlaying(url)) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {}
+    }
     activeObjectUrls.delete(trackId);
   }
 
@@ -411,10 +534,14 @@ export async function removeTrackOffline(trackId: string): Promise<void> {
  * Clears all downloaded audio tracks and purges offline storage completely.
  */
 export async function clearAllOfflineTracks(): Promise<void> {
+  vaultGlobalEpoch += 1;
+
   activeObjectUrls.forEach((url) => {
-    try {
-      URL.revokeObjectURL(url);
-    } catch {}
+    if (!isUrlCurrentlyPlaying(url)) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {}
+    }
   });
   activeObjectUrls.clear();
 
@@ -445,7 +572,7 @@ export async function enforceAutoCacheLimit(maxMb: number): Promise<void> {
   const autoCacheTracks = allTracks.filter((t) => t.offlineSource === 'auto-cache');
 
   let currentBytes = autoCacheTracks.reduce(
-    (acc, t) => acc + (t.fileSizeBytes || 6.8 * 1024 * 1024),
+    (acc, t) => acc + (t.fileSizeBytes && t.fileSizeBytes > 0 ? t.fileSizeBytes : 0),
     0
   );
   if (currentBytes <= maxBytes) return;
@@ -458,7 +585,7 @@ export async function enforceAutoCacheLimit(maxMb: number): Promise<void> {
   for (const track of sorted) {
     if (currentBytes <= maxBytes) break;
     await removeTrackOffline(track.id);
-    currentBytes -= track.fileSizeBytes || 6.8 * 1024 * 1024;
+    currentBytes -= track.fileSizeBytes && track.fileSizeBytes > 0 ? track.fileSizeBytes : 0;
   }
 }
 
@@ -472,10 +599,14 @@ export async function clearAutoCacheOnly(): Promise<number> {
 
   await Promise.all(
     autoCacheTracks.map(async (track) => {
+      trackDeleteEpochs.set(track.id, ++trackOpSeq);
       if (activeObjectUrls.has(track.id)) {
-        try {
-          URL.revokeObjectURL(activeObjectUrls.get(track.id)!);
-        } catch {}
+        const url = activeObjectUrls.get(track.id)!;
+        if (!isUrlCurrentlyPlaying(url)) {
+          try {
+            URL.revokeObjectURL(url);
+          } catch {}
+        }
         activeObjectUrls.delete(track.id);
       }
       try {
@@ -506,11 +637,12 @@ export async function clearAutoCacheOnly(): Promise<number> {
  */
 export function autoCacheTrack(track: Track): void {
   if (!track || !track.id) return;
-  if (isTrackOffline(track.id) || activeSavingIds.has(track.id)) return;
+  if (isTrackOffline(track.id) || activeSavingIds.has(track.id) || inFlightSaves.has(track.id)) return;
   const isEnabled = useSettingsStore.getState().autoCachePlayingTracks ?? true;
   if (!isEnabled) return;
 
   setTimeout(() => {
+    if (isTrackOffline(track.id) || activeSavingIds.has(track.id) || inFlightSaves.has(track.id)) return;
     saveTrackOffline(track, 'auto-cache').catch(() => {});
   }, 100);
 }
@@ -522,11 +654,12 @@ let precacheQueueTimer: ReturnType<typeof setTimeout> | null = null;
  */
 export function precacheTrack(track: Track): void {
   if (!track || !track.id) return;
-  if (isTrackOffline(track.id) || activeSavingIds.has(track.id)) return;
+  if (isTrackOffline(track.id) || activeSavingIds.has(track.id) || inFlightSaves.has(track.id)) return;
   const isEnabled = useSettingsStore.getState().precacheNextTrack ?? true;
   if (!isEnabled) return;
 
   setTimeout(() => {
+    if (isTrackOffline(track.id) || activeSavingIds.has(track.id) || inFlightSaves.has(track.id)) return;
     saveTrackOffline(track, 'auto-cache').catch(() => {});
   }, 400);
 }
@@ -556,8 +689,9 @@ export function predictivePrecacheQueue(
     let delayMs = 0;
     for (const track of candidates) {
       if (!track || !track.id) continue;
-      if (isTrackOffline(track.id) || activeSavingIds.has(track.id)) continue;
+      if (isTrackOffline(track.id) || activeSavingIds.has(track.id) || inFlightSaves.has(track.id)) continue;
       setTimeout(() => {
+        if (isTrackOffline(track.id) || activeSavingIds.has(track.id) || inFlightSaves.has(track.id)) return;
         saveTrackOffline(track, 'auto-cache').catch(() => {});
       }, delayMs);
       delayMs += 3500;
@@ -574,15 +708,7 @@ export async function toggleOfflineTrack(track: Track): Promise<void> {
     await removeTrackOffline(track.id);
     return;
   }
-  if (activeSavingIds.has(track.id)) return;
-  activeSavingIds.add(track.id);
-  notifyListeners(track.id);
-  try {
-    await saveTrackOffline(track);
-  } finally {
-    activeSavingIds.delete(track.id);
-    notifyListeners(track.id);
-  }
+  await saveTrackOffline(track, 'manual');
 }
 
 export interface PlaylistDownloadProgress {
@@ -614,22 +740,32 @@ export async function savePlaylistOffline(
 ): Promise<{ success: number; failed: number }> {
   if (!tracks || tracks.length === 0) return { success: 0, failed: 0 };
 
-  const missing = tracks.filter((t) => !isTrackOffline(t.id));
+  const uniqueTracks: Track[] = [];
+  const seenIds = new Set<string>();
+  for (const t of tracks) {
+    if (t && t.id && !seenIds.has(t.id)) {
+      seenIds.add(t.id);
+      uniqueTracks.push(t);
+    }
+  }
+  if (uniqueTracks.length === 0) return { success: 0, failed: 0 };
+
+  const missing = uniqueTracks.filter((t) => !isTrackOffline(t.id));
   if (missing.length === 0) {
     onProgress?.({
-      total: tracks.length,
-      completed: tracks.length,
+      total: uniqueTracks.length,
+      completed: uniqueTracks.length,
       isDownloading: false,
       failedCount: 0
     });
     return { success: 0, failed: 0 };
   }
 
-  let completed = tracks.length - missing.length;
+  let completed = uniqueTracks.length - missing.length;
   let failed = 0;
 
   onProgress?.({
-    total: tracks.length,
+    total: uniqueTracks.length,
     completed,
     isDownloading: true,
     failedCount: 0
@@ -645,18 +781,15 @@ export async function savePlaylistOffline(
       if (!current) break;
 
       onProgress?.({
-        total: tracks.length,
+        total: uniqueTracks.length,
         completed,
         currentTrackTitle: current.title,
         isDownloading: true,
         failedCount: failed
       });
 
-      activeSavingIds.add(current.id);
-      notifyListeners(current.id);
-
       try {
-        const ok = await saveTrackOffline(current);
+        const ok = await saveTrackOffline(current, 'manual');
         if (ok) {
           completed++;
         } else {
@@ -664,13 +797,10 @@ export async function savePlaylistOffline(
         }
       } catch {
         failed++;
-      } finally {
-        activeSavingIds.delete(current.id);
-        notifyListeners(current.id);
       }
 
       onProgress?.({
-        total: tracks.length,
+        total: uniqueTracks.length,
         completed,
         isDownloading: true,
         failedCount: failed
@@ -682,13 +812,13 @@ export async function savePlaylistOffline(
   await Promise.all(workers);
 
   onProgress?.({
-    total: tracks.length,
+    total: uniqueTracks.length,
     completed,
     isDownloading: false,
     failedCount: failed
   });
 
-  return { success: completed - (tracks.length - missing.length), failed };
+  return { success: completed - (uniqueTracks.length - missing.length), failed };
 }
 
 /**
@@ -700,19 +830,23 @@ const MAX_ACTIVE_OBJECT_URLS = 6;
 
 function storeActiveObjectUrl(trackId: string, url: string): void {
   if (activeObjectUrls.has(trackId)) {
-    try {
-      URL.revokeObjectURL(activeObjectUrls.get(trackId)!);
-    } catch {}
+    const existing = activeObjectUrls.get(trackId)!;
+    if (existing !== url && !isUrlCurrentlyPlaying(existing)) {
+      try {
+        URL.revokeObjectURL(existing);
+      } catch {}
+    }
     activeObjectUrls.delete(trackId);
   }
-  // Evict and revoke oldest active Blob URL when exceeding cache limit
+  // Evict oldest non-playing Blob URL when exceeding cache limit (never break active <audio> playback)
   if (activeObjectUrls.size >= MAX_ACTIVE_OBJECT_URLS) {
-    const oldestKey = activeObjectUrls.keys().next().value;
-    if (oldestKey) {
+    for (const [candidateId, candidateUrl] of activeObjectUrls.entries()) {
+      if (isUrlCurrentlyPlaying(candidateUrl)) continue;
       try {
-        URL.revokeObjectURL(activeObjectUrls.get(oldestKey)!);
+        URL.revokeObjectURL(candidateUrl);
       } catch {}
-      activeObjectUrls.delete(oldestKey);
+      activeObjectUrls.delete(candidateId);
+      break;
     }
   }
   activeObjectUrls.set(trackId, url);
@@ -721,7 +855,11 @@ function storeActiveObjectUrl(trackId: string, url: string): void {
 export async function getOfflineAudioObjectUrl(trackId: string): Promise<string | null> {
   if (!trackId) return null;
   if (activeObjectUrls.has(trackId)) {
-    return activeObjectUrls.get(trackId)!;
+    const existingUrl = activeObjectUrls.get(trackId)!;
+    // Refresh LRU recency
+    activeObjectUrls.delete(trackId);
+    activeObjectUrls.set(trackId, existingUrl);
+    return existingUrl;
   }
 
   // 1. Check IndexedDB store (Works in Electron file:, Android, and Web)
@@ -762,21 +900,18 @@ export async function getOfflineStorageEstimate(): Promise<{
   formattedUsed: string;
   quotaFormatted: string;
 }> {
-  let used = 0;
+  const tracks = getOfflineTracks();
+  const used = tracks.reduce(
+    (acc, t) => acc + (t.fileSizeBytes && t.fileSizeBytes > 0 ? t.fileSizeBytes : 6.8 * 1024 * 1024),
+    0
+  );
   let total = 0;
 
   if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
     try {
       const est = await navigator.storage.estimate();
-      used = est.usage || 0;
       total = est.quota || 0;
     } catch {}
-  }
-
-  if (used === 0) {
-    const tracks = getOfflineTracks();
-    const recordedTotal = tracks.reduce((acc, t) => acc + (t.fileSizeBytes || 0), 0);
-    used = recordedTotal > 0 ? recordedTotal : tracks.length * 6.8 * 1024 * 1024;
   }
 
   const formatSize = (bytes: number) => {

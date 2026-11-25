@@ -2,32 +2,42 @@ import { defineConfig, type Connect, type ViteDevServer, type PreviewServer } fr
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
-// @ts-ignore
-import musicApiHandler from './api/music.js';
+import musicApiHandler, { type ApiResponse } from './api/music.js';
 
 function wavecraftApiPlugin() {
   const middleware = async (req: Connect.IncomingMessage, res: Connect.ServerResponse, next: Connect.NextFunction) => {
-    if (req.url && req.url.startsWith('/api/music')) {
-      const wrappedRes = Object.assign(res, {
+    const pathname = req.url?.split('?')[0];
+    if (pathname === '/api/music' || pathname === '/api/music/') {
+      const wrappedRes: ApiResponse = Object.assign(res, {
         status(code: number) {
           res.statusCode = code;
-          return this;
+          return wrappedRes;
         },
         json(data: unknown) {
           if (!res.headersSent) res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify(data));
-          return this;
+          return wrappedRes;
         },
         send(data: unknown) {
-          res.end(data as string | Buffer | undefined);
-          return this;
+          if (typeof data === 'object' && data !== null && !(data instanceof Uint8Array)) {
+            if (!res.headersSent) res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(data));
+            return wrappedRes;
+          }
+          res.end(data as string | Uint8Array | undefined);
+          return wrappedRes;
         }
       });
       try {
         await musicApiHandler(req, wrappedRes);
       } catch (e) {
-        res.statusCode = 500;
-        res.end(JSON.stringify({ error: String(e) }));
+        if (!res.headersSent) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: String(e) }));
+        } else if (!res.writableEnded) {
+          res.end();
+        }
       }
       return;
     }
@@ -66,25 +76,36 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('@capacitor')) return 'vendor-capacitor';
-            if (id.includes('framer-motion')) return 'vendor-motion';
-            if (id.includes('zustand') || id.includes('idb-keyval')) return 'vendor-storage';
-            if (id.includes('colorthief')) return 'vendor-color';
-            if (id.includes('react') || id.includes('scheduler')) return 'vendor-react';
+          const normId = id.replace(/\\/g, '/');
+          if (normId.includes('/node_modules/')) {
+            if (normId.includes('/node_modules/@capacitor/')) return 'vendor-capacitor';
+            if (normId.includes('/node_modules/framer-motion/')) return 'vendor-motion';
+            if (
+              normId.includes('/node_modules/zustand/') ||
+              normId.includes('/node_modules/idb-keyval/')
+            ) {
+              return 'vendor-storage';
+            }
+            if (normId.includes('/node_modules/colorthief/')) return 'vendor-color';
+            if (
+              normId.includes('/node_modules/react/') ||
+              normId.includes('/node_modules/react-dom/') ||
+              normId.includes('/node_modules/scheduler/')
+            ) {
+              return 'vendor-react';
+            }
           }
           if (
-            id.includes('/components/player/StudioFXModal') ||
-            id.includes('/components/layout/CommandPalette')
+            normId.includes('/components/player/StudioFXModal') ||
+            normId.includes('/components/layout/CommandPalette')
           ) {
             return 'studio-workstation';
           }
           if (
-            id.includes('/components/player/NowPlaying') ||
-            id.includes('/components/player/QueuePanel') ||
-            id.includes('/components/player/WaveCardModal') ||
-            id.includes('/components/lyrics/LyricsView') ||
-            id.includes('/components/visualizer/Visualizer')
+            normId.includes('/components/player/NowPlaying') ||
+            normId.includes('/components/player/QueuePanel') ||
+            normId.includes('/components/lyrics/LyricsView') ||
+            normId.includes('/components/visualizer/Visualizer')
           ) {
             return 'player-fullscreen';
           }

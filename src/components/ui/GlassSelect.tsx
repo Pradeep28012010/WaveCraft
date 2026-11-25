@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { useOverlayEscape } from './dialogStack';
 
 export interface GlassSelectOption<T = string | number> {
   value: T;
@@ -72,8 +73,10 @@ export default function GlassSelect<T extends string | number = string>({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  useOverlayEscape(isOpen, () => setIsOpen(false));
+
   const currentSize = SIZE_CONFIG[size] || SIZE_CONFIG.md;
-  const selectedOption = options.find((o) => String(o.value) === String(value)) || options[0];
+  const selectedOption = options.find((o) => String(o.value) === String(value));
 
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
@@ -128,22 +131,16 @@ export default function GlassSelect<T extends string | number = string>({
       }
     };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
-    };
-
     window.addEventListener('scroll', updatePosition, true);
     window.addEventListener('resize', updatePosition);
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.removeEventListener('scroll', updatePosition, true);
       window.removeEventListener('resize', updatePosition);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, updatePosition]);
 

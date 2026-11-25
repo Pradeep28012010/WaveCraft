@@ -3,13 +3,56 @@
  * Manages shared synchronized playback, collaborative queues, live chat, and WebRTC signalling.
  */
 
+import { randomBytes, timingSafeEqual } from 'node:crypto';
+
 export const jamRooms = new Map();
 export const roomSubscribers = new Map();
+
+const MAX_JAM_ROOMS = 500;
+const MAX_SUBSCRIBERS_PER_ROOM = 100;
+const ROOM_IDLE_TTL_MS = 7_200_000;
+
+function secretsMatch(provided, expected) {
+  if (typeof provided !== 'string' || typeof expected !== 'string' || !provided || !expected) {
+    return false;
+  }
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export function sanitizeRoom(room) {
+  if (!room || typeof room !== 'object') return room;
+  const { hostId, hostSecret, guestTracks, ...publicFields } = room;
+  return {
+    ...publicFields,
+    members: Array.isArray(room.members)
+      ? room.members.map((m) => ({
+          ...m,
+          isHost: Boolean(hostId && m?.id === hostId)
+        }))
+      : []
+  };
+}
+
+function closeRoomSubscribers(roomCode) {
+  const subs = roomSubscribers.get(roomCode);
+  if (!subs) return;
+  for (const client of subs) {
+    try {
+      client.end?.();
+    } catch {}
+  }
+  roomSubscribers.delete(roomCode);
+}
 
 export function broadcastToRoom(roomCode, data) {
   const subs = roomSubscribers.get(roomCode);
   if (!subs || subs.size === 0) return;
-  const msg = `data: ${JSON.stringify(data)}\n\n`;
+  const sanitized = data && typeof data === 'object' && ('hostId' in data || 'hostSecret' in data)
+    ? sanitizeRoom(data)
+    : data;
+  const msg = `data: ${JSON.stringify(sanitized)}\n\n`;
   for (const client of Array.from(subs)) {
     try {
       if (typeof client.write === 'function') {
@@ -32,6 +75,13 @@ export function handleJamRoomSseStream(req, res, roomCode) {
     roomSubscribers.set(roomCode, new Set());
   }
   const subs = roomSubscribers.get(roomCode);
+  if (subs.size >= MAX_SUBSCRIBERS_PER_ROOM) {
+    const oldest = subs.values().next().value;
+    if (oldest) {
+      subs.delete(oldest);
+      try { oldest.end?.(); } catch {}
+    }
+  }
   subs.add(res);
 
   if (typeof res.write === 'function') {
@@ -39,7 +89,7 @@ export function handleJamRoomSseStream(req, res, roomCode) {
   }
   const room = jamRooms.get(roomCode);
   if (room && typeof res.write === 'function') {
-    res.write(`data: ${JSON.stringify(room)}\n\n`);
+    res.write(`data: ${JSON.stringify(sanitizeRoom(room))}\n\n`);
   }
 
   const keepAlive = setInterval(() => {
@@ -112,35 +162,51 @@ export async function readJsonBody(req) {
 
 export async function handleJamRoomRequest(req, url, roomCode) {
   const now = Date.now();
-  // Clean up expired rooms (> 2 hours idle)
+  // Clean up expired rooms (> 2 hours idle) and enforce bounded map capacity
   for (const [key, rm] of jamRooms.entries()) {
-    if (now - rm.updatedAt > 7_200_000) {
+    if (now - rm.updatedAt > ROOM_IDLE_TTL_MS) {
       jamRooms.delete(key);
-      const subs = roomSubscribers.get(key);
-      if (subs) {
-        for (const client of subs) {
-          try {
-            client.end();
-          } catch {}
-        }
-        roomSubscribers.delete(key);
-      }
+      closeRoomSubscribers(key);
     }
   }
 
-  const op = url.searchParams.get('op') || (req.method === 'POST' ? 'sync' : 'get');
+  const rawOp = (url.searchParams.get('op') || (req.method === 'POST' ? 'sync' : 'get')).trim().toLowerCase();
   const body = req.method === 'POST' ? await readJsonBody(req) : {};
+  const requestedEventType = typeof body.eventType === 'string' ? body.eventType.trim() : '';
 
-  const userId = body.userId || url.searchParams.get('userId');
-  const userName = body.userName || url.searchParams.get('userName');
+  const rawUserId = body.userId ?? url.searchParams.get('userId');
+  const userId = typeof rawUserId === 'string' ? rawUserId.trim().slice(0, 128) : '';
+  const rawUserName = body.userName ?? url.searchParams.get('userName');
+  const userName = typeof rawUserName === 'string' ? rawUserName.trim().slice(0, 80) : '';
+
+  const isHostClaimIntent =
+    Boolean(userId) &&
+    (rawOp === 'create' ||
+      (body.isHost === true &&
+        (rawOp === 'sync' || rawOp === 'play-track' || rawOp === 'toggle-play' || rawOp === 'add-track')));
 
   let room = jamRooms.get(roomCode);
+  let justClaimedHost = false;
+
   if (!room) {
-    const isCreatingOrSyncingHost = op === 'sync' || Boolean(body.hostName) || Boolean(body.isHost);
+    while (jamRooms.size >= MAX_JAM_ROOMS) {
+      const oldestKey = jamRooms.keys().next().value;
+      if (!oldestKey) break;
+      jamRooms.delete(oldestKey);
+      closeRoomSubscribers(oldestKey);
+    }
+
+    const hostSecret = isHostClaimIntent ? randomBytes(24).toString('hex') : null;
+    if (isHostClaimIntent) justClaimedHost = true;
+
     room = {
       roomCode,
-      hostId: isCreatingOrSyncingHost ? userId || 'host' : 'host',
-      hostName: body.hostName || (isCreatingOrSyncingHost ? userName : null) || 'DJ Host',
+      hostId: isHostClaimIntent ? userId : null,
+      hostSecret,
+      hostName:
+        (typeof body.hostName === 'string' && body.hostName.trim()) ||
+        (isHostClaimIntent && userName) ||
+        'DJ Host',
       currentTrack: null,
       isPlaying: false,
       currentTime: 0,
@@ -148,17 +214,42 @@ export async function handleJamRoomRequest(req, url, roomCode) {
       trackOverrideAt: 0,
       stateVersion: 1,
       queue: [],
-      guestTracks: [],
       members: [],
       reactions: [],
       messages: []
     };
     jamRooms.set(roomCode, room);
+  } else if (!room.hostId && !room.hostSecret && isHostClaimIntent && rawOp !== 'add-track') {
+    // Allow host creation claim if a guest polled op=get before the host's initial sync landed
+    room.hostId = userId;
+    room.hostSecret = randomBytes(24).toString('hex');
+    justClaimedHost = true;
   }
 
-  if (op === 'leave' && userId) {
-    room.members = room.members.filter((m) => m.id !== userId);
-    return room;
+  if (rawOp === 'leave') {
+    if (userId) {
+      const leaving = room.members.find((m) => m.id === userId);
+      room.members = room.members.filter((m) => m.id !== userId);
+      if (leaving) {
+        room.messages.push({
+          id: `sys-leave-${userId}-${now}`,
+          sender: 'WaveJam',
+          text: `👋 ${leaving.name || userName || 'A listener'} left the Jam`,
+          isSystem: true,
+          createdAt: now
+        });
+        room.messages = room.messages.slice(-40);
+      }
+      room.updatedAt = now;
+    }
+    const leavePayload = {
+      ...sanitizeRoom(room),
+      eventType: 'leave',
+      userId: userId || undefined,
+      serverTime: now
+    };
+    broadcastToRoom(roomCode, leavePayload);
+    return leavePayload;
   }
 
   if (userId && userName) {
@@ -166,19 +257,24 @@ export async function handleJamRoomRequest(req, url, roomCode) {
     if (existing) {
       existing.name = userName;
       existing.lastSeen = now;
-      if (body.seatId) existing.seatId = body.seatId;
-      if (typeof body.seatX === 'number') existing.x = body.seatX;
-      if (typeof body.seatY === 'number') existing.y = body.seatY;
-      if (typeof body.seatPan === 'number') existing.pan = body.seatPan;
+      if (body.seatId) existing.seatId = String(body.seatId).slice(0, 64);
+      if (typeof body.seatX === 'number' && Number.isFinite(body.seatX)) existing.x = body.seatX;
+      if (typeof body.seatY === 'number' && Number.isFinite(body.seatY)) existing.y = body.seatY;
+      if (typeof body.seatPan === 'number' && Number.isFinite(body.seatPan)) {
+        existing.pan = Math.max(-0.85, Math.min(0.85, body.seatPan));
+      }
     } else {
       room.members.push({
         id: userId,
         name: userName,
         lastSeen: now,
-        seatId: body.seatId,
-        x: body.seatX,
-        y: body.seatY,
-        pan: body.seatPan
+        seatId: body.seatId ? String(body.seatId).slice(0, 64) : undefined,
+        x: typeof body.seatX === 'number' && Number.isFinite(body.seatX) ? body.seatX : undefined,
+        y: typeof body.seatY === 'number' && Number.isFinite(body.seatY) ? body.seatY : undefined,
+        pan:
+          typeof body.seatPan === 'number' && Number.isFinite(body.seatPan)
+            ? Math.max(-0.85, Math.min(0.85, body.seatPan))
+            : undefined
       });
       room.messages.push({
         id: `sys-${now}-${Math.random().toString(36).slice(2, 6)}`,
@@ -197,79 +293,253 @@ export async function handleJamRoomRequest(req, url, roomCode) {
   // Keep last 40 chat messages
   room.messages = (room.messages || []).slice(-40);
 
-  // Authoritative host check: sender must be the designated room host
+  // Strict authoritative host check: non-empty userId matching room.hostId + verified secret (or initial host claim)
+  const providedSecret =
+    typeof (body.hostSecret ?? body.hostToken) === 'string'
+      ? (body.hostSecret ?? body.hostToken).trim()
+      : '';
   const isHostSender =
-    Boolean(body.isHost) &&
-    (room.hostId === 'host' || !room.hostId || room.hostId === userId || !userId);
+    Boolean(userId) &&
+    Boolean(room.hostId) &&
+    userId === room.hostId &&
+    body.isHost === true &&
+    (justClaimedHost || secretsMatch(providedSecret, room.hostSecret));
 
-  if (op === 'sync') {
-    if (isHostSender) {
-      if (userId) room.hostId = userId;
-      if (body.hostName) room.hostName = body.hostName;
+  if (rawOp === 'get') {
+    return {
+      ...sanitizeRoom(room),
+      eventType: 'get',
+      serverTime: now
+    };
+  }
 
-      if (body.currentTrack !== undefined && (body.currentTrack || !room.currentTrack)) {
-        room.currentTrack = body.currentTrack;
-      }
-      if (typeof body.isPlaying === 'boolean') room.isPlaying = body.isPlaying;
-      if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
-      if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
-
-      if (Array.isArray(body.queue)) {
-        const merged = [...body.queue];
-        for (const gt of room.guestTracks || []) {
-          if (!merged.some((t) => t.id === gt.id)) {
-            merged.push(gt);
-          }
-        }
-        room.queue = merged.slice(0, 40);
+  if (rawOp === 'sync' || rawOp === 'create') {
+    if (requestedEventType === 'join') {
+      if (body.message?.id && body.message?.text && !room.messages.some((m) => m.id === body.message.id)) {
+        room.messages.push({
+          id: String(body.message.id).slice(0, 80),
+          sender: 'WaveJam',
+          text: String(body.message.text).slice(0, 240),
+          isSystem: true,
+          createdAt: typeof body.message.createdAt === 'number' ? body.message.createdAt : now
+        });
+        room.messages = room.messages.slice(-40);
       }
       room.updatedAt = now;
+      const joinPayload = {
+        ...sanitizeRoom(room),
+        eventType: 'join',
+        userId: userId || undefined,
+        userName: userName || undefined,
+        seatId: body.seatId,
+        seatX: body.seatX,
+        seatY: body.seatY,
+        seatPan: body.seatPan,
+        serverTime: now
+      };
+      broadcastToRoom(roomCode, joinPayload);
+      return joinPayload;
     }
-  } else if (op === 'react') {
-    const emoji = body.emoji || url.searchParams.get('emoji') || '🔥';
-    const sender = userName || 'Listener';
-    const reactionId = body.id || `${now}-${Math.random().toString(36).slice(2, 6)}`;
-    if (!room.reactions.some((r) => r.id === reactionId)) {
-      room.reactions.push({
-        id: reactionId,
-        emoji,
-        sender,
-        createdAt: now,
-        x: typeof body.x === 'number' ? body.x : undefined,
-        y: typeof body.y === 'number' ? body.y : undefined,
-        seatId: body.seatId || undefined
-      });
+
+    if (requestedEventType === 'sync-ping') {
+      const pingPayload = {
+        ...sanitizeRoom(room),
+        eventType: 'sync-ping',
+        guestId: body.guestId || userId || undefined,
+        clientSendEpoch: body.clientSendEpoch,
+        serverTime: now
+      };
+      broadcastToRoom(roomCode, pingPayload);
+      return pingPayload;
     }
-  } else if (op === 'seat' && userId) {
-    const mem = room.members.find((m) => m.id === userId);
-    if (mem) {
-      if (body.seatId) mem.seatId = body.seatId;
-      if (typeof body.seatX === 'number') mem.x = body.seatX;
-      if (typeof body.seatY === 'number') mem.y = body.seatY;
-      if (typeof body.seatPan === 'number') mem.pan = body.seatPan;
-      mem.lastSeen = now;
+
+    if (requestedEventType === 'sync-pong') {
+      if (!isHostSender) {
+        return { ...sanitizeRoom(room), eventType: 'sync-pong', rejected: true, serverTime: now };
+      }
+      const pongPayload = {
+        ...sanitizeRoom(room),
+        eventType: 'sync-pong',
+        targetGuestId: body.targetGuestId,
+        clientSendEpoch: body.clientSendEpoch,
+        hostReceiveEpoch: body.hostReceiveEpoch,
+        hostSendEpoch: body.hostSendEpoch,
+        serverTime: now
+      };
+      broadcastToRoom(roomCode, pongPayload);
+      return pongPayload;
+    }
+
+    if (requestedEventType === 'sync-beep') {
+      if (!isHostSender) {
+        return { ...sanitizeRoom(room), eventType: 'sync-beep', rejected: true, serverTime: now };
+      }
+      const beepPayload = {
+        ...sanitizeRoom(room),
+        eventType: 'sync-beep',
+        rendezvousAt: body.rendezvousAt,
+        serverTime: now
+      };
+      broadcastToRoom(roomCode, beepPayload);
+      return beepPayload;
+    }
+
+    if (requestedEventType === 'sync-anchor') {
+      if (!isHostSender) {
+        return { ...sanitizeRoom(room), eventType: 'sync-anchor', rejected: true, serverTime: now };
+      }
+      if (body.syncAnchor && typeof body.syncAnchor === 'object') {
+        room.syncAnchor = body.syncAnchor;
+      }
+      room.updatedAt = now;
+      const anchorPayload = {
+        ...sanitizeRoom(room),
+        eventType: 'sync-anchor',
+        syncAnchor: room.syncAnchor,
+        serverTime: now
+      };
+      broadcastToRoom(roomCode, anchorPayload);
+      return anchorPayload;
+    }
+
+    if (!isHostSender) {
+      return {
+        ...sanitizeRoom(room),
+        eventType: rawOp,
+        rejected: true,
+        serverTime: now
+      };
+    }
+
+    if (typeof body.hostName === 'string' && body.hostName.trim()) {
+      room.hostName = body.hostName.trim().slice(0, 80);
+    }
+    if (body.currentTrack === null || (body.currentTrack && typeof body.currentTrack === 'object')) {
+      room.currentTrack = body.currentTrack;
+    }
+    if (typeof body.isPlaying === 'boolean') room.isPlaying = body.isPlaying;
+    if (typeof body.currentTime === 'number' && Number.isFinite(body.currentTime)) {
+      room.currentTime = body.currentTime;
+    }
+    if (body.syncAnchor && typeof body.syncAnchor === 'object') room.syncAnchor = body.syncAnchor;
+    if (Array.isArray(body.queue)) {
+      room.queue = body.queue.slice(0, 40);
     }
     room.updatedAt = now;
-  } else if (op === 'chat' && body.text) {
-    const msgId = body.id || `${now}-${Math.random().toString(36).slice(2, 6)}`;
-    if (!room.messages.some((m) => m.id === msgId)) {
-      room.messages.push({
-        id: msgId,
-        sender: userName || 'Listener',
-        text: String(body.text).slice(0, 240),
-        createdAt: now
-      });
+
+    const publicSync = {
+      ...sanitizeRoom(room),
+      eventType: 'sync',
+      serverTime: now
+    };
+    broadcastToRoom(roomCode, publicSync);
+    return {
+      ...publicSync,
+      ...(justClaimedHost && room.hostSecret ? { hostSecret: room.hostSecret, hostToken: room.hostSecret } : {})
+    };
+  }
+
+  if (rawOp === 'react') {
+    const emoji = String(body.emoji || url.searchParams.get('emoji') || '🔥').slice(0, 16);
+    const sender = userName || 'Listener';
+    const reactionId = String(body.id || `${now}-${Math.random().toString(36).slice(2, 6)}`).slice(0, 80);
+    const reactionObj = {
+      id: reactionId,
+      emoji,
+      sender,
+      createdAt: now,
+      x: typeof body.x === 'number' ? body.x : undefined,
+      y: typeof body.y === 'number' ? body.y : undefined,
+      seatId: body.seatId ? String(body.seatId).slice(0, 64) : undefined
+    };
+    if (!room.reactions.some((r) => r.id === reactionId)) {
+      room.reactions.push(reactionObj);
     }
-  } else if (op === 'add-track' && body.track) {
+    room.updatedAt = now;
+    const payload = {
+      ...sanitizeRoom(room),
+      eventType: 'react',
+      reaction: reactionObj,
+      serverTime: now
+    };
+    broadcastToRoom(roomCode, payload);
+    return payload;
+  }
+
+  if ((rawOp === 'seat' || rawOp === 'member-seat') && userId) {
+    let mem = room.members.find((m) => m.id === userId);
+    const safeSeatId = body.seatId ? String(body.seatId).slice(0, 64) : mem?.seatId;
+    const safeX = typeof body.seatX === 'number' && Number.isFinite(body.seatX) ? body.seatX : mem?.x ?? 50;
+    const safeY = typeof body.seatY === 'number' && Number.isFinite(body.seatY) ? body.seatY : mem?.y ?? 50;
+    const safePan =
+      typeof body.seatPan === 'number' && Number.isFinite(body.seatPan)
+        ? Math.max(-0.85, Math.min(0.85, body.seatPan))
+        : mem?.pan ?? 0;
+
+    if (mem) {
+      mem.seatId = safeSeatId;
+      mem.x = safeX;
+      mem.y = safeY;
+      mem.pan = safePan;
+      mem.lastSeen = now;
+    } else if (userName) {
+      mem = {
+        id: userId,
+        name: userName,
+        lastSeen: now,
+        seatId: safeSeatId,
+        x: safeX,
+        y: safeY,
+        pan: safePan
+      };
+      room.members.push(mem);
+    }
+    room.updatedAt = now;
+
+    const seatPayload = {
+      ...sanitizeRoom(room),
+      eventType: 'member-seat',
+      userId,
+      seatId: safeSeatId,
+      seatX: safeX,
+      seatY: safeY,
+      seatPan: safePan,
+      serverTime: now
+    };
+    broadcastToRoom(roomCode, seatPayload);
+    return seatPayload;
+  }
+
+  if (rawOp === 'chat' && body.text) {
+    const msgId = String(body.id || `${now}-${Math.random().toString(36).slice(2, 6)}`).slice(0, 80);
+    const msgObj = {
+      id: msgId,
+      sender: userName || 'Listener',
+      text: String(body.text).slice(0, 240),
+      createdAt: now
+    };
+    if (!room.messages.some((m) => m.id === msgId)) {
+      room.messages.push(msgObj);
+    }
+    room.updatedAt = now;
+    const chatPayload = {
+      ...sanitizeRoom(room),
+      eventType: 'chat',
+      message: msgObj,
+      serverTime: now
+    };
+    broadcastToRoom(roomCode, chatPayload);
+    return chatPayload;
+  }
+
+  if (rawOp === 'add-track' && body.track && typeof body.track === 'object') {
     const exists = room.queue.some((t) => t.id === body.track.id);
     if (!exists) {
       room.queue.push(body.track);
+      room.queue = room.queue.slice(0, 40);
     }
-    if (!room.guestTracks.some((t) => t.id === body.track.id)) {
-      room.guestTracks.push(body.track);
-    }
-    // Only the Host can force immediate track switch via playNow
-    if (isHostSender && (body.playNow || !room.currentTrack)) {
+    const allowPlayNow = isHostSender && (Boolean(body.playNow) || !room.currentTrack);
+    if (allowPlayNow) {
       room.currentTrack = body.track;
       room.isPlaying = true;
       room.currentTime = 0;
@@ -280,11 +550,23 @@ export async function handleJamRoomRequest(req, url, roomCode) {
     room.messages.push({
       id: `sys-${now}-${Math.random().toString(36).slice(2, 6)}`,
       sender: 'WaveJam',
-      text: `🎵 ${userName || 'A listener'} ${body.playNow && isHostSender ? 'started playing' : 'queued'} "${body.track.title}"`,
+      text: `🎵 ${userName || 'A listener'} ${allowPlayNow ? 'started playing' : 'queued'} "${String(body.track.title || 'Track').slice(0, 120)}"`,
       isSystem: true,
       createdAt: now
     });
-  } else if (op === 'signal' && body.signal) {
+    const addPayload = {
+      ...sanitizeRoom(room),
+      eventType: 'add-track',
+      addedTrack: body.track,
+      playNow: allowPlayNow,
+      isHost: isHostSender,
+      serverTime: now
+    };
+    broadcastToRoom(roomCode, addPayload);
+    return addPayload;
+  }
+
+  if (rawOp === 'signal' && body.signal) {
     broadcastToRoom(roomCode, {
       eventType: 'webrtc-signal',
       roomCode,
@@ -293,37 +575,64 @@ export async function handleJamRoomRequest(req, url, roomCode) {
       guestId: body.guestId || body.signal?.from
     });
     return { ok: true };
-  } else if (op === 'play-track' && body.track) {
-    // Only the Host can command play-track
-    if (isHostSender) {
-      if (!room.queue.some((t) => t.id === body.track.id)) {
-        room.queue.push(body.track);
-      }
-      room.currentTrack = body.track;
-      room.isPlaying = true;
-      room.currentTime = 0;
-      room.trackOverrideAt = now;
-      room.stateVersion = (room.stateVersion || 1) + 1;
-      room.updatedAt = now;
-      if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
-      if (body.rendezvousAt) room.rendezvousAt = body.rendezvousAt;
-    }
-  } else if (op === 'toggle-play' && typeof body.isPlaying === 'boolean') {
-    // Only the Host can command toggle-play
-    if (isHostSender) {
-      room.isPlaying = body.isPlaying;
-      if (typeof body.currentTime === 'number') room.currentTime = body.currentTime;
-      if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
-      if (body.rendezvousAt) room.rendezvousAt = body.rendezvousAt;
-      room.updatedAt = now;
-    }
   }
 
-  const payload = {
-    ...room,
-    eventType: op,
+  if (rawOp === 'play-track') {
+    const playTrack = body.track || body.currentTrack;
+    if (!isHostSender || !playTrack || typeof playTrack !== 'object') {
+      return { ...sanitizeRoom(room), eventType: 'play-track', rejected: true, serverTime: now };
+    }
+    if (!room.queue.some((t) => t.id === playTrack.id)) {
+      room.queue.push(playTrack);
+      room.queue = room.queue.slice(0, 40);
+    }
+    room.currentTrack = playTrack;
+    room.isPlaying = true;
+    room.currentTime = 0;
+    room.trackOverrideAt = now;
+    room.stateVersion = (room.stateVersion || 1) + 1;
+    room.updatedAt = now;
+    if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
+    if (body.rendezvousAt) room.rendezvousAt = body.rendezvousAt;
+
+    const playPayload = {
+      ...sanitizeRoom(room),
+      eventType: 'play-track',
+      isHost: true,
+      rendezvousAt: room.rendezvousAt,
+      serverTime: now
+    };
+    broadcastToRoom(roomCode, playPayload);
+    return playPayload;
+  }
+
+  if (rawOp === 'toggle-play' && typeof body.isPlaying === 'boolean') {
+    if (!isHostSender) {
+      return { ...sanitizeRoom(room), eventType: 'toggle-play', rejected: true, serverTime: now };
+    }
+    room.isPlaying = body.isPlaying;
+    if (typeof body.currentTime === 'number' && Number.isFinite(body.currentTime)) {
+      room.currentTime = body.currentTime;
+    }
+    if (body.syncAnchor) room.syncAnchor = body.syncAnchor;
+    if (body.rendezvousAt) room.rendezvousAt = body.rendezvousAt;
+    room.updatedAt = now;
+
+    const togglePayload = {
+      ...sanitizeRoom(room),
+      eventType: 'toggle-play',
+      isHost: true,
+      trackOverrideAt: body.trackOverrideAt || now,
+      rendezvousAt: room.rendezvousAt,
+      serverTime: now
+    };
+    broadcastToRoom(roomCode, togglePayload);
+    return togglePayload;
+  }
+
+  return {
+    ...sanitizeRoom(room),
+    eventType: rawOp,
     serverTime: now
   };
-  broadcastToRoom(roomCode, payload);
-  return payload;
 }

@@ -93,10 +93,13 @@ export const MoodCard = memo(function MoodCard({
                 ? 'bg-white text-black scale-105 shadow-[0_0_24px_rgba(255,255,255,0.7)]'
                 : isMoodActive
                 ? 'bg-white/90 text-black hover:scale-110 shadow-[0_0_20px_rgba(255,255,255,0.5)]'
-                : 'glass-button-primary text-white hover:scale-110 group-hover:shadow-[0_0_22px_' +
-                  mood.glowColor +
-                  '90]'
+                : 'glass-button-primary text-white hover:scale-110'
             }`}
+            style={
+              !isCurrentlyPlayingThisMood && !isMoodActive
+                ? { boxShadow: `0 0 22px ${mood.glowColor}90` }
+                : undefined
+            }
             title={isCurrentlyPlayingThisMood ? `Pause ${mood.name}` : `Play ${mood.name}`}
             aria-label={isCurrentlyPlayingThisMood ? `Pause ${mood.name}` : `Play ${mood.name}`}
           >

@@ -39,6 +39,8 @@ export async function createSyncPayload(): Promise<LibraryBackupPayload> {
     galaxyPrefs,
     playHistory: recentlyPlayed.map((r) => ({
       trackId: r.track.id,
+      title: r.track.title,
+      artist: r.track.artist,
       playedAt: r.playedAt,
       duration: r.track.duration || 0
     }))

@@ -4,6 +4,8 @@
  * and Apple Music into standardized track query batches.
  */
 
+import { fetchWithTimeout } from './cache.js';
+
 export async function importExternalPlaylist(playlistUrl) {
   if (!playlistUrl) return { error: 'Missing playlist URL' };
 
@@ -24,14 +26,21 @@ export async function importExternalPlaylist(playlistUrl) {
   // Handle Spotify shortlinks safely with strict domain validation & manual redirect checking
   if (parsedUrl && (parsedUrl.hostname === 'spotify.link' || parsedUrl.hostname.endsWith('.spotify.link'))) {
     try {
-      const red = await fetch(targetUrl, {
-        redirect: 'manual',
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-      });
+      const red = await fetchWithTimeout(
+        targetUrl,
+        {
+          redirect: 'manual',
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        },
+        5000
+      );
       const location = red.headers.get('location');
       if (location) {
         const resolved = new URL(location, targetUrl);
-        if (resolved.hostname === 'spotify.com' || resolved.hostname.endsWith('.spotify.com')) {
+        if (
+          resolved.protocol === 'https:' &&
+          (resolved.hostname === 'spotify.com' || resolved.hostname.endsWith('.spotify.com'))
+        ) {
           targetUrl = resolved.toString();
           parsedUrl = resolved;
         }
@@ -50,11 +59,15 @@ export async function importExternalPlaylist(playlistUrl) {
       const [, entityType, id] = typeMatch;
       const embedUrl = `https://open.spotify.com/embed/${entityType}/${id}`;
       try {
-        const r = await fetch(embedUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          }
-        });
+        const r = await fetchWithTimeout(
+          embedUrl,
+          {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          },
+          6500
+        );
         if (r.ok) {
           const html = await r.text();
           const idx = html.indexOf('__NEXT_DATA__');
@@ -90,14 +103,15 @@ export async function importExternalPlaylist(playlistUrl) {
                   let nextOffset = trackList.length;
                   let keepFetching = true;
                   while (keepFetching && nextOffset < 1000) {
-                    const apiRes = await fetch(
+                    const apiRes = await fetchWithTimeout(
                       `https://api.spotify.com/v1/playlists/${id}/tracks?offset=${nextOffset}&limit=100`,
                       {
                         headers: {
                           Authorization: `Bearer ${accessToken}`,
                           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                         }
-                      }
+                      },
+                      6500
                     );
                     if (!apiRes.ok) break;
                     const pageData = await apiRes.json();
@@ -160,15 +174,19 @@ export async function importExternalPlaylist(playlistUrl) {
         const vMatch = targetUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
         const videoId = vMatch ? vMatch[1] : (listId.length >= 13 ? listId.slice(2, 13) : undefined);
         try {
-          const nextRes = await fetch('https://www.youtube.com/youtubei/v1/next?prettyPrint=false', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              context: ytClientContext,
-              playlistId: listId,
-              ...(videoId ? { videoId } : {})
-            })
-          });
+          const nextRes = await fetchWithTimeout(
+            'https://www.youtube.com/youtubei/v1/next?prettyPrint=false',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                context: ytClientContext,
+                playlistId: listId,
+                ...(videoId ? { videoId } : {})
+              })
+            },
+            6500
+          );
           if (nextRes.ok) {
             const nextData = await nextRes.json();
             const playlist = nextData?.contents?.twoColumnWatchNextResults?.playlist?.playlist;
@@ -204,14 +222,18 @@ export async function importExternalPlaylist(playlistUrl) {
       // 2B: Standard YouTube / YouTube Music playlist or album
       try {
         const browseId = listId.startsWith('VL') ? listId : `VL${listId}`;
-        const r = await fetch('https://www.youtube.com/youtubei/v1/browse?prettyPrint=false', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            context: ytClientContext,
-            browseId
-          })
-        });
+        const r = await fetchWithTimeout(
+          'https://www.youtube.com/youtubei/v1/browse?prettyPrint=false',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              context: ytClientContext,
+              browseId
+            })
+          },
+          6500
+        );
 
         if (r.ok) {
           const data = await r.json();
@@ -296,7 +318,7 @@ export async function importExternalPlaylist(playlistUrl) {
           while (nextToken && pageCount < 10) {
             pageCount++;
             try {
-              const contRes = await fetch(
+              const contRes = await fetchWithTimeout(
                 'https://www.youtube.com/youtubei/v1/browse?prettyPrint=false',
                 {
                   method: 'POST',
@@ -305,7 +327,8 @@ export async function importExternalPlaylist(playlistUrl) {
                     context: ytClientContext,
                     continuation: nextToken
                   })
-                }
+                },
+                6500
               );
               if (!contRes.ok) break;
               const contData = await contRes.json();
@@ -349,8 +372,10 @@ export async function importExternalPlaylist(playlistUrl) {
     if (singleMatch) {
       const videoId = singleMatch[1];
       try {
-        const oembedRes = await fetch(
-          `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
+        const oembedRes = await fetchWithTimeout(
+          `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
+          {},
+          5000
         );
         if (oembedRes.ok) {
           const oembed = await oembedRes.json();
@@ -382,7 +407,7 @@ export async function importExternalPlaylist(playlistUrl) {
     if (albumMatch) {
       const id = albumMatch[1];
       try {
-        const itunesRes = await fetch(`https://itunes.apple.com/lookup?id=${id}&entity=song`);
+        const itunesRes = await fetchWithTimeout(`https://itunes.apple.com/lookup?id=${id}&entity=song`, {}, 6000);
         if (itunesRes.ok) {
           const itunesData = await itunesRes.json();
           const results = itunesData?.results || [];
@@ -416,14 +441,36 @@ export async function importExternalPlaylist(playlistUrl) {
     const playlistMatch = targetUrl.match(/playlist\/(?:[^\/]+\/)?(pl\.[a-zA-Z0-9_-]+)/i);
     if (playlistMatch) {
       try {
-        const pageRes = await fetch(targetUrl, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        let appleUrl = targetUrl;
+        let pageRes = null;
+        for (let hops = 0; hops < 3; hops++) {
+          const parsedApple = new URL(appleUrl);
+          if (
+            parsedApple.protocol !== 'https:' ||
+            (parsedApple.hostname !== 'apple.com' && !parsedApple.hostname.endsWith('.apple.com'))
+          ) {
+            pageRes = null;
+            break;
           }
-        });
-        if (pageRes.ok) {
+          pageRes = await fetchWithTimeout(
+            appleUrl,
+            {
+              redirect: 'manual',
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+              }
+            },
+            6500
+          );
+          if (pageRes.status >= 300 && pageRes.status < 400 && pageRes.headers.get('location')) {
+            appleUrl = new URL(pageRes.headers.get('location'), appleUrl).toString();
+            continue;
+          }
+          break;
+        }
+        if (pageRes && pageRes.ok) {
           const html = await pageRes.text();
 
           // Title & cover from meta

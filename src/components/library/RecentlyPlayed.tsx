@@ -25,9 +25,21 @@ export default function RecentlyPlayed() {
     return null;
   };
 
-  const allRecentTracks = recentlyPlayed
-    .map(extractTrack)
-    .filter(Boolean) as Track[];
+  const dedupedItems = (() => {
+    const seen = new Set<string>();
+    const out: Array<{ track: Track; playedAt: number }> = [];
+    for (const item of recentlyPlayed) {
+      const track = extractTrack(item);
+      if (!track || seen.has(track.id)) continue;
+      seen.add(track.id);
+      const playedAt =
+        'playedAt' in item && typeof item.playedAt === 'number' ? item.playedAt : Date.now();
+      out.push({ track, playedAt });
+    }
+    return out;
+  })();
+
+  const allRecentTracks = dedupedItems.map((entry) => entry.track);
 
   return (
     <div className="pb-44 sm:pb-24 pt-2 text-white min-h-screen">
@@ -46,32 +58,27 @@ export default function RecentlyPlayed() {
 
       <LayoutGroup id="recently-played-tracks">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1.5">
-          {recentlyPlayed.length === 0 ? (
+          {dedupedItems.length === 0 ? (
             <div className="text-center py-20 text-white/50 glass rounded-2xl">
               <p className="text-lg font-semibold text-white">No listening history yet</p>
               <p className="text-sm mt-1">Play any track to start building your history.</p>
             </div>
           ) : (
-            recentlyPlayed.map((item, i) => {
-              const track = extractTrack(item);
-              if (!track) return null;
-              const playedAt = ('playedAt' in item && typeof item.playedAt === 'number') ? item.playedAt : Date.now();
-              return (
-                <div key={`${track.id}-${playedAt}-${i}`} className="flex items-center gap-3">
-                  <div className="flex-grow min-w-0">
-                    <TrackRow
-                      track={track}
-                      tracks={allRecentTracks}
-                      index={i + 1}
-                      onPlay={(t) => playTrack(t, allRecentTracks, i)}
-                    />
-                  </div>
-                  <div className="text-xs text-white/40 w-16 text-right whitespace-nowrap hidden sm:block">
-                    {formatRelativeTime(playedAt)}
-                  </div>
+            dedupedItems.map(({ track, playedAt }, i) => (
+              <div key={`${track.id}-${playedAt}`} className="flex items-center gap-3">
+                <div className="flex-grow min-w-0">
+                  <TrackRow
+                    track={track}
+                    tracks={allRecentTracks}
+                    index={i + 1}
+                    onPlay={(t) => playTrack(t, allRecentTracks, i)}
+                  />
                 </div>
-              );
-            })
+                <div className="text-xs text-white/40 w-16 text-right whitespace-nowrap hidden sm:block">
+                  {formatRelativeTime(playedAt)}
+                </div>
+              </div>
+            ))
           )}
         </motion.div>
       </LayoutGroup>

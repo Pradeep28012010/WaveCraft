@@ -150,6 +150,14 @@ export default function SonicGalaxyPage() {
   const shockwavesRef = useRef<Shockwave[]>([]);
   const polarJetsRef = useRef<PolarJetParticle[]>([]);
   const energyPacketsRef = useRef<FilamentPacket[]>([]);
+  const warpRequestIdRef = useRef<number>(0);
+  const warpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (warpTimerRef.current) clearTimeout(warpTimerRef.current);
+    };
+  }, []);
 
   // Flythrough Camera smoothly into selected star system
   const flyToStar = (star: StarNode3D) => {
@@ -200,6 +208,12 @@ export default function SonicGalaxyPage() {
 
   // Trigger a Hyperjump Warp into an artist/vibe or return to universe
   const triggerWormholeWarp = async (query: string, label?: string) => {
+    const reqId = ++warpRequestIdRef.current;
+    if (warpTimerRef.current) {
+      clearTimeout(warpTimerRef.current);
+      warpTimerRef.current = null;
+    }
+
     triggerAndroidHaptic('medium');
     setIsWarping(true);
     cameraRef.current.warpBoost = 1.0;
@@ -207,18 +221,29 @@ export default function SonicGalaxyPage() {
     if (!query.trim()) {
       setWormholeTracks(null);
       setActiveWormholeLabel('🌌 My Taste Universe');
-      setTimeout(() => setIsWarping(false), 650);
+      warpTimerRef.current = setTimeout(() => {
+        if (reqId === warpRequestIdRef.current) {
+          setIsWarping(false);
+        }
+      }, 650);
       return;
     }
 
     setActiveWormholeLabel(label || `🚀 ${query}`);
     try {
       const results = await searchTracks(query.trim());
+      if (reqId !== warpRequestIdRef.current) return;
       if (results.length > 0) {
         setWormholeTracks(results.slice(0, 28));
       }
     } finally {
-      setTimeout(() => setIsWarping(false), 750);
+      if (reqId === warpRequestIdRef.current) {
+        warpTimerRef.current = setTimeout(() => {
+          if (reqId === warpRequestIdRef.current) {
+            setIsWarping(false);
+          }
+        }, 750);
+      }
     }
   };
 
@@ -542,23 +567,22 @@ export default function SonicGalaxyPage() {
   useEffect(() => {
     if (!isCinematicTour || stars.length === 0) return;
     const interval = setInterval(() => {
-      setSelectedStar((prev) => {
-        const curIdx = stars.findIndex((s) => s.id === prev?.id);
-        const nextIdx = (curIdx + 1) % stars.length;
-        const nextStar = stars[nextIdx];
-        if (nextStar) {
-          // Smoothly fly camera directly into the next star's orbital plane
-          const angle = Math.atan2(nextStar.z, nextStar.x);
-          cameraRef.current.targetYaw = angle;
-          cameraRef.current.targetPitch = nextStar.y * 0.8;
-          cameraRef.current.targetFocusX = nextStar.x;
-          cameraRef.current.targetFocusY = nextStar.y;
-          cameraRef.current.targetFocusZ = nextStar.z;
-          unlockAudioEngine();
-          playTrackWithSmartQueue(nextStar.track);
-        }
-        return nextStar;
-      });
+      const curId = selectedStarRef.current?.id;
+      const curIdx = stars.findIndex((s) => s.id === curId);
+      const nextIdx = (curIdx + 1) % stars.length;
+      const nextStar = stars[nextIdx];
+      if (!nextStar) return;
+
+      const angle = Math.atan2(nextStar.z, nextStar.x);
+      cameraRef.current.targetYaw = angle;
+      cameraRef.current.targetPitch = nextStar.y * 0.8;
+      cameraRef.current.targetFocusX = nextStar.x;
+      cameraRef.current.targetFocusY = nextStar.y;
+      cameraRef.current.targetFocusZ = nextStar.z;
+      selectedStarRef.current = nextStar;
+      setSelectedStar(nextStar);
+      unlockAudioEngine();
+      playTrackWithSmartQueue(nextStar.track);
     }, 7000);
     return () => clearInterval(interval);
   }, [isCinematicTour, stars]);
@@ -631,24 +655,67 @@ export default function SonicGalaxyPage() {
     };
     resize();
     window.addEventListener('resize', resize);
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => resize()) : null;
+    if (resizeObserver) {
+      resizeObserver.observe(canvas);
+    }
 
-    // Pointer & Gesture Listeners (with mobile pinch-to-zoom)
+    // Pointer & Gesture Listeners (with multi-pointer pinch-to-zoom & origin safety)
+    const activePointers = new Map<number, { x: number; y: number }>();
+    let dragOriginOnCanvas = false;
+
+    const resetGestureState = () => {
+      cameraRef.current.isDragging = false;
+      cameraRef.current.initialPinchDist = 0;
+      dragOriginOnCanvas = false;
+      canvas.style.cursor = hoveredStarIdRef.current ? 'pointer' : 'grab';
+    };
+
     const onPointerDown = (e: PointerEvent) => {
-      cameraRef.current.isDragging = true;
-      cameraRef.current.pointerMoved = false;
-      cameraRef.current.dragStartX = e.clientX;
-      cameraRef.current.dragStartY = e.clientY;
-      canvas.style.cursor = 'grabbing';
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activePointers.size === 2) {
+        const pts = Array.from(activePointers.values());
+        cameraRef.current.initialPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        cameraRef.current.initialPinchZoom = zoomRef.current;
+        cameraRef.current.isDragging = false;
+        cameraRef.current.pointerMoved = true;
+        return;
+      }
+      if (activePointers.size === 1) {
+        dragOriginOnCanvas = true;
+        cameraRef.current.isDragging = true;
+        cameraRef.current.pointerMoved = false;
+        cameraRef.current.dragStartX = e.clientX;
+        cameraRef.current.dragStartY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+      }
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (activePointers.has(e.pointerId)) {
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+
+      if (activePointers.size >= 2 && cameraRef.current.initialPinchDist > 0) {
+        const pts = Array.from(activePointers.values());
+        const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        const scale = dist / cameraRef.current.initialPinchDist;
+        const nextZoom = Math.max(
+          0.65,
+          Math.min(1.95, +(cameraRef.current.initialPinchZoom * scale).toFixed(2))
+        );
+        setZoom(nextZoom);
+        return;
+      }
+
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
       pointerX = mx;
       pointerY = my;
 
-      if (cameraRef.current.isDragging) {
+      if (cameraRef.current.isDragging && dragOriginOnCanvas) {
         const dx = e.clientX - cameraRef.current.dragStartX;
         const dy = e.clientY - cameraRef.current.dragStartY;
         if (Math.hypot(dx, dy) > 4) {
@@ -694,12 +761,28 @@ export default function SonicGalaxyPage() {
       }
     };
 
-    const onPointerUp = (e: PointerEvent) => {
-      const wasDragging = cameraRef.current.pointerMoved;
-      cameraRef.current.isDragging = false;
-      canvas.style.cursor = hoveredStarIdRef.current ? 'pointer' : 'grab';
+    const onPointerCancel = (e: PointerEvent) => {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size < 2) {
+        cameraRef.current.initialPinchDist = 0;
+      }
+      if (activePointers.size === 0) {
+        resetGestureState();
+      }
+    };
 
-      if (wasDragging) return;
+    const onPointerUp = (e: PointerEvent) => {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size < 2) {
+        cameraRef.current.initialPinchDist = 0;
+      }
+      const hadCanvasOrigin = dragOriginOnCanvas;
+      const wasDragging = cameraRef.current.pointerMoved;
+      if (activePointers.size === 0) {
+        resetGestureState();
+      }
+
+      if (!hadCanvasOrigin || wasDragging || activePointers.size > 0) return;
 
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -762,6 +845,7 @@ export default function SonicGalaxyPage() {
     canvas.addEventListener('pointerleave', onPointerLeave);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerCancel);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('dblclick', onDblClick);
 
@@ -801,6 +885,7 @@ export default function SonicGalaxyPage() {
     };
 
     let lastFftSampleTime = 0;
+    let cachedHasLiveAudio = false;
     let cachedBassEnergy = 0;
     let cachedMidEnergy = 0;
     let cachedTrebleEnergy = 0;
@@ -851,17 +936,19 @@ export default function SonicGalaxyPage() {
       cameraRef.current.focusY += (cameraRef.current.targetFocusY - cameraRef.current.focusY) * focusLerp;
       cameraRef.current.focusZ += (cameraRef.current.targetFocusZ - cameraRef.current.focusZ) * focusLerp;
 
-      let hasLiveAudio = false;
       let bassEnergy = 0;
       let midEnergy = 0;
       let trebleEnergy = 0;
       const fxMode = audioReactivityModeRef.current;
+      const playerSnapshot = usePlayerStore.getState();
+      const isAudiblyPlaying =
+        playerSnapshot.isPlaying && !playerSnapshot.isMuted && playerSnapshot.volume > 0.02;
 
       if (fxMode === 'dynamic') {
         if (time - lastFftSampleTime >= 0.032) {
           lastFftSampleTime = time;
-          hasLiveAudio = getAudioFrequencyData(freqBins);
-          if (hasLiveAudio) {
+          cachedHasLiveAudio = isAudiblyPlaying && getAudioFrequencyData(freqBins);
+          if (cachedHasLiveAudio) {
             let bSum = 0;
             for (let i = 0; i < 10; i++) bSum += freqBins[i];
             const rawBass = bSum / (10 * 255);
@@ -876,7 +963,7 @@ export default function SonicGalaxyPage() {
             for (let i = 32; i < 60; i++) tSum += freqBins[i];
             const rawTreble = tSum / (28 * 255);
             cachedTrebleEnergy = Math.pow(rawTreble, 1.15) * 1.1;
-          } else if (usePlayerStore.getState().isPlaying) {
+          } else if (isAudiblyPlaying) {
             cachedBassEnergy = 0.28 + Math.pow(Math.sin(time * 3.8) * 0.5 + 0.5, 2) * 0.35;
             cachedMidEnergy = 0.22 + Math.sin(time * 5.2) * 0.15;
             cachedTrebleEnergy = 0.18 + Math.cos(time * 4.4) * 0.14;
@@ -890,10 +977,12 @@ export default function SonicGalaxyPage() {
         midEnergy = cachedMidEnergy;
         trebleEnergy = cachedTrebleEnergy;
       } else if (fxMode === 'ambient') {
+        cachedHasLiveAudio = false;
         bassEnergy = 0.14 + Math.sin(time * 1.8) * 0.08;
         midEnergy = 0.12 + Math.cos(time * 2.2) * 0.06;
         trebleEnergy = 0.1 + Math.sin(time * 2.6) * 0.05;
       } else {
+        cachedHasLiveAudio = false;
         bassEnergy = 0;
         midEnergy = 0;
         trebleEnergy = 0;
@@ -1482,7 +1571,7 @@ export default function SonicGalaxyPage() {
       ctx.restore();
 
       // 10. Subtle Audio Spectrum Visualizer Ribbon
-      if (fxMode === 'dynamic' && (hasLiveAudio || usePlayerStore.getState().isPlaying)) {
+      if (fxMode === 'dynamic' && (cachedHasLiveAudio || isAudiblyPlaying)) {
         ctx.save();
         const specBars = 32;
         const totalW = Math.min(width * 0.45, 290);
@@ -1492,7 +1581,7 @@ export default function SonicGalaxyPage() {
         const bottomY = height - 14;
 
         for (let b = 0; b < specBars; b++) {
-          const val = hasLiveAudio
+          const val = cachedHasLiveAudio
             ? freqBins[b * 2] / 255
             : 0.18 + 0.38 * Math.pow(Math.sin(time * 4.6 + b * 0.35), 2);
           const barH = Math.max(2, val * 26);
@@ -1532,12 +1621,14 @@ export default function SonicGalaxyPage() {
     rafId = requestAnimationFrame(render);
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
+      resizeObserver?.disconnect();
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointerleave', onPointerLeave);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
       canvas.removeEventListener('wheel', onWheel);
       canvas.removeEventListener('dblclick', onDblClick);
     };
@@ -1686,7 +1777,7 @@ export default function SonicGalaxyPage() {
         {/* Tier 2: 8-Sector Constellation Filters & Integrated Search Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
           {/* Sector Constellation Filter Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 max-w-full">
+          <div className="flex flex-wrap items-center gap-2 py-1 max-w-full">
             <button
               onClick={() => {
                 triggerAndroidHaptic('light');
@@ -1785,11 +1876,8 @@ export default function SonicGalaxyPage() {
           <canvas ref={canvasRef} className="w-full h-full block touch-none" />
 
           {/* Top Viewport VisionOS Controls */}
-          <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between gap-2 pointer-events-none">
-            <div
-              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-3 -my-1 px-1.5 pointer-events-auto max-w-full"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
+          <div className="absolute top-3.5 left-3.5 right-3.5 flex items-start justify-between gap-2 pointer-events-none">
+            <div className="flex flex-wrap items-center gap-1.5 py-1 px-1 pointer-events-auto max-w-full">
               <button
                 onClick={() => {
                   triggerAndroidHaptic('light');

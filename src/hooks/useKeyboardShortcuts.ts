@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
 import { useLibraryStore } from '../stores/libraryStore';
+import { unlockAudioEngine } from '../services/audioEngine';
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
@@ -10,12 +11,26 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      const target = e.target as HTMLElement;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const role = target.getAttribute?.('role');
       if (
-        !target ||
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
+        target.tagName === 'SELECT' ||
+        target.isContentEditable ||
+        role === 'slider' ||
+        role === 'switch' ||
+        (e.key === ' ' &&
+          (target.tagName === 'BUTTON' ||
+            target.tagName === 'A' ||
+            role === 'button' ||
+            role === 'menuitem' ||
+            role === 'option' ||
+            role === 'tab' ||
+            Boolean(target.closest('button, a, [role="button"], [role="menuitem"], [role="option"], [role="tab"]')))) ||
+        Boolean(target.closest('[role="dialog"], [aria-modal="true"]')) ||
+        (typeof document !== 'undefined' && Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')))
       ) {
         return;
       }
@@ -26,24 +41,32 @@ export function useKeyboardShortcuts() {
       switch (e.key.toLowerCase()) {
         case ' ':
           e.preventDefault();
+          e.stopPropagation();
           if (player.isPlaying) {
             player.pause();
           } else if (player.currentTrack) {
+            unlockAudioEngine();
             player.resume();
           }
           break;
         case 'arrowright':
+          e.preventDefault();
+          e.stopPropagation();
           player.seekTo(player.currentTime + 10);
           break;
         case 'arrowleft':
+          e.preventDefault();
+          e.stopPropagation();
           player.seekTo(Math.max(0, player.currentTime - 10));
           break;
         case 'arrowup':
           e.preventDefault();
+          e.stopPropagation();
           player.setVolume(Math.min(1, player.volume + 0.1));
           break;
         case 'arrowdown':
           e.preventDefault();
+          e.stopPropagation();
           player.setVolume(Math.max(0, player.volume - 0.1));
           break;
         case 'm':

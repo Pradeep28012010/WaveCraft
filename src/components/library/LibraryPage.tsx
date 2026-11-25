@@ -151,7 +151,7 @@ export default function LibraryPage() {
   };
 
   return (
-    <div className="pb-44 sm:pb-28 pt-2 text-white min-h-screen">
+    <div className="pb-48 sm:pb-32 pt-2 text-white min-h-screen">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -223,7 +223,9 @@ export default function LibraryPage() {
             </div>
             <div className="min-w-0 flex-1 w-full">
               <h2 className="text-xs sm:text-lg font-extrabold mb-0.5 truncate text-white">Liked</h2>
-              <p className="text-[10px] sm:text-xs text-white/60 truncate">{likedSongs.length} tracks</p>
+              <p className="text-[10px] sm:text-xs text-white/60 truncate">
+                {likedSongs.length} {likedSongs.length === 1 ? 'track' : 'tracks'}
+              </p>
             </div>
           </GlassCard>
         </Link>
@@ -242,7 +244,9 @@ export default function LibraryPage() {
             </div>
             <div className="min-w-0 flex-1 w-full">
               <h2 className="text-xs sm:text-lg font-extrabold mb-0.5 truncate text-white">Recent</h2>
-              <p className="text-[10px] sm:text-xs text-white/60 truncate">{recentlyPlayed.length} tracks</p>
+              <p className="text-[10px] sm:text-xs text-white/60 truncate">
+                {recentlyPlayed.length} {recentlyPlayed.length === 1 ? 'track' : 'tracks'}
+              </p>
             </div>
           </GlassCard>
         </Link>
@@ -260,7 +264,7 @@ export default function LibraryPage() {
             <div className="min-w-0 flex-1 w-full">
               <h2 className="text-xs sm:text-lg font-extrabold mb-0.5 truncate text-white">Offline Vault</h2>
               <p className="text-[10px] sm:text-xs text-white/60 truncate">
-                {offlineTracks.length} 320k
+                {offlineTracks.length} {offlineTracks.length === 1 ? 'track' : 'tracks'} • 320k
               </p>
             </div>
           </GlassCard>

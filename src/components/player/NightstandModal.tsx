@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useStudioStore, type AmbientLayerId } from '../../stores/studioStore';
+import { useJamStore } from '../../stores/jamStore';
+import { isJamGuestBlocked } from '../../services/jamAuthority';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 
@@ -26,6 +29,10 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
   const nextTrack = usePlayerStore((s) => s.nextTrack);
   const prevTrack = usePlayerStore((s) => s.prevTrack);
 
+  const jamRoomCode = useJamStore((s) => s.roomCode);
+  const jamIsHost = useJamStore((s) => s.isHost);
+  const isJamGuest = Boolean(jamRoomCode && !jamIsHost) || isJamGuestBlocked('play');
+
   const {
     sleepActive,
     sleepSeconds,
@@ -39,7 +46,18 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
   const [currentTimeStr, setCurrentTimeStr] = useState('');
   const [currentDateStr, setCurrentDateStr] = useState('');
   const [dimmerLevel, setDimmerLevel] = useState<0.25 | 0.5 | 0.75 | 1.0>(0.5);
-  const [activeAmbientTab, setActiveAmbientTab] = useState<AmbientLayerId | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   // Live real-time clock updating every second
   useEffect(() => {
@@ -65,18 +83,22 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
     return `${mins}m remaining`;
   }, [sleepActive, sleepEndAtTrack, sleepSeconds]);
 
-  if (!isOpen) return null;
-
   const artSrc = currentTrack?.thumbnailLarge || currentTrack?.thumbnail || DEFAULT_THUMBNAIL;
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
+      {isOpen && (
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Nightstand Clock Mode"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.35 }}
-        className="fixed inset-0 z-[110] bg-[#020205] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden"
+        className="fixed inset-0 z-[9996] bg-[#020205] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden"
         style={{
           filter:
             dimmerLevel === 0.25
@@ -228,10 +250,8 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
                       triggerAndroidHaptic('light');
                       if (isActive) {
                         setAmbientVolume(layer.id, 0);
-                        if (activeAmbientTab === layer.id) setActiveAmbientTab(null);
                       } else {
                         setAmbientVolume(layer.id, 0.45);
-                        setActiveAmbientTab(layer.id);
                       }
                     }}
                     className={`h-9 px-3 rounded-full flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-all ${
@@ -275,12 +295,15 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
               {/* Minimal Bedside Controls */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
+                  type="button"
+                  disabled={isJamGuest}
                   onClick={() => {
+                    if (isJamGuest) return;
                     triggerAndroidHaptic('light');
                     prevTrack();
                   }}
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white active:scale-80 transition-transform cursor-pointer"
-                  title="Previous"
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-transform ${isJamGuest ? 'opacity-35 cursor-not-allowed' : 'active:scale-80 cursor-pointer'}`}
+                  title={isJamGuest ? 'Host controls playback in Jam' : 'Previous'}
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
@@ -288,12 +311,15 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
                 </button>
 
                 <button
+                  type="button"
+                  disabled={isJamGuest}
                   onClick={() => {
+                    if (isJamGuest) return;
                     triggerAndroidHaptic('light');
                     togglePlay();
                   }}
-                  className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center font-bold shadow-lg active:scale-90 transition-transform cursor-pointer"
-                  title={isPlaying ? 'Pause' : 'Play'}
+                  className={`w-10 h-10 rounded-full bg-white text-black flex items-center justify-center font-bold shadow-lg transition-transform ${isJamGuest ? 'opacity-40 cursor-not-allowed' : 'active:scale-90 cursor-pointer'}`}
+                  title={isJamGuest ? 'Host controls playback in Jam' : isPlaying ? 'Pause' : 'Play'}
                 >
                   {isPlaying ? (
                     <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -308,12 +334,15 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
                 </button>
 
                 <button
+                  type="button"
+                  disabled={isJamGuest}
                   onClick={() => {
+                    if (isJamGuest) return;
                     triggerAndroidHaptic('light');
                     nextTrack();
                   }}
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white active:scale-80 transition-transform cursor-pointer"
-                  title="Next"
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-transform ${isJamGuest ? 'opacity-35 cursor-not-allowed' : 'active:scale-80 cursor-pointer'}`}
+                  title={isJamGuest ? 'Host controls playback in Jam' : 'Next'}
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
@@ -324,7 +353,9 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
           )}
         </div>
       </motion.div>
-    </AnimatePresence>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 });
 

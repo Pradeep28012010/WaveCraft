@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -16,7 +16,7 @@ import {
   isStoragePersisted
 } from '../../services/storage';
 import { publishCloudSync, pullCloudSync, buildSyncUrl } from '../../services/cloudSync';
-import { useOfflineVault } from '../../services/offlineVault';
+import { useOfflineVault, getOfflineStorageEstimate } from '../../services/offlineVault';
 import { getSearchHistory, clearSearchHistory } from '../../utils/searchHistory';
 import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
@@ -273,10 +273,26 @@ export default function SettingsPage() {
     showToast('🔗 Sync deep-link copied to clipboard!');
   };
 
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
   const showToast = (msg: string) => {
     triggerAndroidHaptic('light');
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = setTimeout(() => {
+      toastTimerRef.current = null;
+      setToastMessage(null);
+    }, 3500);
   };
 
   const handleClearData = () => {
@@ -301,6 +317,38 @@ export default function SettingsPage() {
   const { offlineTracks, toggleOfflineTrack, removeTrackOffline } = useOfflineVault();
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+  const [offlineStorageLabel, setOfflineStorageLabel] = useState<string>('0.0 MB');
+
+  useEffect(() => {
+    if (offlineTracks.length === 0) {
+      setOfflineStorageLabel('0.0 MB');
+      return;
+    }
+
+    const recordedBytes = offlineTracks.reduce((acc, t) => acc + (t.fileSizeBytes || 0), 0);
+    if (recordedBytes > 0) {
+      setOfflineStorageLabel(
+        recordedBytes >= 1024 * 1024 * 1024
+          ? `${(recordedBytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
+          : `${(recordedBytes / (1024 * 1024)).toFixed(1)} MB`
+      );
+      return;
+    }
+
+    let cancelled = false;
+    getOfflineStorageEstimate()
+      .then((est) => {
+        if (!cancelled) {
+          setOfflineStorageLabel(est.usedBytes > 0 ? est.formattedUsed : `${offlineTracks.length} cached`);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setOfflineStorageLabel(`${offlineTracks.length} cached`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [offlineTracks]);
 
   const handleDownloadAllLiked = async () => {
     if (isBulkDownloading || library.likedSongs.length === 0) return;
@@ -313,11 +361,16 @@ export default function SettingsPage() {
     }
     setIsBulkDownloading(true);
     setBulkProgress({ current: 0, total: unCached.length });
-    for (let i = 0; i < unCached.length; i++) {
-      await toggleOfflineTrack(unCached[i]);
-      setBulkProgress({ current: i + 1, total: unCached.length });
+    try {
+      for (let i = 0; i < unCached.length; i++) {
+        await toggleOfflineTrack(unCached[i]);
+        setBulkProgress({ current: i + 1, total: unCached.length });
+      }
+    } catch {
+      showToast('Some tracks failed to save offline.');
+    } finally {
+      setIsBulkDownloading(false);
     }
-    setIsBulkDownloading(false);
   };
 
   const handleClearOfflineVault = () => {
@@ -393,10 +446,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Quick Category Filter Pills */}
-        <div
-          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-4 -my-1.5 px-2"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
+        <div className="flex flex-wrap items-center gap-2 py-3 px-1">
           <LayoutGroup id="settings-category-tabs">
             {[
               { id: 'all', label: 'All Settings' },
@@ -1206,7 +1256,7 @@ export default function SettingsPage() {
                     </span>
                   </h3>
                   <span className="text-xs font-mono font-bold text-white/60">
-                    ~{(offlineTracks.length * 6.8).toFixed(1)} MB
+                    {offlineStorageLabel}
                   </span>
                 </div>
                 <p className="text-xs text-white/55 mt-1.5 leading-relaxed">
@@ -1568,12 +1618,12 @@ export default function SettingsPage() {
                   )}
                 </button>
                 {!isInstalled && (
-                  <a
-                    href="/download"
+                  <Link
+                    to="/download"
                     className="py-2 px-3 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Download Hub</span>
-                  </a>
+                  </Link>
                 )}
               </div>
             </div>

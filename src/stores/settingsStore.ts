@@ -173,7 +173,9 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
 
 function readInitialSettingsSync(): SettingsState {
   try {
-    const raw = localStorage.getItem(SETTINGS_LOCAL_KEY);
+    const raw =
+      localStorage.getItem(SETTINGS_LOCAL_KEY) ||
+      localStorage.getItem('wavecraft_settings');
     if (!raw) return defaultSettings;
     const parsed = JSON.parse(raw) as Partial<SettingsState>;
     const merged: SettingsState = {
@@ -502,30 +504,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       ...defaultSettings,
       crossfade: 0,
       eqPreset: 'Flat',
-      eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      loudnessNormalization: true,
-      offlineModeOnly: false,
-      performanceProfile: 'ultra',
-      autoMixerFilterSweeps: true,
-      autoCachePlayingTracks: true,
-      precacheNextTrack: true,
-      maxCacheSizeMb: 1024,
-      bassBoostStrength: 0,
-      spatialStereoWidth: 100,
-      gaplessPlayback: true,
-      streamFallbackEngine: true,
-      highResArtwork: true,
-      lyricsAutoScroll: true,
-      lyricsFontSize: 'normal',
-      lyricsShowRomanization: true,
-      lyricsGlowSweep: true,
-      hapticFeedback: true,
-      keepSearchHistory: true,
-      doubleClickToPlay: false,
-      showTrackNumbers: true,
-      compactMiniPlayer: false,
-      scrollMotionMode: 'all',
-      scrollMotionIntensity: 'balanced'
+      eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     });
     persistSettings(defaultSettings);
   }

@@ -173,14 +173,20 @@ if (typeof window !== 'undefined') {
     } else if (action === 'prev') {
       store.prevTrack();
     } else if (action === 'duck') {
-      const orig = store.volume;
-      (window as unknown as { __wavecraft_pre_duck_vol?: number }).__wavecraft_pre_duck_vol = orig;
-      store.setVolume(Math.max(0.15, orig * 0.28));
-    } else if (action === 'unduck') {
-      const orig = (window as unknown as { __wavecraft_pre_duck_vol?: number }).__wavecraft_pre_duck_vol;
-      if (typeof orig === 'number') {
-        store.setVolume(orig);
+      const win = window as unknown as { __wavecraft_pre_duck_vol?: number; __wavecraft_is_ducked?: boolean };
+      if (!win.__wavecraft_is_ducked) {
+        win.__wavecraft_pre_duck_vol = store.volume;
+        win.__wavecraft_is_ducked = true;
       }
+      const baseVol = typeof win.__wavecraft_pre_duck_vol === 'number' ? win.__wavecraft_pre_duck_vol : store.volume;
+      store.setVolume(Math.max(0.15, baseVol * 0.28));
+    } else if (action === 'unduck') {
+      const win = window as unknown as { __wavecraft_pre_duck_vol?: number; __wavecraft_is_ducked?: boolean };
+      if (win.__wavecraft_is_ducked && typeof win.__wavecraft_pre_duck_vol === 'number') {
+        store.setVolume(win.__wavecraft_pre_duck_vol);
+      }
+      win.__wavecraft_is_ducked = false;
+      win.__wavecraft_pre_duck_vol = undefined;
     } else if (action.startsWith('seek:')) {
       const time = parseFloat(action.replace('seek:', ''));
       if (!isNaN(time)) {

@@ -7,20 +7,35 @@ let isQuitting = false;
 let isSetupMode = false;
 let powerSaveBlockerId = null;
 
-// High-Performance Chromium Engine Optimization & Resource Efficiency
-app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
-app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
-app.commandLine.appendSwitch('force_high_performance_gpu');
+function safeSendToWindow(channel, ...args) {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+    mainWindow.webContents.send(channel, ...args);
+  }
+}
 
-// Ensure single running instance on Windows
+function isApprovedExternalUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+// Ensure single running instance on Windows before registering app lifecycle & IPC handlers
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
   app.quit();
 } else {
+  // High-Performance Chromium Engine Optimization & Resource Efficiency
+  app.commandLine.appendSwitch('enable-gpu-rasterization');
+  app.commandLine.appendSwitch('enable-zero-copy');
+  app.commandLine.appendSwitch('ignore-gpu-blocklist');
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+  app.commandLine.appendSwitch('force_high_performance_gpu');
+
   app.on('second-instance', () => {
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
@@ -61,9 +76,11 @@ function createMainWindow() {
     }
   });
 
-  // Open external links in system browser and prevent untrusted in-app navigation
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+
+  // Open external links in system browser (HTTP/HTTPS only) and prevent untrusted in-app navigation
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https:') || url.startsWith('http:')) {
+    if (isApprovedExternalUrl(url)) {
       shell.openExternal(url);
     }
     return { action: 'deny' };
@@ -76,11 +93,15 @@ function createMainWindow() {
         const devParsed = new URL(devServerUrl);
         if (parsed.origin !== devParsed.origin) {
           event.preventDefault();
-          shell.openExternal(navigationUrl);
+          if (isApprovedExternalUrl(navigationUrl)) {
+            shell.openExternal(navigationUrl);
+          }
         }
       } else if (parsed.protocol !== 'file:') {
         event.preventDefault();
-        shell.openExternal(navigationUrl);
+        if (isApprovedExternalUrl(navigationUrl)) {
+          shell.openExternal(navigationUrl);
+        }
       }
     } catch {
       event.preventDefault();
@@ -88,7 +109,6 @@ function createMainWindow() {
   });
 
   // Load production bundle or local dev server
-  const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (devServerUrl) {
     mainWindow.loadURL(isSetupMode ? `${devServerUrl}#/setup` : devServerUrl);
   } else {
@@ -99,32 +119,34 @@ function createMainWindow() {
 
   // Gracefully show window when DOM and styles are ready
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-    mainWindow.focus();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 
   mainWindow.on('maximize', () => {
-    mainWindow.webContents.send('window:maximized-change', true);
+    safeSendToWindow('window:maximized-change', true);
   });
 
   mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send('window:maximized-change', false);
+    safeSendToWindow('window:maximized-change', false);
   });
 
   mainWindow.on('minimize', () => {
-    mainWindow.webContents.send('app:visibility-change', false);
+    safeSendToWindow('app:visibility-change', false);
   });
 
   mainWindow.on('restore', () => {
-    mainWindow.webContents.send('app:visibility-change', true);
+    safeSendToWindow('app:visibility-change', true);
   });
 
   mainWindow.on('hide', () => {
-    mainWindow.webContents.send('app:visibility-change', false);
+    safeSendToWindow('app:visibility-change', false);
   });
 
   mainWindow.on('show', () => {
-    mainWindow.webContents.send('app:visibility-change', true);
+    safeSendToWindow('app:visibility-change', true);
   });
 
   mainWindow.on('close', (event) => {
@@ -135,8 +157,10 @@ function createMainWindow() {
         return;
       }
       event.preventDefault();
-      mainWindow.hide();
-      mainWindow.webContents.send('app:visibility-change', false);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide();
+        safeSendToWindow('app:visibility-change', false);
+      }
     }
   });
 
@@ -154,7 +178,7 @@ function setupTray(appIcon) {
   updateTrayMenu({ title: 'WaveCraft Pro', artist: 'Liquid Glass Audio Studio' });
 
   tray.on('click', () => {
-    if (!mainWindow) return;
+    if (!mainWindow || mainWindow.isDestroyed()) return;
     if (mainWindow.isVisible()) {
       if (mainWindow.isFocused()) {
         mainWindow.hide();
@@ -180,26 +204,28 @@ function updateTrayMenu(trackInfo) {
     { type: 'separator' },
     {
       label: 'Play / Pause',
-      click: () => mainWindow?.webContents.send('media:action', 'togglePlay')
+      click: () => safeSendToWindow('media:action', 'togglePlay')
     },
     {
       label: 'Next Track',
-      click: () => mainWindow?.webContents.send('media:action', 'nextTrack')
+      click: () => safeSendToWindow('media:action', 'nextTrack')
     },
     {
       label: 'Previous Track',
-      click: () => mainWindow?.webContents.send('media:action', 'prevTrack')
+      click: () => safeSendToWindow('media:action', 'prevTrack')
     },
     {
       label: 'Mute Audio',
-      click: () => mainWindow?.webContents.send('media:action', 'toggleMute')
+      click: () => safeSendToWindow('media:action', 'toggleMute')
     },
     { type: 'separator' },
     {
       label: 'Open WaveCraft Pro',
       click: () => {
-        mainWindow?.show();
-        mainWindow?.focus();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
       }
     },
     {
@@ -244,11 +270,11 @@ function registerGlobalMediaKeys() {
 
 // Window Management IPC Handlers
 ipcMain.on('window:minimize', () => {
-  if (mainWindow) mainWindow.minimize();
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
 });
 
 ipcMain.on('window:maximize', () => {
-  if (!mainWindow) return;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
   if (mainWindow.isMaximized()) {
     mainWindow.unmaximize();
   } else {
@@ -257,7 +283,7 @@ ipcMain.on('window:maximize', () => {
 });
 
 ipcMain.on('window:close', () => {
-  if (!mainWindow) return;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
   if (isSetupMode) {
     isQuitting = true;
     app.quit();
@@ -267,7 +293,7 @@ ipcMain.on('window:close', () => {
 });
 
 ipcMain.handle('window:is-maximized', () => {
-  return mainWindow ? mainWindow.isMaximized() : false;
+  return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isMaximized() : false;
 });
 
 ipcMain.on('track:update', (_event, track) => {
@@ -297,96 +323,177 @@ ipcMain.handle('app:get-version', () => {
   return app.getVersion();
 });
 
-// Download helper with streaming progress & HTTP redirect following
+// Download helper with streaming progress, SHA-256 computation & strict HTTPS redirect checking
+function isApprovedReleaseHost(hostname) {
+  const host = (hostname || '').toLowerCase();
+  return (
+    host === 'github.com' ||
+    host === 'objects.githubusercontent.com' ||
+    host === 'release-assets.githubusercontent.com' ||
+    host.endsWith('.githubusercontent.com')
+  );
+}
+
 function downloadFileWithProgress(urlStr, destPath, onProgress, maxRedirects = 5) {
   return new Promise((resolve, reject) => {
     const fs = require('fs');
-    const http = require('http');
     const https = require('https');
+    const crypto = require('crypto');
     const { URL } = require('url');
+
+    let settled = false;
+    const fail = (err, fileStream) => {
+      if (settled) return;
+      settled = true;
+      try { fileStream?.destroy(); } catch {}
+      fs.unlink(destPath, () => {});
+      reject(err);
+    };
 
     const download = (curUrl, redirectsLeft) => {
       if (redirectsLeft <= 0) {
-        return reject(new Error('Too many redirects while downloading update'));
+        return fail(new Error('Too many redirects while downloading update'));
       }
 
       let parsed;
       try {
         parsed = new URL(curUrl);
       } catch (e) {
-        return reject(e);
+        return fail(e);
       }
 
-      const client = parsed.protocol === 'http:' ? http : https;
-      const req = client.get(
+      if (parsed.protocol !== 'https:' || !isApprovedReleaseHost(parsed.hostname)) {
+        return fail(new Error('Insecure or unapproved host blocked during update download'));
+      }
+
+      const req = https.get(
         curUrl,
         { headers: { 'User-Agent': 'WaveCraft-Pro-Updater' } },
         (res) => {
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            const redirectUrl = new URL(res.headers.location, curUrl).toString();
+            res.resume();
+            let redirectUrl;
             try {
+              redirectUrl = new URL(res.headers.location, curUrl).toString();
               const redParsed = new URL(redirectUrl);
-              const isAllowedHost =
-                redParsed.protocol === 'https:' &&
-                (redParsed.hostname === 'github.com' ||
-                  redParsed.hostname.endsWith('.github.com') ||
-                  redParsed.hostname.endsWith('.githubusercontent.com'));
-              if (!isAllowedHost) {
-                return reject(new Error('Insecure or unapproved redirect blocked during update download'));
+              if (redParsed.protocol !== 'https:' || !isApprovedReleaseHost(redParsed.hostname)) {
+                return fail(new Error('Insecure or unapproved redirect blocked during update download'));
               }
             } catch (urlErr) {
-              return reject(urlErr);
+              return fail(urlErr);
             }
             return download(redirectUrl, redirectsLeft - 1);
           }
 
           if (res.statusCode !== 200) {
-            return reject(new Error(`Failed to download update, status code: ${res.statusCode}`));
+            res.resume();
+            return fail(new Error(`Failed to download update, status code: ${res.statusCode}`));
           }
 
           const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
           let receivedBytes = 0;
-          const fileStream = fs.createWriteStream(destPath);
+          const hash = crypto.createHash('sha256');
+          const fileStream = fs.createWriteStream(destPath, { mode: 0o700 });
 
           res.on('data', (chunk) => {
             receivedBytes += chunk.length;
+            hash.update(chunk);
             if (totalBytes > 0 && typeof onProgress === 'function') {
               const percent = Math.min(100, Math.round((receivedBytes / totalBytes) * 100));
               onProgress(percent);
             }
           });
 
+          res.on('error', (err) => fail(err, fileStream));
+          fileStream.on('error', (err) => fail(err, fileStream));
+
           res.pipe(fileStream);
 
           fileStream.on('finish', () => {
-            fileStream.close(() => resolve(destPath));
-          });
-
-          fileStream.on('error', (err) => {
-            fs.unlink(destPath, () => {});
-            reject(err);
+            fileStream.close((closeErr) => {
+              if (closeErr) return fail(closeErr, fileStream);
+              if (!settled) {
+                settled = true;
+                resolve({ destPath, sha256: hash.digest('hex'), bytes: receivedBytes });
+              }
+            });
           });
         }
       );
 
-      req.on('error', (err) => {
-        reject(err);
+      req.setTimeout(30000, () => {
+        req.destroy(new Error('Update download timed out'));
       });
+
+      req.on('error', (err) => fail(err));
     };
 
     download(urlStr, maxRedirects);
   });
 }
 
-// Windows Desktop Updater IPC Handler (Hardened against arbitrary binary execution)
-ipcMain.handle('app:download-and-install-update', async (_event, updateUrl) => {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const { spawn } = require('child_process');
+function fetchOptionalExpectedSha256(urlStr, maxRedirects = 3) {
+  return new Promise((resolve) => {
+    const https = require('https');
+    const { URL } = require('url');
+    const run = (curUrl, left) => {
+      if (left <= 0) return resolve(null);
+      let parsed;
+      try { parsed = new URL(curUrl); } catch { return resolve(null); }
+      if (parsed.protocol !== 'https:' || !isApprovedReleaseHost(parsed.hostname)) return resolve(null);
+      const req = https.get(curUrl, { headers: { 'User-Agent': 'WaveCraft-Pro-Updater' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          res.resume();
+          try {
+            return run(new URL(res.headers.location, curUrl).toString(), left - 1);
+          } catch {
+            return resolve(null);
+          }
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          return resolve(null);
+        }
+        let body = '';
+        res.on('data', (c) => {
+          body += c;
+          if (body.length > 4096) req.destroy();
+        });
+        res.on('end', () => {
+          const match = body.trim().match(/^([a-fA-F0-9]{64})/);
+          resolve(match ? match[1].toLowerCase() : null);
+        });
+        res.on('error', () => resolve(null));
+      });
+      req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+      req.on('error', () => resolve(null));
+    };
+    run(urlStr, maxRedirects);
+  });
+}
 
+function verifyPeHeader(filePath) {
+  const fs = require('fs');
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    const buf = Buffer.alloc(2);
+    const bytesRead = fs.readSync(fd, buf, 0, 2, 0);
+    return bytesRead === 2 && buf[0] === 0x4d && buf[1] === 0x5a; // 'MZ'
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+// Windows Desktop Updater IPC Handler (Hardened against arbitrary binary execution)
+ipcMain.handle('app:download-and-install-update', async (_event, updateArg) => {
+  const fs = require('fs');
+  const path = require('path');
+  const { spawn } = require('child_process');
+  let tempUpdateDir = null;
+
+  try {
     const launchInstaller = (installerPath) => {
-      mainWindow?.webContents.send('update:status', 'installing');
+      safeSendToWindow('update:status', 'installing');
       setTimeout(() => {
         try {
           const child = spawn(installerPath, [], {
@@ -397,7 +504,7 @@ ipcMain.handle('app:download-and-install-update', async (_event, updateUrl) => {
           isQuitting = true;
           app.quit();
         } catch (spawnErr) {
-          mainWindow?.webContents.send(
+          safeSendToWindow(
             'update:error',
             'Failed to launch Windows installer: ' + spawnErr.message
           );
@@ -405,20 +512,26 @@ ipcMain.handle('app:download-and-install-update', async (_event, updateUrl) => {
       }, 600);
     };
 
+    const rawUrl = typeof updateArg === 'string' ? updateArg : updateArg?.url;
+    const explicitSha256 =
+      typeof updateArg === 'object' && typeof updateArg?.sha256 === 'string' && /^[a-fA-F0-9]{64}$/.test(updateArg.sha256.trim())
+        ? updateArg.sha256.trim().toLowerCase()
+        : null;
+
     // Strictly validate update download URL: must be HTTPS and originate from official release repository
     let targetUrl =
       'https://github.com/Pradeep28012010/WaveCraft/releases/latest/download/WaveCraft-Pro-Setup.exe';
 
-    if (updateUrl && typeof updateUrl === 'string') {
+    if (rawUrl && typeof rawUrl === 'string') {
       try {
-        const parsed = new URL(updateUrl);
+        const parsed = new URL(rawUrl);
         if (
           parsed.protocol === 'https:' &&
           parsed.hostname === 'github.com' &&
           parsed.pathname.startsWith('/Pradeep28012010/WaveCraft/releases/') &&
-          parsed.pathname.endsWith('.exe')
+          parsed.pathname.toLowerCase().endsWith('.exe')
         ) {
-          targetUrl = updateUrl;
+          targetUrl = rawUrl;
         } else {
           return { success: false, error: 'Untrusted or unapproved update source domain' };
         }
@@ -427,27 +540,46 @@ ipcMain.handle('app:download-and-install-update', async (_event, updateUrl) => {
       }
     }
 
-    mainWindow?.webContents.send('update:status', 'downloading');
-    mainWindow?.webContents.send('update:progress', 1);
+    safeSendToWindow('update:status', 'downloading');
+    safeSendToWindow('update:progress', 1);
 
-    const tempDir = app.getPath('temp');
-    const tempExePath = path.join(tempDir, 'WaveCraft-Pro-Setup.exe');
+    tempUpdateDir = fs.mkdtempSync(path.join(app.getPath('temp'), 'wavecraft-update-'));
+    const tempExePath = path.join(tempUpdateDir, 'WaveCraft-Pro-Setup.exe');
 
-    await downloadFileWithProgress(targetUrl, tempExePath, (percent) => {
-      mainWindow?.webContents.send('update:progress', percent);
-    });
+    const [{ sha256, bytes }, sidecarSha256] = await Promise.all([
+      downloadFileWithProgress(targetUrl, tempExePath, (percent) => {
+        safeSendToWindow('update:progress', percent);
+      }),
+      explicitSha256 ? Promise.resolve(explicitSha256) : fetchOptionalExpectedSha256(`${targetUrl}.sha256`)
+    ]);
+
+    if (bytes < 512 * 1024 || !verifyPeHeader(tempExePath)) {
+      fs.rmSync(tempUpdateDir, { recursive: true, force: true });
+      safeSendToWindow('update:error', 'Downloaded installer failed integrity check');
+      return { success: false, error: 'Downloaded installer failed binary validation' };
+    }
+
+    const expectedSha = explicitSha256 || sidecarSha256;
+    if (expectedSha && sha256 !== expectedSha) {
+      fs.rmSync(tempUpdateDir, { recursive: true, force: true });
+      safeSendToWindow('update:error', 'Update package SHA-256 checksum mismatch');
+      return { success: false, error: 'Update package checksum mismatch' };
+    }
 
     launchInstaller(tempExePath);
     return { success: true };
   } catch (err) {
     console.error('Electron update failed:', err);
-    mainWindow?.webContents.send('update:error', err.message || 'Windows update download failed');
+    if (tempUpdateDir) {
+      try { fs.rmSync(tempUpdateDir, { recursive: true, force: true }); } catch {}
+    }
+    safeSendToWindow('update:error', err.message || 'Windows update download failed');
     return { success: false, error: err.message };
   }
 });
 
 ipcMain.on('window:finish-setup', () => {
-  if (!mainWindow) return;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
   isSetupMode = false;
   mainWindow.setResizable(true);
   mainWindow.setMinimumSize(940, 620);
@@ -456,15 +588,17 @@ ipcMain.on('window:finish-setup', () => {
   mainWindow.focus();
 });
 
-app.whenReady().then(() => {
-  createMainWindow();
+if (gotSingleInstanceLock) {
+  app.whenReady().then(() => {
+    createMainWindow();
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
-    }
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createMainWindow();
+      }
+    });
   });
-});
+}
 
 app.on('before-quit', () => {
   isQuitting = true;

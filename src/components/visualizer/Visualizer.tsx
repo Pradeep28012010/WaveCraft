@@ -1,8 +1,69 @@
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { getAudioFrequencyData } from '../player/YouTubeEmbed';
+import { usePlayerStore } from '../../stores/playerStore';
 
 import type { VisualizerStyle } from '../../types';
 export type { VisualizerStyle };
+
+const colorRgbCache = new Map<string, [number, number, number]>();
+let colorParserCtx: CanvasRenderingContext2D | null | undefined;
+
+function toRgba(color: string, alpha: number): string {
+  const clamped = Math.max(0, Math.min(1, alpha));
+  const key = color.trim();
+  let rgb = colorRgbCache.get(key);
+
+  if (!rgb) {
+    const hexMatch = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(key);
+    if (hexMatch) {
+      const hex = hexMatch[1];
+      if (hex.length === 3) {
+        rgb = [
+          parseInt(hex[0] + hex[0], 16),
+          parseInt(hex[1] + hex[1], 16),
+          parseInt(hex[2] + hex[2], 16)
+        ];
+      } else {
+        rgb = [
+          parseInt(hex.slice(0, 2), 16),
+          parseInt(hex.slice(2, 4), 16),
+          parseInt(hex.slice(4, 6), 16)
+        ];
+      }
+    } else {
+      const rgbMatch = /^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/i.exec(key);
+      if (rgbMatch) {
+        rgb = [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+      } else if (typeof document !== 'undefined') {
+        if (colorParserCtx === undefined) {
+          colorParserCtx = document.createElement('canvas').getContext('2d');
+        }
+        if (colorParserCtx) {
+          colorParserCtx.fillStyle = '#000000';
+          colorParserCtx.fillStyle = key;
+          const parsed = colorParserCtx.fillStyle;
+          const pHex = /^#([0-9a-f]{6})$/i.exec(parsed);
+          const pRgb = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i.exec(parsed);
+          if (pHex) {
+            rgb = [
+              parseInt(pHex[1].slice(0, 2), 16),
+              parseInt(pHex[1].slice(2, 4), 16),
+              parseInt(pHex[1].slice(4, 6), 16)
+            ];
+          } else if (pRgb) {
+            rgb = [Number(pRgb[1]), Number(pRgb[2]), Number(pRgb[3])];
+          }
+        }
+      }
+    }
+
+    if (!rgb) rgb = [250, 45, 72];
+    if (colorRgbCache.size >= 64) colorRgbCache.clear();
+    colorRgbCache.set(key, rgb);
+  }
+
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${clamped})`;
+}
 
 interface VisualizerProps {
   isActive: boolean;
@@ -67,9 +128,11 @@ const Visualizer = memo(
     const isActiveRef = useRef(isActive);
     const styleRef = useRef(style);
     const colorsRef = useRef(colors);
+    const fullScreenRef = useRef(fullScreen);
     isActiveRef.current = isActive;
     styleRef.current = style;
     colorsRef.current = colors;
+    fullScreenRef.current = fullScreen;
 
     // 3D Perspective Tilt and Audio Dynamic Physics
     const tiltRef = useRef<{ x: number; y: number; targetX: number; targetY: number }>({
@@ -78,6 +141,9 @@ const Visualizer = memo(
       targetX: 0,
       targetY: 0
     });
+    const prevStyleRef = useRef<VisualizerStyle>(style);
+    const canvasSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
+    const idleFramesRef = useRef<number>(0);
     const meshOffsetRef = useRef<number>(0);
     const vuNeedleRef = useRef<{ left: number; right: number; tapeAngle: number }>({
       left: 0,
@@ -108,10 +174,18 @@ const Visualizer = memo(
     const matrixHeadIdxRef = useRef<Int32Array>(new Int32Array(256));
 
     const initStarsAndParticles = (width: number, height: number) => {
+      const sizeChanged =
+        canvasSizeRef.current.width === 0 ||
+        Math.abs(width - canvasSizeRef.current.width) > 40 ||
+        Math.abs(height - canvasSizeRef.current.height) > 40;
+      if (sizeChanged) {
+        canvasSizeRef.current = { width, height };
+      }
+
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
       const starCount = isMobile ? 45 : 140;
       const particleCount = isMobile ? 20 : 55;
-      if (starsRef.current.length === 0) {
+      if (starsRef.current.length === 0 || sizeChanged) {
         starsRef.current = Array.from({ length: starCount }, () => {
           const z = Math.random() * width + 1;
           return {
@@ -123,7 +197,7 @@ const Visualizer = memo(
           };
         });
       }
-      if (particlesRef.current.length === 0) {
+      if (particlesRef.current.length === 0 || sizeChanged) {
         particlesRef.current = Array.from({ length: particleCount }, () => ({
           x: Math.random() * width,
           y: Math.random() * height,
@@ -139,18 +213,23 @@ const Visualizer = memo(
     const draw = useCallback(
       (now: number) => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas) {
+          requestRef.current = 0;
+          return;
+        }
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        if (!ctx) {
+          requestRef.current = 0;
+          return;
+        }
 
         const style = styleRef.current;
         const isActive = isActiveRef.current;
         const colors = colorsRef.current;
 
         if (typeof document !== 'undefined' && document.hidden) {
-          // Pause drawing loop when minimized or tab/app is hidden in background, but keep RAF alive to resume immediately
-          requestRef.current = requestAnimationFrame(draw);
+          requestRef.current = 0;
           return;
         }
 
@@ -182,17 +261,29 @@ const Visualizer = memo(
         ctx.lineCap = 'round';
 
         if (style === 'laser-oscilloscope') {
-          // Phosphor retention persistence trail
-          ctx.fillStyle = 'rgba(6, 6, 12, 0.22)';
-          ctx.fillRect(0, 0, width, height);
+          if (prevStyleRef.current !== 'laser-oscilloscope') {
+            ctx.clearRect(0, 0, width, height);
+          } else {
+            // Phosphor retention persistence trail over transparent backdrop
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+            ctx.fillRect(0, 0, width, height);
+            ctx.restore();
+          }
         } else {
           ctx.clearRect(0, 0, width, height);
         }
+        prevStyleRef.current = style;
 
         const data = dataRef.current;
+        const { isMuted, volume } = usePlayerStore.getState();
+        const isAudioActive = isActive && !isMuted && volume > 0.02;
 
         // Dual-pole audio dynamics: instant transient attack (kick/snare) + silky exponential release
-        if (isActive) {
+        let maxIdleDelta = 0;
+        if (isAudioActive) {
+          idleFramesRef.current = 0;
           const hasRealAudio = getAudioFrequencyData(fftBufferRef.current);
           if (hasRealAudio) {
             const attackRate = 1 - Math.pow(1 - 0.45, dt);
@@ -224,7 +315,10 @@ const Visualizer = memo(
           const idleSmooth = 1 - Math.pow(1 - 0.08, dt);
           for (let i = 0; i < 64; i++) {
             data[i] += (0.02 - data[i]) * idleSmooth;
+            const d = Math.abs(data[i] - 0.02);
+            if (d > maxIdleDelta) maxIdleDelta = d;
           }
+          idleFramesRef.current += 1;
         }
 
         // Compute bass energy
@@ -266,7 +360,7 @@ const Visualizer = memo(
 
           const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.2, sunX, sunY, sunR * 1.9);
           sunGlow.addColorStop(0, c0);
-          sunGlow.addColorStop(0.5, `${c1}88`);
+          sunGlow.addColorStop(0.5, toRgba(c1, 0.53));
           sunGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
           ctx.fillStyle = sunGlow;
           ctx.beginPath();
@@ -389,22 +483,29 @@ const Visualizer = memo(
         // 2. VINTAGE ANALOG VU METER & TAPE DECK
         // ==========================================
         else if (style === 'analog-vu') {
+          if (fullScreenRef.current) {
+            const scrim = ctx.createLinearGradient(0, 0, 0, height);
+            scrim.addColorStop(0, 'rgba(6, 6, 12, 0.28)');
+            scrim.addColorStop(0.55, 'rgba(6, 6, 12, 0.48)');
+            scrim.addColorStop(1, 'rgba(6, 6, 12, 0.86)');
+            ctx.fillStyle = scrim;
+            ctx.fillRect(0, 0, width, height);
+          }
+
           const vu = vuNeedleRef.current;
-          const leftEnergy = Math.min(
-            1,
-            Math.max(0, (data[1] * 0.5 + data[2] * 0.3 + data[3] * 0.2) * 1.45)
-          );
-          const rightEnergy = Math.min(
-            1,
-            Math.max(0, (data[5] * 0.3 + data[8] * 0.4 + data[12] * 0.3) * 1.45)
-          );
+          const leftEnergy = isAudioActive
+            ? Math.min(1, Math.max(0, (data[1] * 0.5 + data[2] * 0.3 + data[3] * 0.2) * 1.45))
+            : 0;
+          const rightEnergy = isAudioActive
+            ? Math.min(1, Math.max(0, (data[5] * 0.3 + data[8] * 0.4 + data[12] * 0.3) * 1.45))
+            : 0;
 
           const attack = 0.38 * dt;
           const release = 0.09 * dt;
           vu.left += (leftEnergy - vu.left) * (leftEnergy > vu.left ? attack : release);
           vu.right += (rightEnergy - vu.right) * (rightEnergy > vu.right ? attack : release);
 
-          if (isActive) {
+          if (isAudioActive) {
             vu.tapeAngle += (0.045 + bassEnergy * 0.04) * dt;
           }
 
@@ -941,7 +1042,7 @@ const Visualizer = memo(
           }
 
           ctx.beginPath();
-          ctx.arc(centerX, centerY, radius - 8, 0, Math.PI * 2);
+          ctx.arc(centerX, centerY, Math.max(1, radius - 8), 0, Math.PI * 2);
           ctx.fillStyle = 'rgba(6, 6, 11, 0.65)';
           ctx.fill();
           ctx.strokeStyle = gradient;
@@ -961,7 +1062,7 @@ const Visualizer = memo(
           const coreGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 65 + bassEnergy * 55);
           coreGlow.addColorStop(0, '#ffffff');
           coreGlow.addColorStop(0.25, c0);
-          coreGlow.addColorStop(0.55, `${c1}88`);
+          coreGlow.addColorStop(0.55, toRgba(c1, 0.53));
           coreGlow.addColorStop(1, 'rgba(6, 6, 12, 0)');
           ctx.fillStyle = coreGlow;
           ctx.beginPath();
@@ -1047,9 +1148,9 @@ const Visualizer = memo(
 
           // Multi-layer glowing corona
           const coronaGlow = ctx.createRadialGradient(cx, cy, baseRadius * 0.4, cx, cy, baseRadius * 2.8);
-          coronaGlow.addColorStop(0, `${c0}ee`);
-          coronaGlow.addColorStop(0.35, `${c1}88`);
-          coronaGlow.addColorStop(0.7, `${c2}33`);
+          coronaGlow.addColorStop(0, toRgba(c0, 0.93));
+          coronaGlow.addColorStop(0.35, toRgba(c1, 0.53));
+          coronaGlow.addColorStop(0.7, toRgba(c2, 0.2));
           coronaGlow.addColorStop(1, 'rgba(6, 6, 12, 0)');
           ctx.fillStyle = coronaGlow;
           ctx.beginPath();
@@ -1083,7 +1184,7 @@ const Visualizer = memo(
             const rayGrad = ctx.createLinearGradient(p1x, p1y, p2x, p2y);
             rayGrad.addColorStop(0, c0);
             rayGrad.addColorStop(0.5, c1);
-            rayGrad.addColorStop(1, `${c2}00`);
+            rayGrad.addColorStop(1, toRgba(c2, 0));
 
             ctx.strokeStyle = rayGrad;
             ctx.lineWidth = Math.max(1.2, 2.5 * (1 + audioVal));
@@ -1118,9 +1219,9 @@ const Visualizer = memo(
 
           // Background Sacred Harmonic Geometry Aura
           const aura = ctx.createRadialGradient(cx, cy, 10, cx, cy, maxRadius * 1.15);
-          aura.addColorStop(0, `${c0}55`);
-          aura.addColorStop(0.35, `${c1}33`);
-          aura.addColorStop(0.7, `${c2}18`);
+          aura.addColorStop(0, toRgba(c0, 0.33));
+          aura.addColorStop(0.35, toRgba(c1, 0.2));
+          aura.addColorStop(0.7, toRgba(c2, 0.09));
           aura.addColorStop(1, 'rgba(6, 6, 12, 0)');
           ctx.fillStyle = aura;
           ctx.beginPath();
@@ -1206,9 +1307,9 @@ const Visualizer = memo(
               ctx.closePath();
 
               const petalGrad = ctx.createLinearGradient(0, 0, tipX, tipY);
-              petalGrad.addColorStop(0, `${layerColor}15`);
-              petalGrad.addColorStop(0.6, `${layerColor}45`);
-              petalGrad.addColorStop(1, '#ffffff35');
+              petalGrad.addColorStop(0, toRgba(layerColor, 0.08));
+              petalGrad.addColorStop(0.6, toRgba(layerColor, 0.27));
+              petalGrad.addColorStop(1, 'rgba(255, 255, 255, 0.21)');
               ctx.fillStyle = petalGrad;
               ctx.globalAlpha = 0.45 + freqVal * 0.45;
               ctx.fill();
@@ -1235,7 +1336,7 @@ const Visualizer = memo(
           const gemGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, gemRadius * 1.8);
           gemGrad.addColorStop(0, '#ffffff');
           gemGrad.addColorStop(0.3, c0);
-          gemGrad.addColorStop(0.7, `${c1}88`);
+          gemGrad.addColorStop(0.7, toRgba(c1, 0.53));
           gemGrad.addColorStop(1, 'rgba(6, 6, 12, 0)');
           ctx.fillStyle = gemGrad;
           ctx.beginPath();
@@ -1268,7 +1369,7 @@ const Visualizer = memo(
         } else if (style === 'matrix-rain') {
           // Cyber Matrix Digital Rain Cascade - Silky 120fps Batched Render Pipeline
           const colWidth = 20;
-          const numCols = Math.floor(width / colWidth);
+          const numCols = Math.max(1, Math.floor(width / colWidth));
           const chars = '0123456789ABCDEFｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ';
 
           if (matrixColsRef.current.length !== numCols) {
@@ -1278,6 +1379,10 @@ const Visualizer = memo(
               speed: 2 + Math.random() * 4,
               chars: Array.from({ length: 22 }, () => chars[Math.floor(Math.random() * chars.length)])
             }));
+          }
+
+          if (matrixHeadIdxRef.current.length < numCols) {
+            matrixHeadIdxRef.current = new Int32Array(numCols);
           }
 
           ctx.font = '13px monospace';
@@ -1322,7 +1427,7 @@ const Visualizer = memo(
             }
 
             // Collect valid head glyphs into pre-allocated buffer
-            if (col.y >= -16 && col.y <= height + 16 && headCount < 256) {
+            if (col.y >= -16 && col.y <= height + 16 && headCount < headIdxs.length) {
               headIdxs[headCount++] = c;
             }
           }
@@ -1429,25 +1534,56 @@ const Visualizer = memo(
         }
 
         ctx.restore();
+
+        const tiltSettled =
+          Math.abs(tilt.targetX - tilt.x) < 0.002 && Math.abs(tilt.targetY - tilt.y) < 0.002;
+        const vuSettled =
+          style !== 'analog-vu' ||
+          (vuNeedleRef.current.left < 0.002 && vuNeedleRef.current.right < 0.002);
+        const trailSettled = style !== 'laser-oscilloscope' || idleFramesRef.current > 24;
+
+        if (!isAudioActive && maxIdleDelta < 0.002 && tiltSettled && vuSettled && trailSettled) {
+          requestRef.current = 0;
+          return;
+        }
+
         requestRef.current = requestAnimationFrame(draw);
       },
       []
     );
 
+    const wakeDraw = useCallback(() => {
+      idleFramesRef.current = 0;
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (!requestRef.current) {
+        lastTimeRef.current = performance.now();
+        requestRef.current = requestAnimationFrame(draw);
+      }
+    }, [draw]);
+
     useEffect(() => {
+      wakeDraw();
+    }, [isActive, style, colors, fullScreen, wakeDraw]);
+
+    useEffect(() => {
+      const canvas = canvasRef.current;
+
       const handleResize = () => {
-        const canvas = canvasRef.current;
-        if (canvas && canvas.parentElement) {
-          const rect = canvas.parentElement.getBoundingClientRect();
+        const target = canvasRef.current;
+        if (target && target.parentElement) {
+          const rect = target.parentElement.getBoundingClientRect();
           const dpr = Math.min(2.5, window.devicePixelRatio || 1);
           const w = Math.round(rect.width);
           const h = Math.round(rect.height);
           if (w > 0 && h > 0) {
-            canvas.width = Math.round(w * dpr);
-            canvas.height = Math.round(h * dpr);
-            canvas.style.width = `${w}px`;
-            canvas.style.height = `${h}px`;
+            const nextW = Math.round(w * dpr);
+            const nextH = Math.round(h * dpr);
+            if (target.width !== nextW || target.height !== nextH) {
+              target.width = nextW;
+              target.height = nextH;
+            }
           }
+          wakeDraw();
         }
       };
 
@@ -1467,34 +1603,58 @@ const Visualizer = memo(
         const ny = (clientY / h) * 2 - 1; // -1 to 1
         tiltRef.current.targetX = Math.max(-1, Math.min(1, nx));
         tiltRef.current.targetY = Math.max(-1, Math.min(1, ny));
+        wakeDraw();
       };
 
       const handleVisibilityChange = () => {
         if (!document.hidden) {
           cancelAnimationFrame(requestRef.current);
+          requestRef.current = 0;
           lastTimeRef.current = performance.now();
           requestRef.current = requestAnimationFrame(draw);
         } else {
           cancelAnimationFrame(requestRef.current);
+          requestRef.current = 0;
         }
       };
+
+      const resizeObserver =
+        typeof ResizeObserver !== 'undefined' && canvas?.parentElement
+          ? new ResizeObserver(() => handleResize())
+          : null;
+      if (resizeObserver && canvas?.parentElement) {
+        resizeObserver.observe(canvas.parentElement);
+      }
+
+      const unsubStore = usePlayerStore.subscribe((state, prevState) => {
+        if (state.isMuted !== prevState.isMuted || state.volume !== prevState.volume) {
+          wakeDraw();
+        }
+      });
 
       handleResize();
       window.addEventListener('resize', handleResize);
       window.addEventListener('mousemove', handlePointerMove, { passive: true });
       window.addEventListener('touchmove', handlePointerMove, { passive: true });
       document.addEventListener('visibilitychange', handleVisibilityChange);
-      lastTimeRef.current = performance.now();
-      requestRef.current = requestAnimationFrame(draw);
+      if (typeof document === 'undefined' || !document.hidden) {
+        lastTimeRef.current = performance.now();
+        if (!requestRef.current) {
+          requestRef.current = requestAnimationFrame(draw);
+        }
+      }
 
       return () => {
+        resizeObserver?.disconnect();
+        unsubStore();
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('mousemove', handlePointerMove);
         window.removeEventListener('touchmove', handlePointerMove);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         cancelAnimationFrame(requestRef.current);
+        requestRef.current = 0;
       };
-    }, [draw]);
+    }, [draw, wakeDraw]);
 
     const containerClasses = fullScreen
       ? 'absolute inset-0 w-full h-full pointer-events-none'

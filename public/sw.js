@@ -1,8 +1,8 @@
-const CACHE_NAME = 'wavecraft-shell-v8.1-v5.4.0';
+const CACHE_NAME = 'wavecraft-shell-v8.2-v5.4.0';
 const SHELL_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  // Never force skipWaiting() during install so active audio playback is never interrupted by a silent reload
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS).catch(() => {}))
   );
@@ -24,7 +24,6 @@ self.addEventListener('activate', (event) => {
             .map((k) => caches.delete(k))
         )
       )
-      .then(() => self.clients.claim())
   );
 });
 
@@ -40,9 +39,13 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Never cache API, audio streams, or external media endpoints
+  // Never cache API, version manifests, installer binaries (.apk), range requests, or external media endpoints
   if (
     url.pathname.startsWith('/api/') ||
+    url.pathname === '/version.json' ||
+    url.pathname === '/sw.js' ||
+    url.pathname.endsWith('.apk') ||
+    request.headers.has('range') ||
     url.hostname.includes('youtube') ||
     url.hostname.includes('googlevideo') ||
     url.hostname.includes('saavncdn') ||
@@ -56,9 +59,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request, { cache: 'no-cache' })
         .then((response) => {
-          if (response && response.status === 200) {
+          const ct = (response?.headers?.get('content-type') || '').toLowerCase();
+          if (response && response.status === 200 && response.type === 'basic' && ct.includes('text/html')) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone)).catch(() => {});
           }
           return response;
         })
@@ -76,35 +80,64 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Hashed Vite build assets: cache-first with network fallback (instant loading & robust offline resilience)
+  // Hashed Vite build assets: cache-first, rejecting non-asset/HTML 200 SPA fallback poisoning
   if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        });
+        return fetch(request)
+          .then((response) => {
+            const ct = (response?.headers?.get('content-type') || '').toLowerCase();
+            if (
+              response &&
+              response.status === 200 &&
+              response.type === 'basic' &&
+              !ct.includes('text/html')
+            ) {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)).catch(() => {});
+            }
+            return response;
+          })
+          .catch(
+            () =>
+              new Response('Asset unavailable offline', {
+                status: 503,
+                headers: { 'Content-Type': 'text/plain' }
+              })
+          );
       })
     );
     return;
   }
 
-  // Static same-origin assets: network-first with stale fallback
+  // Static same-origin assets: network-first with stale fallback (always resolving a valid Response)
   if (url.origin === self.location.origin) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
+          const ct = (response?.headers?.get('content-type') || '').toLowerCase();
+          if (
+            response &&
+            response.status === 200 &&
+            response.type === 'basic' &&
+            !ct.includes('text/html')
+          ) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)).catch(() => {});
           }
           return response;
         })
-        .catch(() => caches.match(request))
+        .catch(async () => {
+          const match = await caches.match(request);
+          return (
+            match ||
+            new Response('Offline', {
+              status: 503,
+              headers: { 'Content-Type': 'text/plain' }
+            })
+          );
+        })
     );
   }
 });

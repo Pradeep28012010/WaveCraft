@@ -1,5 +1,5 @@
-import { Suspense } from 'react';
-import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom';
+import { Component, Suspense, type ReactNode, type ErrorInfo } from 'react';
+import { BrowserRouter, HashRouter, Routes, Route, Link } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 
 import MainLayout from './components/layout/MainLayout';
@@ -35,6 +35,56 @@ const shouldUseHashRouter =
 
 const RouterComponent = shouldUseHashRouter ? HashRouter : BrowserRouter;
 
+interface StandaloneBoundaryState {
+  hasError: boolean;
+}
+
+class StandaloneRouteErrorBoundary extends Component<
+  { children: ReactNode },
+  StandaloneBoundaryState
+> {
+  state: StandaloneBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): StandaloneBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('Standalone route error:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 bg-[#06060b] text-white flex items-center justify-center p-6">
+          <div className="max-w-md w-full p-8 rounded-3xl bg-white/[0.04] backdrop-blur-2xl text-center shadow-2xl space-y-4">
+            <h1 className="text-xl font-black tracking-tight text-white">Unable to Load View</h1>
+            <p className="text-sm text-white/60 leading-relaxed">
+              This view encountered an unexpected error. You can retry or return to the main player.
+            </p>
+            <div className="flex items-center justify-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => this.setState({ hasError: false })}
+                className="px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/15 text-sm font-semibold text-white transition cursor-pointer"
+              >
+                Try Again
+              </button>
+              <Link
+                to="/"
+                className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#fa2d48] to-[#ff5b79] text-sm font-bold text-white shadow-lg shadow-rose-500/25 hover:opacity-90 transition"
+              >
+                Go Home
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function AppContent() {
   // Global lifecycle hooks: platform shortcuts, IndexedDB sync, media session, preloading
   useAppLifecycle();
@@ -45,15 +95,17 @@ function AppContent() {
       <Route
         path="/setup"
         element={
-          <Suspense
-            fallback={
-              <div className="fixed inset-0 bg-[#06060b] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-white/15 border-t-[#fa2d48] rounded-full animate-spin" />
-              </div>
-            }
-          >
-            <SetupPage />
-          </Suspense>
+          <StandaloneRouteErrorBoundary>
+            <Suspense
+              fallback={
+                <div className="fixed inset-0 bg-[#06060b] flex items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-white/15 border-t-[#fa2d48] rounded-full animate-spin" />
+                </div>
+              }
+            >
+              <SetupPage />
+            </Suspense>
+          </StandaloneRouteErrorBoundary>
         }
       />
 
@@ -61,15 +113,17 @@ function AppContent() {
       <Route
         path="/welcome"
         element={
-          <Suspense
-            fallback={
-              <div className="fixed inset-0 bg-[#050508] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-white/15 border-t-[#fa2d48] rounded-full animate-spin" />
-              </div>
-            }
-          >
-            <LandingPage />
-          </Suspense>
+          <StandaloneRouteErrorBoundary>
+            <Suspense
+              fallback={
+                <div className="fixed inset-0 bg-[#050508] flex items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-white/15 border-t-[#fa2d48] rounded-full animate-spin" />
+                </div>
+              }
+            >
+              <LandingPage />
+            </Suspense>
+          </StandaloneRouteErrorBoundary>
         }
       />
 
@@ -97,7 +151,7 @@ function AppContent() {
 export default function App() {
   return (
     <AppErrorBoundary>
-      <MotionConfig reducedMotion="never">
+      <MotionConfig reducedMotion="user">
         <RouterComponent>
           <AppContent />
         </RouterComponent>

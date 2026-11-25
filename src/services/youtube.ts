@@ -107,18 +107,41 @@ function combineSignals(signalA?: AbortSignal, signalB?: AbortSignal): AbortSign
     return AbortSignal.any([signalA, signalB]);
   }
   const controller = new AbortController();
-  const onAbort = () => {
-    controller.abort();
+  const cleanup = () => {
     signalA.removeEventListener('abort', onAbort);
     signalB.removeEventListener('abort', onAbort);
+  };
+  const onAbort = () => {
+    cleanup();
+    controller.abort();
   };
   if (signalA.aborted || signalB.aborted) {
     controller.abort();
     return controller.signal;
   }
-  signalA.addEventListener('abort', onAbort);
-  signalB.addEventListener('abort', onAbort);
+  signalA.addEventListener('abort', onAbort, { once: true });
+  signalB.addEventListener('abort', onAbort, { once: true });
   return controller.signal;
+}
+
+function raceWithAbort<T>(promise: Promise<T>, fallbackValue: T, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.resolve(fallbackValue);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => resolve(fallbackValue);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(signal.aborted ? fallbackValue : value);
+      },
+      (err) => {
+        signal.removeEventListener('abort', onAbort);
+        if (signal.aborted) resolve(fallbackValue);
+        else reject(err);
+      }
+    );
+  });
 }
 
 function deduplicateSuggestions(items: string[], currentQuery: string): string[] {
@@ -409,8 +432,8 @@ export function findStrictTrackMatch(
       if (diff <= 5) score += 200;
       else if (diff <= 15) score += 120;
       else if (diff <= 35) score += 50;
-      else if (diff > 60) score -= 300;
       else if (diff > 90) score -= 600;
+      else if (diff > 60) score -= 300;
     }
 
     if (cand.youtubeId) score += 50;
@@ -547,143 +570,67 @@ function deduplicateTracks(tracks: Track[]): Track[] {
   return result;
 }
 
-async function fetchClientYouTubeSearch(query: string, signal?: AbortSignal): Promise<Track[]> {
-  if (signal?.aborted) return [];
-  try {
-    const timeoutSignal = AbortSignal.timeout(5000);
-    const combined = combineSignals(signal, timeoutSignal);
-    const res = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'WEB',
-            clientVersion: '2.20240101.00.00',
-            hl: 'en',
-            gl: 'US'
-          }
-        },
-        query: `${query.trim()} song`
-      }),
-      signal: combined
-    });
-    if (!res.ok || signal?.aborted) return [];
-    const data = await res.json();
-    if (signal?.aborted) return [];
-    const sections =
-      data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
-    const tracks: Track[] = [];
-    const seen = new Set<string>();
+export async function searchTracks(
+  query: string,
+  pageOrSignal: number | AbortSignal = 1,
+  signal?: AbortSignal
+): Promise<Track[]> {
+  const callerSignal = pageOrSignal instanceof AbortSignal ? pageOrSignal : signal;
+  if (callerSignal?.aborted) return [];
 
-    for (const sec of sections) {
-      const items = sec?.itemSectionRenderer?.contents || [];
-      for (const item of items) {
-        const v = item.videoRenderer;
-        if (!v || !v.videoId || seen.has(v.videoId)) continue;
-        seen.add(v.videoId);
-
-        const lengthText = v.lengthText?.simpleText || '';
-        const parts = lengthText.split(':').map(Number);
-        let seconds = 0;
-        if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
-        else if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-
-        tracks.push(
-          mapYouTubeItemToTrack({
-            videoId: v.videoId,
-            title: v.title?.runs?.[0]?.text || 'Unknown Title',
-            author: v.ownerText?.runs?.[0]?.text || 'YouTube Music',
-            lengthSeconds: seconds || 210,
-            thumbnail: `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
-            thumbnailLarge: `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`
-          })
-        );
-      }
-    }
-    return tracks;
-  } catch {
-    return [];
-  }
-}
-
-export async function searchTracks(query: string, _page = 1, signal?: AbortSignal): Promise<Track[]> {
-  if (signal?.aborted) return [];
-  const cleanKey = query.trim().toLowerCase();
+  const trimmedQuery = query.trim();
+  const cleanKey = trimmedQuery.toLowerCase();
   if (!cleanKey) return [];
 
   const cachedHit = getCachedSearch(cleanKey);
   if (cachedHit) {
     return cachedHit;
   }
-  if (inFlightSearch.has(cleanKey)) {
-    return inFlightSearch.get(cleanKey)!;
-  }
 
-  const requestPromise = (async () => {
-    // 1. Primary backend API call with robust timeout and automatic absolute-URL retry (pure YouTube)
-    try {
-      if (signal?.aborted) return [];
-      const endpoint = apiUrl(`/api/music?action=search&q=${encodeURIComponent(query.trim())}`);
-      const timeoutSignal = AbortSignal.timeout(6500);
-      let res = await fetch(endpoint, {
-        signal: combineSignals(signal, timeoutSignal)
-      }).catch(() => null);
-
-      if (signal?.aborted) return [];
-
-      // On Android / mobile if relative endpoint failed, retry with full PROD_API_ORIGIN
-      if (!res?.ok && !endpoint.startsWith('http')) {
-        const retryTimeout = AbortSignal.timeout(5500);
-        res = await fetch(`${PROD_API_ORIGIN}/api/music?action=search&q=${encodeURIComponent(query.trim())}`, {
-          signal: combineSignals(signal, retryTimeout)
+  let sharedPromise = inFlightSearch.get(cleanKey);
+  if (!sharedPromise) {
+    sharedPromise = (async () => {
+      try {
+        // Never bind any single caller's AbortSignal into the shared in-flight request
+        const endpoint = apiUrl(`/api/music?action=search&q=${encodeURIComponent(trimmedQuery)}`);
+        let res = await fetch(endpoint, {
+          signal: AbortSignal.timeout(7000)
         }).catch(() => null);
-      }
 
-      if (signal?.aborted) return [];
-
-      if (res?.ok) {
-        const data = await res.json();
-        if (signal?.aborted) return [];
-        const rawTracks: Track[] = data.tracks || data.youtube || [];
-        const deduped = deduplicateTracks(rawTracks);
-        const ranked = rankTracksByRelevance(deduped, query);
-
-        if (ranked.length > 0) {
-          setBoundedCache(searchCache, cleanKey, ranked, MAX_SEARCH_CACHE_ENTRIES);
-          return ranked;
+        // Retry with PROD_API_ORIGIN if relative /api endpoint failed or was unavailable (e.g. native APK / local dev)
+        if (!res?.ok && !endpoint.startsWith('http')) {
+          res = await fetch(`${PROD_API_ORIGIN}/api/music?action=search&q=${encodeURIComponent(trimmedQuery)}`, {
+            signal: AbortSignal.timeout(7000)
+          }).catch(() => null);
         }
-      }
-    } catch (err: unknown) {
-      if (signal?.aborted || (err as { name?: string })?.name === 'AbortError') return [];
-      console.warn('Primary /api/music search error, trying direct YouTube client:', err);
-    }
 
-    if (signal?.aborted) return [];
+        if (res?.ok) {
+          const data = await res.json();
+          const rawTracks: Track[] = data.tracks || data.youtube || [];
+          const deduped = deduplicateTracks(rawTracks);
+          const ranked = rankTracksByRelevance(deduped, trimmedQuery);
 
-    // 2. Direct client-side YouTube fallback (pure YouTube, no other sources)
-    try {
-      const directYtTracks = await fetchClientYouTubeSearch(query, signal);
-      if (signal?.aborted) return [];
-      if (directYtTracks.length > 0) {
-        const deduped = deduplicateTracks(directYtTracks);
-        const ranked = rankTracksByRelevance(deduped, query);
-        if (ranked.length > 0) {
-          setBoundedCache(searchCache, cleanKey, ranked, MAX_SEARCH_CACHE_ENTRIES);
-          return ranked;
+          if (ranked.length > 0) {
+            setBoundedCache(searchCache, cleanKey, ranked, MAX_SEARCH_CACHE_ENTRIES);
+            return ranked;
+          }
         }
+      } catch (err) {
+        console.warn('/api/music search error:', err);
       }
-    } catch {}
 
-    return [];
-  })();
+      return [];
+    })();
 
-  inFlightSearch.set(cleanKey, requestPromise);
-  try {
-    return await requestPromise;
-  } finally {
-    inFlightSearch.delete(cleanKey);
+    inFlightSearch.set(cleanKey, sharedPromise);
+    sharedPromise.finally(() => {
+      if (inFlightSearch.get(cleanKey) === sharedPromise) {
+        inFlightSearch.delete(cleanKey);
+      }
+    });
   }
+
+  return raceWithAbort(sharedPromise, [], callerSignal);
 }
 
 export interface SpotifyCategory {
@@ -837,7 +784,7 @@ export async function searchSuggestions(query: string, signal?: AbortSignal): Pr
   try {
     const endpoint = apiUrl(`/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`);
     let res = await fetch(endpoint, { signal: combined }).catch(() => null);
-    if (!res?.ok && !endpoint.startsWith('http')) {
+    if (!res?.ok && !endpoint.startsWith('http') && !signal?.aborted) {
       const retryTimeout = AbortSignal.timeout(3000);
       res = await fetch(`${PROD_API_ORIGIN}/api/music?action=suggestions&q=${encodeURIComponent(query.trim())}`, {
         signal: combineSignals(signal, retryTimeout)
@@ -850,27 +797,32 @@ export async function searchSuggestions(query: string, signal?: AbortSignal): Pr
       const sugs: string[] = data.suggestions || [];
       if (sugs.length > 0) {
         const unique = deduplicateSuggestions(sugs, key);
-        setBoundedCache(suggestionsCache, key, unique, MAX_SUGGESTIONS_CACHE_ENTRIES);
-        return unique;
+        if (unique.length > 0) {
+          setBoundedCache(suggestionsCache, key, unique, MAX_SUGGESTIONS_CACHE_ENTRIES);
+          return unique;
+        }
       }
     }
-  } catch {
-    // client-side direct suggest fallback
-    try {
-      if (signal?.aborted) return [];
-      const fallbackSignal = combineSignals(signal, AbortSignal.timeout(2500));
-      const fallbackRes = await fetch(
-        `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query.trim())}`,
-        { signal: fallbackSignal }
-      );
-      if (fallbackRes.ok && !signal?.aborted) {
-        const d = await fallbackRes.json();
-        const sugs = Array.isArray(d?.[1]) ? (d[1] as string[]) : [];
-        const unique = deduplicateSuggestions(sugs, key);
+  } catch {}
+
+  if (signal?.aborted) return [];
+
+  // Client-side direct suggest fallback when backend returned !res.ok, empty, or threw
+  try {
+    const fallbackSignal = combineSignals(signal, AbortSignal.timeout(2500));
+    const fallbackRes = await fetch(
+      `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query.trim())}`,
+      { signal: fallbackSignal }
+    );
+    if (fallbackRes.ok && !signal?.aborted) {
+      const d = await fallbackRes.json();
+      const sugs = Array.isArray(d?.[1]) ? (d[1] as string[]) : [];
+      const unique = deduplicateSuggestions(sugs, key);
+      if (unique.length > 0) {
         setBoundedCache(suggestionsCache, key, unique, MAX_SUGGESTIONS_CACHE_ENTRIES);
-        return unique;
       }
-    } catch {}
-  }
+      return unique;
+    }
+  } catch {}
   return [];
 }

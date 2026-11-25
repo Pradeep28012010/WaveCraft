@@ -36,9 +36,9 @@ const FEATURES = [
     accent: '#818cf8',
   },
   {
-    badge: '7 GPU Styles',
+    badge: '14 GPU Styles',
     title: 'Real-time Visualizers',
-    desc: 'From deep-space nebulae to particle starfields — seven GPU-accelerated visual engines that breathe with your music at native refresh rates.',
+    desc: 'From deep-space nebulae to particle starfields — fourteen GPU-accelerated visual engines that breathe with your music at native refresh rates.',
     highlight: 'Canvas + WebGL at 120fps',
     accent: '#0ea5e9',
   },
@@ -62,7 +62,7 @@ const SHOWCASE = [
 
 const STATS: { value: number; suffix: string; label: string }[] = [
   { value: 320, suffix: 'kbps', label: 'Studio Quality' },
-  { value: 7, suffix: '', label: 'Visualizer Styles' },
+  { value: 14, suffix: '', label: 'Visualizer Styles' },
   { value: 10, suffix: '-Band', label: 'Parametric EQ' },
   { value: 360, suffix: '°', label: 'Spatial Audio' },
 ];

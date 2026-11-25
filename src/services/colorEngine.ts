@@ -34,6 +34,15 @@ export const DEFAULT_AMBIENT_PALETTE: AmbientPalette = {
 };
 
 const paletteCache = new Map<string, AmbientPalette>();
+const MAX_PALETTE_CACHE = 120;
+
+function cachePalette(url: string, pal: AmbientPalette): void {
+  if (paletteCache.size >= MAX_PALETTE_CACHE) {
+    const oldest = paletteCache.keys().next().value;
+    if (oldest !== undefined) paletteCache.delete(oldest);
+  }
+  paletteCache.set(url, pal);
+}
 
 /**
  * Converts RGB tuple to Hex string.

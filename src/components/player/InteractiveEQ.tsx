@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { usePlayerStore } from '../../stores/playerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { EQ_PRESETS } from '../../utils/constants';
 import { getAudioFrequencyData } from '../../services/audioEngine';
@@ -32,6 +33,7 @@ function getSplinePath(points: Array<{ x: number; y: number }>): string {
 }
 
 export default function InteractiveEQ() {
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
   const equalizerPreset = useSettingsStore((s) => s.equalizerPreset || 'Flat');
   const equalizerBands = useSettingsStore(
     (s) => s.equalizerBands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -45,7 +47,7 @@ export default function InteractiveEQ() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const barRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Real-time Audio Spectrum Analyser behind the curve (Direct DOM updates - zero React re-renders)
+  // Real-time Audio Spectrum Analyser behind the curve (pauses RAF when paused or hidden)
   useEffect(() => {
     let isMounted = true;
     let raf = 0;
@@ -54,7 +56,12 @@ export default function InteractiveEQ() {
 
     const updateSpectrum = () => {
       if (!isMounted) return;
-      const hasAudio = getAudioFrequencyData(freqData);
+      if (typeof document !== 'undefined' && document.hidden) {
+        raf = 0;
+        return;
+      }
+      const hasAudio = isPlaying && getAudioFrequencyData(freqData);
+      let anyActive = false;
       for (let i = 0; i < 10; i++) {
         const bar = barRefs.current[i];
         if (!bar) continue;
@@ -62,20 +69,34 @@ export default function InteractiveEQ() {
           const bin = Math.min(freqData.length - 1, Math.floor((i / 9) * 48));
           const target = Math.max(0, freqData[bin] / 255);
           levels[i] = levels[i] * 0.7 + target * 0.3;
+          anyActive = true;
         } else {
-          levels[i] = Math.max(0, levels[i] * 0.92);
+          levels[i] = levels[i] < 0.005 ? 0 : levels[i] * 0.85;
+          if (levels[i] > 0) anyActive = true;
         }
         bar.style.height = `${Math.max(4, levels[i] * 130)}px`;
       }
-      raf = requestAnimationFrame(updateSpectrum);
+      if (isPlaying || anyActive) {
+        raf = requestAnimationFrame(updateSpectrum);
+      } else {
+        raf = 0;
+      }
     };
 
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && !document.hidden && isPlaying && !raf) {
+        raf = requestAnimationFrame(updateSpectrum);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
     raf = requestAnimationFrame(updateSpectrum);
     return () => {
       isMounted = false;
-      cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (raf) cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [isPlaying]);
 
   // Coordinate geometry for SVG canvas (1000 x 200 viewport)
   const SVG_WIDTH = 1000;
@@ -146,6 +167,7 @@ export default function InteractiveEQ() {
     e.stopPropagation();
     e.nativeEvent?.stopImmediatePropagation?.();
     const rect = svgRef.current.getBoundingClientRect();
+    if (rect.height <= 0) return;
     const relativeY = ((e.clientY - rect.top) / rect.height) * SVG_HEIGHT;
     const newDb = yToDb(relativeY);
 
@@ -429,6 +451,7 @@ export default function InteractiveEQ() {
                 onPointerDown={(e) => handlePointerDown(p.idx, e)}
                 onPointerMove={(e) => handlePointerMove(p.idx, e)}
                 onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
                 onDoubleClick={() => handleDoubleClick(p.idx)}
                 onMouseEnter={() => setHoveredIdx(p.idx)}
                 onMouseLeave={() => setHoveredIdx(null)}
@@ -492,7 +515,7 @@ export default function InteractiveEQ() {
             <button
               key={label}
               type="button"
-              onClick={() => handleDoubleClick(idx)}
+              onDoubleClick={() => handleDoubleClick(idx)}
               className="hover:text-cyan-300 transition cursor-pointer"
               title={`Double click to reset ${label}Hz to 0 dB`}
             >
@@ -542,7 +565,23 @@ export default function InteractiveEQ() {
                   onPointerUp={(e) => handleBandPointerUp(i, e)}
                   onPointerCancel={(e) => handleBandPointerUp(i, e)}
                   onDoubleClick={() => handleDoubleClick(i)}
-                  className="relative h-28 w-7 sm:w-8 flex items-center justify-center my-1 cursor-ns-resize touch-none select-none group/band"
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const next = [...equalizerBands];
+                      next[i] = Math.min(12, Math.round((dbVal + 0.5) * 2) / 2);
+                      setEqualizerBands(next);
+                    } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const next = [...equalizerBands];
+                      next[i] = Math.max(-12, Math.round((dbVal - 0.5) * 2) / 2);
+                      setEqualizerBands(next);
+                    }
+                  }}
+                  tabIndex={0}
+                  className="relative h-28 w-7 sm:w-8 flex items-center justify-center my-1 cursor-ns-resize touch-none select-none group/band focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded-md"
                   title={`${EQ_FREQ_LABELS[i]}Hz: ${dbVal > 0 ? '+' : ''}${dbVal} dB (Double click to reset)`}
                   role="slider"
                   aria-label={`${EQ_FREQ_LABELS[i]}Hz`}

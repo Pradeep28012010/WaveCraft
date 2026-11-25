@@ -1,5 +1,5 @@
 import type { AmbientLayerId } from '../stores/studioStore';
-import { getAudioContext, getMasterLimiterNode, getPreGainNode, unlockAudioEngine } from './audioEngine';
+import { getAudioContext, getGainNode, getMasterLimiterNode, getPreGainNode, unlockAudioEngine } from './audioEngine';
 
 /**
  * Procedural Web Audio Ambient Soundscape Synthesizer
@@ -59,11 +59,11 @@ function createNoiseBuffer(ctx: AudioContext, type: 'pink' | 'vinyl' | 'brown'):
 
 function startAmbientLayer(id: AmbientLayerId, volume: number): void {
   const ctx = getAudioContext();
-  const limiter = getMasterLimiterNode() || getPreGainNode();
+  const targetNode = getGainNode() || getMasterLimiterNode() || getPreGainNode();
   const masterGain = ctx.createGain();
   masterGain.gain.value = Math.max(0, Math.min(1, volume * 0.70));
-  if (limiter) {
-    masterGain.connect(limiter);
+  if (targetNode) {
+    masterGain.connect(targetNode);
   } else {
     masterGain.connect(ctx.destination);
   }

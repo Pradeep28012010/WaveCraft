@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { Track } from '../types';
 import { usePlayerStore } from '../stores/playerStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { resolveDirectAudio } from './streamResolver';
+import { getOfflineAudioObjectUrl } from './offlineVault';
 import { unlockAudioEngine, resumeAudioContextIfNeeded } from './audioEngine';
 
 interface ChorusPreviewState {
@@ -23,6 +25,7 @@ let previewState: ChorusPreviewState = {
 let wasMainPlayerPlaying = false;
 let previewStartTimeSec = 48;
 let rafId = 0;
+let mainPlayerUnsub: (() => void) | null = null;
 
 const trackListeners = new Map<string, Set<() => void>>();
 
@@ -45,6 +48,10 @@ function updateState(partial: Partial<ChorusPreviewState>) {
 }
 
 export function stopChorusPreview(resumeMain = true) {
+  if (mainPlayerUnsub) {
+    mainPlayerUnsub();
+    mainPlayerUnsub = null;
+  }
   if (rafId) {
     cancelAnimationFrame(rafId);
     rafId = 0;
@@ -103,16 +110,37 @@ export async function toggleChorusPreview(track: Track) {
     remainingSec: PREVIEW_DURATION_SEC
   });
 
+  // Yield automatically if main playback resumes while chorus preview is active
+  if (mainPlayerUnsub) {
+    mainPlayerUnsub();
+  }
+  mainPlayerUnsub = usePlayerStore.subscribe((state, prev) => {
+    if (state.isPlaying && !prev.isPlaying && previewState.trackId === track.id) {
+      stopChorusPreview(false);
+    }
+  });
+
   unlockAudioEngine();
   resumeAudioContextIfNeeded();
 
-  let streamUrl = track.audioUrl;
+  let streamUrl: string | null = null;
+  try {
+    streamUrl = await getOfflineAudioObjectUrl(track.id);
+  } catch {}
+
+  if (!streamUrl && useSettingsStore.getState().offlineModeOnly) {
+    stopChorusPreview(true);
+    return;
+  }
+
+  if (!streamUrl) {
+    streamUrl = track.audioUrl || null;
+  }
   if (!streamUrl || streamUrl.includes('p.scdn.co')) {
     try {
       const resolved = await resolveDirectAudio(track.title, track.artist, track.duration);
       if (resolved) {
         streamUrl = resolved;
-        track.audioUrl = resolved;
       }
     } catch {}
   }
@@ -143,7 +171,9 @@ export async function toggleChorusPreview(track: Track) {
     audio.removeAttribute('crossOrigin');
   }
 
-  const baseVol = playerState.isMuted ? 0 : Math.max(0, Math.min(1, playerState.volume));
+  const settingsNow = useSettingsStore.getState();
+  const normScale = (settingsNow.loudnessNormalization ?? true) ? 0.94 : 1.0;
+  const baseVol = playerState.isMuted ? 0 : Math.max(0, Math.min(1, playerState.volume * normScale));
   audio.volume = baseVol;
 
   let hasStarted = false;
@@ -168,16 +198,22 @@ export async function toggleChorusPreview(track: Track) {
       .then(() => {
         if (previewState.trackId !== track.id) return;
         updateState({ isLoading: false });
+        const startedAtMs = performance.now();
 
         const tick = () => {
           if (!previewAudio || previewState.trackId !== track.id) return;
-          const elapsed = Math.max(0, previewAudio.currentTime - previewStartTimeSec);
+          const ct = previewAudio.currentTime;
+          const elapsed =
+            ct >= previewStartTimeSec
+              ? ct - previewStartTimeSec
+              : (performance.now() - startedAtMs) / 1000;
           const ratio = Math.min(1, elapsed / PREVIEW_DURATION_SEC);
           const rem = Math.max(0, Math.ceil(PREVIEW_DURATION_SEC - elapsed));
 
           // Smooth fade-out during the last 1.8 seconds of the 15s chorus snippet
           const currentStore = usePlayerStore.getState();
-          const curBaseVol = currentStore.isMuted ? 0 : Math.max(0, Math.min(1, currentStore.volume));
+          const curNorm = (useSettingsStore.getState().loudnessNormalization ?? true) ? 0.94 : 1.0;
+          const curBaseVol = currentStore.isMuted ? 0 : Math.max(0, Math.min(1, currentStore.volume * curNorm));
           if (PREVIEW_DURATION_SEC - elapsed <= 1.8) {
             previewAudio.volume = Math.max(0, curBaseVol * ((PREVIEW_DURATION_SEC - elapsed) / 1.8));
           } else {
@@ -235,10 +271,7 @@ export function useChorusPreview(trackId: string) {
       trackListeners.set(trackId, set);
     }
     set.add(sync);
-    // Sync immediately in case previewState changed between render and effect
-    if (previewState.trackId === trackId) {
-      sync();
-    }
+    sync();
     return () => {
       const bucket = trackListeners.get(trackId);
       if (bucket) {

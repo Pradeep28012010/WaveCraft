@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { searchSuggestions } from '../../services/youtube';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
@@ -12,6 +12,7 @@ import { useSearchHistory } from '../../utils/searchHistory';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUpdateStore } from '../../stores/updateStore';
 import { preloadRoute } from '../../utils/routePreloader';
+import { useOverlayEscape } from '../ui/dialogStack';
 
 const formatClock = (sec: number) => {
   const m = Math.floor(sec / 60);
@@ -87,6 +88,34 @@ export default function TopBar() {
 
   const desktopSearchRef = useRef<HTMLDivElement>(null);
   const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const suggestionsDropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
+  const { isPhone, toggleMobileDrawer } = useDevicePreset();
+
+  useOverlayEscape(showSuggestions, () => setShowSuggestions(false));
+  useOverlayEscape(showInstallGuide && !isInstalled, () => setShowInstallGuide(false));
+
+  const updateDropdownPosition = useCallback(() => {
+    const anchor = isPhone ? mobileSearchRef.current : desktopSearchRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    setDropdownPos({
+      top: rect.bottom + 8,
+      left: rect.left,
+      width: rect.width
+    });
+  }, [isPhone]);
+
+  useLayoutEffect(() => {
+    if (!showSuggestions) {
+      setDropdownPos(null);
+      return;
+    }
+    updateDropdownPosition();
+  }, [showSuggestions, searchQuery, suggestions.length, history.length, updateDropdownPosition]);
 
   useEffect(() => {
     if (!showSuggestions) return;
@@ -94,39 +123,36 @@ export default function TopBar() {
       const target = e.target as Node;
       if (
         (desktopSearchRef.current && desktopSearchRef.current.contains(target)) ||
-        (mobileSearchRef.current && mobileSearchRef.current.contains(target))
+        (mobileSearchRef.current && mobileSearchRef.current.contains(target)) ||
+        (suggestionsDropdownRef.current && suggestionsDropdownRef.current.contains(target))
       ) {
         return;
       }
       setShowSuggestions(false);
     };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowSuggestions(false);
-      }
-    };
+    window.addEventListener('resize', updateDropdownPosition);
+    window.addEventListener('scroll', updateDropdownPosition, true);
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('touchstart', handleOutsideClick);
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
+      window.removeEventListener('resize', updateDropdownPosition);
+      window.removeEventListener('scroll', updateDropdownPosition, true);
       document.removeEventListener('mousedown', handleOutsideClick);
       document.removeEventListener('touchstart', handleOutsideClick);
-      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showSuggestions]);
+  }, [showSuggestions, updateDropdownPosition]);
 
-  const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
+  const selectSuggestionTerm = (term: string, saveToHistory: boolean) => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
+    suggestionAbortRef.current?.abort();
+    if (saveToHistory) saveSearchTerm(term);
+    lastPushedQueryRef.current = term;
+    setSearchQuery(term);
+    navigate(`/search?q=${encodeURIComponent(term)}`);
+    setShowSuggestions(false);
+  };
 
-  // Close install guide on Escape
-  useEffect(() => {
-    if (!showInstallGuide) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowInstallGuide(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showInstallGuide, setShowInstallGuide]);
-  const { isPhone, toggleMobileDrawer } = useDevicePreset();
   const roomCode = useJamStore((s) => s.roomCode);
 
   const fxMode = useStudioStore((s) => s.fxMode);
@@ -448,29 +474,146 @@ export default function TopBar() {
     return 'WaveCraft';
   };
 
+  const suggestionsPortal =
+    showSuggestions &&
+    dropdownPos &&
+    typeof document !== 'undefined' &&
+    (searchQuery.trim().length > 0 && suggestions.length > 0
+      ? createPortal(
+          <div
+            ref={suggestionsDropdownRef}
+            style={{
+              position: 'fixed',
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+              zIndex: 9990
+            }}
+            className="bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 sm:p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 max-h-[60vh] overflow-y-auto no-scrollbar"
+          >
+            {suggestions.map((sug, i) => (
+              <button
+                key={i}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => selectSuggestionTerm(sug.split(' - ')[0], true)}
+                className={`w-full flex items-center gap-2.5 sm:gap-3 px-3 py-2 rounded-xl text-left ${
+                  isPhone ? 'text-xs' : 'text-sm'
+                } text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer`}
+              >
+                <svg
+                  className="w-3.5 h-3.5 text-white/40 flex-shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <span className="truncate">{sug}</span>
+              </button>
+            ))}
+          </div>,
+          document.body
+        )
+      : !searchQuery.trim() && history.length > 0
+      ? createPortal(
+          <div
+            ref={suggestionsDropdownRef}
+            style={{
+              position: 'fixed',
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+              zIndex: 9990
+            }}
+            className="bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 sm:p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 max-h-[60vh] overflow-y-auto no-scrollbar"
+          >
+            <div
+              className={`flex items-center justify-between px-2.5 sm:px-3 py-1 sm:py-1.5 ${
+                isPhone ? 'text-[10px]' : 'text-xs'
+              } text-white/45 font-bold mb-1`}
+            >
+              <span>RECENT SEARCHES</span>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => clearSearchHistory()}
+                className="text-[var(--color-accent)] hover:underline cursor-pointer"
+              >
+                Clear All
+              </button>
+            </div>
+            {history.slice(0, isPhone ? 5 : 6).map((term) => (
+              <div
+                key={term}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => selectSuggestionTerm(term, false)}
+                className={`w-full flex items-center justify-between px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-left ${
+                  isPhone ? 'text-xs' : 'text-sm'
+                } text-white/80 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer`}
+              >
+                <div className="flex items-center gap-2.5 sm:gap-3 truncate">
+                  <svg
+                    className="w-3.5 h-3.5 text-white/40 flex-shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span className="truncate">{term}</span>
+                </div>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeSearchTerm(term);
+                  }}
+                  aria-label={`Remove ${term} from search history`}
+                  className="text-white/40 hover:text-white px-1 text-sm cursor-pointer"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>,
+          document.body
+        )
+      : null);
+
   // Phone UI Preset: Native App Bar with Pure Liquid Glass Styling
   if (isPhone) {
     const isRoot = location.pathname === '/';
     const isSearch = location.pathname.startsWith('/search');
+    const hasCompactBadge = hasUpdate || offlineModeOnly || !isOnline;
 
     return (
+      <>
       <header
         style={{
           paddingTop: 'max(env(safe-area-inset-top, 0px), 10px)'
         }}
-        className="flex items-center justify-between gap-2 px-3.5 pb-2.5 relative z-40 bg-[#06060b]/90 backdrop-blur-2xl glass-velocity-pulse shadow-[0_4px_24px_rgba(0,0,0,0.4)] transition-all flex-shrink-0 w-full"
+        className="flex items-center justify-between gap-2 px-3 pb-2.5 relative z-40 bg-[#06060b]/90 backdrop-blur-2xl glass-velocity-pulse shadow-[0_4px_24px_rgba(0,0,0,0.4)] transition-all flex-shrink-0 w-full"
       >
         {isRoot ? (
           /* Native App Home Bar: WaveCraft Brand + Pro Badge */
-          <div className="flex items-center gap-2.5 py-1">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[var(--color-accent)] to-purple-600 flex items-center justify-center shadow-[0_4px_16px_rgba(250,45,72,0.4)]">
+          <div className="flex items-center gap-2.5 py-1 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[var(--color-accent)] to-purple-600 flex items-center justify-center shadow-[0_4px_16px_rgba(250,45,72,0.4)] flex-shrink-0">
               <svg className="w-4.5 h-4.5 text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
               </svg>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-lg tracking-tight text-white">WaveCraft</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 border-0 text-[9px] font-black tracking-wider text-[var(--color-accent)] uppercase">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-black text-lg tracking-tight text-white truncate">WaveCraft</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-[var(--color-accent)]/20 border-0 text-[9px] font-black tracking-wider text-[var(--color-accent)] uppercase flex-shrink-0">
                 PRO
               </span>
             </div>
@@ -507,6 +650,7 @@ export default function TopBar() {
                     preloadRoute('/search');
                     isFocusedRef.current = true;
                     setShowSuggestions(true);
+                    updateDropdownPosition();
                   }}
                   onMouseEnter={() => preloadRoute('/search')}
                   onTouchStart={() => preloadRoute('/search')}
@@ -555,80 +699,11 @@ export default function TopBar() {
                   </button>
                 </div>
               </div>
-
-              {showSuggestions && (
-                searchQuery.trim().length > 0 && suggestions.length > 0 ? (
-                  <div className="absolute left-0 right-0 top-11.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 z-50">
-                    {suggestions.map((sug, i) => (
-                      <button
-                        key={i}
-                        onMouseDown={() => {
-                          if (debounceTimer.current) clearTimeout(debounceTimer.current);
-                          if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
-                          suggestionAbortRef.current?.abort();
-                          const clean = sug.split(' - ')[0];
-                          saveSearchTerm(clean);
-                          lastPushedQueryRef.current = clean;
-                          setSearchQuery(clean);
-                          navigate(`/search?q=${encodeURIComponent(clean)}`);
-                          setShowSuggestions(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs text-white/85 hover:bg-white/10"
-                      >
-                        <span className="truncate">{sug}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : !searchQuery.trim() && history.length > 0 ? (
-                  <div className="absolute left-0 right-0 top-11.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 z-50">
-                    <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-white/45 font-bold mb-1">
-                      <span>RECENT SEARCHES</span>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          clearSearchHistory();
-                        }}
-                        className="text-[var(--color-accent)] hover:underline"
-                      >
-                        Clear All
-                      </button>
-                    </div>
-                    {history.slice(0, 5).map((term) => (
-                      <div
-                        key={term}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left text-xs text-white/80 hover:bg-white/10 cursor-pointer"
-                        onMouseDown={() => {
-                          if (debounceTimer.current) clearTimeout(debounceTimer.current);
-                          if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
-                          suggestionAbortRef.current?.abort();
-                          lastPushedQueryRef.current = term;
-                          setSearchQuery(term);
-                          navigate(`/search?q=${encodeURIComponent(term)}`);
-                          setShowSuggestions(false);
-                        }}
-                      >
-                        <span className="truncate">{term}</span>
-                        <button
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            removeSearchTerm(term);
-                          }}
-                          className="text-white/40 hover:text-white px-1 text-xs"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null
-              )}
             </div>
           </div>
         ) : (
           /* Sub-Page Header with Back Button and Title */
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <button
               onClick={() => {
                 triggerAndroidHaptic('light');
@@ -648,14 +723,14 @@ export default function TopBar() {
         )}
 
         {/* Right Action Icons (Studio FX, Active Timers & Drawer) */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {hasUpdate && !isSearch && (isAndroidNative() || isElectronApp()) && (
             <button
               onClick={() => {
                 triggerAndroidHaptic('medium');
                 openUpdateModal();
               }}
-              className="h-7 px-2.5 rounded-full text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all glass-button-primary text-white shadow-[0_0_12px_rgba(250,45,72,0.4)] animate-pulse"
+              className="h-7 px-2 rounded-full text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all glass-button-primary text-white shadow-[0_0_12px_rgba(250,45,72,0.4)] animate-pulse"
               title="Update Available — Tap to install"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
@@ -663,13 +738,13 @@ export default function TopBar() {
             </button>
           )}
 
-          {(offlineModeOnly || !isOnline) && (
+          {(offlineModeOnly || !isOnline) && !isSearch && (
             <button
               onClick={() => {
                 triggerAndroidHaptic('medium');
                 toggleOfflineModeOnly();
               }}
-              className={`h-7 px-2.5 rounded-full text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all ${
+              className={`h-7 px-2 rounded-full text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all ${
                 offlineModeOnly
                   ? 'glass-button-emerald text-emerald-200'
                   : 'glass-button-amber text-amber-200 animate-pulse'
@@ -677,11 +752,11 @@ export default function TopBar() {
               title={offlineModeOnly ? "Offline Vault Mode Active — Click to turn off" : "Device offline — Click to toggle Offline Mode"}
             >
               <span className={`w-1.5 h-1.5 rounded-full ${offlineModeOnly ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              <span>{offlineModeOnly ? 'Vault Only' : 'Vault'}</span>
+              <span>{offlineModeOnly ? 'Vault' : 'Offline'}</span>
             </button>
           )}
 
-          {sleepActive && <MobileSleepCountdown />}
+          {sleepActive && !isSearch && <MobileSleepCountdown />}
 
           {/* Studio Audio FX & EQ Button */}
           <button
@@ -707,41 +782,44 @@ export default function TopBar() {
             </svg>
           </button>
 
-          {/* Mobile Smart DJ Console */}
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              setSmartDJOpen(true);
-            }}
-            aria-label="Smart DJ"
-            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 glass-button text-white/90 active:scale-90 cursor-pointer"
-            title="Smart DJ Console"
-          >
-            <span className="text-sm">🎧</span>
-          </button>
+          {/* Secondary tools stay accessible on home/subpages when header has room, and inside Drawer on narrow search */}
+          {!isSearch && !hasCompactBadge && (
+            <>
+              <button
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setSmartDJOpen(true);
+                }}
+                aria-label="Smart DJ"
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 glass-button text-white/90 active:scale-90 cursor-pointer"
+                title="Smart DJ Console"
+              >
+                <span className="text-sm">🎧</span>
+              </button>
 
-          {/* Mobile Bedside Nightstand Mode */}
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              setNightstandOpen(true);
-            }}
-            aria-label="Nightstand"
-            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 glass-button text-white/90 active:scale-90 cursor-pointer"
-            title="Bedside Nightstand Mode"
-          >
-            <span className="text-sm">🌙</span>
-          </button>
+              <button
+                onClick={() => {
+                  triggerAndroidHaptic('light');
+                  setNightstandOpen(true);
+                }}
+                aria-label="Nightstand"
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 glass-button text-white/90 active:scale-90 cursor-pointer"
+                title="Bedside Nightstand Mode"
+              >
+                <span className="text-sm">🌙</span>
+              </button>
+            </>
+          )}
 
-          {/* Mobile Download App Button (only shown in standard web browsers when not installed) */}
-          {!isInstalled && (
+          {/* Mobile Download App Button */}
+          {!isInstalled && !isSearch && (
             <button
               onClick={() => {
                 triggerAndroidHaptic('light');
                 navigate('/download');
               }}
               aria-label="Download App"
-              className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-emerald-400 hover:text-white active:scale-90 transition-transform cursor-pointer"
+              className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-emerald-400 hover:text-white active:scale-90 transition-transform cursor-pointer flex-shrink-0"
               title="Download APK / Windows App"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -759,7 +837,7 @@ export default function TopBar() {
               toggleMobileDrawer();
             }}
             aria-label="Open Navigation Menu"
-            className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white/80 hover:text-white active:scale-90 transition-transform cursor-pointer"
+            className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white/80 hover:text-white active:scale-90 transition-transform cursor-pointer flex-shrink-0"
             title="Menu & Features"
           >
             <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -770,6 +848,8 @@ export default function TopBar() {
           </button>
         </div>
       </header>
+      {suggestionsPortal}
+      </>
     );
   }
 
@@ -779,10 +859,10 @@ export default function TopBar() {
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)'
         }}
-        className="h-20 flex items-center justify-between px-6 lg:px-8 relative z-40 bg-[#06060b]/85 backdrop-blur-2xl glass-velocity-pulse shadow-[0_4px_24px_rgba(0,0,0,0.35)] transition-all flex-shrink-0 w-full"
+        className="h-20 flex items-center justify-between px-4 lg:px-8 relative z-40 bg-[#06060b]/85 backdrop-blur-2xl glass-velocity-pulse shadow-[0_4px_24px_rgba(0,0,0,0.35)] transition-all flex-shrink-0 w-full"
       >
         {/* Navigation Controls */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
             aria-label="Go back"
@@ -806,7 +886,7 @@ export default function TopBar() {
         </div>
 
         {/* Liquid Glass Search Pill + Voice Song Finder + Ctrl+K Spotlight Trigger */}
-        <div className="flex-1 max-w-xl mx-4 sm:mx-6 relative" ref={desktopSearchRef}>
+        <div className="flex-1 max-w-xl mx-2.5 lg:mx-6 min-w-0 relative" ref={desktopSearchRef}>
           <div className="relative flex items-center">
             <div className="absolute left-4 pointer-events-none text-white/45">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -823,6 +903,7 @@ export default function TopBar() {
                 preloadRoute('/search');
                 isFocusedRef.current = true;
                 setShowSuggestions(true);
+                updateDropdownPosition();
               }}
               onMouseEnter={() => preloadRoute('/search')}
               onBlur={() => {
@@ -879,90 +960,10 @@ export default function TopBar() {
               </button>
             </div>
           </div>
-
-          {/* Search Suggestions & History Dropdown */}
-          {showSuggestions && (
-            searchQuery.trim().length > 0 && suggestions.length > 0 ? (
-              <div className="absolute left-0 right-0 top-13.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 z-50">
-                {suggestions.map((sug, i) => (
-                  <button
-                    key={i}
-                    onMouseDown={() => {
-                      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-                      if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
-                      suggestionAbortRef.current?.abort();
-                      const clean = sug.split(' - ')[0];
-                      saveSearchTerm(clean);
-                      lastPushedQueryRef.current = clean;
-                      setSearchQuery(clean);
-                      navigate(`/search?q=${encodeURIComponent(clean)}`);
-                      setShowSuggestions(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
-                  >
-                    <svg className="w-3.5 h-3.5 text-white/40 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                    <span className="truncate">{sug}</span>
-                  </button>
-                ))}
-              </div>
-            ) : !searchQuery.trim() && history.length > 0 ? (
-              <div className="absolute left-0 right-0 top-13.5 bg-[#090a10]/98 backdrop-blur-3xl rounded-2xl p-2.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] border-0 z-50">
-                <div className="flex items-center justify-between px-3 py-1.5 text-xs text-white/45 font-bold mb-1">
-                  <span>RECENT SEARCHES</span>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      clearSearchHistory();
-                    }}
-                    className="text-[var(--color-accent)] hover:underline cursor-pointer"
-                  >
-                    Clear All
-                  </button>
-                </div>
-                {history.slice(0, 6).map((term) => (
-                  <div
-                    key={term}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-sm text-white/80 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
-                    onMouseDown={() => {
-                      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-                      if (searchRouteDebounceTimer.current) clearTimeout(searchRouteDebounceTimer.current);
-                      suggestionAbortRef.current?.abort();
-                      lastPushedQueryRef.current = term;
-                      setSearchQuery(term);
-                      navigate(`/search?q=${encodeURIComponent(term)}`);
-                      setShowSuggestions(false);
-                    }}
-                  >
-                    <div className="flex items-center gap-3 truncate">
-                      <svg className="w-3.5 h-3.5 text-white/40 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                      </svg>
-                      <span className="truncate">{term}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        removeSearchTerm(term);
-                      }}
-                      className="text-white/40 hover:text-white px-1 text-sm cursor-pointer"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : null
-          )}
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-shrink-0">
           {/* Offline Mode Indicator & Instant Toggle */}
           {(offlineModeOnly || !isOnline) && (
             <button
@@ -1011,15 +1012,16 @@ export default function TopBar() {
           {/* Unified Studio FX, Ambient Soundscape & Timers Hub Button */}
           <button
             onClick={() => setStudioModalOpen(true)}
+            aria-label={activeFxLabel}
             title="Studio Audio FX, Ambient Mixer, Focus & Sleep Timer"
-            className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 lg:px-3.5 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
               fxMode !== 'normal' || hasActiveAmbient || sleepActive
                 ? 'glass-button-primary text-white'
                 : 'glass-button text-white/90 hover:text-white'
             }`}
           >
             <span>🎛️</span>
-            <span className="hidden sm:inline">{activeFxLabel}</span>
+            <span className="hidden lg:inline">{activeFxLabel}</span>
           </button>
 
           {/* Smart DJ Console & Harmonic Automix Button */}
@@ -1028,11 +1030,12 @@ export default function TopBar() {
               triggerAndroidHaptic('light');
               setSmartDJOpen(true);
             }}
+            aria-label="Smart DJ"
             title="Smart DJ Console — Camelot Key Automix & Procedural Turntables"
-            className="flex items-center gap-1.5 px-3.5 h-9 rounded-full glass-button text-xs font-extrabold text-white/90 hover:text-white cursor-pointer active:scale-95 transition-transform"
+            className="flex items-center gap-1.5 px-2.5 lg:px-3.5 h-9 rounded-full glass-button text-xs font-extrabold text-white/90 hover:text-white cursor-pointer active:scale-95 transition-transform"
           >
             <span className="text-sm">🎧</span>
-            <span className="hidden sm:inline">Smart DJ</span>
+            <span className="hidden lg:inline">Smart DJ</span>
           </button>
 
           {/* Bedside Nightstand Clock Button */}
@@ -1041,11 +1044,12 @@ export default function TopBar() {
               triggerAndroidHaptic('light');
               setNightstandOpen(true);
             }}
+            aria-label="Nightstand"
             title="OLED Bedside Nightstand Mode & Sleep Clock"
-            className="flex items-center gap-1.5 px-3 h-9 rounded-full glass-button text-xs font-extrabold text-white/90 hover:text-white cursor-pointer active:scale-95 transition-transform"
+            className="flex items-center gap-1.5 px-2.5 lg:px-3 h-9 rounded-full glass-button text-xs font-extrabold text-white/90 hover:text-white cursor-pointer active:scale-95 transition-transform"
           >
             <span className="text-sm">🌙</span>
-            <span className="hidden sm:inline">Nightstand</span>
+            <span className="hidden lg:inline">Nightstand</span>
           </button>
 
           {/* Download App Hub Button (only shown in standard web browsers when not installed) */}
@@ -1081,16 +1085,20 @@ export default function TopBar() {
           )}
         </div>
       </header>
+      {suggestionsPortal}
 
       {/* Fallback PWA Install Instructions Modal — only for browser contexts */}
       {showInstallGuide && !isInstalled &&
         createPortal(
-          <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[9996] pointer-events-none flex items-center justify-center p-4">
             <div
               className="absolute inset-0 pointer-events-auto modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
               onClick={() => setShowInstallGuide(false)}
             />
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Install WaveCraft App"
               onClick={(e) => e.stopPropagation()}
               className="relative z-10 pointer-events-auto w-full max-w-md rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-6 space-y-4"
             >

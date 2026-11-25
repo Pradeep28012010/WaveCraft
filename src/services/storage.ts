@@ -211,6 +211,11 @@ function flushPendingSynchronously(): void {
     } catch {}
   });
   pendingValues.clear();
+  if (snapshotSaveTimer) {
+    clearTimeout(snapshotSaveTimer);
+    snapshotSaveTimer = null;
+    saveVaultSnapshotToCache().catch(() => {});
+  }
 }
 
 if (typeof window !== 'undefined') {
@@ -223,62 +228,72 @@ if (typeof window !== 'undefined') {
   });
 }
 
-/**
- * Loads liked songs with 3-tier fallback and automatic self-healing.
- * If browser cache cleared IndexedDB, data is restored from localStorage or CacheStorage.
- */
-export async function loadLikedSongs(): Promise<Track[]> {
-  let idbData: Track[] | null = null;
+async function loadTieredArray<T>(
+  key: string,
+  extractFromSnapshot: (snapshot: LibraryBackupPayload) => unknown,
+  localCap?: number
+): Promise<T[]> {
+  let idbData: T[] | null = null;
   try {
-    const data = await get(KEYS.LIKED_SONGS);
-    if (Array.isArray(data) && data.length > 0) idbData = data;
+    const data = await get(key);
+    if (Array.isArray(data)) idbData = data as T[];
   } catch (error) {
-    console.warn('[Storage] Error loading liked songs from IDB:', error);
+    console.warn(`[Storage] Error loading ${key} from IDB:`, error);
   }
 
-  let localData: Track[] | null = null;
+  let localData: T[] | null = null;
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      const fallback = window.localStorage.getItem(KEYS.LIKED_SONGS);
-      if (fallback) {
+      const fallback = window.localStorage.getItem(key);
+      if (fallback !== null) {
         const parsed = JSON.parse(fallback);
-        if (Array.isArray(parsed) && parsed.length > 0) localData = parsed;
+        if (Array.isArray(parsed)) localData = parsed as T[];
       }
     }
   } catch {}
 
-  let cacheData: Track[] | null = null;
-  if (!idbData && !localData) {
+  let cacheData: T[] | null = null;
+  if (idbData === null && localData === null) {
     const snapshot = await readVaultSnapshotFromCache();
-    if (snapshot && Array.isArray(snapshot.likedSongs) && snapshot.likedSongs.length > 0) {
-      cacheData = snapshot.likedSongs;
+    if (snapshot) {
+      const snapArr = extractFromSnapshot(snapshot);
+      if (Array.isArray(snapArr)) {
+        cacheData = snapArr as T[];
+      }
     }
   }
 
-  // Prioritize populated IndexedDB data as authoritative instead of picking the longest array,
-  // preventing zombie resurrection of unliked songs.
-  let best: Track[] = [];
-  if (idbData && idbData.length > 0) {
-    best = idbData;
-  } else if (localData && localData.length > 0) {
-    best = localData;
-  } else if (cacheData && cacheData.length > 0) {
-    best = cacheData;
-  }
+  // Respect explicit empty arrays ([]) in authoritative tiers instead of resurrecting deleted items
+  const best: T[] =
+    idbData !== null
+      ? idbData
+      : localData !== null
+      ? localData
+      : cacheData !== null
+      ? cacheData
+      : [];
 
-  // SELF-HEAL: If IndexedDB was empty (e.g. wiped by browser cleanup), restore from secondary tier
+  // Self-heal missing secondary/primary tiers only when authoritative source is populated
   if (best.length > 0) {
-    if (!idbData) {
-      set(KEYS.LIKED_SONGS, best).catch(() => {});
+    if (idbData === null) {
+      set(key, best).catch(() => {});
     }
-    if (!localData || localData.length !== best.length) {
+    if (localData === null) {
       try {
-        window.localStorage?.setItem(KEYS.LIKED_SONGS, JSON.stringify(best));
+        const toStore = localCap ? best.slice(-localCap) : best;
+        window.localStorage?.setItem(key, JSON.stringify(toStore));
       } catch {}
     }
   }
 
   return best;
+}
+
+/**
+ * Loads liked songs with 3-tier fallback and automatic self-healing.
+ */
+export async function loadLikedSongs(): Promise<Track[]> {
+  return loadTieredArray<Track>(KEYS.LIKED_SONGS, (s) => s.likedSongs);
 }
 
 export async function saveLikedSongs(tracks: Track[]): Promise<void> {
@@ -289,57 +304,7 @@ export async function saveLikedSongs(tracks: Track[]): Promise<void> {
  * Loads playlists with 3-tier fallback and automatic self-healing.
  */
 export async function loadPlaylists(): Promise<Playlist[]> {
-  let idbData: Playlist[] | null = null;
-  try {
-    const data = await get(KEYS.PLAYLISTS);
-    if (Array.isArray(data) && data.length > 0) idbData = data;
-  } catch (error) {
-    console.warn('[Storage] Error loading playlists from IDB:', error);
-  }
-
-  let localData: Playlist[] | null = null;
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const fallback = window.localStorage.getItem(KEYS.PLAYLISTS);
-      if (fallback) {
-        const parsed = JSON.parse(fallback);
-        if (Array.isArray(parsed) && parsed.length > 0) localData = parsed;
-      }
-    }
-  } catch {}
-
-  let cacheData: Playlist[] | null = null;
-  if (!idbData && !localData) {
-    const snapshot = await readVaultSnapshotFromCache();
-    if (snapshot && Array.isArray(snapshot.playlists) && snapshot.playlists.length > 0) {
-      cacheData = snapshot.playlists;
-    }
-  }
-
-  // Prioritize populated IndexedDB data as authoritative instead of picking the longest array,
-  // preventing zombie resurrection of deleted playlists.
-  let best: Playlist[] = [];
-  if (idbData && idbData.length > 0) {
-    best = idbData;
-  } else if (localData && localData.length > 0) {
-    best = localData;
-  } else if (cacheData && cacheData.length > 0) {
-    best = cacheData;
-  }
-
-  // SELF-HEAL: If IndexedDB was empty (e.g. wiped by browser cleanup), restore from secondary tier
-  if (best.length > 0) {
-    if (!idbData) {
-      set(KEYS.PLAYLISTS, best).catch(() => {});
-    }
-    if (!localData || localData.length !== best.length) {
-      try {
-        window.localStorage?.setItem(KEYS.PLAYLISTS, JSON.stringify(best));
-      } catch {}
-    }
-  }
-
-  return best;
+  return loadTieredArray<Playlist>(KEYS.PLAYLISTS, (s) => s.playlists);
 }
 
 export async function savePlaylists(playlists: Playlist[]): Promise<void> {
@@ -350,55 +315,7 @@ export async function savePlaylists(playlists: Playlist[]): Promise<void> {
  * Loads playlist folders with 3-tier fallback and automatic self-healing.
  */
 export async function loadFolders(): Promise<PlaylistFolder[]> {
-  let idbData: PlaylistFolder[] | null = null;
-  try {
-    const data = await get(KEYS.FOLDERS);
-    if (Array.isArray(data) && data.length > 0) idbData = data;
-  } catch {}
-
-  let localData: PlaylistFolder[] | null = null;
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const fallback = window.localStorage.getItem(KEYS.FOLDERS);
-      if (fallback) {
-        const parsed = JSON.parse(fallback);
-        if (Array.isArray(parsed) && parsed.length > 0) localData = parsed;
-      }
-    }
-  } catch {}
-
-  let cacheData: PlaylistFolder[] | null = null;
-  if (!idbData && !localData) {
-    const snapshot = await readVaultSnapshotFromCache();
-    if (snapshot && Array.isArray(snapshot.folders) && snapshot.folders.length > 0) {
-      cacheData = snapshot.folders;
-    }
-  }
-
-  // Prioritize populated IndexedDB data as authoritative instead of picking the longest array,
-  // preventing zombie resurrection of deleted folders.
-  let best: PlaylistFolder[] = [];
-  if (idbData && idbData.length > 0) {
-    best = idbData;
-  } else if (localData && localData.length > 0) {
-    best = localData;
-  } else if (cacheData && cacheData.length > 0) {
-    best = cacheData;
-  }
-
-  // SELF-HEAL: If IndexedDB was empty (e.g. wiped by browser cleanup), restore from secondary tier
-  if (best.length > 0) {
-    if (!idbData) {
-      set(KEYS.FOLDERS, best).catch(() => {});
-    }
-    if (!localData || localData.length !== best.length) {
-      try {
-        window.localStorage?.setItem(KEYS.FOLDERS, JSON.stringify(best));
-      } catch {}
-    }
-  }
-
-  return best;
+  return loadTieredArray<PlaylistFolder>(KEYS.FOLDERS, (s) => s.folders);
 }
 
 export async function saveFolders(folders: PlaylistFolder[]): Promise<void> {
@@ -409,55 +326,10 @@ export async function saveFolders(folders: PlaylistFolder[]): Promise<void> {
  * Loads recently played tracks with 3-tier fallback and automatic self-healing.
  */
 export async function loadRecentlyPlayed(): Promise<{ track: Track; playedAt: number }[]> {
-  let idbData: { track: Track; playedAt: number }[] | null = null;
-  try {
-    const data = await get(KEYS.RECENTLY_PLAYED);
-    if (Array.isArray(data) && data.length > 0) idbData = data;
-  } catch {}
-
-  let localData: { track: Track; playedAt: number }[] | null = null;
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const fallback = window.localStorage.getItem(KEYS.RECENTLY_PLAYED);
-      if (fallback) {
-        const parsed = JSON.parse(fallback);
-        if (Array.isArray(parsed) && parsed.length > 0) localData = parsed;
-      }
-    }
-  } catch {}
-
-  let cacheData: { track: Track; playedAt: number }[] | null = null;
-  if (!idbData && !localData) {
-    const snapshot = await readVaultSnapshotFromCache();
-    if (snapshot && Array.isArray(snapshot.recentlyPlayed) && snapshot.recentlyPlayed.length > 0) {
-      cacheData = snapshot.recentlyPlayed as { track: Track; playedAt: number }[];
-    }
-  }
-
-  // Prioritize populated IndexedDB data as authoritative instead of picking the longest array,
-  // preventing zombie resurrection of cleared recent tracks.
-  let best: { track: Track; playedAt: number }[] = [];
-  if (idbData && idbData.length > 0) {
-    best = idbData;
-  } else if (localData && localData.length > 0) {
-    best = localData;
-  } else if (cacheData && cacheData.length > 0) {
-    best = cacheData;
-  }
-
-  // SELF-HEAL: If IndexedDB was empty (e.g. wiped by browser cleanup), restore from secondary tier
-  if (best.length > 0) {
-    if (!idbData) {
-      set(KEYS.RECENTLY_PLAYED, best).catch(() => {});
-    }
-    if (!localData || localData.length !== best.length) {
-      try {
-        window.localStorage?.setItem(KEYS.RECENTLY_PLAYED, JSON.stringify(best));
-      } catch {}
-    }
-  }
-
-  return best;
+  return loadTieredArray<{ track: Track; playedAt: number }>(
+    KEYS.RECENTLY_PLAYED,
+    (s) => s.recentlyPlayed
+  );
 }
 
 export async function saveRecentlyPlayed(
@@ -491,50 +363,11 @@ export async function addToPlayHistory(trackId: string, duration: number): Promi
 export async function loadPlayHistory(): Promise<
   { trackId: string; playedAt: number; duration: number }[]
 > {
-  let idbData: { trackId: string; playedAt: number; duration: number }[] | null = null;
-  try {
-    const data = await get(KEYS.PLAY_HISTORY);
-    if (Array.isArray(data) && data.length > 0) idbData = data;
-  } catch {}
-
-  let localData: { trackId: string; playedAt: number; duration: number }[] | null = null;
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const fallback = window.localStorage.getItem(KEYS.PLAY_HISTORY);
-      if (fallback) {
-        const parsed = JSON.parse(fallback);
-        if (Array.isArray(parsed) && parsed.length > 0) localData = parsed;
-      }
-    }
-  } catch {}
-
-  let cacheData: { trackId: string; playedAt: number; duration: number }[] | null = null;
-  if (!idbData && !localData) {
-    const snapshot = await readVaultSnapshotFromCache();
-    if (snapshot && Array.isArray(snapshot.playHistory) && snapshot.playHistory.length > 0) {
-      cacheData = snapshot.playHistory as { trackId: string; playedAt: number; duration: number }[];
-    }
-  }
-
-  const candidates = [idbData, localData, cacheData].filter(
-    (d): d is { trackId: string; playedAt: number; duration: number }[] =>
-      Array.isArray(d) && d.length > 0
+  return loadTieredArray<{ trackId: string; playedAt: number; duration: number }>(
+    KEYS.PLAY_HISTORY,
+    (s) => s.playHistory,
+    500
   );
-  candidates.sort((a, b) => b.length - a.length);
-  const best = candidates[0] || [];
-
-  if (best.length > 0) {
-    if (!idbData || idbData.length < best.length) {
-      set(KEYS.PLAY_HISTORY, best).catch(() => {});
-    }
-    if (!localData || localData.length < best.length) {
-      try {
-        window.localStorage?.setItem(KEYS.PLAY_HISTORY, JSON.stringify(best.slice(-500)));
-      } catch {}
-    }
-  }
-
-  return best;
 }
 
 export async function savePlayHistory(
@@ -567,21 +400,25 @@ export async function saveSettings(settings: SettingsState): Promise<void> {
 }
 
 export async function loadSearchHistory(): Promise<string[]> {
+  let idbData: string[] | null = null;
   try {
     const data = await get(KEYS.SEARCH_HISTORY);
-    if (Array.isArray(data) && data.length > 0) return data;
+    if (Array.isArray(data)) idbData = data as string[];
   } catch {}
 
+  let localData: string[] | null = null;
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const fallback = window.localStorage.getItem(KEYS.SEARCH_HISTORY);
-      if (fallback) {
+      if (fallback !== null) {
         const parsed = JSON.parse(fallback);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) localData = parsed as string[];
       }
     }
   } catch {}
 
+  if (idbData !== null) return idbData;
+  if (localData !== null) return localData;
   return [];
 }
 
@@ -626,16 +463,16 @@ export async function loadGalaxyPrefs(): Promise<GalaxyPreferences> {
   return defaults;
 }
 
-export function saveGalaxyPrefs(prefs: Partial<GalaxyPreferences>): Promise<void> {
+export async function saveGalaxyPrefs(prefs: Partial<GalaxyPreferences>): Promise<void> {
+  const existing = await loadGalaxyPrefs();
+  const merged = { ...existing, ...prefs };
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      const current = window.localStorage.getItem(KEYS.GALAXY_PREFS);
-      const merged = { ...(current ? JSON.parse(current) : {}), ...prefs };
       window.localStorage.setItem(KEYS.GALAXY_PREFS, JSON.stringify(merged));
     }
   } catch {}
 
-  return scheduleIdbWrite(KEYS.GALAXY_PREFS, prefs, 100);
+  return scheduleIdbWrite(KEYS.GALAXY_PREFS, merged, 100);
 }
 
 /**
@@ -718,6 +555,10 @@ export async function getStorageUsage(): Promise<{ used: number; available: numb
 
 export async function clearAllData(): Promise<void> {
   try {
+    if (snapshotSaveTimer) {
+      clearTimeout(snapshotSaveTimer);
+      snapshotSaveTimer = null;
+    }
     pendingTimers.forEach((timer) => clearTimeout(timer));
     pendingTimers.clear();
     pendingValues.clear();

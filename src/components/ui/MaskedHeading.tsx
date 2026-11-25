@@ -126,26 +126,77 @@ const MaskedHeading: React.FC<MaskedHeadingProps> = ({
     let raf = 0;
     let last = performance.now();
     let clock = 0;
+    let isHovered = false;
+
+    const prefersReducedMotion = () =>
+      typeof window !== 'undefined' &&
+      Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+
+    const stopRaf = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+
+    const startRaf = () => {
+      if (raf || (typeof document !== 'undefined' && document.hidden)) return;
+      if (prefersReducedMotion()) {
+        offsetRef.current.x = 0;
+        offsetRef.current.y = 0;
+        place();
+        return;
+      }
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    };
 
     const frame = (now: number) => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        raf = 0;
+        return;
+      }
+      if (prefersReducedMotion()) {
+        offsetRef.current.x = 0;
+        offsetRef.current.y = 0;
+        place();
+        raf = 0;
+        return;
+      }
+
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       clock += dt;
       const s = settingsRef.current;
       const off = offsetRef.current;
 
-      const dx = Math.sin(clock * 0.21) * s.drift;
-      const dy = Math.cos(clock * 0.17) * s.drift * 0.6;
+      const dx = s.drift > 0 ? Math.sin(clock * 0.21) * s.drift : 0;
+      const dy = s.drift > 0 ? Math.cos(clock * 0.17) * s.drift * 0.6 : 0;
 
       const ease = 1 - Math.exp(-dt / 0.18);
       off.x += (off.tx + dx - off.x) * ease;
       off.y += (off.ty + dy - off.y) * ease;
 
       place();
+
+      const settled =
+        s.drift <= 0 &&
+        !isHovered &&
+        Math.abs(off.tx - off.x) < 0.05 &&
+        Math.abs(off.ty - off.y) < 0.05;
+      if (settled) {
+        off.x = off.tx;
+        off.y = off.ty;
+        place();
+        raf = 0;
+        return;
+      }
+
       raf = requestAnimationFrame(frame);
     };
 
     const onMove = (e: PointerEvent) => {
+      isHovered = true;
       const s = settingsRef.current;
       if (s.parallax <= 0) return;
       const r = root.getBoundingClientRect();
@@ -153,22 +204,35 @@ const MaskedHeading: React.FC<MaskedHeadingProps> = ({
       const ny = ((e.clientY - r.top) / (r.height || 1)) * 2 - 1;
       offsetRef.current.tx = clamp(nx, -1, 1) * -s.parallax;
       offsetRef.current.ty = clamp(ny, -1, 1) * -s.parallax;
+      startRaf();
     };
 
     const onLeave = () => {
+      isHovered = false;
       offsetRef.current.tx = 0;
       offsetRef.current.ty = 0;
+      startRaf();
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        stopRaf();
+      } else {
+        startRaf();
+      }
     };
 
     root.addEventListener('pointermove', onMove as EventListener);
     root.addEventListener('pointerleave', onLeave);
-    raf = requestAnimationFrame(frame);
+    document.addEventListener('visibilitychange', onVisibility);
+    startRaf();
 
     return () => {
-      cancelAnimationFrame(raf);
+      stopRaf();
       ro.disconnect();
       root.removeEventListener('pointermove', onMove as EventListener);
       root.removeEventListener('pointerleave', onLeave);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [place, sync]);
 

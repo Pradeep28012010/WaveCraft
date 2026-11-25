@@ -4,7 +4,8 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useStudioStore } from '../../stores/studioStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { getOfflineTracks } from '../../services/offlineVault';
+import { useOfflineVault } from '../../services/offlineVault';
+import { useJamStore } from '../../stores/jamStore';
 import { formatListeningTime } from '../../utils/formatTime';
 import { searchTracks } from '../../services/youtube';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
@@ -63,7 +64,8 @@ export default function StatsPage() {
   const [isExportingPoster, setIsExportingPoster] = useState(false);
   const [badgeFilter, setBadgeFilter] = useState<'all' | 'unlocked' | 'in-progress'>('all');
 
-  const offlineCount = useMemo(() => getOfflineTracks().length, [likedSongs.length, playHistory.length]);
+  const { offlineTracks } = useOfflineVault();
+  const offlineCount = offlineTracks.length;
 
   const totalListens = Math.max(playHistory.length, recentlyPlayed.length);
   const normalizeSec = (d?: number) => {
@@ -429,7 +431,7 @@ export default function StatsPage() {
 
       ctx.fillStyle = 'rgba(255,255,255,0.65)';
       ctx.font = '500 26px Inter, sans-serif';
-      ctx.fillText(auraProfile.subtitle, 110, 268);
+      ctx.fillText(auraProfile.subtitle, 110, 268, 860);
 
       // 4. Stats Row Boxes
       const statBoxes = [
@@ -514,6 +516,8 @@ export default function StatsPage() {
   };
 
   const handlePlayTopTrack = async (title: string, artist: string) => {
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) return;
     unlockAudioEngine();
     try {
       const found = await searchTracks(`${title} ${artist}`);

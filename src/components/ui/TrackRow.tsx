@@ -4,6 +4,7 @@ import type { Track } from '../../types';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useJamStore } from '../../stores/jamStore';
 import { useLibraryStore } from '../../stores/libraryStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { useTrackOfflineStatus } from '../../services/offlineVault';
 import { stopChorusPreview } from '../../services/chorusPreview';
@@ -21,6 +22,10 @@ let hoverLeaveTimer: ReturnType<typeof setTimeout> | null = null;
 const hoverListeners = new Map<string, (hovered: boolean) => void>();
 
 function setSharedHoveredRow(id: string | null) {
+  if (id === null && hoverLeaveTimer) {
+    clearTimeout(hoverLeaveTimer);
+    hoverLeaveTimer = null;
+  }
   if (activeHoveredRowId === id) return;
   activeHoveredRowId = id;
   hoverListeners.forEach((listener, listenerId) => {
@@ -30,6 +35,7 @@ function setSharedHoveredRow(id: string | null) {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('blur', () => setSharedHoveredRow(null));
+  window.addEventListener('scroll', () => setSharedHoveredRow(null), { capture: true, passive: true });
   document.addEventListener('mouseleave', () => setSharedHoveredRow(null));
 }
 
@@ -149,9 +155,12 @@ const TrackRow = memo(({
   const liked = useLibraryStore((s) =>
     propIsLiked !== undefined ? propIsLiked : Boolean(s.likedIds[track.id])
   );
+  const doubleClickToPlay = useSettingsStore((s) => s.doubleClickToPlay);
+  const showTrackNumbers = useSettingsStore((s) => s.showTrackNumbers);
   const { trackIsOffline } = useTrackOfflineStatus(track.id);
 
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
   const didLongPressRef = useRef(false);
 
@@ -161,11 +170,19 @@ const TrackRow = memo(({
         clearTimeout(touchTimerRef.current);
         touchTimerRef.current = null;
       }
+      if (longPressResetTimerRef.current) {
+        clearTimeout(longPressResetTimerRef.current);
+        longPressResetTimerRef.current = null;
+      }
     };
   }, []);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!isPhone) return;
+    if (longPressResetTimerRef.current) {
+      clearTimeout(longPressResetTimerRef.current);
+      longPressResetTimerRef.current = null;
+    }
     didLongPressRef.current = false;
     const touch = e.touches[0];
     const clientX = touch.clientX;
@@ -205,11 +222,24 @@ const TrackRow = memo(({
       touchTimerRef.current = null;
     }
     touchStartPos.current = null;
+    if (didLongPressRef.current) {
+      if (longPressResetTimerRef.current) {
+        clearTimeout(longPressResetTimerRef.current);
+      }
+      longPressResetTimerRef.current = setTimeout(() => {
+        didLongPressRef.current = false;
+        longPressResetTimerRef.current = null;
+      }, 600);
+    }
   };
 
   const handleTriggerPlay = () => {
     if (didLongPressRef.current) {
       didLongPressRef.current = false;
+      if (longPressResetTimerRef.current) {
+        clearTimeout(longPressResetTimerRef.current);
+        longPressResetTimerRef.current = null;
+      }
       return;
     }
     triggerAndroidHaptic('light');
@@ -269,7 +299,6 @@ const TrackRow = memo(({
     e.preventDefault();
     e.stopPropagation();
     if (didLongPressRef.current) {
-      didLongPressRef.current = false;
       return;
     }
     triggerAndroidHaptic('medium');
@@ -289,6 +318,7 @@ const TrackRow = memo(({
   };
 
   const activeVisual = isHovered && !isPhone;
+  const requireDoubleClick = !isPhone && doubleClickToPlay;
 
   return (
     <div
@@ -324,7 +354,8 @@ const TrackRow = memo(({
 
       {/* Single, Unified Track Row Surface */}
       <div
-        onClick={handleTriggerPlay}
+        onClick={requireDoubleClick ? undefined : handleTriggerPlay}
+        onDoubleClick={requireDoubleClick ? handleTriggerPlay : undefined}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -339,7 +370,7 @@ const TrackRow = memo(({
         }`}
       >
         {/* Left: Index / Equalizer / Play on Hover */}
-        {showIndex && (
+        {showIndex && showTrackNumbers && (
           <div className="relative z-10 w-6 sm:w-7 flex justify-center items-center text-sm text-white/50 font-medium flex-shrink-0">
             {isTrackPlaying ? (
               <div className="relative w-5 h-5 flex items-center justify-center">

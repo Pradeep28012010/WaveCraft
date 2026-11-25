@@ -147,7 +147,7 @@ export function parseLyrics(rawLyrics: string, totalDuration = 210): LyricLine[]
   for (const line of rawLines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    if (/^\[(ar|ti|al|au|length|by|re|ve):.*\]$/i.test(trimmed)) continue;
+    if (/^\[[a-zA-Z_]{1,16}:.*\]$/.test(trimmed)) continue;
 
     const timestampMatches = [...trimmed.matchAll(/\[(\d{1,2}):(\d{2}(?:\.\d{1,3})?)\]/g)];
     if (timestampMatches.length > 0) {
@@ -333,7 +333,8 @@ export async function getLyricsData(
 ): Promise<LyricsResult | null> {
   const cleanTitle = extractCleanSongTitle(title);
   const cleanArtist = extractCleanArtist(artist, title);
-  const cacheKey = `v4__${cleanArtist.toLowerCase()}__${cleanTitle.toLowerCase()}__${Math.round(duration)}`;
+  const durationBucket = Math.round((duration || 210) / 15) * 15;
+  const cacheKey = `v4__${cleanArtist.toLowerCase()}__${cleanTitle.toLowerCase()}__${durationBucket}`;
 
   if (cache.has(cacheKey)) {
     const cached = cache.get(cacheKey);

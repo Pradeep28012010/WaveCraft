@@ -176,9 +176,11 @@ export const WaveformScrubber = memo(({
   const [elasticOffset, setElasticOffset] = useState(0);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverX, setHoverX] = useState<number>(0);
-  const [realAudioPulse, setRealAudioPulse] = useState(1);
 
   const trackRef = useRef<HTMLDivElement>(null);
+  const barRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const activePulseBarIdxRef = useRef<number>(-1);
+  const playbackRatioRef = useRef<number>(0);
   const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveSampleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -194,20 +196,40 @@ export const WaveformScrubber = memo(({
     } catch {}
   }, [activeTrackId]);
 
-  // Live real-time audio sampling from Web Audio API AnalyserNode for active playhead pulse
+  // Live real-time audio sampling via direct DOM style mutation on the active playhead bar (zero React re-renders)
   useEffect(() => {
+    const resetActiveBar = () => {
+      const prevIdx = activePulseBarIdxRef.current;
+      if (prevIdx >= 0 && barRefs.current[prevIdx]) {
+        barRefs.current[prevIdx]!.style.transform = '';
+      }
+      activePulseBarIdxRef.current = -1;
+    };
+
     if (!isPlaying) {
       if (liveSampleTimerRef.current) {
         clearInterval(liveSampleTimerRef.current);
         liveSampleTimerRef.current = null;
       }
-      setRealAudioPulse(1);
+      resetActiveBar();
       return;
     }
 
     const freqBuffer = new Uint8Array(32);
 
     liveSampleTimerRef.current = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      const activeIdx = Math.max(
+        0,
+        Math.min(BAR_COUNT - 1, Math.round(playbackRatioRef.current * (BAR_COUNT - 1)))
+      );
+      if (activePulseBarIdxRef.current !== activeIdx) {
+        resetActiveBar();
+        activePulseBarIdxRef.current = activeIdx;
+      }
+      const activeBar = barRefs.current[activeIdx];
+      if (!activeBar) return;
+
       const hasAudio = getAudioFrequencyData(freqBuffer);
       if (hasAudio) {
         let sum = 0;
@@ -216,11 +238,9 @@ export const WaveformScrubber = memo(({
         }
         const rms = Math.sqrt(sum / freqBuffer.length) / 255;
         const normalizedLiveEnergy = Math.max(0.18, Math.min(1.0, Math.pow(rms * 2.1, 0.72)));
-
-        // Pulse the active bar at current playback time with authentic beat responsiveness
-        setRealAudioPulse(1 + normalizedLiveEnergy * 0.35);
+        activeBar.style.transform = `scaleY(${(1 + normalizedLiveEnergy * 0.35).toFixed(3)})`;
       } else {
-        setRealAudioPulse(1);
+        activeBar.style.transform = '';
       }
     }, 120);
 
@@ -229,6 +249,7 @@ export const WaveformScrubber = memo(({
         clearInterval(liveSampleTimerRef.current);
         liveSampleTimerRef.current = null;
       }
+      resetActiveBar();
     };
   }, [isPlaying]);
 
@@ -244,6 +265,7 @@ export const WaveformScrubber = memo(({
   const safeTime = Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0;
   const safeDuration = Number.isFinite(activeDuration) && activeDuration > 0 ? activeDuration : 210;
   const playbackRatio = Math.min(1, Math.max(0, safeTime / safeDuration));
+  playbackRatioRef.current = playbackRatio;
   const activeRatio = isDragging ? dragRatio : playbackRatio;
   const activeDisplayTime = isDragging ? dragRatio * safeDuration : safeTime;
 
@@ -256,6 +278,7 @@ export const WaveformScrubber = memo(({
   const calculateRatioAndOffset = (clientX: number) => {
     if (!trackRef.current) return { ratio: 0, offset: 0 };
     const rect = trackRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return { ratio: 0, offset: 0 };
     const x = clientX - rect.left;
     const width = rect.width;
 
@@ -278,7 +301,9 @@ export const WaveformScrubber = memo(({
     if (isJamGuest) return;
     e.stopPropagation();
     e.nativeEvent?.stopImmediatePropagation?.();
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
     if (snapTimerRef.current) {
       clearTimeout(snapTimerRef.current);
       snapTimerRef.current = null;
@@ -379,8 +404,6 @@ export const WaveformScrubber = memo(({
           {waveformBars.map((normHeight, i) => {
             const barRatio = i / (BAR_COUNT - 1);
             const isPlayed = barRatio <= activeRatio;
-            const isCurrentPlayingBar =
-              isPlaying && Math.abs(barRatio - playbackRatio) < 1 / BAR_COUNT;
 
             // Magnetic Gaussian elevation curve near cursor/drag position
             let elevation = 1;
@@ -391,23 +414,24 @@ export const WaveformScrubber = memo(({
               }
             }
 
-            // Live beat pulse on active playback head
-            const livePulse = isCurrentPlayingBar ? realAudioPulse : 1;
             const barPixelHeight = Math.max(
               4,
-              Math.min(30, Math.round(normHeight * 26 * elevation * livePulse))
+              Math.min(30, Math.round(normHeight * 26 * elevation))
             );
 
             return (
               <span
                 key={i}
+                ref={(el) => {
+                  barRefs.current[i] = el;
+                }}
                 style={{
                   height: `${barPixelHeight}px`,
                   transition: isDragging
                     ? 'height 80ms ease-out'
-                    : 'height 160ms cubic-bezier(0.22, 1, 0.36, 1)'
+                    : 'height 160ms cubic-bezier(0.22, 1, 0.36, 1), transform 120ms ease-out'
                 }}
-                className={`flex-1 rounded-full transition-colors duration-150 ${
+                className={`flex-1 rounded-full origin-bottom transition-colors duration-150 ${
                   isPlayed
                     ? 'bg-gradient-to-t from-[var(--color-accent)] via-rose-400 to-white shadow-[0_0_6px_var(--color-accent)]'
                     : 'bg-white/20 group-hover:bg-white/35'

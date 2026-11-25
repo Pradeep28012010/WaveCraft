@@ -1,4 +1,4 @@
-import React, { useState, useRef, memo } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useJamStore } from '../../stores/jamStore';
 import { formatTime } from '../../utils/formatTime';
@@ -23,6 +23,15 @@ export const NowPlayingScrubber = memo(({ fallbackDuration }: NowPlayingScrubber
   const trackRef = useRef<HTMLDivElement>(null);
   const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    return () => {
+      if (snapTimerRef.current) {
+        clearTimeout(snapTimerRef.current);
+        snapTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : Number.isFinite(fallbackDuration) && fallbackDuration > 0 ? fallbackDuration : 210;
   const safeCurrentTime = Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0;
   const activeDuration = safeDuration;
@@ -33,6 +42,7 @@ export const NowPlayingScrubber = memo(({ fallbackDuration }: NowPlayingScrubber
   const calculateRatioAndOffset = (clientX: number) => {
     if (!trackRef.current) return { ratio: 0, offset: 0 };
     const rect = trackRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return { ratio: 0, offset: 0 };
     const x = clientX - rect.left;
     const width = rect.width;
 
@@ -53,7 +63,9 @@ export const NowPlayingScrubber = memo(({ fallbackDuration }: NowPlayingScrubber
     if (isJamGuest) return;
     e.stopPropagation();
     e.nativeEvent?.stopImmediatePropagation?.();
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
     if (snapTimerRef.current) {
       clearTimeout(snapTimerRef.current);
       snapTimerRef.current = null;

@@ -224,8 +224,9 @@ const ARTIST_VIBE_PEERS: Record<string, string[]> = {
  */
 function getSimilarArtists(artist: string): string[] {
   const norm = (artist || '').toLowerCase().trim();
+  if (!norm || norm.length < 2) return [];
   for (const [key, peers] of Object.entries(ARTIST_VIBE_PEERS)) {
-    if (norm.includes(key) || key.includes(norm)) {
+    if (norm === key || norm.includes(key) || (norm.length >= 4 && key.includes(norm))) {
       return peers;
     }
   }
@@ -257,11 +258,12 @@ export async function getSmartRecommendations(
   const normSeedTitle = normalizeSongTitle(seedTrack.title);
   const trackLanguage = detectTrackLanguage(seedTrack.title, seedTrack.artist);
 
-  // Cache lookup (10-minute cache)
-  const cacheKey = `${trackLanguage}__${primaryArtist.toLowerCase()}__${normSeedTitle.slice(0, 20)}`;
+  // Cache lookup (10-minute cache; full normalized title avoids 20-char prefix collisions)
+  const cacheKey = `${trackLanguage}__${primaryArtist.toLowerCase()}__${normSeedTitle}`;
   const cached = recsCache.get(cacheKey);
   if (cached && Date.now() - cached.time < 600_000) {
     const existingIds = new Set(existingQueue.map((t) => t.id));
+    existingIds.add(seedTrack.id);
     const valid = cached.tracks.filter((t) => !existingIds.has(t.id));
     if (valid.length >= limit) {
       return valid.slice(0, limit);
@@ -499,6 +501,10 @@ export async function playTrackWithSmartQueue(seedTrack: Track): Promise<void> {
   try {
     const recommendations = await getSmartRecommendations(seedTrack, [seedTrack], 10);
     if (recommendations.length === 0) return;
+
+    // Never mutate playback queue if user joined a Jam room as Guest while resolving
+    const currentJam = useJamStore.getState();
+    if (currentJam.roomCode && !currentJam.isHost) return;
 
     const currentState = usePlayerStore.getState();
     const existingIds = new Set(currentState.queue.map((t) => t.id));

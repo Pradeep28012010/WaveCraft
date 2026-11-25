@@ -149,6 +149,10 @@ interface StudioState {
   setSmartDJOpen: (open: boolean) => void;
   smartDjAutoMix: boolean;
   setSmartDjAutoMix: (enabled: boolean) => void;
+  smartDjCrossfader: number;
+  setSmartDjCrossfader: (pos: number) => void;
+  smartDjFilterSweep: number;
+  setSmartDjFilterSweep: (sweep: number) => void;
 
   startPomodoro: (mode?: 'focus' | 'break') => void;
   stopPomodoro: () => void;
@@ -298,11 +302,17 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   isNightstandOpen: false,
   isSmartDJOpen: false,
   smartDjAutoMix: true,
+  smartDjCrossfader: 50,
+  smartDjFilterSweep: 0,
   studioActiveTab: 'eq',
 
   setNightstandOpen: (isNightstandOpen) => set({ isNightstandOpen }),
   setSmartDJOpen: (isSmartDJOpen) => set({ isSmartDJOpen }),
   setSmartDjAutoMix: (smartDjAutoMix) => set({ smartDjAutoMix }),
+  setSmartDjCrossfader: (pos) =>
+    set({ smartDjCrossfader: Math.max(0, Math.min(100, Number.isFinite(pos) ? pos : 50)) }),
+  setSmartDjFilterSweep: (sweep) =>
+    set({ smartDjFilterSweep: Math.max(-100, Math.min(100, Number.isFinite(sweep) ? sweep : 0)) }),
 
   pomodoroActive: false,
   pomodoroMode: 'focus',
@@ -389,6 +399,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       reverbMix: 0,
       trebleAir: 0,
       preservePitch: true,
+      smartDjCrossfader: 50,
+      smartDjFilterSweep: 0,
       ambientVolumes: {
         rain: 0,
         vinyl: 0,
@@ -493,8 +505,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       sleepEndAtTrack: false
     });
     try {
-      import('../services/audioEngine').then(({ setSmoothOutputGain, getTargetOutputGain }) => {
-        setSmoothOutputGain(null, getTargetOutputGain(), 0.1);
+      import('../services/audioEngine').then(({ syncActiveOutputGain }) => {
+        syncActiveOutputGain(0.1);
       });
     } catch {}
   },
@@ -517,13 +529,25 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       set({ sleepSeconds: nextSec });
       if (nextSec <= 65) {
         try {
-          import('../services/audioEngine').then(({ setSmoothOutputGain, getTargetOutputGain }) => {
-            setSmoothOutputGain(null, getTargetOutputGain(), 0.85);
+          import('../services/audioEngine').then(({ syncActiveOutputGain }) => {
+            syncActiveOutputGain(0.85);
           });
         } catch {}
       }
     } else {
-      // Pause music & mute ambient layers when sleep timer finishes
+      // Immediately pause active engines while output is still faded down, then restore gain cleanly
+      try {
+        import('../services/audioEngine').then(({ getHtmlAudioElement, getPlayer, getActiveEngine }) => {
+          const audio = getHtmlAudioElement();
+          if (audio && !audio.paused) {
+            try { audio.pause(); } catch {}
+          }
+          const yt = getPlayer();
+          if (getActiveEngine() === 'youtube' && yt && typeof yt.pauseVideo === 'function') {
+            try { yt.pauseVideo(); } catch {}
+          }
+        });
+      } catch {}
       usePlayerStore.getState().pause();
       get().stopAllAmbient();
       set({
@@ -532,11 +556,15 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         sleepTotalSeconds: 0,
         sleepEndAtTrack: false
       });
-      try {
-        import('../services/audioEngine').then(({ setSmoothOutputGain, getTargetOutputGain }) => {
-          setSmoothOutputGain(null, getTargetOutputGain(), 0.1);
-        });
-      } catch {}
+      setTimeout(() => {
+        if (!usePlayerStore.getState().isPlaying) {
+          try {
+            import('../services/audioEngine').then(({ syncActiveOutputGain }) => {
+              syncActiveOutputGain(0.05);
+            });
+          } catch {}
+        }
+      }, 180);
     }
   }
 }));

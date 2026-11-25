@@ -96,11 +96,40 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
            url.includes('p.scdn.co') ||
            url.includes('preview'))
         );
-      const validLiked = (likedSongs || [])
+      const validLikedRaw = (likedSongs || [])
         .filter(
-          (t: unknown): t is Track => Boolean(t && typeof t === 'object' && 'id' in t && 'title' in t)
+          (t: unknown): t is Track =>
+            Boolean(t && typeof t === 'object' && 'id' in t && (t as Track).id && ('title' in t || 'name' in t))
         )
-        .map((t) => (t.audioUrl && isPreviewAudio(t.audioUrl) ? { ...t, audioUrl: undefined } : t));
+        .map((t) => ({
+          ...t,
+          title: t.title || t.name || 'Unknown Track',
+          artist: t.artist || 'Unknown Artist',
+          audioUrl: t.audioUrl && isPreviewAudio(t.audioUrl) ? undefined : t.audioUrl
+        }));
+      const seenLikedIds = new Set<string>();
+      const validLiked = validLikedRaw.filter((t) => {
+        if (seenLikedIds.has(t.id)) return false;
+        seenLikedIds.add(t.id);
+        return true;
+      });
+
+      const seenRecentIds = new Set<string>();
+      const seenRecentFingerprints = new Set<string>();
+      const validRecent = (recentlyPlayed || []).filter((item) => {
+        const track = item?.track;
+        if (!track || !track.id) return false;
+        const idKey = track.youtubeId ? `yt:${track.youtubeId}` : track.id;
+        if (seenRecentIds.has(track.id) || seenRecentIds.has(idKey)) return false;
+        const fp =
+          track.title && track.artist ? normalizeQueryFingerprint(track.title, track.artist) : '';
+        if (fp && seenRecentFingerprints.has(fp)) return false;
+        seenRecentIds.add(track.id);
+        seenRecentIds.add(idKey);
+        if (fp) seenRecentFingerprints.add(fp);
+        return true;
+      });
+
       const loadedPlaylists = ((playlists || []) as Playlist[]).map((p) => ({
         ...p,
         tracks: Array.isArray(p?.tracks) ? p.tracks : []
@@ -111,7 +140,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         likedIds: buildLikedMap(validLiked),
         playlists: loadedPlaylists,
         folders: loadedFolders,
-        recentlyPlayed: recentlyPlayed || [],
+        recentlyPlayed: validRecent,
         playHistory: playHistory || [],
         isLoading: false
       });
@@ -152,16 +181,22 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
 
     if (!track || !track.id) return;
 
-    const alreadyLiked = Boolean(likedIds[track.id]);
+    const safeTrack: Track = {
+      ...track,
+      title: track.title || track.name || 'Unknown Track',
+      artist: track.artist || 'Unknown Artist'
+    };
+
+    const alreadyLiked = Boolean(likedIds[safeTrack.id]);
     const newLiked = alreadyLiked
-      ? likedSongs.filter((t) => t.id !== track.id)
-      : [track, ...likedSongs];
+      ? likedSongs.filter((t) => t.id !== safeTrack.id)
+      : [safeTrack, ...likedSongs.filter((t) => t.id !== safeTrack.id)];
 
     const nextIds = { ...likedIds };
     if (alreadyLiked) {
-      delete nextIds[track.id];
+      delete nextIds[safeTrack.id];
     } else {
-      nextIds[track.id] = true;
+      nextIds[safeTrack.id] = true;
     }
 
     set({ likedSongs: newLiked, likedIds: nextIds });
@@ -226,7 +261,8 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
 
       try {
         const res = await fetch(
-          apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(target.sourceUrl)}`)
+          apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(target.sourceUrl)}`),
+          { signal: AbortSignal.timeout(12000) }
         );
         if (res.ok) {
           data = await res.json();
@@ -239,7 +275,8 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       if (!data || data.error || !Array.isArray(data.queries) || data.queries.length === 0) {
         try {
           const directRes = await fetch(
-            `https://wavecraft-alpha.vercel.app/api/music?action=import-playlist&url=${encodeURIComponent(target.sourceUrl)}`
+            `https://wavecraft-alpha.vercel.app/api/music?action=import-playlist&url=${encodeURIComponent(target.sourceUrl)}`,
+            { signal: AbortSignal.timeout(12000) }
           );
           if (directRes.ok) {
             const directData = await directRes.json();
@@ -315,7 +352,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
             const q = remoteQueries[qIdx];
             if (q.videoId) {
               resolvedRemoteTracks[qIdx].track = {
-                id: `yt-${q.videoId}`,
+                id: `yt_${q.videoId}`,
                 title: q.title || 'Synced Track',
                 artist: q.artist || 'Unknown Artist',
                 album: target.name,
@@ -352,24 +389,34 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       let finalFingerprints: string[] = [];
       let removedCount = 0;
 
-      if (target.syncStrategy === 'mirror') {
+      const latestTarget = get().playlists.find((p) => p.id === playlistId);
+      if (!latestTarget) {
+        set((s) => ({
+          syncingPlaylistIds: { ...s.syncingPlaylistIds, [playlistId]: false }
+        }));
+        return { added: 0, removed: 0, total: 0 };
+      }
+      const latestTracks = latestTarget.tracks || [];
+      const latestFingerprints = latestTarget.remoteFingerprints || [];
+
+      if (latestTarget.syncStrategy === 'mirror') {
         finalTracks = validRemote.map((r) => r.track);
         finalFingerprints = validRemote.map((r) => r.fp);
-        removedCount = Math.max(0, existingTracks.length + newlyAddedCount - finalTracks.length);
+        removedCount = Math.max(0, latestTracks.length + newlyAddedCount - finalTracks.length);
       } else {
-        const existingIds = new Set(existingTracks.map((t) => t.id));
+        const existingIds = new Set(latestTracks.map((t) => t.id));
         const newAdditions = validRemote.filter((r) => !existingIds.has(r.track.id));
-        finalTracks = [...existingTracks, ...newAdditions.map((r) => r.track)];
+        finalTracks = [...latestTracks, ...newAdditions.map((r) => r.track)];
         finalFingerprints = [
-          ...existingTracks.map(
-            (t, idx) => prevFingerprints[idx] || normalizeQueryFingerprint(t.title, t.artist)
+          ...latestTracks.map(
+            (t, idx) => latestFingerprints[idx] || normalizeQueryFingerprint(t.title, t.artist)
           ),
           ...newAdditions.map((r) => r.fp)
         ];
         newlyAddedCount = newAdditions.length;
       }
 
-      const freshCover = data.coverUrl || target.coverUrl || finalTracks[0]?.thumbnailLarge || '';
+      const freshCover = data.coverUrl || latestTarget.coverUrl || finalTracks[0]?.thumbnailLarge || '';
 
       get().updatePlaylist(playlistId, {
         tracks: finalTracks,
@@ -436,7 +483,9 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     if (!pl) return;
     const newTracks = [...pl.tracks];
     if (typeof trackIndexOrId === 'number') {
-      newTracks.splice(trackIndexOrId, 1);
+      if (trackIndexOrId >= 0 && trackIndexOrId < newTracks.length) {
+        newTracks.splice(trackIndexOrId, 1);
+      }
     } else {
       const idx = newTracks.findIndex((t) => t.id === trackIndexOrId);
       if (idx !== -1) newTracks.splice(idx, 1);
@@ -448,6 +497,15 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     const pl = get().playlists.find((p) => p.id === playlistId);
     if (!pl) return;
     const newTracks = [...pl.tracks];
+    if (
+      from < 0 ||
+      from >= newTracks.length ||
+      to < 0 ||
+      to >= newTracks.length ||
+      from === to
+    ) {
+      return;
+    }
     const [moved] = newTracks.splice(from, 1);
     if (moved) {
       newTracks.splice(to, 0, moved);
@@ -460,8 +518,27 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   addToRecentlyPlayed: (track) => {
+    if (!track || !track.id) return;
     const { recentlyPlayed } = get();
-    const filtered = recentlyPlayed.filter((item) => item.track?.id !== track.id);
+    const targetFp =
+      track.title && track.artist ? normalizeQueryFingerprint(track.title, track.artist) : '';
+    const filtered = recentlyPlayed.filter((item) => {
+      const existing = item.track;
+      if (!existing) return false;
+      if (existing.id === track.id) return false;
+      if (track.youtubeId && existing.youtubeId && existing.youtubeId === track.youtubeId) {
+        return false;
+      }
+      if (
+        targetFp &&
+        existing.title &&
+        existing.artist &&
+        normalizeQueryFingerprint(existing.title, existing.artist) === targetFp
+      ) {
+        return false;
+      }
+      return true;
+    });
     const newRecent = [{ track, playedAt: Date.now() }, ...filtered].slice(0, 100);
     set({ recentlyPlayed: newRecent });
     storage.saveRecentlyPlayed(newRecent);

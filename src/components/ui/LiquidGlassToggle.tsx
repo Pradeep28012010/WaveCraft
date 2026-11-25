@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useId } from 'react';
 import { motion } from 'framer-motion';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 
@@ -21,7 +21,7 @@ export interface LiquidGlassToggleProps {
  * Features:
  * - Glowing emerald green track with luminous cyan-mint outer aura and glass rim
  * - Glossy porcelain 3D spherical knob with specular reflections
- * - SVG goo filter (#liquid-switch-goo) providing fluid surface tension & liquid stretch
+ * - SVG goo filter providing fluid surface tension & liquid stretch
  * - High-speed physics response with elastic snap bounce and haptic ticks
  */
 export const LiquidGlassToggle: React.FC<LiquidGlassToggleProps> = ({
@@ -35,7 +35,8 @@ export const LiquidGlassToggle: React.FC<LiquidGlassToggleProps> = ({
   'aria-label': ariaLabel,
 }) => {
   const [isPressed, setIsPressed] = useState(false);
-  const pressStartTimeRef = useRef(0);
+  const rawId = useId();
+  const gooFilterId = `liquid-switch-goo-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
   // Scaled dimensions matching exact proportions from screenshot
   const dimensions = {
@@ -43,6 +44,13 @@ export const LiquidGlassToggle: React.FC<LiquidGlassToggleProps> = ({
     md: { trackW: 56, trackH: 32, knobSize: 26, stretchW: 34, travel: 24 },
     lg: { trackW: 66, trackH: 38, knobSize: 32, stretchW: 42, travel: 28 },
   }[size];
+
+  // Expand inward when checked so the stretching pill never overflows the track's right edge
+  const stretchDelta = dimensions.stretchW - dimensions.knobSize;
+  const knobWidth = isPressed ? dimensions.stretchW : dimensions.knobSize;
+  const knobX = checked ? dimensions.travel - (isPressed ? stretchDelta : 0) : 0;
+  const puddleWidth = isPressed ? dimensions.stretchW + 4 : dimensions.knobSize;
+  const puddleX = checked ? Math.max(0, dimensions.travel - (isPressed ? stretchDelta + 4 : 0)) : 0;
 
   // Active track color themes
   const activeColorThemes: Record<string, { bg: string; border: string; glow: string; knobTint: string }> = {
@@ -82,14 +90,14 @@ export const LiquidGlassToggle: React.FC<LiquidGlassToggleProps> = ({
 
   return (
     <>
-      {/* SVG Liquid Goo Filter Definition (Loaded Once) */}
+      {/* SVG Liquid Goo Filter Definition */}
       <svg
         className="sr-only"
         style={{ position: 'absolute', width: 0, height: 0, pointerEvents: 'none' }}
         aria-hidden="true"
       >
         <defs>
-          <filter id="liquid-switch-goo" colorInterpolationFilters="sRGB">
+          <filter id={gooFilterId} colorInterpolationFilters="sRGB">
             <feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="blur" />
             <feColorMatrix
               in="blur"
@@ -117,11 +125,11 @@ export const LiquidGlassToggle: React.FC<LiquidGlassToggleProps> = ({
         onClick={handleToggle}
         onPointerDown={() => {
           if (!disabled) {
-            pressStartTimeRef.current = Date.now();
             setIsPressed(true);
           }
         }}
         onPointerUp={() => setIsPressed(false)}
+        onPointerCancel={() => setIsPressed(false)}
         onPointerLeave={() => setIsPressed(false)}
         onKeyDown={(e) => {
           if (e.key === ' ' || e.key === 'Enter') {
@@ -144,14 +152,14 @@ export const LiquidGlassToggle: React.FC<LiquidGlassToggleProps> = ({
       >
         {/* Liquid Gooey Bridge Layer (Simulating Jhey's dynamic surface tension) */}
         <div
-          className="absolute inset-0 rounded-full pointer-events-none overflow-hidden"
-          style={{ filter: 'url(#liquid-switch-goo)' }}
+          className="absolute inset-[3px] flex items-center rounded-full pointer-events-none overflow-hidden"
+          style={{ filter: `url(#${gooFilterId})` }}
         >
           {/* Stretching Liquid Puddle */}
           <motion.div
             animate={{
-              x: checked ? dimensions.travel : 0,
-              width: isPressed ? dimensions.stretchW + 4 : dimensions.knobSize,
+              x: puddleX,
+              width: puddleWidth,
             }}
             transition={{
               type: 'spring',
@@ -167,11 +175,11 @@ export const LiquidGlassToggle: React.FC<LiquidGlassToggleProps> = ({
           />
         </div>
 
-        {/* Glossy 3D Porcelain Knob (Exact match to media_1792555643298_323a2ae2.png) */}
+        {/* Glossy 3D Porcelain Knob */}
         <motion.div
           animate={{
-            x: checked ? dimensions.travel : 0,
-            width: isPressed ? dimensions.stretchW : dimensions.knobSize,
+            x: knobX,
+            width: knobWidth,
           }}
           transition={{
             type: 'spring',

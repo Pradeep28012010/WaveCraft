@@ -8,10 +8,9 @@
 import type { Track } from '../types';
 import { createStore, set as idbSet } from 'idb-keyval';
 import { useLibraryStore } from '../stores/libraryStore';
-import { getOfflineTracks, rehydrateOfflineVault } from './offlineVault';
+import { upsertOfflineTracksMeta } from './offlineVault';
 
 const vaultBlobStore = createStore('wavecraft-audio-vault-blobs', 'audio');
-const VAULT_META_KEY = 'wavecraft_offline_tracks_meta_v1';
 
 export interface BitrateBreakdown {
   losslessCount: number;
@@ -49,7 +48,7 @@ export function computeBitrateBreakdown(tracks: Track[]): BitrateBreakdown {
   let totalBytes = 0;
 
   for (const t of tracks) {
-    const bytes = t.fileSizeBytes || 0;
+    const bytes = t.fileSizeBytes && t.fileSizeBytes > 0 ? t.fileSizeBytes : 0;
     totalBytes += bytes;
     const q = (t.quality || '').toLowerCase();
     const title = (t.title || '').toLowerCase();
@@ -256,7 +255,6 @@ export async function importLocalAudioFiles(
       const duration = await probeAudioDuration(file);
       const quality = detectLocalFileQuality(file);
       const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const liveBlobUrl = URL.createObjectURL(file);
       const coverArt = generateLocalCoverArt(title, artist);
 
       const track: Track = {
@@ -267,7 +265,7 @@ export async function importLocalAudioFiles(
         duration,
         thumbnail: coverArt,
         thumbnailLarge: coverArt,
-        audioUrl: liveBlobUrl,
+        audioUrl: undefined,
         quality,
         fileSizeBytes: file.size,
         offlineSource: 'manual',
@@ -275,16 +273,8 @@ export async function importLocalAudioFiles(
         isLocal: true
       };
 
-      // 1. Store audio blob permanently into IndexedDB
+      // Store audio blob permanently into IndexedDB (playback reads permanent Blob URL via offlineVault)
       await idbSet(`audio_${id}`, file, vaultBlobStore);
-
-      // 2. Add to Offline Vault metadata in localStorage & IndexedDB
-      const currentVault = getOfflineTracks().filter((t) => t.id !== id);
-      const updatedVault = [track, ...currentVault];
-      try {
-        localStorage.setItem(VAULT_META_KEY, JSON.stringify(updatedVault));
-      } catch {}
-      await idbSet(VAULT_META_KEY, updatedVault, vaultBlobStore);
 
       importedTracks.push(track);
     } catch (err) {
@@ -293,8 +283,13 @@ export async function importLocalAudioFiles(
     }
   }
 
-  // 3. Add to user library under "Local Imports" playlist
+  // Persist all imported tracks together in one atomic Offline Vault metadata update,
+  // preventing concurrent writes in multi-file batches from overwriting earlier items.
   if (importedTracks.length > 0) {
+    try {
+      await upsertOfflineTracksMeta(importedTracks);
+    } catch {}
+
     try {
       const lib = useLibraryStore.getState();
       let localPlaylist = lib.playlists.find((p) => p.name === 'Local Imports');
@@ -305,8 +300,6 @@ export async function importLocalAudioFiles(
         );
       }
       lib.addTracksToPlaylist(localPlaylist.id, importedTracks);
-      // Trigger vault rehydration so memory caches are fully up-to-date
-      await rehydrateOfflineVault();
     } catch {}
   }
 

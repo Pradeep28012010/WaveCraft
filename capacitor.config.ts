@@ -6,11 +6,15 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    cleartext: true,
-    allowNavigation: ['*']
+    cleartext: false,
+    allowNavigation: [
+      'wavecraft-alpha.vercel.app',
+      'www.youtube.com',
+      'www.youtube-nocookie.com'
+    ]
   },
   android: {
-    allowMixedContent: true,
+    allowMixedContent: false,
     captureInput: true,
     webContentsDebuggingEnabled: false
   },

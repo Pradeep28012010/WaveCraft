@@ -199,6 +199,8 @@ export interface ElectronAPI {
   onMaximizedChange: (callback: (isMax: boolean) => void) => () => void;
   onMediaKey?: (callback: (action: string) => void) => () => void;
   updateTrack: (track: { title: string; artist: string }) => void;
+  sendPlaybackState?: (isPlaying: boolean) => void;
+  onVisibilityChange?: (callback: (isVisible: boolean) => void) => () => void;
   finishSetup?: () => void;
   isSetupMode?: () => Promise<boolean>;
   getAppVersion?: () => Promise<string>;

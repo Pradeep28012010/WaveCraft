@@ -9,6 +9,7 @@ import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import type { Track } from '../../types';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
+import { useOverlayEscape, useFocusTrap } from '../ui/dialogStack';
 
 interface CommandAction {
   id: string;
@@ -24,14 +25,14 @@ export default function CommandPalette() {
   const isCommandPaletteOpen = useStudioStore((s) => s.isCommandPaletteOpen);
   const setCommandPaletteOpen = useStudioStore((s) => s.setCommandPaletteOpen);
 
+  useOverlayEscape(isCommandPaletteOpen, () => setCommandPaletteOpen(false));
+
   // Global Ctrl+K / Cmd+K shortcut listener
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCommandPaletteOpen(!useStudioStore.getState().isCommandPaletteOpen);
-      } else if (e.key === 'Escape' && useStudioStore.getState().isCommandPaletteOpen) {
-        setCommandPaletteOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -52,7 +53,10 @@ export default function CommandPalette() {
 
 function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
+  const paletteRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsContainerRef = useRef<HTMLDivElement>(null);
+  const searchSeqRef = useRef(0);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [trackResults, setTrackResults] = useState<Track[]>([]);
@@ -73,33 +77,42 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
   const togglePlay = usePlayerStore((s) => s.togglePlay);
   const nextTrack = usePlayerStore((s) => s.nextTrack);
 
-  // Focus input when mounted
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 30);
-    return () => clearTimeout(t);
-  }, []);
+  useFocusTrap(true, paletteRef, inputRef);
 
-  // Live song search when typing > 2 chars
+  // Live song search when typing >= 2 chars (with stale-response guard)
   useEffect(() => {
-    if (query.trim().length < 2) {
+    const trimmed = query.trim();
+    const seqId = ++searchSeqRef.current;
+
+    if (trimmed.length < 2) {
       setTrackResults([]);
       setIsSearchingTracks(false);
       return;
     }
 
+    let cancelled = false;
     setIsSearchingTracks(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await searchTracks(query.trim());
-        setTrackResults(res.slice(0, 4));
+        const res = await searchTracks(trimmed);
+        if (!cancelled && seqId === searchSeqRef.current) {
+          setTrackResults(res.slice(0, 4));
+        }
       } catch {
-        setTrackResults([]);
+        if (!cancelled && seqId === searchSeqRef.current) {
+          setTrackResults([]);
+        }
       } finally {
-        setIsSearchingTracks(false);
+        if (!cancelled && seqId === searchSeqRef.current) {
+          setIsSearchingTracks(false);
+        }
       }
     }, 220);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [query]);
 
   const actions: CommandAction[] = useMemo(
@@ -282,6 +295,20 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
 
   const totalItems = trackResults.length + filteredActions.length;
 
+  useEffect(() => {
+    setSelectedIndex((prev) => {
+      if (totalItems <= 0) return 0;
+      return Math.min(prev, totalItems - 1);
+    });
+  }, [totalItems]);
+
+  useEffect(() => {
+    const container = resultsContainerRef.current;
+    if (!container) return;
+    const el = container.querySelector<HTMLElement>(`[data-cmd-idx="${selectedIndex}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [selectedIndex, totalItems]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -291,13 +318,14 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
       setSelectedIndex((prev) => (totalItems > 0 ? (prev - 1 + totalItems) % totalItems : 0));
     } else if (e.key === 'Enter' && totalItems > 0) {
       e.preventDefault();
-      if (selectedIndex < trackResults.length) {
-        const chosenTrack = trackResults[selectedIndex];
+      const clampedIdx = Math.max(0, Math.min(selectedIndex, totalItems - 1));
+      if (clampedIdx < trackResults.length) {
+        const chosenTrack = trackResults[clampedIdx];
         unlockAudioEngine();
         playTrackWithSmartQueue(chosenTrack);
         setCommandPaletteOpen(false);
       } else {
-        const action = filteredActions[selectedIndex - trackResults.length];
+        const action = filteredActions[clampedIdx - trackResults.length];
         if (action) {
           action.run();
           setCommandPaletteOpen(false);
@@ -313,7 +341,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, pointerEvents: 'none' }}
       transition={{ duration: 0.16 }}
-      className="fixed inset-0 z-[9995] pointer-events-none flex items-start justify-center pt-[11vh] px-4 select-none"
+      className="fixed inset-0 z-[9997] pointer-events-none flex items-start justify-center pt-[11vh] px-4 select-none"
     >
       <motion.div
         initial={{ opacity: 0 }}
@@ -324,12 +352,17 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         className="absolute inset-0 pointer-events-auto modal-backdrop-blur backdrop-blur-xl backdrop-saturate-150"
       />
       <motion.div
+        ref={paletteRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command Palette"
+        tabIndex={-1}
         initial={{ opacity: 0, scale: 0.96, y: -10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: -10 }}
         transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
         onClick={(e) => e.stopPropagation()}
-        className="relative z-10 pointer-events-auto w-full max-w-2xl rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 overflow-hidden text-white"
+        className="relative z-10 pointer-events-auto w-full max-w-2xl rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 overflow-hidden text-white focus:outline-none"
       >
         {/* Search Input Header */}
         <div className="flex items-center gap-3.5 px-5 py-4 border-0 bg-black/30">
@@ -358,13 +391,17 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
           {isSearchingTracks && (
             <div className="w-4 h-4 border-2 border-white/20 border-t-[var(--color-accent)] rounded-full animate-spin" />
           )}
-          <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-bold text-white/50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-2 py-0.5 rounded-md bg-white/10 hover:bg-white/15 text-[10px] font-bold text-white/60 hover:text-white transition cursor-pointer"
+          >
             ESC
-          </span>
+          </button>
         </div>
 
         {/* Results List */}
-        <div className="max-h-[60vh] overflow-y-auto p-2.5 no-scrollbar space-y-3">
+        <div ref={resultsContainerRef} className="max-h-[60vh] overflow-y-auto p-2.5 no-scrollbar space-y-3">
           {/* Instant Playable Song Matches */}
           {trackResults.length > 0 && (
             <div>
@@ -377,6 +414,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
                   return (
                     <div
                       key={track.id}
+                      data-cmd-idx={idx}
                       onMouseEnter={() => setSelectedIndex(idx)}
                       onClick={() => {
                         unlockAudioEngine();
@@ -426,6 +464,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
                   return (
                     <div
                       key={action.id}
+                      data-cmd-idx={globalIdx}
                       onMouseEnter={() => setSelectedIndex(globalIdx)}
                       onClick={() => {
                         action.run();

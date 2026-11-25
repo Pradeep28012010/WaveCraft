@@ -288,6 +288,11 @@ export default function HomePage() {
   const greetingInfo = getGreetingData();
 
   const handleLaunchTodayFlow = async () => {
+    const jam = useJamStore.getState();
+    if (jam.roomCode && !jam.isHost) {
+      showToast('Host controls playback in Jam Room');
+      return;
+    }
     unlockAudioEngine();
     triggerAndroidHaptic('medium');
     showToast(`Summoning ${greetingInfo.greeting} Flow... 🎶`);
@@ -512,25 +517,31 @@ export default function HomePage() {
     }
   }, [playTrack, navigate]);
 
+  const trendingCategoryReqRef = useRef(0);
+  const activeTrendingCategoryRef = useRef(activeTrendingCategory);
+  useEffect(() => {
+    activeTrendingCategoryRef.current = activeTrendingCategory;
+  }, [activeTrendingCategory]);
+
   const handleSelectTrendingCategory = useCallback(async (categoryKey: string) => {
     triggerAndroidHaptic('light');
-    setActiveTrendingCategory((currentKey) => {
-      if (categoryKey === currentKey) return currentKey;
-      setIsCategoryTrendingLoading(true);
-      getTrending(categoryKey)
-        .then((tracks) => {
-          if (tracks && tracks.length > 0) {
-            setTrendingTracks(tracks);
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to change trending category:', err);
-        })
-        .finally(() => {
-          setIsCategoryTrendingLoading(false);
-        });
-      return categoryKey;
-    });
+    if (categoryKey === activeTrendingCategoryRef.current) return;
+    const reqId = ++trendingCategoryReqRef.current;
+    setActiveTrendingCategory(categoryKey);
+    setIsCategoryTrendingLoading(true);
+    try {
+      const tracks = await getTrending(categoryKey);
+      if (trendingCategoryReqRef.current !== reqId) return;
+      if (tracks && tracks.length > 0) {
+        setTrendingTracks(tracks);
+      }
+    } catch (err) {
+      console.error('Failed to change trending category:', err);
+    } finally {
+      if (trendingCategoryReqRef.current === reqId) {
+        setIsCategoryTrendingLoading(false);
+      }
+    }
   }, []);
 
   const handlePlayChart = useCallback(
@@ -603,10 +614,14 @@ export default function HomePage() {
               combined.push(r);
             }
           }
-          usePlayerStore.setState({
-            queue: combined,
-            originalQueue: combined
-          });
+          const jam = useJamStore.getState();
+          const activeTrackId = usePlayerStore.getState().currentTrack?.id;
+          if (!(jam.roomCode && !jam.isHost) && activeTrackId === seed.id) {
+            usePlayerStore.setState({
+              queue: combined,
+              originalQueue: combined
+            });
+          }
         }
       } catch (e) {
         console.warn('Could not enrich smart playlist:', e);
@@ -787,11 +802,10 @@ export default function HomePage() {
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1 w-full min-w-0">
           {/* Category Filter Pills */}
           <div
-            className="overflow-x-auto overflow-y-hidden overscroll-y-auto no-scrollbar py-0.5 max-w-full flex items-center flex-shrink-0"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+            className="py-0.5 max-w-full flex items-center"
           >
             <div
-              className="inline-flex items-center gap-1.5 p-1.5 rounded-full liquid-glass border-0 flex-nowrap flex-shrink-0 relative shadow-sm"
+              className="inline-flex items-center gap-1.5 p-1.5 rounded-3xl sm:rounded-full liquid-glass border-0 flex-wrap relative shadow-sm max-w-full"
             >
               {FILTER_CHIPS.map((chip) => {
                 const isSelected = activeFilter === chip.id;
@@ -1722,11 +1736,12 @@ export default function HomePage() {
       )}
 
       {/* ================= RECENTLY PLAYED ================= */}
-      {(activeFilter === 'all' || activeFilter === 'music') && recentlyPlayed.length > 0 && (
+      {(activeFilter === 'all' || activeFilter === 'music') && recentlyPlayed.length > 0 && (() => {
+        const recentTracks = recentlyPlayed.map((r) => r.track).filter(Boolean) as Track[];
+        if (recentTracks.length === 0) return null;
+        return (
         <HorizontalScroll title="Recently Played" subtitle="Jump back into your recent sessions">
-          {recentlyPlayed.slice(0, 12).map((historyItem, i) => {
-            const track = historyItem.track;
-            if (!track) return null;
+          {recentTracks.slice(0, 12).map((track, i) => {
             const isPlayingThis = currentTrackId === track.id;
             return (
               <div
@@ -1737,11 +1752,7 @@ export default function HomePage() {
                   if (isPlayingThis) {
                     togglePlay();
                   } else {
-                    playTrack(
-                      track,
-                      recentlyPlayed.map((r) => r.track).filter(Boolean) as Track[],
-                      i
-                    );
+                    playTrack(track, recentTracks, i);
                   }
                 }}
                 onContextMenu={(e) => {
@@ -1749,7 +1760,6 @@ export default function HomePage() {
                   e.preventDefault();
                   e.stopPropagation();
                   triggerAndroidHaptic('medium');
-                  const recentTracks = recentlyPlayed.map((r) => r.track).filter(Boolean) as Track[];
                   useContextMenuStore.getState().openTrackMenu(
                     { clientX: e.clientX, clientY: e.clientY },
                     track,
@@ -1821,7 +1831,8 @@ export default function HomePage() {
             );
           })}
         </HorizontalScroll>
-      )}
+        );
+      })()}
 
       {/* ================= FEATURED ARTISTS ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (

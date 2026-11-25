@@ -8,7 +8,8 @@ import GlassButton from '../ui/GlassButton';
 import GlassSelect from '../ui/GlassSelect';
 import {
   isPlaylistFullyOffline,
-  getPlaylistOfflineCount
+  getPlaylistOfflineCount,
+  useOfflineVault
 } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useDownloadStore } from '../../stores/downloadStore';
@@ -43,6 +44,7 @@ export default function LikedSongs() {
 
   const activeDownloadJob = useDownloadStore((s) => s.activeJob);
   const startBatchDownload = useDownloadStore((s) => s.startBatchDownload);
+  const { offlineTracks } = useOfflineVault();
 
   const isCurrentDownloading = Boolean(
     activeDownloadJob && activeDownloadJob.id === 'liked_songs' && activeDownloadJob.isDownloading
@@ -50,11 +52,11 @@ export default function LikedSongs() {
 
   const isAllOffline = useMemo(
     () => isPlaylistFullyOffline(filteredAndSortedSongs),
-    [filteredAndSortedSongs, activeDownloadJob]
+    [filteredAndSortedSongs, offlineTracks, activeDownloadJob]
   );
   const offlineCount = useMemo(
     () => getPlaylistOfflineCount(filteredAndSortedSongs),
-    [filteredAndSortedSongs, activeDownloadJob]
+    [filteredAndSortedSongs, offlineTracks, activeDownloadJob]
   );
 
   const handleDownloadAll = async () => {

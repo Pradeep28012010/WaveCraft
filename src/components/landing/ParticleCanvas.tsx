@@ -50,18 +50,23 @@ function ParticleCanvas() {
 
     let w = 0;
     let h = 0;
+    let lastNow = performance.now();
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const parent = canvas.parentElement;
-      w = parent?.clientWidth || window.innerWidth;
-      h = parent?.clientHeight || window.innerHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
+      const nextW = parent?.clientWidth || window.innerWidth;
+      const nextH = parent?.clientHeight || window.innerHeight;
+      if (nextW <= 0 || nextH <= 0) return;
+      const sizeDelta = Math.abs(nextW - w) > 60 || Math.abs(nextH - h) > 60;
+      w = nextW;
+      h = nextH;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (particlesRef.current.length === 0) initParticles(w, h);
+      if (particlesRef.current.length !== particleCount || sizeDelta) {
+        initParticles(w, h);
+      }
     };
 
     const handleMouse = (e: MouseEvent) => {
@@ -71,27 +76,23 @@ function ParticleCanvas() {
     const handleMouseLeave = () => {
       mouseRef.current = { x: -9999, y: -9999 };
     };
-    const handleVisibility = () => {
-      visibleRef.current = !document.hidden;
-    };
 
-    resize();
-    window.addEventListener('resize', resize);
-    canvas.addEventListener('mousemove', handleMouse);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
-    document.addEventListener('visibilitychange', handleVisibility);
+    const draw = (now: number) => {
+      if (!visibleRef.current || document.hidden) {
+        rafRef.current = 0;
+        return;
+      }
 
-    const draw = () => {
-      rafRef.current = requestAnimationFrame(draw);
-      if (!visibleRef.current) return;
-
-      timeRef.current += 0.016;
+      const dt = Math.min(2.5, Math.max(0.1, (now - lastNow) / 16.667));
+      lastNow = now;
+      timeRef.current += 0.016 * dt;
       const t = timeRef.current;
       ctx.clearRect(0, 0, w, h);
 
       const particles = particlesRef.current;
       const mx = mouseRef.current.x;
       const my = mouseRef.current.y;
+      const damping = Math.pow(0.985, dt);
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
@@ -101,22 +102,22 @@ function ParticleCanvas() {
         const dy = p.y - my;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 130 && dist > 0) {
-          const force = ((130 - dist) / 130) * 0.6;
+          const force = ((130 - dist) / 130) * 0.6 * dt;
           p.vx += (dx / dist) * force;
           p.vy += (dy / dist) * force;
         }
 
         // Subtle drift
-        p.vx += Math.sin(t * 0.3 + p.pulsePhase) * 0.003;
-        p.vy += Math.cos(t * 0.2 + p.pulsePhase) * 0.003;
+        p.vx += Math.sin(t * 0.3 + p.pulsePhase) * 0.003 * dt;
+        p.vy += Math.cos(t * 0.2 + p.pulsePhase) * 0.003 * dt;
 
         // Damping
-        p.vx *= 0.985;
-        p.vy *= 0.985;
+        p.vx *= damping;
+        p.vy *= damping;
 
         // Move
-        p.x += p.vx * p.z;
-        p.y += p.vy * p.z;
+        p.x += p.vx * p.z * dt;
+        p.y += p.vy * p.z * dt;
 
         // Wrap edges
         if (p.x < -30) p.x = w + 30;
@@ -126,7 +127,7 @@ function ParticleCanvas() {
 
         // Pulsing opacity
         const pulse = Math.sin(t * 1.5 + p.pulsePhase) * 0.15;
-        const alpha = (p.opacity + pulse) * p.z;
+        const alpha = Math.max(0, Math.min(1, (p.opacity + pulse) * p.z));
 
         // Draw glow
         ctx.beginPath();
@@ -163,18 +164,53 @@ function ParticleCanvas() {
           }
         }
       }
+
+      rafRef.current = requestAnimationFrame(draw);
     };
 
-    rafRef.current = requestAnimationFrame(draw);
+    const handleVisibility = () => {
+      visibleRef.current = !document.hidden;
+      if (document.hidden) {
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = 0;
+        }
+      } else if (!rafRef.current) {
+        lastNow = performance.now();
+        rafRef.current = requestAnimationFrame(draw);
+      }
+    };
+
+    resize();
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined' && canvas.parentElement
+        ? new ResizeObserver(() => resize())
+        : null;
+    if (resizeObserver && canvas.parentElement) {
+      resizeObserver.observe(canvas.parentElement);
+    }
+
+    window.addEventListener('resize', resize);
+    canvas.addEventListener('mousemove', handleMouse);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    visibleRef.current = typeof document === 'undefined' || !document.hidden;
+    if (visibleRef.current) {
+      lastNow = performance.now();
+      rafRef.current = requestAnimationFrame(draw);
+    }
 
     return () => {
-      cancelAnimationFrame(rafRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      resizeObserver?.disconnect();
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('mousemove', handleMouse);
       canvas.removeEventListener('mouseleave', handleMouseLeave);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [initParticles]);
+  }, [initParticles, particleCount]);
 
   return (
     <canvas

@@ -91,11 +91,18 @@ const getGradientDirection = (position?: string): string =>
   })[position || 'bottom'] || 'to bottom';
 
 const debounce = <T extends (...args: unknown[]) => void>(fn: T, wait: number) => {
-  let t: ReturnType<typeof setTimeout>;
-  return (...a: Parameters<T>) => {
-    clearTimeout(t);
+  let t: ReturnType<typeof setTimeout> | undefined;
+  const wrapped = (...a: Parameters<T>) => {
+    if (t) clearTimeout(t);
     t = setTimeout(() => fn(...a), wait);
   };
+  wrapped.cancel = () => {
+    if (t) {
+      clearTimeout(t);
+      t = undefined;
+    }
+  };
+  return wrapped;
 };
 
 const useResponsiveDimension = (
@@ -104,33 +111,45 @@ const useResponsiveDimension = (
   key?: 'height' | 'width'
 ): string | undefined => {
   const [value, setValue] = useState(config ? (config[key as keyof GradualBlurProps] as string | undefined) : undefined);
+  const configRef = useRef(config);
+  configRef.current = config;
+
+  const baseVal = config && key ? (config[key as keyof GradualBlurProps] as string | undefined) : undefined;
+  const mobileVal = config?.mobileHeight ?? config?.mobileWidth;
+  const tabletVal = config?.tabletHeight ?? config?.tabletWidth;
+  const desktopVal = config?.desktopHeight ?? config?.desktopWidth;
 
   useEffect(() => {
-    if (!responsive || !config || !key) return;
+    if (!responsive || !configRef.current || !key) return;
     const calc = () => {
+      const cfg = configRef.current;
+      if (!cfg) return;
       const w = window.innerWidth;
-      let v = config[key as keyof GradualBlurProps] as string | undefined;
+      let v = cfg[key as keyof GradualBlurProps] as string | undefined;
       const capKey = key.charAt(0).toUpperCase() + key.slice(1);
       const mobileKey = `mobile${capKey}` as keyof GradualBlurProps;
       const tabletKey = `tablet${capKey}` as keyof GradualBlurProps;
       const desktopKey = `desktop${capKey}` as keyof GradualBlurProps;
 
-      if (w <= 480 && config[mobileKey]) {
-        v = config[mobileKey] as string;
-      } else if (w <= 768 && config[tabletKey]) {
-        v = config[tabletKey] as string;
-      } else if (w <= 1024 && config[desktopKey]) {
-        v = config[desktopKey] as string;
+      if (w <= 480 && cfg[mobileKey]) {
+        v = cfg[mobileKey] as string;
+      } else if (w <= 768 && cfg[tabletKey]) {
+        v = cfg[tabletKey] as string;
+      } else if (w <= 1024 && cfg[desktopKey]) {
+        v = cfg[desktopKey] as string;
       }
       setValue(v);
     };
     const debounced = debounce(calc, 100);
     calc();
     window.addEventListener('resize', debounced);
-    return () => window.removeEventListener('resize', debounced);
-  }, [responsive, config, key]);
+    return () => {
+      debounced.cancel();
+      window.removeEventListener('resize', debounced);
+    };
+  }, [responsive, key, baseVal, mobileVal, tabletVal, desktopVal]);
 
-  return responsive ? value : config ? (config[key as keyof GradualBlurProps] as string | undefined) : undefined;
+  return responsive ? value : baseVal;
 };
 
 const useIntersectionObserver = (ref: React.RefObject<HTMLDivElement | null>, shouldObserve = false) => {
@@ -152,10 +171,87 @@ function GradualBlur(props: GradualBlurProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
+  const {
+    position,
+    strength,
+    height,
+    width,
+    divCount,
+    exponential,
+    zIndex,
+    animated,
+    duration,
+    easing,
+    opacity,
+    curve,
+    responsive,
+    mobileHeight,
+    tabletHeight,
+    desktopHeight,
+    mobileWidth,
+    tabletWidth,
+    desktopWidth,
+    hoverIntensity,
+    target,
+    preset,
+    className,
+    style
+  } = props;
+
   const config = useMemo<GradualBlurProps>(() => {
-    const presetConfig = props.preset && PRESETS[props.preset] ? PRESETS[props.preset] : {};
-    return mergeConfigs(DEFAULT_CONFIG, presetConfig, props);
-  }, [props]);
+    const presetConfig = preset && PRESETS[preset] ? PRESETS[preset] : {};
+    return mergeConfigs(DEFAULT_CONFIG, presetConfig, {
+      position,
+      strength,
+      height,
+      width,
+      divCount,
+      exponential,
+      zIndex,
+      animated,
+      duration,
+      easing,
+      opacity,
+      curve,
+      responsive,
+      mobileHeight,
+      tabletHeight,
+      desktopHeight,
+      mobileWidth,
+      tabletWidth,
+      desktopWidth,
+      hoverIntensity,
+      target,
+      preset,
+      className,
+      style
+    });
+  }, [
+    position,
+    strength,
+    height,
+    width,
+    divCount,
+    exponential,
+    zIndex,
+    animated,
+    duration,
+    easing,
+    opacity,
+    curve,
+    responsive,
+    mobileHeight,
+    tabletHeight,
+    desktopHeight,
+    mobileWidth,
+    tabletWidth,
+    desktopWidth,
+    hoverIntensity,
+    target,
+    preset,
+    className,
+    style
+  ]);
 
   const responsiveHeight = useResponsiveDimension(config.responsive, config, 'height');
   const responsiveWidth = useResponsiveDimension(config.responsive, config, 'width');

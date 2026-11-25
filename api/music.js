@@ -54,7 +54,13 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
   }
 
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  let url;
+  try {
+    url = new URL(req.url || '/', `http://${req.headers?.host || 'localhost'}`);
+  } catch {
+    return res.status(400).json({ error: 'Invalid request URL' });
+  }
+
   const action = (url.searchParams.get('action') || 'search').toLowerCase();
   const q = (url.searchParams.get('q') || '')
     .replace(/[\x00-\x1F\x7F]/g, '')
@@ -402,12 +408,31 @@ export default async function handler(req, res) {
     }
 
     if (action === 'proxy-stream') {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
       const audioUrl = url.searchParams.get('url') || '';
       if (!audioUrl) return res.status(400).json({ error: 'URL required' });
       let currentAudioUrl = audioUrl;
       let upstream = null;
       let redirectCount = 0;
       const MAX_REDIRECTS = 5;
+
+      const isAllowedMediaContentType = (rawType) => {
+        if (!rawType) return true;
+        const mime = rawType.split(';')[0].trim().toLowerCase();
+        if (!mime) return true;
+        if (mime.startsWith('audio/')) return true;
+        return (
+          mime === 'video/mp4' ||
+          mime === 'video/webm' ||
+          mime === 'video/quicktime' ||
+          mime === 'application/ogg' ||
+          mime === 'application/vnd.apple.mpegurl' ||
+          mime === 'application/x-mpegurl' ||
+          mime === 'application/octet-stream'
+        );
+      };
 
       try {
         const upstreamHeaders = {
@@ -418,17 +443,28 @@ export default async function handler(req, res) {
           upstreamHeaders['Range'] = req.headers.range;
         }
 
-        while (redirectCount <= MAX_REDIRECTS) {
+        while (true) {
           if (!isAllowedAudioProxyUrl(currentAudioUrl)) {
             return res.status(403).json({ error: 'Proxy URL target domain not allowed' });
           }
 
-          upstream = await fetchWithTimeout(currentAudioUrl, {
-            headers: upstreamHeaders,
-            redirect: 'manual'
-          }, 15000);
+          upstream = await fetchWithTimeout(
+            currentAudioUrl,
+            {
+              method: req.method === 'HEAD' ? 'HEAD' : 'GET',
+              headers: upstreamHeaders,
+              redirect: 'manual'
+            },
+            15000
+          );
 
           if (upstream.status >= 300 && upstream.status < 400 && upstream.headers.get('location')) {
+            try {
+              await upstream.body?.cancel?.();
+            } catch {}
+            if (redirectCount >= MAX_REDIRECTS) {
+              return res.status(502).json({ error: 'Too many upstream redirects' });
+            }
             const loc = upstream.headers.get('location');
             currentAudioUrl = new URL(loc, currentAudioUrl).toString();
             redirectCount++;
@@ -438,13 +474,33 @@ export default async function handler(req, res) {
         }
 
         if (!upstream || (!upstream.ok && upstream.status !== 206)) {
+          try {
+            await upstream?.body?.cancel?.();
+          } catch {}
           return res.status(upstream?.status || 502).json({ error: 'Upstream fetch failed' });
         }
+
+        const rawUpstreamType = upstream.headers.get('content-type') || '';
+        if (!isAllowedMediaContentType(rawUpstreamType)) {
+          try {
+            await upstream.body?.cancel?.();
+          } catch {}
+          return res.status(415).json({ error: 'Unsupported upstream media type' });
+        }
+
+        const normalizedMime = rawUpstreamType.split(';')[0].trim().toLowerCase();
+        const safeContentType =
+          !normalizedMime || normalizedMime === 'application/octet-stream'
+            ? 'audio/mp4'
+            : normalizedMime;
+
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
         res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
         res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mp4');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Disposition', 'attachment; filename="stream.m4a"');
+        res.setHeader('Content-Type', safeContentType);
 
         const contentRange = upstream.headers.get('content-range');
         if (contentRange) res.setHeader('Content-Range', contentRange);
@@ -454,9 +510,27 @@ export default async function handler(req, res) {
 
         res.status(upstream.status);
 
+        if (req.method === 'HEAD') {
+          try {
+            await upstream.body?.cancel?.();
+          } catch {}
+          return res.end();
+        }
+
         if (upstream.body && typeof upstream.body.getReader === 'function') {
           const { Readable } = await import('node:stream');
           const readable = Readable.fromWeb(upstream.body);
+          readable.on('error', () => {
+            try {
+              if (!res.headersSent) {
+                res.status(502).json({ error: 'Upstream stream interrupted' });
+              } else if (typeof res.destroy === 'function') {
+                res.destroy();
+              } else {
+                res.end?.();
+              }
+            } catch {}
+          });
           if (typeof res.on === 'function') {
             res.on('close', () => {
               try { readable.destroy(); } catch {}
@@ -469,7 +543,11 @@ export default async function handler(req, res) {
           return res.send(Buffer.from(arrayBuf));
         }
       } catch (err) {
-        return res.status(500).json({ error: err.message });
+        if (!res.headersSent) {
+          return res.status(500).json({ error: err?.message || 'Proxy error' });
+        }
+        try { res.end?.(); } catch {}
+        return;
       }
     }
 
@@ -511,27 +589,27 @@ export default async function handler(req, res) {
 
     if (action === 'feedback') {
       res.setHeader('Cache-Control', 'no-store, max-age=0');
-      let body = {};
-      if (req.method === 'POST') {
-        try {
-          body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-        } catch {
-          body = {};
-        }
-      }
+      const body = req.method === 'POST' ? await readJsonBody(req) : {};
       const feedbackEntry = {
         id: `fb_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        type: body.type || url.searchParams.get('type') || 'general',
-        category: body.category || url.searchParams.get('category') || 'general',
-        title: body.title || url.searchParams.get('title') || '',
-        message: body.message || url.searchParams.get('message') || '',
-        rating: body.rating || Number(url.searchParams.get('rating')) || 5,
-        email: body.email || url.searchParams.get('email') || '',
-        diagnostics: body.diagnostics || {},
-        timestamp: new Date().toISOString(),
-        clientIp
+        type: String(body.type || url.searchParams.get('type') || 'general').slice(0, 40),
+        category: String(body.category || url.searchParams.get('category') || 'general').slice(0, 60),
+        title: String(body.title || url.searchParams.get('title') || '').slice(0, 200),
+        message: String(body.message || url.searchParams.get('message') || '').slice(0, 2000),
+        rating: Number(body.rating || url.searchParams.get('rating')) || 5,
+        timestamp: new Date().toISOString()
       };
-      console.log('[WaveCraft Feedback Received]:', JSON.stringify(feedbackEntry));
+      console.log(
+        '[WaveCraft Feedback Received]:',
+        JSON.stringify({
+          id: feedbackEntry.id,
+          type: feedbackEntry.type,
+          category: feedbackEntry.category,
+          rating: feedbackEntry.rating,
+          hasMessage: Boolean(feedbackEntry.message),
+          timestamp: feedbackEntry.timestamp
+        })
+      );
       return res.status(200).json({
         success: true,
         id: feedbackEntry.id,

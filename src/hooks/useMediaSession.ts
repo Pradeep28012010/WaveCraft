@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
+import { useJamStore } from '../stores/jamStore';
 import { unlockAudioEngine, resumeAudioContextIfNeeded } from '../services/audioEngine';
 import {
   updateAndroidPlaybackState,
@@ -120,10 +121,16 @@ export function useMediaSession() {
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
 
+    const isJamGuest = () => {
+      const jam = useJamStore.getState();
+      return Boolean(jam.roomCode && !jam.isHost);
+    };
+
     const actions: Array<[MediaSessionAction, MediaSessionActionHandler]> = [
       [
         'play',
         () => {
+          if (isJamGuest()) return;
           unlockAudioEngine();
           resumeAudioContextIfNeeded();
           navigator.mediaSession.playbackState = 'playing';
@@ -133,6 +140,7 @@ export function useMediaSession() {
       [
         'pause',
         () => {
+          if (isJamGuest()) return;
           navigator.mediaSession.playbackState = 'paused';
           usePlayerStore.getState().pause();
         }
@@ -140,6 +148,7 @@ export function useMediaSession() {
       [
         'previoustrack',
         () => {
+          if (isJamGuest()) return;
           unlockAudioEngine();
           resumeAudioContextIfNeeded();
           usePlayerStore.getState().prevTrack();
@@ -148,6 +157,7 @@ export function useMediaSession() {
       [
         'nexttrack',
         () => {
+          if (isJamGuest()) return;
           unlockAudioEngine();
           resumeAudioContextIfNeeded();
           usePlayerStore.getState().nextTrack();
@@ -156,6 +166,7 @@ export function useMediaSession() {
       [
         'stop',
         () => {
+          if (isJamGuest()) return;
           navigator.mediaSession.playbackState = 'none';
           usePlayerStore.getState().pause();
         }
@@ -163,6 +174,7 @@ export function useMediaSession() {
       [
         'seekto',
         (details) => {
+          if (isJamGuest()) return;
           if (typeof details.seekTime === 'number' && Number.isFinite(details.seekTime)) {
             usePlayerStore.getState().seekTo(Math.max(0, details.seekTime));
           }
@@ -171,6 +183,7 @@ export function useMediaSession() {
       [
         'seekforward',
         (details) => {
+          if (isJamGuest()) return;
           const offset = details.seekOffset || 10;
           const st = usePlayerStore.getState();
           st.seekTo(Math.min(st.duration || 300, st.currentTime + offset));
@@ -179,6 +192,7 @@ export function useMediaSession() {
       [
         'seekbackward',
         (details) => {
+          if (isJamGuest()) return;
           const offset = details.seekOffset || 10;
           const st = usePlayerStore.getState();
           st.seekTo(Math.max(0, st.currentTime - offset));
@@ -218,6 +232,11 @@ export function useMediaSession() {
       );
     } else {
       stopAndroidBackgroundAudio();
+      if ('mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.metadata = null;
+        } catch {}
+      }
     }
   }, [currentTrack]);
 
@@ -236,27 +255,33 @@ export function useMediaSession() {
   }, [isPlaying, currentTrack]);
 
   // Sync lock-screen scrub bar position state via passive store subscription
-  // Only updates on explicit seeks, duration changes, or play-state toggles.
-  // This eliminates periodic jitter and lets the OS/browser interpolate the scrubber smoothly!
+  // Only updates on explicit seeks, track switches, duration/speed changes, or play-state toggles.
   useEffect(() => {
     let lastTime = -1;
     let lastDuration = -1;
     let lastSpeed = -1;
     let lastPlaying: boolean | null = null;
+    let lastTrackId: string | null = null;
 
     const syncPosition = (
       currentTime: number,
       duration: number,
       playbackSpeed: number,
-      playing: boolean
+      playing: boolean,
+      trackId: string | null
     ) => {
+      if (trackId !== lastTrackId) {
+        lastTrackId = trackId;
+        lastTime = -1;
+      }
       if (duration <= 0 || !isFinite(duration)) return;
-      const jumped = Math.abs(currentTime - lastTime) > 2.0;
+      const jumped =
+        lastTime < 0 ||
+        Math.abs(currentTime - lastTime) > 1.25 ||
+        currentTime < lastTime - 0.15;
       const metaChanged = duration !== lastDuration || playbackSpeed !== lastSpeed;
       const playChanged = lastPlaying !== null && lastPlaying !== playing;
 
-      // Crucial: Only update MediaSession position on seeks, duration/speed changes, or play toggle.
-      // Normal continuous 1s playback ticks must NOT be sent to prevent OS/browser scrubber backward-jumping!
       if (!jumped && !metaChanged && !playChanged && lastPlaying !== null) {
         lastTime = currentTime;
         return;
@@ -287,10 +312,22 @@ export function useMediaSession() {
     };
 
     const init = usePlayerStore.getState();
-    syncPosition(init.currentTime, init.duration, init.playbackSpeed, init.isPlaying);
+    syncPosition(
+      init.currentTime,
+      init.duration,
+      init.playbackSpeed,
+      init.isPlaying,
+      init.currentTrack?.id || null
+    );
 
     return usePlayerStore.subscribe((state) => {
-      syncPosition(state.currentTime, state.duration, state.playbackSpeed, state.isPlaying);
+      syncPosition(
+        state.currentTime,
+        state.duration,
+        state.playbackSpeed,
+        state.isPlaying,
+        state.currentTrack?.id || null
+      );
     });
   }, []);
 }

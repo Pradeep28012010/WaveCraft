@@ -40,8 +40,10 @@ class JamWebRtcManager {
   private signalSender: ((signal: WebRtcSignalPayload) => void) | null = null;
   private connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
 
-  // Host: Map of guestId -> HostPeerEntry
+  // Host: Map of guestId -> HostPeerEntry and pre-offer ICE candidates
   private hostPeers = new Map<string, HostPeerEntry>();
+  private hostPreOfferCandidates = new Map<string, RTCIceCandidateInit[]>();
+  private sessionSeq = 0;
 
   // Guest: Single connection to the Host
   private guestPc: RTCPeerConnection | null = null;
@@ -57,31 +59,36 @@ class JamWebRtcManager {
   ): void {
     this.cleanup();
     if (typeof RTCPeerConnection === 'undefined') {
+      this.onStatusCallback = onStatus;
       this.setStatus('disconnected');
       return;
     }
+    this.sessionSeq += 1;
     this.selfId = selfId;
     this.isHost = isHost;
     this.onMessageCallback = onMessage;
     this.onStatusCallback = onStatus;
     this.signalSender = signalSender;
-    this.setStatus('connecting');
 
     if (this.isHost) {
       // Host waits for guest offers to arrive; peer connections are created on-demand per guest.
       this.setStatus('disconnected');
     } else {
       // Guest initiates connection to Host
+      this.setStatus('connecting');
       this.initGuestPeer();
     }
   }
 
   private initGuestPeer(): void {
+    const seq = this.sessionSeq;
     try {
-      this.guestPc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      this.guestPc = pc;
       this.guestPendingCandidates = [];
 
-      this.guestPc.onicecandidate = (event) => {
+      pc.onicecandidate = (event) => {
+        if (this.sessionSeq !== seq || this.guestPc !== pc) return;
         if (event.candidate && this.signalSender) {
           this.signalSender({
             type: 'candidate',
@@ -92,61 +99,67 @@ class JamWebRtcManager {
         }
       };
 
-      this.guestPc.onconnectionstatechange = () => {
-        if (!this.guestPc) return;
-        const state = this.guestPc.connectionState;
+      pc.onconnectionstatechange = () => {
+        if (this.sessionSeq !== seq || this.guestPc !== pc) return;
+        const state = pc.connectionState;
         if (state === 'failed' || state === 'closed') {
           this.setStatus('disconnected');
         }
       };
 
       // Guest creates the DataChannel before offer for low-latency P2P sync
-      const dc = this.guestPc.createDataChannel('waveJamP2P', {
+      const dc = pc.createDataChannel('waveJamP2P', {
         ordered: false,
         maxRetransmits: 0
       });
-      this.setupGuestDataChannel(dc);
+      this.setupGuestDataChannel(dc, seq);
 
-      this.createGuestOffer();
+      this.createGuestOffer(pc, seq);
     } catch (err) {
       console.warn('[WebRTC] Guest initialization skipped:', err);
       this.setStatus('disconnected');
     }
   }
 
-  private async createGuestOffer(): Promise<void> {
-    if (!this.guestPc || !this.signalSender) return;
+  private async createGuestOffer(pc: RTCPeerConnection, seq: number): Promise<void> {
+    if (this.sessionSeq !== seq || this.guestPc !== pc || !this.signalSender) return;
     try {
-      const offer = await this.guestPc.createOffer();
-      await this.guestPc.setLocalDescription(offer);
+      const offer = await pc.createOffer();
+      if (this.sessionSeq !== seq || this.guestPc !== pc) return;
+      await pc.setLocalDescription(offer);
+      if (this.sessionSeq !== seq || this.guestPc !== pc || !this.signalSender) return;
       this.signalSender({
         type: 'offer',
         from: this.selfId,
         target: 'host',
-        sdp: this.guestPc.localDescription
+        sdp: pc.localDescription
       });
     } catch (err) {
       console.warn('[WebRTC] Guest offer failed:', err);
     }
   }
 
-  private setupGuestDataChannel(channel: RTCDataChannel): void {
+  private setupGuestDataChannel(channel: RTCDataChannel, seq: number): void {
     this.guestDc = channel;
-    this.guestDc.binaryType = 'arraybuffer';
+    channel.binaryType = 'arraybuffer';
 
-    this.guestDc.onopen = () => {
+    channel.onopen = () => {
+      if (this.sessionSeq !== seq || this.guestDc !== channel) return;
       this.setStatus('connected');
     };
 
-    this.guestDc.onclose = () => {
+    channel.onclose = () => {
+      if (this.sessionSeq !== seq || this.guestDc !== channel) return;
       this.setStatus('disconnected');
     };
 
-    this.guestDc.onerror = () => {
+    channel.onerror = () => {
+      if (this.sessionSeq !== seq || this.guestDc !== channel) return;
       this.setStatus('disconnected');
     };
 
-    this.guestDc.onmessage = (event) => {
+    channel.onmessage = (event) => {
+      if (this.sessionSeq !== seq || this.guestDc !== channel) return;
       if (typeof event.data === 'string') {
         try {
           const parsed = JSON.parse(event.data);
@@ -160,6 +173,8 @@ class JamWebRtcManager {
     const guestId = signal.from;
     if (!guestId || guestId === this.selfId || !signal.sdp) return;
 
+    const seq = this.sessionSeq;
+
     // Clean up existing peer entry for this guest if any
     const existing = this.hostPeers.get(guestId);
     if (existing) {
@@ -168,8 +183,9 @@ class JamWebRtcManager {
       this.hostPeers.delete(guestId);
     }
 
+    let pc: RTCPeerConnection | null = null;
     try {
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       const peerEntry: HostPeerEntry = {
         peerId: guestId,
         pc,
@@ -179,6 +195,7 @@ class JamWebRtcManager {
       this.hostPeers.set(guestId, peerEntry);
 
       pc.onicecandidate = (event) => {
+        if (this.sessionSeq !== seq || this.hostPeers.get(guestId) !== peerEntry) return;
         if (event.candidate && this.signalSender) {
           this.signalSender({
             type: 'candidate',
@@ -190,22 +207,33 @@ class JamWebRtcManager {
       };
 
       pc.ondatachannel = (event) => {
-        this.setupHostDataChannel(guestId, event.channel);
+        if (this.sessionSeq !== seq || this.hostPeers.get(guestId) !== peerEntry) return;
+        this.setupHostDataChannel(guestId, peerEntry, event.channel, seq);
       };
 
+      // Ignore transient ICE 'disconnected' hiccups; only tear down on terminal 'failed' or 'closed'
       pc.onconnectionstatechange = () => {
-        if (
-          pc.connectionState === 'disconnected' ||
-          pc.connectionState === 'failed' ||
-          pc.connectionState === 'closed'
-        ) {
-          this.cleanupHostPeer(guestId);
+        if (pc && (pc.connectionState === 'failed' || pc.connectionState === 'closed')) {
+          this.cleanupHostPeer(guestId, peerEntry);
         }
       };
 
       await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp as RTCSessionDescriptionInit));
+      if (this.sessionSeq !== seq || !this.isHost || this.hostPeers.get(guestId) !== peerEntry) {
+        try { pc.close(); } catch {}
+        return;
+      }
 
-      // Flush any queued candidates
+      // Flush any ICE candidates buffered before the offer arrived, plus candidates queued during setRemoteDescription
+      const preOffer = this.hostPreOfferCandidates.get(guestId);
+      if (preOffer) {
+        this.hostPreOfferCandidates.delete(guestId);
+        for (const cand of preOffer) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(cand));
+          } catch {}
+        }
+      }
       while (peerEntry.pendingCandidates.length > 0) {
         const cand = peerEntry.pendingCandidates.shift();
         if (cand) {
@@ -214,9 +242,21 @@ class JamWebRtcManager {
           } catch {}
         }
       }
+      if (this.sessionSeq !== seq || !this.isHost || this.hostPeers.get(guestId) !== peerEntry) {
+        try { pc.close(); } catch {}
+        return;
+      }
 
       const answer = await pc.createAnswer();
+      if (this.sessionSeq !== seq || !this.isHost || this.hostPeers.get(guestId) !== peerEntry) {
+        try { pc.close(); } catch {}
+        return;
+      }
       await pc.setLocalDescription(answer);
+      if (this.sessionSeq !== seq || !this.isHost || this.hostPeers.get(guestId) !== peerEntry) {
+        try { pc.close(); } catch {}
+        return;
+      }
 
       this.signalSender?.({
         type: 'answer',
@@ -225,30 +265,39 @@ class JamWebRtcManager {
         sdp: pc.localDescription
       });
     } catch (err) {
+      if (pc) {
+        try { pc.close(); } catch {}
+      }
       console.warn(`[WebRTC] Host failed to handle offer from ${guestId}:`, err);
     }
   }
 
-  private setupHostDataChannel(guestId: string, channel: RTCDataChannel): void {
-    const peer = this.hostPeers.get(guestId);
-    if (!peer) return;
+  private setupHostDataChannel(
+    guestId: string,
+    peerEntry: HostPeerEntry,
+    channel: RTCDataChannel,
+    seq: number
+  ): void {
+    if (this.sessionSeq !== seq || this.hostPeers.get(guestId) !== peerEntry) return;
 
-    peer.dc = channel;
-    peer.dc.binaryType = 'arraybuffer';
+    peerEntry.dc = channel;
+    channel.binaryType = 'arraybuffer';
 
-    peer.dc.onopen = () => {
+    channel.onopen = () => {
+      if (this.sessionSeq !== seq || this.hostPeers.get(guestId) !== peerEntry) return;
       this.updateHostStatus();
     };
 
-    peer.dc.onclose = () => {
-      this.cleanupHostPeer(guestId);
+    channel.onclose = () => {
+      this.cleanupHostPeer(guestId, peerEntry);
     };
 
-    peer.dc.onerror = () => {
-      this.cleanupHostPeer(guestId);
+    channel.onerror = () => {
+      this.cleanupHostPeer(guestId, peerEntry);
     };
 
-    peer.dc.onmessage = (event) => {
+    channel.onmessage = (event) => {
+      if (this.sessionSeq !== seq || this.hostPeers.get(guestId) !== peerEntry) return;
       if (typeof event.data === 'string') {
         try {
           const parsed = JSON.parse(event.data);
@@ -258,13 +307,15 @@ class JamWebRtcManager {
     };
   }
 
-  private cleanupHostPeer(guestId: string): void {
+  private cleanupHostPeer(guestId: string, expectedPeer?: HostPeerEntry): void {
     const peer = this.hostPeers.get(guestId);
-    if (peer) {
-      try { peer.dc?.close(); } catch {}
-      try { peer.pc?.close(); } catch {}
-      this.hostPeers.delete(guestId);
+    if (!peer || (expectedPeer && peer !== expectedPeer)) {
+      return;
     }
+    try { peer.dc?.close(); } catch {}
+    try { peer.pc?.close(); } catch {}
+    this.hostPeers.delete(guestId);
+    this.hostPreOfferCandidates.delete(guestId);
     this.updateHostStatus();
   }
 
@@ -286,7 +337,7 @@ class JamWebRtcManager {
       // Host handles offers and candidates from guests
       if (signal.type === 'offer') {
         await this.handleGuestOfferOnHost(signal);
-      } else if (signal.type === 'candidate' && signal.candidate) {
+      } else if (signal.type === 'candidate' && signal.candidate && signal.from) {
         const peer = this.hostPeers.get(signal.from);
         if (peer) {
           if (peer.pc.remoteDescription && peer.pc.remoteDescription.type) {
@@ -295,6 +346,13 @@ class JamWebRtcManager {
             } catch {}
           } else {
             peer.pendingCandidates.push(signal.candidate);
+          }
+        } else {
+          // Buffer ICE candidates that arrive over parallel HTTP/SSE before the SDP offer
+          const buffered = this.hostPreOfferCandidates.get(signal.from) || [];
+          if (buffered.length < 32) {
+            buffered.push(signal.candidate);
+            this.hostPreOfferCandidates.set(signal.from, buffered);
           }
         }
       }
@@ -393,24 +451,27 @@ class JamWebRtcManager {
   }
 
   public cleanup(): void {
-    if (this.isHost) {
-      for (const peer of this.hostPeers.values()) {
-        try { peer.dc?.close(); } catch {}
-        try { peer.pc?.close(); } catch {}
-      }
-      this.hostPeers.clear();
-    } else {
-      if (this.guestDc) {
-        try { this.guestDc.close(); } catch {}
-        this.guestDc = null;
-      }
-      if (this.guestPc) {
-        try { this.guestPc.close(); } catch {}
-        this.guestPc = null;
-      }
-      this.guestPendingCandidates = [];
+    this.sessionSeq += 1;
+    for (const peer of this.hostPeers.values()) {
+      try { peer.dc?.close(); } catch {}
+      try { peer.pc?.close(); } catch {}
     }
+    this.hostPeers.clear();
+    this.hostPreOfferCandidates.clear();
+
+    if (this.guestDc) {
+      try { this.guestDc.close(); } catch {}
+      this.guestDc = null;
+    }
+    if (this.guestPc) {
+      try { this.guestPc.close(); } catch {}
+      this.guestPc = null;
+    }
+    this.guestPendingCandidates = [];
     this.setStatus('disconnected');
+    this.onMessageCallback = null;
+    this.onStatusCallback = null;
+    this.signalSender = null;
   }
 }
 

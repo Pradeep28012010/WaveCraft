@@ -13,7 +13,8 @@ import { PlaylistArtwork } from './PlaylistCard';
 import { exportToM3U8, exportToJSON } from '../../utils/playlistExport';
 import {
   isPlaylistFullyOffline,
-  getPlaylistOfflineCount
+  getPlaylistOfflineCount,
+  useOfflineVault
 } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useDownloadStore } from '../../stores/downloadStore';
@@ -143,14 +144,17 @@ export default function PlaylistView() {
     activeDownloadJob && activeDownloadJob.id === playlist?.id && activeDownloadJob.isDownloading
   );
 
-  const isAllOffline = useMemo(
-    () => (playlist ? isPlaylistFullyOffline(tracks) : false),
-    [playlist, tracks, activeDownloadJob]
-  );
-  const offlineCount = useMemo(
-    () => (playlist ? getPlaylistOfflineCount(tracks) : 0),
-    [playlist, tracks, activeDownloadJob]
-  );
+  const { offlineTracks } = useOfflineVault();
+
+  const isAllOffline = useMemo(() => {
+    void offlineTracks.length;
+    return playlist ? isPlaylistFullyOffline(tracks) : false;
+  }, [playlist, tracks, activeDownloadJob, offlineTracks]);
+
+  const offlineCount = useMemo(() => {
+    void offlineTracks.length;
+    return playlist ? getPlaylistOfflineCount(tracks) : 0;
+  }, [playlist, tracks, activeDownloadJob, offlineTracks]);
 
   const handleDownloadAll = async () => {
     if (!playlist || tracks.length === 0 || isCurrentDownloading) return;
@@ -172,7 +176,7 @@ export default function PlaylistView() {
 
   // Auto-sync on mount & interval if Live Sync is enabled
   useEffect(() => {
-    if (!playlist || !playlist.isLiveSync || !playlist.sourceUrl) return;
+    if (!playlist || isSmartId || !playlist.isLiveSync || !playlist.sourceUrl) return;
 
     let isCancelled = false;
     const intervalMs = Math.max(5, playlist.syncIntervalMinutes || 15) * 60 * 1000;
@@ -207,72 +211,7 @@ export default function PlaylistView() {
       isCancelled = true;
       clearInterval(timer);
     };
-  }, [playlist?.id, playlist?.isLiveSync, playlist?.sourceUrl, playlist?.syncIntervalMinutes]);
-
-  if (!playlist) {
-    if (isLoading) {
-      return (
-        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-white/50">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-[var(--color-accent)] rounded-full animate-spin" />
-          <p className="text-xs font-semibold text-white/40">Loading playlist...</p>
-        </div>
-      );
-    }
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-white/50">
-        <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p className="text-lg mb-4">Playlist not found</p>
-        <GlassButton onClick={() => navigate('/library')}>Back to Library</GlassButton>
-      </div>
-    );
-  }
-
-  const handleManualSync = async () => {
-    if (!playlist.sourceUrl || isSyncing) return;
-    setSyncResultBanner('');
-    const res = await syncLivePlaylist(playlist.id, (status, pct) => {
-      setSyncStatusText(status);
-      setSyncProgressPct(pct);
-    });
-    setSyncStatusText('');
-    setSyncProgressPct(0);
-    if (res.added > 0 || res.removed > 0) {
-      setSyncResultBanner(
-        `Synced with source! +${res.added} new track${res.added === 1 ? '' : 's'} added${
-          res.removed > 0 ? ` • ${res.removed} removed` : ''
-        } (${res.total} total)`
-      );
-    } else {
-      setSyncResultBanner('Up to date — matches original source playlist.');
-    }
-  };
-
-  const handleAttachLiveSource = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!attachUrlInput.trim()) return;
-    updatePlaylist(playlist.id, {
-      isLiveSync: true,
-      sourceUrl: attachUrlInput.trim(),
-      syncStrategy: 'append',
-      syncIntervalMinutes: 15
-    });
-    setShowAttachSource(false);
-    setAttachUrlInput('');
-    setTimeout(() => {
-      syncLivePlaylist(playlist.id, (status, pct) => {
-        setSyncStatusText(status);
-        setSyncProgressPct(pct);
-      }).then((res) => {
-        setSyncStatusText('');
-        setSyncProgressPct(0);
-        setSyncResultBanner(
-          `Connected Live Sync! +${res.added} track${res.added === 1 ? '' : 's'} synchronized.`
-        );
-      });
-    }, 100);
-  };
+  }, [playlist?.id, playlist?.isLiveSync, playlist?.sourceUrl, playlist?.syncIntervalMinutes, isSmartId]);
 
   const handlePlayAll = useCallback(() => {
     triggerAndroidHaptic('medium');
@@ -299,23 +238,11 @@ export default function PlaylistView() {
 
   const handleRemoveTrack = useCallback(
     (track: Track) => {
+      if (!playlist || isSmartId) return;
       removeFromPlaylist(playlist.id, track.id);
     },
-    [playlist.id, removeFromPlaylist]
+    [playlist?.id, isSmartId, removeFromPlaylist]
   );
-
-  const handleDelete = () => {
-    triggerAndroidHaptic('light');
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDeletePlaylist = () => {
-    if (!playlist) return;
-    triggerAndroidHaptic('medium');
-    deletePlaylist(playlist.id);
-    setShowDeleteConfirm(false);
-    navigate('/library');
-  };
 
   const totalDuration = tracks.reduce((acc, track) => acc + (track?.duration || 0), 0);
   const formattedPlaylistDuration = useMemo(() => {
@@ -327,25 +254,88 @@ export default function PlaylistView() {
     }
     return `${mins} min`;
   }, [totalDuration]);
+
   if (!playlist) {
-    return (
-      <div className="py-24 text-center space-y-4 text-white">
-        <div className="w-16 h-16 mx-auto rounded-full bg-white/10 flex items-center justify-center text-3xl mb-2">
-          🧠
+    if (isLoading) {
+      return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-white/50">
+          <div className="w-8 h-8 border-2 border-white/20 border-t-[var(--color-accent)] rounded-full animate-spin" />
+          <p className="text-xs font-semibold text-white/40">Loading playlist...</p>
         </div>
-        <h2 className="text-2xl font-black">Playlist not found</h2>
-        <p className="text-white/60 text-sm max-w-sm mx-auto">
-          This playlist may have been moved, removed, or has not yet generated listening history.
+      );
+    }
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-white/50">
+        <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="text-lg mb-2">Playlist not found</p>
+        <p className="text-xs text-white/40 mb-4 max-w-sm text-center">
+          This playlist may have been moved, removed, or has not generated enough listening history yet.
         </p>
-        <button
-          onClick={() => navigate('/library')}
-          className="px-6 py-2.5 rounded-full glass-button-primary text-xs font-bold text-white cursor-pointer"
-        >
-          ← Return to Library
-        </button>
+        <GlassButton onClick={() => navigate('/library')}>Back to Library</GlassButton>
       </div>
     );
   }
+
+  const handleManualSync = async () => {
+    if (isSmartId || !playlist.sourceUrl || isSyncing) return;
+    setSyncResultBanner('');
+    const res = await syncLivePlaylist(playlist.id, (status, pct) => {
+      setSyncStatusText(status);
+      setSyncProgressPct(pct);
+    });
+    setSyncStatusText('');
+    setSyncProgressPct(0);
+    if (res.added > 0 || res.removed > 0) {
+      setSyncResultBanner(
+        `Synced with source! +${res.added} new track${res.added === 1 ? '' : 's'} added${
+          res.removed > 0 ? ` • ${res.removed} removed` : ''
+        } (${res.total} total)`
+      );
+    } else {
+      setSyncResultBanner('Up to date — matches original source playlist.');
+    }
+  };
+
+  const handleAttachLiveSource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSmartId || !attachUrlInput.trim()) return;
+    updatePlaylist(playlist.id, {
+      isLiveSync: true,
+      sourceUrl: attachUrlInput.trim(),
+      syncStrategy: 'append',
+      syncIntervalMinutes: 15
+    });
+    setShowAttachSource(false);
+    setAttachUrlInput('');
+    setTimeout(() => {
+      syncLivePlaylist(playlist.id, (status, pct) => {
+        setSyncStatusText(status);
+        setSyncProgressPct(pct);
+      }).then((res) => {
+        setSyncStatusText('');
+        setSyncProgressPct(0);
+        setSyncResultBanner(
+          `Connected Live Sync! +${res.added} track${res.added === 1 ? '' : 's'} synchronized.`
+        );
+      });
+    }, 100);
+  };
+
+  const handleDelete = () => {
+    if (isSmartId) return;
+    triggerAndroidHaptic('light');
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeletePlaylist = () => {
+    if (!playlist || isSmartId) return;
+    triggerAndroidHaptic('medium');
+    deletePlaylist(playlist.id);
+    setShowDeleteConfirm(false);
+    navigate('/library');
+  };
 
   const lastSyncFormatted = smartMatch
     ? 'Intelligent Auto-Curation'
@@ -412,7 +402,9 @@ export default function PlaylistView() {
             </div>
             <div>
               <span className="text-xs sm:text-sm font-extrabold text-white drop-shadow line-clamp-1">{smartMatch.tagline}</span>
-              <span className="text-[11px] text-white/70 block mt-0.5 font-bold">{tracks.length} tracks</span>
+              <span className="text-[11px] text-white/70 block mt-0.5 font-bold">
+                {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'}
+              </span>
             </div>
           </div>
         ) : (
@@ -457,62 +449,66 @@ export default function PlaylistView() {
               </span>
             )}
             {/* Folder Dropdown */}
-            <div ref={folderDropdownRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setShowFolderDropdown(!showFolderDropdown)}
-                className="px-2.5 py-0.5 rounded-full glass-button text-white/80 hover:text-white text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
-              >
-                <span>{currentFolder ? currentFolder.icon || '📁' : '📁'}</span>
-                <span>{currentFolder ? currentFolder.name : 'Add to Folder'}</span>
-                <span className="text-[9px] opacity-60">▼</span>
-              </button>
+            {!isSmartId && (
+              <div ref={folderDropdownRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowFolderDropdown(!showFolderDropdown)}
+                  className="px-2.5 py-0.5 rounded-full glass-button text-white/80 hover:text-white text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <span>{currentFolder ? currentFolder.icon || '📁' : '📁'}</span>
+                  <span>{currentFolder ? currentFolder.name : 'Add to Folder'}</span>
+                  <span className="text-[9px] opacity-60">▼</span>
+                </button>
 
-              {showFolderDropdown && (
-                <div className="absolute top-full left-0 mt-1.5 w-56 rounded-2xl glass-heavy liquid-glass border-0 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] z-50 space-y-0.5">
-                  <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white/40">
-                    Select Folder
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      movePlaylistToFolder(playlist.id, undefined);
-                      setShowFolderDropdown(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
-                      !playlist.folderId
-                        ? 'glass-button-primary text-white shadow-sm'
-                        : 'text-white/75 hover:bg-white/[0.08] hover:text-white'
-                    }`}
-                  >
-                    <span>📁</span> <span>None (Unorganized)</span>
-                  </button>
-                  {folders.map((f) => (
+                {showFolderDropdown && (
+                  <div className="absolute top-full left-0 mt-1.5 w-56 rounded-2xl glass-heavy liquid-glass border-0 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] z-50 space-y-0.5">
+                    <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white/40">
+                      Select Folder
+                    </div>
                     <button
-                      key={f.id}
                       type="button"
                       onClick={() => {
-                        movePlaylistToFolder(playlist.id, f.id);
+                        movePlaylistToFolder(playlist.id, undefined);
                         setShowFolderDropdown(false);
                       }}
                       className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
-                        playlist.folderId === f.id
+                        !playlist.folderId
                           ? 'glass-button-primary text-white shadow-sm'
                           : 'text-white/75 hover:bg-white/[0.08] hover:text-white'
                       }`}
                     >
-                      <span>{f.icon || '📁'}</span> <span className="truncate">{f.name}</span>
+                      <span>📁</span> <span>None (Unorganized)</span>
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                    {folders.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => {
+                          movePlaylistToFolder(playlist.id, f.id);
+                          setShowFolderDropdown(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
+                          playlist.folderId === f.id
+                            ? 'glass-button-primary text-white shadow-sm'
+                            : 'text-white/75 hover:bg-white/[0.08] hover:text-white'
+                        }`}
+                      >
+                        <span>{f.icon || '📁'}</span> <span className="truncate">{f.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <h1
-            className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-[-0.03em] leading-tight text-white cursor-pointer hover:text-[var(--color-accent)] transition-colors truncate"
-            onClick={() => setIsEditModalOpen(true)}
-            title="Click to edit playlist"
+            className={`text-3xl sm:text-4xl lg:text-5xl font-black tracking-[-0.03em] leading-tight text-white transition-colors truncate ${
+              isSmartId ? '' : 'cursor-pointer hover:text-[var(--color-accent)]'
+            }`}
+            onClick={isSmartId ? undefined : () => setIsEditModalOpen(true)}
+            title={isSmartId ? undefined : 'Click to edit playlist'}
           >
             {playlist.name}
           </h1>
@@ -524,67 +520,69 @@ export default function PlaylistView() {
           )}
 
           {/* Smart Mood Tags */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-1">
-            {(playlist.tags || []).map((t) => (
-              <span
-                key={t}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-indigo-200 text-xs font-medium"
-              >
-                #{t}
-                <button
-                  type="button"
-                  onClick={() => removePlaylistTag(playlist.id, t)}
-                  className="hover:text-white ml-0.5 cursor-pointer text-indigo-300 text-xs"
-                  title="Remove tag"
+          {!isSmartId && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              {(playlist.tags || []).map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-indigo-200 text-xs font-medium"
                 >
-                  ×
-                </button>
-              </span>
-            ))}
+                  #{t}
+                  <button
+                    type="button"
+                    onClick={() => removePlaylistTag(playlist.id, t)}
+                    className="hover:text-white ml-0.5 cursor-pointer text-indigo-300 text-xs"
+                    title="Remove tag"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
 
-            {isAddingTag ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (newTagInput.trim()) {
-                    addPlaylistTag(playlist.id, newTagInput);
-                    setNewTagInput('');
-                  }
-                  setIsAddingTag(false);
-                }}
-                className="inline-flex items-center gap-1"
-              >
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="tag name..."
-                  value={newTagInput}
-                  onChange={(e) => setNewTagInput(e.target.value)}
-                  onBlur={() => {
+              {isAddingTag ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
                     if (newTagInput.trim()) {
                       addPlaylistTag(playlist.id, newTagInput);
                       setNewTagInput('');
                     }
                     setIsAddingTag(false);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
+                  className="inline-flex items-center gap-1"
+                >
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="tag name..."
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    onBlur={() => {
+                      if (newTagInput.trim()) {
+                        addPlaylistTag(playlist.id, newTagInput);
+                        setNewTagInput('');
+                      }
                       setIsAddingTag(false);
-                    }
-                  }}
-                  className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-xs text-white placeholder:text-white/40 w-24 outline-none"
-                />
-              </form>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsAddingTag(true)}
-                className="px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-[11px] font-bold text-white/70 hover:text-white cursor-pointer transition-all"
-              >
-                + Add Tag
-              </button>
-            )}
-          </div>
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsAddingTag(false);
+                      }
+                    }}
+                    className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-xs text-white placeholder:text-white/40 w-24 outline-none"
+                  />
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingTag(true)}
+                  className="px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-[11px] font-bold text-white/70 hover:text-white cursor-pointer transition-all"
+                >
+                  + Add Tag
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Clean Stats Bar (Zero Double-Bullet Glitch) */}
           <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-white/55 mt-1.5 font-medium">
@@ -682,8 +680,9 @@ export default function PlaylistView() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
-              <span className="hidden sm:inline">Offline Ready</span>
-              <span>({offlineCount})</span>
+              <span>
+                <span className="hidden sm:inline">Offline Ready </span>({offlineCount})
+              </span>
             </>
           ) : (
             <>
@@ -700,25 +699,28 @@ export default function PlaylistView() {
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                 />
               </svg>
-              <span className="hidden sm:inline">Download All</span>
-              <span>({Math.max(0, tracks.length - offlineCount)})</span>
+              <span>
+                <span className="hidden sm:inline">Download All </span>({Math.max(0, tracks.length - offlineCount)})
+              </span>
             </>
           )}
         </button>
 
         {/* Toggle Pin to Top Button */}
-        <button
-          type="button"
-          onClick={() => togglePin(playlist.id)}
-          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
-            playlist.isPinned
-              ? 'glass-button-primary text-amber-300'
-              : 'glass-button text-white/70 hover:text-white'
-          }`}
-          title={playlist.isPinned ? 'Unpin from top' : 'Pin to top of library'}
-        >
-          <span>📌</span>
-        </button>
+        {!isSmartId && (
+          <button
+            type="button"
+            onClick={() => togglePin(playlist.id)}
+            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
+              playlist.isPinned
+                ? 'glass-button-primary text-amber-300'
+                : 'glass-button text-white/70 hover:text-white'
+            }`}
+            title={playlist.isPinned ? 'Unpin from top' : 'Pin to top of library'}
+          >
+            <span>📌</span>
+          </button>
+        )}
 
         {smartMatch && (
           <button
@@ -757,92 +759,96 @@ export default function PlaylistView() {
                 className="absolute right-0 top-12 z-50 w-64 rounded-2xl glass-heavy liquid-glass border-0 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.92)] space-y-0.5 text-xs"
                 onClick={() => setShowOptionsMenu(false)}
               >
-                {/* Live Sync Management in Menu */}
-                {playlist.sourceUrl ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleManualSync}
-                      disabled={isSyncing}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
-                    >
-                      <span className={isSyncing ? 'animate-spin' : ''}>↻</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold">{isSyncing ? 'Syncing Now...' : 'Sync Live Now'}</div>
-                        <div className="text-[10px] text-emerald-400/60">Pull updates from source</div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updatePlaylist(playlist.id, {
-                          syncStrategy: playlist.syncStrategy === 'mirror' ? 'append' : 'mirror'
-                        })
-                      }
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
-                    >
-                      <span>🔄</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold">
-                          Mode: {playlist.syncStrategy === 'mirror' ? 'Exact Mirror' : 'Auto-Append'}
+                {/* Live Sync Management in Menu (User playlists only) */}
+                {!isSmartId && (
+                  playlist.sourceUrl ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleManualSync}
+                        disabled={isSyncing}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
+                      >
+                        <span className={isSyncing ? 'animate-spin' : ''}>↻</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">{isSyncing ? 'Syncing Now...' : 'Sync Live Now'}</div>
+                          <div className="text-[10px] text-emerald-400/60">Pull updates from source</div>
                         </div>
-                        <div className="text-[10px] text-white/50">
-                          {playlist.syncStrategy === 'mirror'
-                            ? 'Removes songs not in source'
-                            : 'Preserves local, only appends'}
-                        </div>
-                      </div>
-                    </button>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updatePlaylist(playlist.id, {
-                          isLiveSync: !playlist.isLiveSync
-                        })
-                      }
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
-                    >
-                      <span>{playlist.isLiveSync ? '🟢' : '⚪'}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold">
-                          Auto-Sync: {playlist.isLiveSync ? 'Enabled' : 'Paused'}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updatePlaylist(playlist.id, {
+                            syncStrategy: playlist.syncStrategy === 'mirror' ? 'append' : 'mirror'
+                          })
+                        }
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                      >
+                        <span>🔄</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">
+                            Mode: {playlist.syncStrategy === 'mirror' ? 'Exact Mirror' : 'Auto-Append'}
+                          </div>
+                          <div className="text-[10px] text-white/50">
+                            {playlist.syncStrategy === 'mirror'
+                              ? 'Removes songs not in source'
+                              : 'Preserves local, only appends'}
+                          </div>
                         </div>
-                        <div className="text-[10px] text-white/50">Auto-checks on playlist open</div>
-                      </div>
-                    </button>
+                      </button>
 
-                    <div className="h-[1px] bg-white/[0.08] my-1" />
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setShowAttachSource(true)}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
-                    >
-                      <span>🔗</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold">Connect Live Sync URL</div>
-                        <div className="text-[10px] text-emerald-400/60">Link Spotify or YouTube playlist</div>
-                      </div>
-                    </button>
-                    <div className="h-[1px] bg-white/[0.08] my-1" />
-                  </>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updatePlaylist(playlist.id, {
+                            isLiveSync: !playlist.isLiveSync
+                          })
+                        }
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                      >
+                        <span>{playlist.isLiveSync ? '🟢' : '⚪'}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">
+                            Auto-Sync: {playlist.isLiveSync ? 'Enabled' : 'Paused'}
+                          </div>
+                          <div className="text-[10px] text-white/50">Auto-checks on playlist open</div>
+                        </div>
+                      </button>
+
+                      <div className="h-[1px] bg-white/[0.08] my-1" />
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowAttachSource(true)}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-emerald-300 flex items-center gap-2.5 cursor-pointer transition-colors"
+                      >
+                        <span>🔗</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">Connect Live Sync URL</div>
+                          <div className="text-[10px] text-emerald-400/60">Link Spotify or YouTube playlist</div>
+                        </div>
+                      </button>
+                      <div className="h-[1px] bg-white/[0.08] my-1" />
+                    </>
+                  )
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
-                >
-                  <span className="text-base flex-shrink-0">✏️</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-bold">Edit Details</div>
-                    <div className="text-[10px] text-white/50">Change title & description</div>
-                  </div>
-                </button>
+                {!isSmartId && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.08] text-white/90 hover:text-white flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <span className="text-base flex-shrink-0">✏️</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold">Edit Details</div>
+                      <div className="text-[10px] text-white/50">Change title & description</div>
+                    </div>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -882,19 +888,23 @@ export default function PlaylistView() {
                   </div>
                 </button>
 
-                <div className="h-[1px] bg-white/[0.08] my-1" />
+                {!isSmartId && (
+                  <>
+                    <div className="h-[1px] bg-white/[0.08] my-1" />
 
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-500/20 text-red-400 flex items-center gap-2.5 cursor-pointer transition-colors"
-                >
-                  <span className="text-base flex-shrink-0">🗑️</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-bold">Delete Playlist</div>
-                    <div className="text-[10px] text-red-400/60">Remove from library</div>
-                  </div>
-                </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-500/20 text-red-400 flex items-center gap-2.5 cursor-pointer transition-colors"
+                    >
+                      <span className="text-base flex-shrink-0">🗑️</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold">Delete Playlist</div>
+                        <div className="text-[10px] text-red-400/60">Remove from library</div>
+                      </div>
+                    </button>
+                  </>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -987,12 +997,10 @@ export default function PlaylistView() {
 
       {/* Desktop Tracklist Column Headers */}
       {tracks.length > 0 && (
-        <div className="relative z-10 hidden sm:flex items-center px-4 py-2 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-wider text-white/40 mb-2">
-          <span className="w-8 text-center">#</span>
-          <span className="flex-1 ml-4">Title</span>
-          <span className="hidden md:block w-48 truncate">Album</span>
-          <span className="w-20 text-right pr-6">Duration</span>
-          <span className="w-8"></span>
+        <div className="relative z-10 hidden sm:flex items-center px-3 sm:px-4 py-2 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-wider text-white/40 mb-2">
+          <span className="w-7 text-center">#</span>
+          <span className="flex-1 ml-3">Title &amp; Artist</span>
+          <span className="w-28 text-right pr-11">Duration</span>
         </div>
       )}
 
@@ -1002,7 +1010,11 @@ export default function PlaylistView() {
           {tracks.length === 0 ? (
             <div className="text-center py-12 text-white/50 border-0 bg-white/[0.03] rounded-2xl">
               <p className="text-lg">This playlist is empty.</p>
-              <p className="text-sm mt-1">Search for songs and add them here.</p>
+              <p className="text-sm mt-1">
+                {isSmartId
+                  ? 'Play or like more songs to populate this dynamic mix.'
+                  : 'Search for songs and add them here.'}
+              </p>
               <GlassButton className="mt-4" onClick={() => navigate('/search')}>
                 Search Songs
               </GlassButton>
@@ -1015,48 +1027,52 @@ export default function PlaylistView() {
                 tracks={tracks}
                 index={index + 1}
                 onPlay={handlePlayTrack}
-                onRemove={handleRemoveTrack}
+                onRemove={isSmartId ? undefined : handleRemoveTrack}
               />
             ))
           )}
         </motion.div>
       </LayoutGroup>
 
-      <CreatePlaylist
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        editPlaylist={playlist}
-      />
+      {!isSmartId && (
+        <>
+          <CreatePlaylist
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            editPlaylist={playlist}
+          />
 
-      {/* Custom Liquid Glass Playlist Deletion Confirmation Modal */}
-      <GlassModal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        title="Delete Playlist"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
-            Are you sure you want to delete playlist{' '}
-            <span className="font-bold text-white">"{playlist?.name}"</span>?
-          </p>
-          <div className="p-3 rounded-xl bg-white/[0.04] border-0 text-[11px] text-white/60">
-            This action cannot be undone. Saved songs will remain in your general library and liked songs.
-          </div>
-          <div className="flex items-center justify-end gap-2.5 pt-2">
-            <GlassButton size="sm" onClick={() => setShowDeleteConfirm(false)}>
-              Cancel
-            </GlassButton>
-            <button
-              type="button"
-              onClick={confirmDeletePlaylist}
-              className="px-4 py-2 rounded-xl bg-rose-500/80 hover:bg-rose-500 text-white font-bold text-xs transition-all cursor-pointer shadow-lg shadow-rose-500/25 active:scale-95"
-            >
-              Delete Playlist
-            </button>
-          </div>
-        </div>
-      </GlassModal>
+          {/* Custom Liquid Glass Playlist Deletion Confirmation Modal */}
+          <GlassModal
+            isOpen={showDeleteConfirm}
+            onClose={() => setShowDeleteConfirm(false)}
+            title="Delete Playlist"
+            size="sm"
+          >
+            <div className="space-y-4">
+              <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
+                Are you sure you want to delete playlist{' '}
+                <span className="font-bold text-white">"{playlist?.name}"</span>?
+              </p>
+              <div className="p-3 rounded-xl bg-white/[0.04] border-0 text-[11px] text-white/60">
+                This action cannot be undone. Saved songs will remain in your general library and liked songs.
+              </div>
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <GlassButton size="sm" onClick={() => setShowDeleteConfirm(false)}>
+                  Cancel
+                </GlassButton>
+                <button
+                  type="button"
+                  onClick={confirmDeletePlaylist}
+                  className="px-4 py-2 rounded-xl bg-rose-500/80 hover:bg-rose-500 text-white font-bold text-xs transition-all cursor-pointer shadow-lg shadow-rose-500/25 active:scale-95"
+                >
+                  Delete Playlist
+                </button>
+              </div>
+            </div>
+          </GlassModal>
+        </>
+      )}
     </div>
   );
 }

@@ -48,34 +48,52 @@ export const useDevicePresetStore = create<DevicePresetStore>((set) => ({
   toggleMobileDrawer: () => set((state) => ({ isMobileDrawerOpen: !state.isMobileDrawerOpen }))
 }));
 
+let activePresetSubscribers = 0;
+let sharedPresetSyncHandler: (() => void) | null = null;
+
+function ensureSharedPresetListeners() {
+  if (typeof window === 'undefined') return;
+  if (!sharedPresetSyncHandler) {
+    sharedPresetSyncHandler = () => {
+      const next = detectDevicePreset();
+      if (useDevicePresetStore.getState().preset !== next) {
+        useDevicePresetStore.getState().setPreset(next);
+      }
+      document.documentElement.dataset.devicePreset = next;
+    };
+  }
+  if (activePresetSubscribers === 0) {
+    sharedPresetSyncHandler();
+    window.addEventListener('resize', sharedPresetSyncHandler, { passive: true });
+    window.addEventListener('orientationchange', sharedPresetSyncHandler, { passive: true });
+  }
+  activePresetSubscribers++;
+}
+
+function releaseSharedPresetListeners() {
+  activePresetSubscribers = Math.max(0, activePresetSubscribers - 1);
+  if (activePresetSubscribers === 0 && sharedPresetSyncHandler && typeof window !== 'undefined') {
+    window.removeEventListener('resize', sharedPresetSyncHandler);
+    window.removeEventListener('orientationchange', sharedPresetSyncHandler);
+  }
+}
+
 /**
  * Hook that subscribes to the active UI preset ('phone' | 'laptop') and keeps it
- * synchronized across window resizes and orientation changes.
+ * synchronized across window resizes and orientation changes using a single shared listener.
  */
 export function useDevicePreset() {
   const preset = useDevicePresetStore((s) => s.preset);
   const isMobileDrawerOpen = useDevicePresetStore((s) => s.isMobileDrawerOpen);
-  const setPreset = useDevicePresetStore((s) => s.setPreset);
   const setMobileDrawerOpen = useDevicePresetStore((s) => s.setMobileDrawerOpen);
   const toggleMobileDrawer = useDevicePresetStore((s) => s.toggleMobileDrawer);
 
   useEffect(() => {
-    const syncPreset = () => {
-      const next = detectDevicePreset();
-      if (useDevicePresetStore.getState().preset !== next) {
-        setPreset(next);
-      }
-      document.documentElement.dataset.devicePreset = next;
-    };
-
-    syncPreset();
-    window.addEventListener('resize', syncPreset, { passive: true });
-    window.addEventListener('orientationchange', syncPreset, { passive: true });
+    ensureSharedPresetListeners();
     return () => {
-      window.removeEventListener('resize', syncPreset);
-      window.removeEventListener('orientationchange', syncPreset);
+      releaseSharedPresetListeners();
     };
-  }, [setPreset]);
+  }, []);
 
   return {
     preset,

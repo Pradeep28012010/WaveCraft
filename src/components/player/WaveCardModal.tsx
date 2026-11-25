@@ -5,7 +5,8 @@ import type { Track, LyricLine } from '../../types';
 import { getLyricsData } from '../../services/lyrics';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
-import { getShareBaseUrl } from '../../services/apiConfig';
+import { getShareBaseUrl, isAndroidNative, apiUrl } from '../../services/apiConfig';
+import { getOfflineAudioObjectUrl, isTrackOffline } from '../../services/offlineVault';
 import { formatTime } from '../../utils/formatTime';
 import { resolveDirectAudio } from '../../services/streamResolver';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -31,15 +32,11 @@ interface WaveCardModalProps {
   initialThemeId?: string;
 }
 
-
-
-
-
 export default function WaveCardModal({
   isOpen,
   onClose,
   track,
-  currentTime = 0,
+  currentTime,
   initialQuote,
   sectorName,
   matchScore,
@@ -47,6 +44,12 @@ export default function WaveCardModal({
 }: WaveCardModalProps) {
   const lyricsShowRomanization = useSettingsStore((s) => s.lyricsShowRomanization ?? true);
   const setLyricsShowRomanization = useSettingsStore((s) => s.setLyricsShowRomanization);
+  const storeCurrentTime = usePlayerStore((s) =>
+    isOpen && currentTime === undefined ? s.currentTime : 0
+  );
+  const effectiveCurrentTime = currentTime !== undefined ? currentTime : storeCurrentTime;
+  const currentTimeRef = useRef<number>(effectiveCurrentTime);
+  currentTimeRef.current = effectiveCurrentTime;
 
   const [rawLyrics, setRawLyrics] = useState<LyricLine[]>([]);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
@@ -60,17 +63,20 @@ export default function WaveCardModal({
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoElapsedSec, setVideoElapsedSec] = useState(0);
   const [targetDurationTotalSec, setTargetDurationTotalSec] = useState(30);
-  const [reelStartTime, setReelStartTime] = useState<number>(currentTime || 0);
+  const [reelStartTime, setReelStartTime] = useState<number>(effectiveCurrentTime || 0);
   const [reelDurationMode, setReelDurationMode] = useState<'15s' | '30s' | '60s' | 'full'>('30s');
   const stopRecordingEarlyRef = useRef<(() => void) | null>(null);
   const cancelRecordingRef = useRef<(() => void) | null>(null);
   const isCancelledRef = useRef<boolean>(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Sync themeId if initialThemeId changes or modal opens
+  // Sync themeId and initial start time when modal opens
   useEffect(() => {
     if (initialThemeId && CARD_THEMES.some((t) => t.id === initialThemeId)) {
       setThemeId(initialThemeId);
+    }
+    if (isOpen) {
+      setReelStartTime(Math.max(0, Math.floor(currentTimeRef.current || 0)));
     }
   }, [initialThemeId, isOpen]);
 
@@ -90,7 +96,7 @@ export default function WaveCardModal({
     setLyrics(processed);
   }, [rawLyrics, lyricsShowRomanization]);
 
-  // Auto-sync reelStartTime to selected lyric quote or currentTime
+  // Auto-sync reelStartTime to selected lyric quote
   useEffect(() => {
     if (selectedQuote && lyrics.length > 0) {
       const firstQuoteLine = selectedQuote.split('\n')[0]?.trim().toLowerCase();
@@ -102,13 +108,9 @@ export default function WaveCardModal({
       );
       if (match && typeof match.time === 'number') {
         setReelStartTime(Math.max(0, Math.floor(match.time)));
-        return;
       }
     }
-    if (currentTime && currentTime > 0) {
-      setReelStartTime(Math.max(0, Math.floor(currentTime)));
-    }
-  }, [selectedQuote, lyrics, currentTime]);
+  }, [selectedQuote, lyrics]);
 
   const activeTheme = CARD_THEMES.find((t) => t.id === themeId) || CARD_THEMES[0];
 
@@ -116,13 +118,16 @@ export default function WaveCardModal({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Fetch lyrics when opened so user can pick any line
+  // Fetch lyrics once per track/open so time ticks do not reset user quote selection
   useEffect(() => {
     if (!isOpen || !track) return;
     let cancelled = false;
@@ -148,21 +153,18 @@ export default function WaveCardModal({
       }
 
       if (valid.length > 0) {
-        // Pick the line closest to currentTime
+        const snapshotTime = currentTimeRef.current || 0;
         let activeIdx = 0;
         for (let i = 0; i < valid.length; i++) {
-          if (currentTime >= valid[i].time) activeIdx = i;
+          if (snapshotTime >= valid[i].time) activeIdx = i;
         }
         const line1 = valid[activeIdx]?.text || '';
         const line2 = valid[activeIdx + 1]?.text || '';
+        const showRom = useSettingsStore.getState().lyricsShowRomanization ?? true;
         const q1 =
-          lyricsShowRomanization && containsNonLatinScript(line1)
-            ? romanizeIndicText(line1)
-            : line1;
+          showRom && containsNonLatinScript(line1) ? romanizeIndicText(line1) : line1;
         const q2 =
-          lyricsShowRomanization && containsNonLatinScript(line2)
-            ? romanizeIndicText(line2)
-            : line2;
+          showRom && containsNonLatinScript(line2) ? romanizeIndicText(line2) : line2;
         setSelectedQuote(q2 ? `${q1}\n${q2}` : q1);
       } else {
         setSelectedQuote(`Lost in the sound of ${track.title} ✨`);
@@ -172,7 +174,7 @@ export default function WaveCardModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, track, currentTime, initialQuote, lyricsShowRomanization]);
+  }, [isOpen, track.id, initialQuote]);
 
   const shareUrl = `${getShareBaseUrl()}/?play=${encodeURIComponent(
     `${track.title} ${track.artist}`
@@ -542,6 +544,39 @@ export default function WaveCardModal({
     }
   };
 
+  const resolveExportAudioStream = async (): Promise<string | null> => {
+    if (isTrackOffline(track.id) || track.isLocal || track.id.startsWith('local_')) {
+      try {
+        const offlineBlobUrl = await getOfflineAudioObjectUrl(track.id);
+        if (offlineBlobUrl) return offlineBlobUrl;
+      } catch {}
+    }
+    let streamUrl = track.audioUrl;
+    if (!streamUrl || streamUrl.includes('p.scdn.co')) {
+      try {
+        const resolved = await resolveDirectAudio(
+          track.title,
+          track.artist,
+          track.duration,
+          track.youtubeId
+        );
+        if (resolved) {
+          streamUrl = resolved;
+          usePlayerStore.setState((s) => ({
+            currentTrack:
+              s.currentTrack?.id === track.id
+                ? { ...s.currentTrack, audioUrl: resolved }
+                : s.currentTrack,
+            queue: s.queue.map((t) =>
+              t.id === track.id ? { ...t, audioUrl: resolved } : t
+            )
+          }));
+        }
+      } catch {}
+    }
+    return streamUrl || null;
+  };
+
   // Ultra-Fast Offline WebCodecs + WebM-Muxer Video Reel Exporter
   const handleFastOfflineVideoExport = async (): Promise<boolean> => {
     if (
@@ -569,32 +604,10 @@ export default function WaveCardModal({
     setExportStatusMessage('Resolving high-fidelity audio stream...');
     isCancelledRef.current = false;
 
-    // Pause player if running so playback doesn't collide
-    const wasMainPlaying = usePlayerStore.getState().isPlaying;
-    if (wasMainPlaying) {
-      usePlayerStore.getState().pause();
-    }
-
+    let tempCtx: AudioContext | null = null;
     try {
-      // 1. Resolve Audio Stream
-      let streamUrl = track.audioUrl;
-      if (!streamUrl || streamUrl.includes('p.scdn.co')) {
-        try {
-          const resolved = await resolveDirectAudio(
-            track.title,
-            track.artist,
-            track.duration,
-            track.youtubeId
-          );
-          if (resolved) {
-            streamUrl = resolved;
-            track.audioUrl = resolved;
-          }
-        } catch {}
-      }
-      if (!streamUrl && track.audioUrl) {
-        streamUrl = track.audioUrl;
-      }
+      // 1. Resolve Audio Stream (check offline vault first)
+      const streamUrl = await resolveExportAudioStream();
       if (!streamUrl) return false;
 
       // 2. Fetch audio binary stream
@@ -604,7 +617,7 @@ export default function WaveCardModal({
 
       // 3. Decode audio data into AudioBuffer
       setExportStatusMessage('Decoding studio audio graph...');
-      const tempCtx = new (window.AudioContext || (window as any).webkitAudioContext)({
+      tempCtx = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: 48000
       });
       const decodedBuffer = await tempCtx.decodeAudioData(audioBinary.slice(0));
@@ -623,8 +636,9 @@ export default function WaveCardModal({
         finalBuffer = await offlineCtx.startRendering();
       }
       try {
-        tempCtx.close();
+        await tempCtx.close();
       } catch {}
+      tempCtx = null;
 
       // 4. Codec capability checks
       let chosenVideoCodec = 'vp09.00.10.08';
@@ -691,28 +705,31 @@ export default function WaveCardModal({
       });
 
       // 6. Initialize VideoEncoder and AudioEncoder
-      const videoEncoder = new (window as any).VideoEncoder({
-        output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
-        error: (err: any) => console.error('[VideoEncoder Error]', err)
-      });
-      videoEncoder.configure({
-        codec: chosenVideoCodec,
-        width: 720,
-        height: 1280,
-        bitrate: 3_500_000,
-        framerate: fps
-      });
+      let videoEncoder: any = null;
+      let audioEncoder: any = null;
+      try {
+        videoEncoder = new (window as any).VideoEncoder({
+          output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
+          error: (err: any) => console.error('[VideoEncoder Error]', err)
+        });
+        videoEncoder.configure({
+          codec: chosenVideoCodec,
+          width: 720,
+          height: 1280,
+          bitrate: 3_500_000,
+          framerate: fps
+        });
 
-      const audioEncoder = new (window as any).AudioEncoder({
-        output: (chunk: any, meta: any) => muxer.addAudioChunk(chunk, meta),
-        error: (err: any) => console.error('[AudioEncoder Error]', err)
-      });
-      audioEncoder.configure({
-        codec: 'opus',
-        sampleRate: 48000,
-        numberOfChannels: 2,
-        bitrate: 192_000
-      });
+        audioEncoder = new (window as any).AudioEncoder({
+          output: (chunk: any, meta: any) => muxer.addAudioChunk(chunk, meta),
+          error: (err: any) => console.error('[AudioEncoder Error]', err)
+        });
+        audioEncoder.configure({
+          codec: 'opus',
+          sampleRate: 48000,
+          numberOfChannels: 2,
+          bitrate: 192_000
+        });
 
       // 7. Encode Audio into Opus Chunks (in 960-sample Opus frames)
       setExportStatusMessage('⚡ Turbo Encoding: Audio Stream...');
@@ -843,13 +860,6 @@ export default function WaveCardModal({
       }
 
       if (isCancelledRef.current) {
-        try {
-          videoEncoder.close();
-          audioEncoder.close();
-        } catch {}
-        setIsRecordingVideo(false);
-        setVideoProgress(0);
-        if (wasMainPlaying) usePlayerStore.getState().resume();
         return true;
       }
 
@@ -871,22 +881,23 @@ export default function WaveCardModal({
       a.download = `WaveReel-${track.title.replace(/[^a-z0-9]/gi, '_').slice(0, 20)}-${recordedSec}s.webm`;
       a.click();
       URL.revokeObjectURL(url);
-
-      setIsRecordingVideo(false);
-      setVideoProgress(0);
-      if (wasMainPlaying) usePlayerStore.getState().resume();
       return true;
     } catch (err) {
       console.warn('[Fast Video Export Error, falling back to real-time]', err);
+      return false;
+    } finally {
+      if (tempCtx && tempCtx.state !== 'closed') {
+        try {
+          await tempCtx.close();
+        } catch {}
+      }
       setIsRecordingVideo(false);
       setVideoProgress(0);
-      if (wasMainPlaying) usePlayerStore.getState().resume();
-      return false;
     }
   };
 
   // Real-Time Fallback Video Recorder (.webm)
-  const handleRecordVideoStory = async () => {
+  const handleRecordVideoStory = async (): Promise<void> => {
     if (isRecordingVideo || typeof MediaRecorder === 'undefined') return;
     setIsRecordingVideo(true);
     setVideoProgress(0);
@@ -905,11 +916,27 @@ export default function WaveCardModal({
     setTargetDurationTotalSec(targetDurationSec);
     const totalMs = targetDurationSec * 1000;
 
-    // Pause background player if playing so audio does not collide
-    const wasMainPlaying = usePlayerStore.getState().isPlaying;
-    if (wasMainPlaying) {
-      usePlayerStore.getState().pause();
-    }
+    let audio: HTMLAudioElement | null = null;
+    let audioCtx: AudioContext | null = null;
+    let rafId = 0;
+
+    const cleanupMedia = () => {
+      cancelAnimationFrame(rafId);
+      if (audio) {
+        try {
+          audio.pause();
+          audio.removeAttribute('src');
+          audio.load();
+        } catch {}
+      }
+      if (audioCtx && audioCtx.state !== 'closed') {
+        try {
+          audioCtx.close();
+        } catch {}
+      }
+      setIsRecordingVideo(false);
+      setVideoProgress(0);
+    };
 
     try {
       const vCanvas = document.createElement('canvas');
@@ -917,8 +944,7 @@ export default function WaveCardModal({
       vCanvas.height = 1280;
       const ctx = vCanvas.getContext('2d');
       if (!ctx) {
-        setIsRecordingVideo(false);
-        if (wasMainPlaying) usePlayerStore.getState().resume();
+        cleanupMedia();
         return;
       }
 
@@ -926,54 +952,53 @@ export default function WaveCardModal({
       const imgUrl = track.thumbnailLarge || track.thumbnail || DEFAULT_THUMBNAIL;
       const artImg = await loadImg(imgUrl);
 
-      // Resolve audio stream
-      let streamUrl = track.audioUrl;
-      if (!streamUrl || streamUrl.includes('p.scdn.co')) {
-        try {
-          const resolved = await resolveDirectAudio(
-            track.title,
-            track.artist,
-            track.duration,
-            track.youtubeId
-          );
-          if (resolved) {
-            streamUrl = resolved;
-            track.audioUrl = resolved;
-          }
-        } catch {}
-      }
-      if (!streamUrl && track.audioUrl) {
-        streamUrl = track.audioUrl;
-      }
+      // Resolve audio stream (offline vault / local IDB first, without mutating track directly)
+      const rawStreamUrl = await resolveExportAudioStream();
+      const fullUrl = rawStreamUrl?.startsWith('/') ? apiUrl(rawStreamUrl) : rawStreamUrl || '';
+      const isSameOriginOrLocal =
+        fullUrl.startsWith('blob:') ||
+        fullUrl.startsWith('data:') ||
+        fullUrl.startsWith('/') ||
+        fullUrl.includes('/api/music') ||
+        (typeof window !== 'undefined' && fullUrl.startsWith(window.location.origin));
+      const streamUrl =
+        fullUrl &&
+        !isAndroidNative() &&
+        !isSameOriginOrLocal &&
+        (fullUrl.startsWith('http://') || fullUrl.startsWith('https://'))
+          ? apiUrl(`/api/music?action=proxy-stream&url=${encodeURIComponent(fullUrl)}`)
+          : fullUrl;
 
       // Initialize audio element
-      const audio = new Audio();
-      audio.crossOrigin = 'anonymous';
+      audio = new Audio();
+      if ((!isAndroidNative() || isSameOriginOrLocal) && !streamUrl.startsWith('blob:') && !streamUrl.startsWith('data:')) {
+        audio.crossOrigin = 'anonymous';
+      }
       if (streamUrl) {
         audio.src = streamUrl;
       }
 
       // Preload audio and seek to reelStartTime
       if (streamUrl) {
+        const audioEl = audio;
         await new Promise<void>((resolve) => {
           const timer = setTimeout(resolve, 3500);
-          audio.oncanplay = () => {
+          audioEl.oncanplay = () => {
             clearTimeout(timer);
             resolve();
           };
-          audio.onerror = () => {
+          audioEl.onerror = () => {
             clearTimeout(timer);
             resolve();
           };
         });
 
         try {
-          audio.currentTime = reelStartTime;
+          audioEl.currentTime = reelStartTime;
         } catch {}
       }
 
       // Setup Web Audio routing to capture audio tracks SILENTLY
-      let audioCtx: AudioContext | null = null;
       let audioDestination: MediaStreamAudioDestinationNode | null = null;
       let analyser: AnalyserNode | null = null;
       let freqData: Uint8Array<ArrayBuffer> | null = null;
@@ -1025,7 +1050,6 @@ export default function WaveCardModal({
       };
 
       const startTime = performance.now();
-      let rafId = 0;
       let isCancelled = false;
       let isStoppedEarly = false;
 
@@ -1039,125 +1063,110 @@ export default function WaveCardModal({
       cancelRecordingRef.current = () => {
         isCancelled = true;
         cancelAnimationFrame(rafId);
-        try {
-          audio.pause();
-          audio.src = '';
-        } catch {}
-        if (audioCtx) {
-          try {
-            audioCtx.close();
-          } catch {}
-        }
         if (recorder.state === 'recording') {
           recorder.stop();
         }
-        setIsRecordingVideo(false);
-        setVideoProgress(0);
-        if (wasMainPlaying) {
-          usePlayerStore.getState().resume();
-        }
       };
 
-      const drawFrame = (now: number) => {
-        if (isCancelled) return;
-        const elapsed = now - startTime;
-        const t = elapsed / 1000;
-        const pct = Math.min(100, Math.round((elapsed / totalMs) * 100));
-        setVideoProgress(pct);
-        setVideoElapsedSec(Math.min(targetDurationSec, Math.floor(elapsed / 1000)));
+      await new Promise<void>((resolveDone) => {
+        const drawFrame = (now: number) => {
+          if (isCancelled) return;
+          const elapsed = now - startTime;
+          const t = elapsed / 1000;
+          const pct = Math.min(100, Math.round((elapsed / totalMs) * 100));
+          setVideoProgress(pct);
+          setVideoElapsedSec(Math.min(targetDurationSec, Math.floor(elapsed / 1000)));
 
-        // Read real audio FFT if analyser is active
-        let liveBassPulse = 0;
-        if (analyser && freqData) {
-          analyser.getByteFrequencyData(freqData);
-          liveBassPulse = (freqData[1] + freqData[2] + freqData[3]) / (3 * 255);
+          // Read real audio FFT if analyser is active
+          let liveBassPulse = 0;
+          if (analyser && freqData) {
+            analyser.getByteFrequencyData(freqData);
+            liveBassPulse = (freqData[1] + freqData[2] + freqData[3]) / (3 * 255);
+          }
+
+          const songTime = reelStartTime + t;
+          drawStoryFrame(
+            ctx,
+            songTime,
+            t,
+            targetDurationSec,
+            liveBassPulse,
+            freqData || [],
+            artImg,
+            track,
+            lyrics,
+            selectedQuote,
+            activeTheme,
+            sectorName,
+            matchScore
+          );
+
+          if (elapsed < totalMs && !isStoppedEarly) {
+            rafId = requestAnimationFrame(drawFrame);
+          } else if (recorder.state === 'recording') {
+            recorder.stop();
+          } else {
+            resolveDone();
+          }
+        };
+
+        recorder.onstop = () => {
+          cleanupMedia();
+          if (!isCancelled && chunks.length > 0) {
+            const videoBlob = new Blob(chunks, { type: mimeType });
+            const url = URL.createObjectURL(videoBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            const recordedSec = Math.round((performance.now() - startTime) / 1000);
+            a.download = `WaveReel-${track.title.replace(/[^a-z0-9]/gi, '_').slice(0, 20)}-${recordedSec}s.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+          resolveDone();
+        };
+
+        recorder.onerror = () => {
+          cleanupMedia();
+          resolveDone();
+        };
+
+        // Start audio and recording
+        if (streamUrl && audio) {
+          audio.play().catch(() => {});
         }
 
-        const songTime = reelStartTime + t;
-        drawStoryFrame(
-          ctx,
-          songTime,
-          t,
-          targetDurationSec,
-          liveBassPulse,
-          freqData || [],
-          artImg,
-          track,
-          lyrics,
-          selectedQuote,
-          activeTheme,
-          sectorName,
-          matchScore
-        );
-
-        if (elapsed < totalMs && !isStoppedEarly) {
-          rafId = requestAnimationFrame(drawFrame);
-        } else {
-          recorder.stop();
-        }
-      };
-
-      recorder.onstop = () => {
-        cancelAnimationFrame(rafId);
-        try {
-          audio.pause();
-          audio.src = '';
-        } catch {}
-        if (audioCtx) {
-          try {
-            audioCtx.close();
-          } catch {}
-        }
-        if (wasMainPlaying && !isCancelled) {
-          usePlayerStore.getState().resume();
-        }
-
-        if (isCancelled) {
-          setIsRecordingVideo(false);
-          setVideoProgress(0);
-          return;
-        }
-
-        const videoBlob = new Blob(chunks, { type: mimeType });
-        const url = URL.createObjectURL(videoBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        const recordedSec = Math.round((performance.now() - startTime) / 1000);
-        a.download = `WaveReel-${track.title.replace(/[^a-z0-9]/gi, '_').slice(0, 20)}-${recordedSec}s.webm`;
-        a.click();
-        URL.revokeObjectURL(url);
-        setIsRecordingVideo(false);
-        setVideoProgress(0);
-      };
-
-      // Start audio and recording
-      if (streamUrl) {
-        try {
-          await audio.play();
-        } catch {}
-      }
-
-      recorder.start(500);
-      rafId = requestAnimationFrame(drawFrame);
+        recorder.start(500);
+        rafId = requestAnimationFrame(drawFrame);
+      });
     } catch {
-      setIsRecordingVideo(false);
-      if (wasMainPlaying) usePlayerStore.getState().resume();
+      cleanupMedia();
     }
   };
 
   const handleStartReelExport = async () => {
     if (isRecordingVideo || isExporting) return;
-    const fastSuccess = await handleFastOfflineVideoExport();
-    if (!fastSuccess) {
-      await handleRecordVideoStory();
+    const wasMainPlaying = usePlayerStore.getState().isPlaying;
+    if (wasMainPlaying) {
+      usePlayerStore.getState().pause();
+    }
+    try {
+      const fastSuccess = await handleFastOfflineVideoExport();
+      if (!fastSuccess) {
+        await handleRecordVideoStory();
+      }
+    } finally {
+      if (wasMainPlaying && !usePlayerStore.getState().isPlaying) {
+        usePlayerStore.getState().resume();
+      }
     }
   };
 
-  if (!isOpen) return null;
+  if (typeof document === 'undefined') return null;
 
   return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center p-4">
+      {isOpen && (
+      <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center p-3 sm:p-4">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -1167,12 +1176,15 @@ export default function WaveCardModal({
           onClick={onClose}
         />
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Lyric Poster & Social Story Studio"
           initial={{ scale: 0.96, opacity: 0, y: 10 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.96, opacity: 0, y: 10 }}
           transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="relative z-10 pointer-events-auto w-full max-w-4xl rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-6 sm:p-8 max-h-[90vh] overflow-y-auto glass-heavy liquid-glass"
+          className="relative z-10 pointer-events-auto w-full max-w-4xl rounded-3xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-4 sm:p-8 max-h-[90vh] overflow-y-auto glass-heavy liquid-glass"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
@@ -1361,12 +1373,12 @@ export default function WaveCardModal({
                 <label className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-2.5">
                   1. Card Backdrop Theme
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="flex flex-wrap gap-2">
                   {CARD_THEMES.map((t) => (
                     <button
                       key={t.id}
                       onClick={() => setThemeId(t.id)}
-                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                      className={`px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
                         themeId === t.id
                           ? 'glass-button-primary text-white shadow-lg border-0'
                           : 'glass-button text-white/70 hover:text-white'
@@ -1376,7 +1388,7 @@ export default function WaveCardModal({
                         className="w-3.5 h-3.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: t.primary }}
                       />
-                      <span className="truncate">{t.name}</span>
+                      <span>{t.name}</span>
                     </button>
                   ))}
                 </div>
@@ -1628,10 +1640,10 @@ export default function WaveCardModal({
                   <button
                     onClick={handleStartReelExport}
                     disabled={isRecordingVideo || isExporting}
-                    className="w-full py-3 px-4 rounded-2xl glass-button-emerald text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 hover:brightness-110 active:scale-98 overflow-hidden"
+                    className="w-full py-3 px-4 rounded-2xl glass-button-emerald text-emerald-200 font-extrabold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 hover:brightness-110 active:scale-98 text-center"
                   >
                     <span className="text-base flex-shrink-0">🎬</span>
-                    <span className="truncate">
+                    <span className="whitespace-normal leading-snug">
                       Export{' '}
                       {reelDurationMode === 'full'
                         ? 'Full Song'
@@ -1656,6 +1668,7 @@ export default function WaveCardModal({
           <canvas ref={canvasRef} className="hidden" />
         </motion.div>
       </div>
+      )}
     </AnimatePresence>,
     document.body
   );

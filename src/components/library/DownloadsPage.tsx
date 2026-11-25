@@ -53,6 +53,22 @@ export default function DownloadsPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [importStatus, setImportStatus] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string, durationMs = 3500) => {
+    setToastMessage(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage('');
+      toastTimerRef.current = null;
+    }, durationMs);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const bitrateBreakdown = useMemo(() => computeBitrateBreakdown(offlineTracks), [offlineTracks]);
   const unCachedLiked = useMemo(() => {
@@ -93,8 +109,7 @@ export default function DownloadsPage() {
     setIsImporting(false);
     setImportStatus('');
     if (res.imported.length > 0) {
-      setToastMessage(`✓ Imported ${res.imported.length} song${res.imported.length === 1 ? '' : 's'} to Offline Vault!`);
-      setTimeout(() => setToastMessage(''), 4500);
+      showToast(`✓ Imported ${res.imported.length} song${res.imported.length === 1 ? '' : 's'} to Offline Vault!`, 4500);
     }
   };
 
@@ -128,12 +143,11 @@ export default function DownloadsPage() {
 
   const handleDownloadLikedSongs = async () => {
     if (unCachedLiked.length === 0) {
-      setToastMessage('All liked songs are already stored in Offline Vault!');
-      setTimeout(() => setToastMessage(''), 3000);
+      showToast('All liked songs are already stored in Offline Vault!', 3000);
       return;
     }
     triggerAndroidHaptic('medium');
-    await startBatchDownload('liked-vault-bulk', 'Liked Songs Vault', unCachedLiked);
+    await startBatchDownload('liked_songs', 'Liked Songs', unCachedLiked);
   };
 
   useEffect(() => {
@@ -248,7 +262,7 @@ export default function DownloadsPage() {
     a.href = url;
     a.download = `WaveCraft_Offline_Catalog_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
@@ -260,9 +274,6 @@ export default function DownloadsPage() {
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
               Offline Audio Vault
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border-0 text-[11px] font-black text-emerald-300 uppercase tracking-wider">
-              100% Offline
-            </span>
             <button
               onClick={() => toggleOfflineModeOnly()}
               className={`px-3 py-1 rounded-full border text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${

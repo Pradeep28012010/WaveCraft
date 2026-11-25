@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, LayoutGroup } from 'framer-motion';
 import {
@@ -198,19 +198,23 @@ export default function SearchResults() {
     }
   }, []);
 
+  const albumRequestIdRef = useRef(0);
+  const allLiveTermsRef = useRef<string[]>([]);
+  useEffect(() => {
+    allLiveTermsRef.current = allLiveTerms;
+  }, [allLiveTerms]);
+
   useEffect(() => {
     fetchLiveTrendingSearches();
     let tick = 1;
     const interval = setInterval(() => {
       tick += 4;
-      setAllLiveTerms((pool) => {
-        if (pool.length > 10) {
-          const offset = tick % pool.length;
-          const nextSlice = [...pool.slice(offset), ...pool.slice(0, offset)].slice(0, 12);
-          setTrendingTerms(nextSlice);
-        }
-        return pool;
-      });
+      const pool = allLiveTermsRef.current;
+      if (pool.length > 10) {
+        const offset = tick % pool.length;
+        const nextSlice = [...pool.slice(offset), ...pool.slice(0, offset)].slice(0, 12);
+        setTrendingTerms(nextSlice);
+      }
     }, 35000);
     return () => clearInterval(interval);
   }, [fetchLiveTrendingSearches]);
@@ -248,6 +252,7 @@ export default function SearchResults() {
       setTracks(cached);
       setIsLoading(false);
     } else {
+      setTracks([]);
       setIsLoading(true);
     }
 
@@ -259,7 +264,7 @@ export default function SearchResults() {
     ]).then(([tracksResult, albumsResult, artistsResult]) => {
       if (signal.aborted) return;
 
-      if (tracksResult.status === 'fulfilled' && tracksResult.value.length > 0) {
+      if (tracksResult.status === 'fulfilled') {
         setTracks(tracksResult.value);
       }
       if (albumsResult.status === 'fulfilled') {
@@ -294,29 +299,31 @@ export default function SearchResults() {
         document.activeElement.blur();
       }
       unlockAudioEngine();
-      setAlbumTracks((currentAlbumTracks) => {
-        const idx = currentAlbumTracks.findIndex((track) => track.id === t.id);
-        playTrack(t, currentAlbumTracks, idx >= 0 ? idx : 0);
-        return currentAlbumTracks;
-      });
+      const idx = albumTracks.findIndex((track) => track.id === t.id);
+      playTrack(t, albumTracks, idx >= 0 ? idx : 0);
     },
-    [playTrack]
+    [albumTracks, playTrack]
   );
 
   const handleOpenAlbum = async (album: AlbumResult, autoPlayFirst = false) => {
+    const reqId = ++albumRequestIdRef.current;
     if (autoPlayFirst) {
       unlockAudioEngine();
     }
     setSelectedAlbum(album);
+    setAlbumTracks([]);
     setIsAlbumLoading(true);
     try {
       const loaded = await getAlbumTracks(album);
+      if (albumRequestIdRef.current !== reqId) return;
       setAlbumTracks(loaded);
       if (autoPlayFirst && loaded.length > 0) {
         playTrack(loaded[0], loaded, 0);
       }
     } finally {
-      setIsAlbumLoading(false);
+      if (albumRequestIdRef.current === reqId) {
+        setIsAlbumLoading(false);
+      }
     }
   };
 
@@ -986,7 +993,7 @@ export default function SearchResults() {
                           onClick={handlePlayAll}
                           className="px-3.5 py-1.5 rounded-full glass-button text-xs font-bold text-white/90 hover:text-white cursor-pointer"
                         >
-                          ▶ Play All
+                          Play All
                         </button>
                         <button
                           onClick={handleShuffleAll}
@@ -1178,6 +1185,12 @@ export default function SearchResults() {
               )}
 
               {/* Playlists Section */}
+              {activeTab === 'playlists' && matchingPlaylists.length === 0 && (
+                <div className="py-16 text-center rounded-3xl liquid-glass border-0">
+                  <p className="text-lg font-bold text-white/80">No matching playlists found</p>
+                  <p className="text-xs text-white/50 mt-1">Try searching for a mood, genre, or saved playlist name.</p>
+                </div>
+              )}
               {(activeTab === 'all' || activeTab === 'playlists') && matchingPlaylists.length > 0 && (
                 <section>
                   <div className="flex items-center justify-between mb-4">

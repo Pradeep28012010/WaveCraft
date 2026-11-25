@@ -10,6 +10,7 @@ export function useIsKeyboardOpen(): boolean {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    let focusOutTimer: ReturnType<typeof setTimeout> | null = null;
 
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement | null;
@@ -19,12 +20,18 @@ export function useIsKeyboardOpen(): boolean {
           target.tagName === 'TEXTAREA' ||
           target.isContentEditable)
       ) {
+        if (focusOutTimer) {
+          clearTimeout(focusOutTimer);
+          focusOutTimer = null;
+        }
         setIsKeyboardOpen(true);
       }
     };
 
     const handleFocusOut = () => {
-      setTimeout(() => {
+      if (focusOutTimer) clearTimeout(focusOutTimer);
+      focusOutTimer = setTimeout(() => {
+        focusOutTimer = null;
         const active = document.activeElement as HTMLElement | null;
         if (
           !active ||
@@ -56,6 +63,10 @@ export function useIsKeyboardOpen(): boolean {
     }
 
     return () => {
+      if (focusOutTimer) {
+        clearTimeout(focusOutTimer);
+        focusOutTimer = null;
+      }
       window.removeEventListener('focusin', handleFocusIn);
       window.removeEventListener('focusout', handleFocusOut);
       if (window.visualViewport) {

@@ -7,7 +7,6 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
-import { shuffleArray } from '../../utils/shuffle';
 import { formatTime } from '../../utils/formatTime';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
@@ -271,25 +270,22 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
   }, [autoplay, currentTrack?.id, queue.length]);
 
   // Split queue into Previous (History in current queue) and Upcoming (after queueIndex)
-  const effectiveIndex =
-    queueIndex >= 0
-      ? queueIndex
-      : currentTrack
-      ? Math.max(0, queue.findIndex((t) => t.id === currentTrack.id))
-      : -1;
+  const foundTrackIdx = currentTrack ? queue.findIndex((t) => t.id === currentTrack.id) : -1;
+  const effectiveIndex = queueIndex >= 0 ? queueIndex : foundTrackIdx;
 
   const upcomingItems = useMemo<UpcomingQueueItem[]>(() => {
-    return effectiveIndex >= 0
-      ? queue.slice(effectiveIndex + 1).map((track, idx) => ({
-          id: `${track.id}-${effectiveIndex + 1 + idx}`,
-          track,
-          actualIndex: effectiveIndex + 1 + idx
-        }))
-      : queue.map((track, idx) => ({
-          id: `${track.id}-${idx}`,
-          track,
-          actualIndex: idx
-        }));
+    const start = effectiveIndex >= 0 ? effectiveIndex + 1 : 0;
+    const slice = queue.slice(start);
+    const seenCounts = new Map<string, number>();
+    return slice.map((track, idx) => {
+      const occurrence = seenCounts.get(track.id) ?? 0;
+      seenCounts.set(track.id, occurrence + 1);
+      return {
+        id: `${track.id}#${occurrence}`,
+        track,
+        actualIndex: start + idx
+      };
+    });
   }, [queue, effectiveIndex]);
 
   const handleReorderUpcoming = useCallback(
@@ -334,23 +330,12 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
 
   const handleShuffleUpcoming = () => {
     if (isJamGuest || upcomingItems.length <= 1) return;
-    const beforeAndCurrent = effectiveIndex >= 0 ? queue.slice(0, effectiveIndex + 1) : [];
-    const upcomingTracks: Track[] = upcomingItems.map((i: UpcomingQueueItem) => i.track);
-    const shuffledUpcoming = shuffleArray(upcomingTracks) as Track[];
-    const nextQueue = [...beforeAndCurrent, ...shuffledUpcoming];
-    usePlayerStore.setState({
-      queue: nextQueue,
-      isShuffled: true
-    });
+    usePlayerStore.getState().shuffleUpcoming();
   };
 
   const handleClearUpcoming = () => {
     if (isJamGuest || upcomingItems.length === 0) return;
-    const keepCurrent = effectiveIndex >= 0 ? queue.slice(0, effectiveIndex + 1) : [];
-    usePlayerStore.setState({
-      queue: keepCurrent,
-      originalQueue: keepCurrent
-    });
+    usePlayerStore.getState().clearUpcoming();
   };
 
   const handleSaveQueueAsPlaylist = () => {
@@ -764,14 +749,6 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                     <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/45">
                       Next Up in Queue ({upcomingItems.length})
                     </span>
-                    {upcomingItems.length > 0 && !isJamGuest && (
-                      <button
-                        onClick={handleClearUpcoming}
-                        className="text-[11px] font-bold text-white/45 hover:text-rose-400 transition-colors cursor-pointer"
-                      >
-                        Clear Upcoming
-                      </button>
-                    )}
                   </div>
 
                   {upcomingItems.length === 0 ? (
@@ -790,6 +767,7 @@ function QueuePanelContent({ onClose }: { onClose: () => void }) {
                         gap={6}
                         dragTilt={6}
                         lift={1.025}
+                        disabled={isJamGuest}
                         onReorder={isJamGuest ? () => {} : handleReorderUpcoming}
                         renderItem={(item, idx, isDragging) => (
                           <QueueTrackRow

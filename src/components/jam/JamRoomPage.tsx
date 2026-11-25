@@ -4,7 +4,7 @@ import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useJamStore, type JamMember, type JamReaction } from '../../stores/jamStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { searchTracks, getCachedSearch } from '../../services/youtube';
-import { PROD_API_ORIGIN } from '../../services/apiConfig';
+import { PROD_API_ORIGIN, getShareBaseUrl } from '../../services/apiConfig';
 import { unlockAudioEngine } from '../player/YouTubeEmbed';
 import { jamSyncEngine, type SyncTelemetry } from '../../services/jamSyncEngine';
 import type { Track } from '../../types';
@@ -139,7 +139,7 @@ export const SPATIAL_SEATING_ZONES: SpatialZone[] = [
     id: 'vip-mezzanine',
     name: 'VIP Lounge',
     x: 50,
-    y: 84,
+    y: 80,
     pan: 0,
     icon: '👑',
     badge: 'Rear Mezzanine',
@@ -154,7 +154,6 @@ interface SpatialStageMapProps {
   selfSeatPos: { x: number; y: number; pan: number };
   spatialAudioEnabled: boolean;
   isHost: boolean;
-  hostName: string;
   isPlaying: boolean;
   reactions: JamReaction[];
   onSetSeat: (seatId: string, x?: number, y?: number, pan?: number) => void;
@@ -176,7 +175,6 @@ const SpatialListeningStageMap = memo<SpatialStageMapProps>(({
   selfSeatPos,
   spatialAudioEnabled,
   isHost,
-  hostName,
   isPlaying,
   reactions,
   onSetSeat,
@@ -356,17 +354,17 @@ const SpatialListeningStageMap = memo<SpatialStageMapProps>(({
                 onSetSeat(zone.id, zone.x, zone.y, zone.pan);
               }}
               style={{ left: `${zone.x}%`, top: `${zone.y}%` }}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 p-2 rounded-2xl transition-all cursor-pointer group flex flex-col items-center ${
+              className={`absolute -translate-x-1/2 -translate-y-[66%] min-w-[116px] sm:min-w-[140px] px-2.5 pt-1.5 pb-8 sm:pb-10 rounded-2xl transition-all cursor-pointer group flex flex-col items-center ${
                 isOccupiedBySelf
                   ? 'bg-emerald-500/15 border border-emerald-400/50 shadow-[0_0_20px_rgba(52,211,153,0.3)]'
                   : 'bg-white/[0.03] hover:bg-white/[0.08] border border-white/10'
               }`}
             >
-              <div className="flex items-center gap-1 text-[11px] font-bold text-white/70 group-hover:text-white transition-colors">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-white/80 group-hover:text-white transition-colors whitespace-nowrap">
                 <span>{zone.icon}</span>
                 <span className="hidden sm:inline text-[10px] uppercase tracking-wider">{zone.name}</span>
               </div>
-              <span className="text-[9px] text-white/40 font-mono hidden sm:inline">
+              <span className="text-[9px] text-white/45 font-mono hidden sm:inline whitespace-nowrap">
                 {zone.badge}
               </span>
             </div>
@@ -378,7 +376,7 @@ const SpatialListeningStageMap = memo<SpatialStageMapProps>(({
           const isSelf = m.id === selfId;
           const posX = isSelf ? selfSeatPos.x : (typeof m.x === 'number' ? m.x : 50);
           const posY = isSelf ? selfSeatPos.y : (typeof m.y === 'number' ? m.y : 60);
-          const isMemberHost = m.name === hostName || (isHost && isSelf);
+          const isMemberHost = typeof m.isHost === 'boolean' ? m.isHost : Boolean(isHost && isSelf);
 
           return (
             <motion.div
@@ -388,7 +386,7 @@ const SpatialListeningStageMap = memo<SpatialStageMapProps>(({
               style={{
                 left: `${posX}%`,
                 top: `${posY}%`,
-                transform: 'translate(-50%, -50%)'
+                transform: 'translate(-50%, -22%)'
               }}
               className={`absolute z-20 flex flex-col items-center pointer-events-none select-none`}
             >
@@ -661,7 +659,7 @@ export default function JamRoomPage() {
   };
 
   const inviteUrl = roomCode
-    ? `${window.location.origin}/jam?room=${encodeURIComponent(roomCode)}`
+    ? `${getShareBaseUrl()}/jam?room=${encodeURIComponent(roomCode)}`
     : '';
 
   const handleCopyInvite = async () => {
@@ -682,8 +680,27 @@ export default function JamRoomPage() {
     } catch {}
   };
 
+  const searchSeqRef = useRef(0);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      searchAbortRef.current?.abort();
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
+
   const performSongSearch = useCallback(async (queryText: string) => {
     const clean = queryText.trim();
+    searchSeqRef.current += 1;
+    const seq = searchSeqRef.current;
+
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort();
+      searchAbortRef.current = null;
+    }
+
     if (!clean) {
       setSongResults([]);
       setHasSearched(false);
@@ -692,37 +709,53 @@ export default function JamRoomPage() {
       return;
     }
 
-    setIsSearching(true);
-    setHasSearched(true);
-    setSearchError(null);
-
     // 1. Instant cache check
     const cached = getCachedSearch(clean);
     if (cached && cached.length > 0) {
+      setHasSearched(true);
+      setSearchError(null);
       setSongResults(cached.slice(0, 8));
       setIsSearching(false);
       return;
     }
 
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+
+    setIsSearching(true);
+    setHasSearched(true);
+    setSearchError(null);
+
     try {
-      let res = await searchTracks(clean);
+      let res = await searchTracks(clean, 1, controller.signal);
+      if (seq !== searchSeqRef.current || controller.signal.aborted) return;
+
       if (res.length === 0) {
         // Progressive fallback query
-        res = await searchTracks(`${clean} song soundtrack`);
+        res = await searchTracks(`${clean} song soundtrack`, 1, controller.signal);
+        if (seq !== searchSeqRef.current || controller.signal.aborted) return;
       }
+
       setSongResults(res.slice(0, 8));
       if (res.length === 0) {
         setSearchError(`No songs found for "${clean}". Try another title or artist.`);
       }
     } catch (err) {
+      if (seq !== searchSeqRef.current || controller.signal.aborted) return;
       console.warn('Jam search fallback to direct API origin:', err);
+      const fallbackController = new AbortController();
+      const timeoutId = setTimeout(() => fallbackController.abort(), 6000);
+      const onParentAbort = () => fallbackController.abort();
+      controller.signal.addEventListener('abort', onParentAbort, { once: true });
       try {
         const fallbackRes = await fetch(
           `${PROD_API_ORIGIN}/api/music?action=search&q=${encodeURIComponent(clean)}`,
-          { signal: AbortSignal.timeout(6000) }
+          { signal: fallbackController.signal }
         );
+        if (seq !== searchSeqRef.current || controller.signal.aborted) return;
         if (fallbackRes.ok) {
           const data = await fallbackRes.json();
+          if (seq !== searchSeqRef.current || controller.signal.aborted) return;
           const list: Track[] = data.tracks || data.youtube || [];
           setSongResults(list.slice(0, 8));
           if (list.length === 0) {
@@ -732,17 +765,34 @@ export default function JamRoomPage() {
           setSearchError('Search request timed out. Please tap Search to retry.');
         }
       } catch {
+        if (seq !== searchSeqRef.current || controller.signal.aborted) return;
         setSearchError('Network error while searching songs. Please try again.');
+      } finally {
+        clearTimeout(timeoutId);
+        controller.signal.removeEventListener('abort', onParentAbort);
       }
     } finally {
-      setIsSearching(false);
+      if (seq === searchSeqRef.current) {
+        if (searchAbortRef.current === controller) {
+          searchAbortRef.current = null;
+        }
+        setIsSearching(false);
+      }
     }
   }, []);
 
   // Debounced live search as user types
   useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
     const clean = songQuery.trim();
     if (!clean) {
+      searchSeqRef.current += 1;
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = null;
       setSongResults([]);
       setHasSearched(false);
       setSearchError(null);
@@ -750,15 +800,25 @@ export default function JamRoomPage() {
       return;
     }
 
-    const timer = setTimeout(() => {
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
       performSongSearch(clean);
     }, 320);
 
-    return () => clearTimeout(timer);
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
   }, [songQuery, performSongSearch]);
 
   const handleSearchSongs = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
     if (!songQuery.trim()) return;
     performSongSearch(songQuery.trim());
   };
@@ -1280,7 +1340,7 @@ export default function JamRoomPage() {
 
               {/* Crowd Emoji Reaction Cannon Dock */}
               <div
-                className="flex items-center gap-1.5 py-3 -my-1 px-2.5 rounded-full bg-black/45 border-0[0.04] self-start xl:self-center overflow-x-auto no-scrollbar max-w-full"
+                className="flex items-center gap-1.5 py-3 -my-1 px-2.5 rounded-full bg-black/45 border border-white/[0.04] self-start xl:self-center overflow-x-auto no-scrollbar max-w-full"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/45 px-2.5 hidden sm:inline">
@@ -1310,7 +1370,6 @@ export default function JamRoomPage() {
             selfSeatPos={selfSeatPos}
             spatialAudioEnabled={spatialAudioEnabled}
             isHost={isHost}
-            hostName={hostName}
             isPlaying={isPlaying}
             reactions={reactions}
             onSetSeat={setSeat}
@@ -1334,8 +1393,8 @@ export default function JamRoomPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {activeMembers.map((m, idx) => {
-                    const isMemberHost = m.name === hostName || (idx === 0 && isHost);
+                  {activeMembers.map((m) => {
+                    const isMemberHost = m.id === userId ? isHost : Boolean(m.isHost);
                     const zoneName =
                       SPATIAL_SEATING_ZONES.find((z) => z.id === m.seatId)?.name ||
                       (typeof m.pan === 'number' && Math.abs(m.pan) > 0.05
@@ -1440,7 +1499,6 @@ export default function JamRoomPage() {
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.95 }}
                     type="submit"
-                    onClick={() => handleSearchSongs()}
                     disabled={isSearching}
                     className="px-5 h-10 rounded-full bg-gradient-to-r from-[var(--color-accent)] to-rose-500 hover:brightness-110 text-white font-extrabold text-xs cursor-pointer shadow-md flex items-center gap-1.5 whitespace-nowrap active:scale-95"
                   >
@@ -1683,7 +1741,7 @@ export default function JamRoomPage() {
                       key={chip}
                       type="button"
                       onClick={() => sendMessage(chip)}
-                      className="px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border-0[0.04] text-[10px] font-bold text-white/75 hover:text-white whitespace-nowrap cursor-pointer transition-colors"
+                      className="px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/[0.04] text-[10px] font-bold text-white/75 hover:text-white whitespace-nowrap cursor-pointer transition-colors"
                     >
                       {chip}
                     </button>

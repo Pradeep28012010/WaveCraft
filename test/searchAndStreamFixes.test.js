@@ -118,77 +118,7 @@ test('Search Ranking & Stream Fixes Validation', async (t) => {
   });
 
   await t.test('isStrictSaavnMatch Rejects False Matches and Non-Vocal Hijacking', () => {
-    function isStrictSaavnMatch(targetTitle, targetArtist, candTitle, candSubtitle) {
-      if (!candTitle || !targetTitle) return false;
-
-      const BGM_REGEX =
-        /\b(instrumental|karaoke|minus\s*one|backing\s*track|bgm|theme\s*(?:music|song|track)?|background\s*score|score|soundtrack)\b/i;
-
-      const normTarget = (targetTitle || '').toLowerCase().trim();
-      const normCand = (candTitle || '').toLowerCase().trim();
-      const candFull = `${normCand} ${(candSubtitle || '').toLowerCase()}`.trim();
-
-      const isTargetInst = BGM_REGEX.test(normTarget);
-      const isCandInst = BGM_REGEX.test(candFull);
-      if (!isTargetInst && isCandInst) {
-        return false;
-      }
-
-      // Validate artist if specified: prevent wrong song by different artist with identical title
-      const isGenericPlaceholder =
-        !targetArtist ||
-        /^(wavecraft|youtube\s*music|various\s*artists|unknown\s*artist|official\s*audio|top\s*hits|music|artist)$/i.test(
-          targetArtist.trim()
-        );
-
-      if (!isGenericPlaceholder && typeof targetArtist === 'string' && targetArtist.trim().length > 1) {
-        const cleanTargetArtist = targetArtist
-          .toLowerCase()
-          .replace(/[^a-z0-9\s]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        const cleanCandArtist = `${(candSubtitle || '').toLowerCase()} ${normCand}`
-          .replace(/[^a-z0-9\s]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        const artistTokens = cleanTargetArtist.split(/\s+/).filter((t) => t.length > 2);
-        if (artistTokens.length > 0) {
-          const hasArtistMatch = artistTokens.some((tok) => cleanCandArtist.includes(tok));
-          if (!hasArtistMatch) {
-            return false;
-          }
-        }
-      }
-
-      const cleanTarget = normTarget
-        .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      const cleanCand = normCand
-        .replace(/\s*[\(\[].*?[\)\]]\s*/g, ' ')
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      if (cleanTarget === cleanCand) return true;
-      if (cleanCand.startsWith(cleanTarget) || cleanTarget.startsWith(cleanCand)) return true;
-
-      const targetTokens = cleanTarget.split(/\s+/).filter((t) => t.length > 1);
-      const candTokens = cleanCand.split(/\s+/).filter((t) => t.length > 1);
-
-      if (targetTokens.length === 0) return false;
-
-      const matchedTokens = targetTokens.filter((t) => candTokens.includes(t));
-      const ratio = matchedTokens.length / targetTokens.length;
-
-      if (targetTokens.length === 1) {
-        return candTokens.includes(targetTokens[0]);
-      }
-
-      return ratio >= 0.6;
-    }
+    // Executes real isStrictSaavnMatch imported from ../api/lib/stream.js (no local shadowing)
 
     // Rejection tests: False matches that previously hijacked playback
     assert.equal(isStrictSaavnMatch('Raa Raa Naa Veera', '', 'Ganga Mein Nahaya Na Karo', 'Khurshid Aalam'), false);
@@ -204,6 +134,8 @@ test('Search Ranking & Stream Fixes Validation', async (t) => {
     assert.equal(isStrictSaavnMatch('Shape of You', 'Ed Sheeran', 'Shape of You', 'Ed Sheeran'), true);
     assert.equal(isStrictSaavnMatch('Samajavaragamana', 'Sid Sriram', 'Samajavaragamana (From Ala Vaikunthapurramuloo)', 'Sid Sriram'), true);
     assert.equal(isStrictSaavnMatch('Interstellar Theme', 'Hans Zimmer', 'Interstellar Theme', 'Hans Zimmer'), true);
+    // Record label uploader should not reject genuine vocal match
+    assert.equal(isStrictSaavnMatch('Kesariya', 'T-Series', 'Kesariya', 'Pritam, Arijit Singh'), true);
   });
 
   await t.test('Shorts and Teasers Rejection When Target Duration is Full Song', () => {

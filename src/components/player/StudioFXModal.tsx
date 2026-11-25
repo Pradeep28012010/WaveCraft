@@ -241,9 +241,11 @@ function AppleFluidSlider({
         onKeyDown={(e) => {
           if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
             e.preventDefault();
+            e.stopPropagation();
             onChange(Math.max(min, Number((value - step).toFixed(4))));
           } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
             e.preventDefault();
+            e.stopPropagation();
             onChange(Math.min(max, Number((value + step).toFixed(4))));
           }
         }}
@@ -430,7 +432,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     }
   };
 
-  // Real-time 60fps 32-Band Spectrum Analyzer Canvas
+  // Real-time 60fps 32-Band Spectrum Analyzer Canvas (pauses when paused or hidden)
   useEffect(() => {
     const canvas = spectrumCanvasRef.current;
     if (!canvas) return;
@@ -439,17 +441,34 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
     let isMounted = true;
     const freqData = new Uint8Array(64);
-    const peakBars = new Float32Array(32);
+    const peakBars = new Float32Array(32).fill(0.06);
     let raf = 0;
     let phase = 0;
 
+    let cachedH = 0;
+    let cachedGrad: CanvasGradient | null = null;
+
     const renderSpectrum = () => {
       if (!isMounted) return;
+      if (typeof document !== 'undefined' && document.hidden) {
+        raf = 0;
+        return;
+      }
+
       phase += 0.04;
-      const hasLive = getAudioFrequencyData(freqData);
+      const hasLive = isPlaying && getAudioFrequencyData(freqData);
       const w = canvas.width;
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
+
+      if (!cachedGrad || cachedH !== h) {
+        cachedH = h;
+        const grad = ctx.createLinearGradient(0, h, 0, 0);
+        grad.addColorStop(0, 'rgba(6, 182, 212, 0.85)');
+        grad.addColorStop(0.55, 'rgba(168, 85, 247, 0.95)');
+        grad.addColorStop(1, 'rgba(250, 45, 72, 1)');
+        cachedGrad = grad;
+      }
 
       // Subtle horizontal dB reference grid
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
@@ -465,6 +484,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       const barCount = 32;
       const gap = 3;
       const barW = (w - gap * (barCount - 1)) / barCount;
+      let anySettling = false;
 
       for (let i = 0; i < barCount; i++) {
         let norm = 0.06;
@@ -482,18 +502,15 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
         } else {
           peakBars[i] = Math.max(0.06, peakBars[i] - 0.015);
         }
+        if (peakBars[i] > 0.065) {
+          anySettling = true;
+        }
 
         const barH = Math.max(3, norm * (h - 4));
         const x = i * (barW + gap);
         const y = h - barH;
 
-        // Apple-grade multi-spectrum gradient (Cyan -> Purple -> Coral)
-        const grad = ctx.createLinearGradient(0, h, 0, 0);
-        grad.addColorStop(0, 'rgba(6, 182, 212, 0.85)');
-        grad.addColorStop(0.55, 'rgba(168, 85, 247, 0.95)');
-        grad.addColorStop(1, 'rgba(250, 45, 72, 1)');
-
-        ctx.fillStyle = grad;
+        ctx.fillStyle = cachedGrad;
         ctx.beginPath();
         if ('roundRect' in ctx && typeof ctx.roundRect === 'function') {
           ctx.roundRect(x, y, barW, barH, 2);
@@ -508,13 +525,25 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
         ctx.fillRect(x, Math.max(0, peakY - 2), barW, 2);
       }
 
-      raf = requestAnimationFrame(renderSpectrum);
+      if (isPlaying || anySettling) {
+        raf = requestAnimationFrame(renderSpectrum);
+      } else {
+        raf = 0;
+      }
     };
 
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && !document.hidden && isPlaying && !raf) {
+        raf = requestAnimationFrame(renderSpectrum);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
     raf = requestAnimationFrame(renderSpectrum);
     return () => {
       isMounted = false;
-      cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (raf) cancelAnimationFrame(raf);
     };
   }, [isPlaying]);
 
@@ -604,6 +633,22 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     return Object.values(safeAmbientVolumes).filter((v) => v > 0.02).length;
   }, [safeAmbientVolumes]);
 
+  const lastAmbientWeightsRef = useRef<Partial<Record<AmbientLayerId, number>>>({});
+  const isRadarDraggingRef = useRef(false);
+
+  useEffect(() => {
+    if (activeAmbientCount > 0) {
+      const snapshot: Partial<Record<AmbientLayerId, number>> = {};
+      (Object.keys(safeAmbientVolumes) as AmbientLayerId[]).forEach((id) => {
+        const val = safeAmbientVolumes[id] || 0;
+        if (val > 0.02) {
+          snapshot[id] = val;
+        }
+      });
+      lastAmbientWeightsRef.current = snapshot;
+    }
+  }, [activeAmbientCount, safeAmbientVolumes]);
+
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   const masterAverage = useMemo(() => {
@@ -620,7 +665,19 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
 
   const handleMasterVolumeChange = (newMasterRatio: number) => {
     if (activeAmbientCount === 0) {
-      setAmbientVolume('rain', newMasterRatio);
+      const savedEntries = Object.entries(lastAmbientWeightsRef.current).filter(
+        ([, val]) => (val ?? 0) > 0.02
+      ) as Array<[AmbientLayerId, number]>;
+      if (savedEntries.length > 0) {
+        if (newMasterRatio <= 0.02) return;
+        const savedAvg = savedEntries.reduce((acc, [, val]) => acc + val, 0) / savedEntries.length;
+        const scale = savedAvg > 0 ? newMasterRatio / savedAvg : 1;
+        savedEntries.forEach(([id, val]) => {
+          setAmbientVolume(id, Math.min(1, Math.max(0.03, val * scale)));
+        });
+      } else if (newMasterRatio > 0) {
+        setAmbientVolume('rain', newMasterRatio);
+      }
       return;
     }
     const currentAvg = masterAverage || 0.5;
@@ -628,7 +685,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
     (Object.keys(safeAmbientVolumes) as AmbientLayerId[]).forEach((id) => {
       const current = safeAmbientVolumes[id] || 0;
       if (current > 0.02) {
-        setAmbientVolume(id, Math.min(1, Math.max(0, current * scale)));
+        setAmbientVolume(id, newMasterRatio <= 0.01 ? 0 : Math.min(1, Math.max(0, current * scale)));
       }
     });
   };
@@ -643,8 +700,8 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       />
 
       {/* ── Top Apple Floating Window Header ── */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-0 flex-shrink-0 bg-white/[0.02]">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-2 px-3.5 sm:px-5 py-3.5 border-0 flex-shrink-0 bg-white/[0.02]">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] via-purple-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/20 text-white flex-shrink-0">
             <svg className="w-4.5 h-4.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="4" y1="21" x2="4" y2="14" />
@@ -655,12 +712,12 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
               <line x1="20" y1="12" x2="20" y2="3" />
             </svg>
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 id="studio-fx-modal-title" className="text-sm sm:text-base font-bold tracking-tight text-white truncate">
                 Studio FX & Audio EQ
               </h2>
-              <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border-0 text-cyan-300 text-[9px] font-black tracking-wider uppercase whitespace-nowrap inline-flex items-center">
+              <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-cyan-500/15 border-0 text-cyan-300 text-[9px] font-black tracking-wider uppercase whitespace-nowrap items-center">
                 32-Bit Lossless DSP
               </span>
             </div>
@@ -670,7 +727,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {hasCustomDSP && (
             <button
               type="button"
@@ -678,7 +735,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 triggerAndroidHaptic('light');
                 resetToOriginal();
               }}
-              className="px-3 py-1.5 rounded-full border-0 glass-button text-xs font-semibold text-white/90 hover:text-white transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+              className="px-2.5 sm:px-3 py-1.5 rounded-full border-0 glass-button text-xs font-semibold text-white/90 hover:text-white transition flex items-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 flex-shrink-0"
               title="Reset all effects to flat reference audio"
             >
               <span>↺</span>
@@ -693,7 +750,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
               onClose();
             }}
             aria-label="Close Studio FX"
-            className="w-8 h-8 rounded-full glass-button border-0 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer text-xs font-bold active:scale-95"
+            className="w-8 h-8 rounded-full glass-button border-0 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer text-xs font-bold active:scale-95 flex-shrink-0"
             title="Close (Esc)"
           >
             ✕
@@ -839,12 +896,28 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 <div
                   ref={radarRef}
                   onPointerDown={(e) => {
+                    isRadarDraggingRef.current = true;
+                    try {
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                    } catch {}
                     updateRadarPosFromPointer(e.clientX, e.clientY);
                   }}
                   onPointerMove={(e) => {
-                    if (e.buttons === 1) {
+                    if (isRadarDraggingRef.current || e.buttons === 1) {
                       updateRadarPosFromPointer(e.clientX, e.clientY);
                     }
+                  }}
+                  onPointerUp={(e) => {
+                    isRadarDraggingRef.current = false;
+                    try {
+                      e.currentTarget.releasePointerCapture(e.pointerId);
+                    } catch {}
+                  }}
+                  onPointerCancel={(e) => {
+                    isRadarDraggingRef.current = false;
+                    try {
+                      e.currentTarget.releasePointerCapture(e.pointerId);
+                    } catch {}
                   }}
                   className="relative w-44 h-44 rounded-full border-0 bg-black/60 shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center cursor-crosshair flex-shrink-0 touch-none select-none"
                 >
@@ -1536,6 +1609,7 @@ export default function StudioFXModal() {
     if (!isStudioModalOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.stopPropagation();
         handleClose();
       }
     };
@@ -1546,13 +1620,17 @@ export default function StudioFXModal() {
   useEffect(() => {
     if (isStudioModalOpen) {
       setIsRendered(true);
-      const r1 = requestAnimationFrame(() => {
-        const r2 = requestAnimationFrame(() => {
+      let r1 = 0;
+      let r2 = 0;
+      r1 = requestAnimationFrame(() => {
+        r2 = requestAnimationFrame(() => {
           setIsVisible(true);
         });
-        return () => cancelAnimationFrame(r2);
       });
-      return () => cancelAnimationFrame(r1);
+      return () => {
+        cancelAnimationFrame(r1);
+        cancelAnimationFrame(r2);
+      };
     } else {
       setIsVisible(false);
       const timer = setTimeout(() => {

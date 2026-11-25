@@ -8,6 +8,22 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
+const promptListeners = new Set<() => void>();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    e.preventDefault();
+    deferredInstallPrompt = e as BeforeInstallPromptEvent;
+    promptListeners.forEach((fn) => fn());
+  });
+  window.addEventListener('appinstalled', () => {
+    try {
+      localStorage.setItem('wavecraft_installed', 'true');
+    } catch {}
+    deferredInstallPrompt = null;
+    promptListeners.forEach((fn) => fn());
+  });
+}
 
 export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState<boolean>(() => isAppInstalled());
@@ -21,24 +37,18 @@ export function usePWAInstall() {
       return;
     }
 
-    const onBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      deferredInstallPrompt = e as BeforeInstallPromptEvent;
-      setCanInstall(true);
+    const syncPromptState = () => {
+      if (isAppInstalled()) {
+        setIsInstalled(true);
+        setCanInstall(false);
+        setShowInstallGuide(false);
+      } else {
+        setCanInstall(Boolean(deferredInstallPrompt));
+      }
     };
 
-    const onAppInstalled = () => {
-      try {
-        localStorage.setItem('wavecraft_installed', 'true');
-      } catch {}
-      deferredInstallPrompt = null;
-      setCanInstall(false);
-      setIsInstalled(true);
-      setShowInstallGuide(false);
-    };
-
-    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-    window.addEventListener('appinstalled', onAppInstalled);
+    promptListeners.add(syncPromptState);
+    syncPromptState();
 
     let mediaQuery: MediaQueryList | null = null;
     try {
@@ -54,15 +64,13 @@ export function usePWAInstall() {
       };
       mediaQuery.addEventListener('change', handleDisplayMode);
       return () => {
-        window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-        window.removeEventListener('appinstalled', onAppInstalled);
+        promptListeners.delete(syncPromptState);
         mediaQuery?.removeEventListener('change', handleDisplayMode);
       };
     } catch {}
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', onAppInstalled);
+      promptListeners.delete(syncPromptState);
     };
   }, []);
 

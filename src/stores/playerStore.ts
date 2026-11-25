@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Track, PlayerState } from '../types';
 import { shuffleArray } from '../utils/shuffle';
-import { seekToTime } from '../components/player/YouTubeEmbed';
+import { seekToTime, cancelActiveCrossfade } from '../components/player/YouTubeEmbed';
 import { unlockAudioEngine, playVinylBackspin } from '../services/audioEngine';
 import { useSettingsStore } from './settingsStore';
 import { getSmartRecommendations } from '../services/recommendationEngine';
@@ -40,13 +40,18 @@ function loadPlayerSessionSync(): PersistedPlayerSession {
     const raw = localStorage.getItem(PLAYER_SESSION_KEY);
     if (!raw) return defaults;
     const parsed = JSON.parse(raw) as Partial<PersistedPlayerSession>;
+    const queue = Array.isArray(parsed.queue) ? parsed.queue.slice(0, 150) : [];
+    const originalQueue = Array.isArray(parsed.originalQueue)
+      ? parsed.originalQueue.slice(0, 150)
+      : [];
+    const rawIndex = typeof parsed.queueIndex === 'number' ? parsed.queueIndex : -1;
+    const clampedQueueIndex =
+      queue.length === 0 ? -1 : Math.max(-1, Math.min(queue.length - 1, rawIndex));
     return {
       currentTrack: parsed.currentTrack || null,
-      queue: Array.isArray(parsed.queue) ? parsed.queue.slice(0, 150) : [],
-      originalQueue: Array.isArray(parsed.originalQueue)
-        ? parsed.originalQueue.slice(0, 150)
-        : [],
-      queueIndex: typeof parsed.queueIndex === 'number' ? parsed.queueIndex : -1,
+      queue,
+      originalQueue,
+      queueIndex: clampedQueueIndex,
       volume:
         typeof parsed.volume === 'number'
           ? Math.max(0, Math.min(1, parsed.volume))
@@ -114,8 +119,8 @@ interface PlayerStore extends PlayerState {
   togglePlay: () => void;
   pause: () => void;
   resume: () => void;
-  nextTrack: () => void;
-  prevTrack: () => void;
+  nextTrack: (options?: { silent?: boolean }) => void;
+  prevTrack: (options?: { silent?: boolean }) => void;
   seekTo: (time: number) => void;
   setProgress: (progress: number, currentTime: number) => void;
   setDuration: (duration: number) => void;
@@ -129,6 +134,8 @@ interface PlayerStore extends PlayerState {
   removeFromQueue: (index: number) => void;
   reorderQueue: (fromIndex: number, toIndex: number) => void;
   clearQueue: () => void;
+  shuffleUpcoming: () => void;
+  clearUpcoming: () => void;
   setCrossfade: (duration: number) => void;
   setPlaybackSpeed: (speed: number) => void;
   setIsLoading: (loading: boolean) => void;
@@ -162,6 +169,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   setIsQueueOpen: (open) => set({ isQueueOpen: open }),
 
   setTrack: (track) => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
     set({ currentTrack: track, duration: track.duration || 0 });
     savePlayerSessionSync(get());
   },
@@ -172,29 +180,36 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     } catch {}
     if (isJamGuestBlocked('play') && !isJamRemoteApplying()) {
       // Guest picked a track; delegate to Jam room queue
-      if (handleJamGuestPlayTrack(track)) return;
+      handleJamGuestPlayTrack(track);
+      return;
     }
 
     set((state) => {
-      const targetQueue =
-        queue && queue.length > 0
-          ? queue
-          : state.queue.length > 0
-          ? state.queue
-          : [track];
-      const foundIdx =
+      const hasExplicitQueue = Boolean(queue && queue.length > 0);
+      let targetQueue = hasExplicitQueue
+        ? [...queue!]
+        : state.queue.length > 0
+        ? [...state.queue]
+        : [{ ...track }];
+      let foundIdx =
         startIndex !== undefined
-          ? startIndex
-          : Math.max(0, targetQueue.findIndex((t) => t.id === track.id));
+          ? Math.max(0, Math.min(targetQueue.length - 1, startIndex))
+          : targetQueue.findIndex((t) => t.id === track.id);
+
+      if (foundIdx === -1) {
+        targetQueue = [{ ...track }, ...targetQueue];
+        foundIdx = 0;
+      }
+
       return {
         currentTrack: { ...track },
         queue: targetQueue,
-        originalQueue:
-          queue && queue.length > 0
-            ? queue
-            : state.originalQueue.length > 0
-            ? state.originalQueue
-            : targetQueue,
+        originalQueue: hasExplicitQueue
+          ? [...targetQueue]
+          : state.originalQueue.length > 0
+          ? state.originalQueue
+          : [...targetQueue],
+        isShuffled: hasExplicitQueue ? false : state.isShuffled,
         queueIndex: foundIdx,
         isPlaying: true,
         isLoading: true,
@@ -208,7 +223,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   togglePlay: () => {
-    if (isJamGuestBlocked('pause')) return;
+    if (isJamGuestBlocked('pause') && !isJamRemoteApplying()) return;
     set((state) => ({ isPlaying: !state.isPlaying }));
   },
   pause: () => {
@@ -220,146 +235,155 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     set({ isPlaying: true });
   },
 
-  nextTrack: () => {
-    if (isJamGuestBlocked('skip')) return;
-    try {
-      playVinylBackspin();
-    } catch {}
+  nextTrack: (options) => {
+    if (isJamGuestBlocked('skip') && !isJamRemoteApplying()) return;
+    if (!options?.silent) {
+      try {
+        playVinylBackspin();
+      } catch {}
+    }
 
-    set((state) => {
-      const { queue, queueIndex, repeatMode } = state;
-      if (queue.length === 0) return {};
+    const state = get();
+    const { queue, queueIndex, repeatMode } = state;
+    if (queue.length === 0) return;
 
-      let nextIndex = queueIndex + 1;
-      if (nextIndex >= queue.length) {
-        if (repeatMode === 'all') {
-          nextIndex = 0;
-        } else {
-          // Infinite queue autoplay recommendation trigger
-          const settings = useSettingsStore.getState();
-          if (settings.autoplay && state.currentTrack) {
-            if (settings.offlineModeOnly) {
-              const offline = getOfflineTracks();
-              const currentQ = get().queue;
-              const existingIds = new Set(currentQ.map((t) => t.id));
-              const unplayed = offline.filter((t) => !existingIds.has(t.id));
-              if (unplayed.length > 0) {
-                const newQueue = [...currentQ, ...unplayed];
-                set({
-                  queue: newQueue,
-                  originalQueue: [...get().originalQueue, ...unplayed],
-                  currentTrack: unplayed[0],
-                  queueIndex: currentQ.length,
-                  progress: 0,
-                  currentTime: 0,
-                  duration: unplayed[0].duration || 0,
-                  isPlaying: true,
-                  isLoading: true
-                });
-                savePlayerSessionSync(get());
-                return {};
-              }
-            } else {
-              const track = state.currentTrack;
-              getSmartRecommendations(track, get().queue, 8)
-                .then((recommended) => {
-                  const currentStore = get();
-                  // Guard against zombie overwrite: check if user hasn't already switched tracks
-                  if (
-                    currentStore.currentTrack?.id !== track.id ||
-                    currentStore.queueIndex < currentStore.queue.length - 1
-                  ) {
-                    return;
-                  }
-                  const currentQ = currentStore.queue;
-                  const existingIds = new Set(currentQ.map((t) => t.id));
-                  const fresh = recommended.filter((t) => !existingIds.has(t.id));
-                  if (fresh.length > 0) {
-                    const newQueue = [...currentQ, ...fresh];
-                    set({
-                      queue: newQueue,
-                      originalQueue: [...currentStore.originalQueue, ...fresh],
-                      currentTrack: fresh[0],
-                      queueIndex: currentQ.length,
-                      progress: 0,
-                      currentTime: 0,
-                      duration: fresh[0].duration || 0,
-                      isPlaying: true,
-                      isLoading: true
-                    });
-                    savePlayerSessionSync(get());
-                  }
-                })
-                .catch(() => {});
+    let nextIndex = queueIndex + 1;
+    if (nextIndex >= queue.length) {
+      if (repeatMode === 'all') {
+        nextIndex = 0;
+      } else {
+        // Infinite queue autoplay recommendation trigger
+        const settings = useSettingsStore.getState();
+        if (settings.autoplay && state.currentTrack && !isJamGuestBlocked('skip')) {
+          if (settings.offlineModeOnly) {
+            const offline = getOfflineTracks();
+            const existingIds = new Set(queue.map((t) => t.id));
+            const unplayed = offline.filter((t) => !existingIds.has(t.id));
+            if (unplayed.length > 0) {
+              const newQueue = [...queue, ...unplayed];
+              set({
+                queue: newQueue,
+                originalQueue: [...state.originalQueue, ...unplayed],
+                currentTrack: unplayed[0],
+                queueIndex: queue.length,
+                progress: 0,
+                currentTime: 0,
+                duration: unplayed[0].duration || 0,
+                isPlaying: true,
+                isLoading: true,
+                playTriggerId: Date.now()
+              });
+              savePlayerSessionSync(get());
+              return;
             }
+          } else {
+            const track = state.currentTrack;
+            const prevIdx = state.queueIndex;
+            set({ isPlaying: false, isLoading: false, progress: 0, currentTime: 0 });
+            savePlayerSessionSync(get());
+            getSmartRecommendations(track, queue, 8)
+              .then((recommended) => {
+                const currentStore = get();
+                // Guard against zombie overwrite: check if user hasn't already switched tracks
+                if (
+                  currentStore.currentTrack?.id !== track.id ||
+                  currentStore.queueIndex !== prevIdx
+                ) {
+                  return;
+                }
+                const currentQ = currentStore.queue;
+                const existingIds = new Set(currentQ.map((t) => t.id));
+                const fresh = recommended.filter((t) => !existingIds.has(t.id));
+                if (fresh.length > 0) {
+                  const newQueue = [...currentQ, ...fresh];
+                  set({
+                    queue: newQueue,
+                    originalQueue: [...currentStore.originalQueue, ...fresh],
+                    currentTrack: fresh[0],
+                    queueIndex: currentQ.length,
+                    progress: 0,
+                    currentTime: 0,
+                    duration: fresh[0].duration || 0,
+                    isPlaying: true,
+                    isLoading: true,
+                    playTriggerId: Date.now()
+                  });
+                  savePlayerSessionSync(get());
+                }
+              })
+              .catch(() => {});
+            return;
           }
-
-          return { isPlaying: false, progress: 0, currentTime: 0 };
         }
-      }
 
-      const next = queue[nextIndex];
-      return {
-        currentTrack: next,
-        queueIndex: nextIndex,
-        progress: 0,
-        currentTime: 0,
-        duration: next?.duration || 0,
-        isPlaying: true,
-        isLoading: true,
-        playTriggerId: Date.now()
-      };
+        set({ isPlaying: false, isLoading: false, progress: 0, currentTime: 0 });
+        savePlayerSessionSync(get());
+        return;
+      }
+    }
+
+    const next = queue[nextIndex];
+    set({
+      currentTrack: next,
+      queueIndex: nextIndex,
+      progress: 0,
+      currentTime: 0,
+      duration: next?.duration || 0,
+      isPlaying: true,
+      isLoading: true,
+      playTriggerId: Date.now()
     });
     savePlayerSessionSync(get());
   },
 
-  prevTrack: () => {
-    if (isJamGuestBlocked('skip')) return;
-    try {
-      playVinylBackspin();
-    } catch {}
+  prevTrack: (options) => {
+    if (isJamGuestBlocked('skip') && !isJamRemoteApplying()) return;
+    if (!options?.silent) {
+      try {
+        playVinylBackspin();
+      } catch {}
+    }
 
-    set((state) => {
-      const { queue, queueIndex, currentTime, repeatMode } = state;
+    const state = get();
+    const { queue, queueIndex, currentTime, repeatMode } = state;
 
-      if (currentTime > 3) {
+    if (currentTime > 3 || queue.length === 0) {
+      seekToTime(0);
+      set({ progress: 0, currentTime: 0, isPlaying: state.isPlaying });
+      savePlayerSessionSync(get());
+      return;
+    }
+
+    let prevIndex = queueIndex - 1;
+    if (prevIndex < 0) {
+      if (repeatMode === 'all') {
+        prevIndex = queue.length - 1;
+      } else {
         seekToTime(0);
-        return { progress: 0, currentTime: 0, isPlaying: state.isPlaying };
+        set({ progress: 0, currentTime: 0, isPlaying: state.isPlaying });
+        savePlayerSessionSync(get());
+        return;
       }
+    }
 
-      if (queue.length === 0) {
-        seekToTime(0);
-        return { progress: 0, currentTime: 0, isPlaying: state.isPlaying };
-      }
-
-      let prevIndex = queueIndex - 1;
-      if (prevIndex < 0) {
-        if (repeatMode === 'all') {
-          prevIndex = queue.length - 1;
-        } else {
-          seekToTime(0);
-          return { progress: 0, currentTime: 0, isPlaying: state.isPlaying };
-        }
-      }
-
-      const prev = queue[prevIndex];
-      return {
-        currentTrack: prev,
-        queueIndex: prevIndex,
-        progress: 0,
-        currentTime: 0,
-        duration: prev?.duration || 0,
-        isPlaying: true,
-        isLoading: true,
-        playTriggerId: Date.now()
-      };
+    const prev = queue[prevIndex];
+    set({
+      currentTrack: prev,
+      queueIndex: prevIndex,
+      progress: 0,
+      currentTime: 0,
+      duration: prev?.duration || 0,
+      isPlaying: true,
+      isLoading: true,
+      playTriggerId: Date.now()
     });
     savePlayerSessionSync(get());
   },
 
   seekTo: (time) => {
-    if (isJamGuestBlocked('seek')) return;
+    if (isJamGuestBlocked('seek') && !isJamRemoteApplying()) return;
 
+    cancelActiveCrossfade();
     const safeDuration = Number.isFinite(get().duration) && get().duration > 0 ? get().duration : 1;
     const safeTime = Number.isFinite(time) ? Math.max(0, Math.min(safeDuration, time)) : 0;
     seekToTime(safeTime);
@@ -394,28 +418,39 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   toggleShuffle: () => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
     set((state) => {
       if (!state.isShuffled) {
         const originalQueue = [...state.queue];
-        const currentTrack = state.currentTrack;
-        const queueWithoutCurrent = state.queue.filter((t) => t.id !== currentTrack?.id);
-        const shuffled = shuffleArray(queueWithoutCurrent);
-        const newQueue = currentTrack ? [currentTrack, ...shuffled] : shuffled;
+        const activeIdx =
+          state.queueIndex >= 0 && state.queueIndex < state.queue.length
+            ? state.queueIndex
+            : state.currentTrack
+            ? state.queue.findIndex((t) => t.id === state.currentTrack?.id)
+            : -1;
+        const activeTrack = activeIdx >= 0 ? state.queue[activeIdx] : state.currentTrack;
+        const rest =
+          activeIdx >= 0 ? state.queue.filter((_, idx) => idx !== activeIdx) : [...state.queue];
+        const shuffled = shuffleArray(rest);
+        const newQueue = activeTrack ? [activeTrack, ...shuffled] : shuffled;
 
         return {
           isShuffled: true,
           originalQueue,
           queue: newQueue,
-          queueIndex: currentTrack ? 0 : -1
+          queueIndex: activeTrack ? 0 : -1
         };
       } else {
         const currentTrack = state.currentTrack;
-        const queueIndex = state.originalQueue.findIndex((t) => t.id === currentTrack?.id);
+        const origIdx = currentTrack
+          ? state.originalQueue.findIndex((t) => t.id === currentTrack.id)
+          : -1;
 
         return {
           isShuffled: false,
           queue: [...state.originalQueue],
-          queueIndex: queueIndex !== -1 ? queueIndex : 0
+          queueIndex:
+            state.originalQueue.length === 0 ? -1 : origIdx !== -1 ? origIdx : 0
         };
       }
     });
@@ -423,6 +458,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   cycleRepeat: () => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
     set((state) => {
       const modes: Array<'off' | 'all' | 'one'> = ['off', 'all', 'one'];
       const currentIndex = modes.indexOf(state.repeatMode);
@@ -433,11 +469,13 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   setQueue: (tracks) => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
     set({ queue: tracks, originalQueue: tracks });
     savePlayerSessionSync(get());
   },
 
   addToQueue: (track) => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
     set((state) => {
       const newQueue = [...state.queue, track];
       const newOriginalQueue = [...state.originalQueue, track];
@@ -447,6 +485,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   addNext: (track) => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
     set((state) => {
       const newQueue = [...state.queue];
       const newOriginalQueue = [...state.originalQueue];
@@ -470,12 +509,14 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   removeFromQueue: (index) => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
     set((state) => {
+      if (index < 0 || index >= state.queue.length) return state;
       const newQueue = [...state.queue];
       const [removed] = newQueue.splice(index, 1);
       if (!removed) return state;
 
-      // Find the specific instance in originalQueue rather than wiping all instances with same ID
+      // Remove matching item from originalQueue by occurrence index when possible
       const newOriginalQueue = [...state.originalQueue];
       const origIndex = newOriginalQueue.findIndex((t) => t.id === removed.id);
       if (origIndex !== -1) {
@@ -484,15 +525,31 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
       let newIndex = state.queueIndex;
       let newCurrentTrack = state.currentTrack;
+      let nextProgress = state.progress;
+      let nextCurrentTime = state.currentTime;
+      let nextDuration = state.duration;
+      let nextIsLoading = state.isLoading;
+      let nextPlayTriggerId = state.playTriggerId;
+
       if (index < state.queueIndex) {
         newIndex--;
       } else if (index === state.queueIndex) {
         if (newQueue.length === 0) {
           newIndex = -1;
           newCurrentTrack = null;
+          nextProgress = 0;
+          nextCurrentTime = 0;
+          nextDuration = 0;
+          nextIsLoading = false;
+          nextPlayTriggerId = undefined;
         } else {
           newIndex = Math.min(newIndex, newQueue.length - 1);
           newCurrentTrack = newQueue[newIndex];
+          nextProgress = 0;
+          nextCurrentTime = 0;
+          nextDuration = newCurrentTrack?.duration || 0;
+          nextIsLoading = state.isPlaying;
+          nextPlayTriggerId = state.isPlaying ? Date.now() : state.playTriggerId;
         }
       }
 
@@ -501,13 +558,19 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         originalQueue: newOriginalQueue,
         queueIndex: newIndex,
         currentTrack: newCurrentTrack,
-        isPlaying: newQueue.length === 0 ? false : state.isPlaying
+        isPlaying: newQueue.length === 0 ? false : state.isPlaying,
+        progress: nextProgress,
+        currentTime: nextCurrentTime,
+        duration: nextDuration,
+        isLoading: nextIsLoading,
+        playTriggerId: nextPlayTriggerId
       };
     });
     savePlayerSessionSync(get());
   },
 
   reorderQueue: (fromIndex, toIndex) => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
     set((state) => {
       if (
         fromIndex < 0 ||
@@ -557,12 +620,71 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   clearQueue: () => {
-    set({ queue: [], originalQueue: [], queueIndex: -1 });
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
+    set({
+      queue: [],
+      originalQueue: [],
+      queueIndex: -1,
+      currentTrack: null,
+      isPlaying: false,
+      isLoading: false,
+      progress: 0,
+      currentTime: 0,
+      duration: 0,
+      playTriggerId: undefined
+    });
     savePlayerSessionSync(get());
   },
 
-  setCrossfade: (duration) => set({ crossfadeDuration: duration }),
+  shuffleUpcoming: () => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
+    set((state) => {
+      const effectiveIdx =
+        state.queueIndex >= 0
+          ? state.queueIndex
+          : state.currentTrack
+          ? state.queue.findIndex((t) => t.id === state.currentTrack?.id)
+          : -1;
+      const splitAt = effectiveIdx >= 0 ? effectiveIdx + 1 : 0;
+      if (state.queue.length - splitAt <= 1) return state;
+      const beforeAndCurrent = state.queue.slice(0, splitAt);
+      const upcoming = state.queue.slice(splitAt);
+      const nextQueue = [...beforeAndCurrent, ...shuffleArray(upcoming)];
+      return {
+        originalQueue: state.isShuffled ? state.originalQueue : [...state.queue],
+        queue: nextQueue,
+        isShuffled: true
+      };
+    });
+    savePlayerSessionSync(get());
+  },
+
+  clearUpcoming: () => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
+    set((state) => {
+      const effectiveIdx =
+        state.queueIndex >= 0
+          ? state.queueIndex
+          : state.currentTrack
+          ? state.queue.findIndex((t) => t.id === state.currentTrack?.id)
+          : -1;
+      const keepCurrent = effectiveIdx >= 0 ? state.queue.slice(0, effectiveIdx + 1) : [];
+      if (keepCurrent.length === state.queue.length) return state;
+      return {
+        queue: keepCurrent,
+        originalQueue: keepCurrent,
+        queueIndex: keepCurrent.length > 0 ? Math.min(state.queueIndex, keepCurrent.length - 1) : -1
+      };
+    });
+    savePlayerSessionSync(get());
+  },
+
+  setCrossfade: (duration) => {
+    set({ crossfadeDuration: duration });
+    useSettingsStore.getState().setCrossfade(duration);
+  },
   setPlaybackSpeed: (speed) => {
+    if (isJamGuestBlocked('play') && !isJamRemoteApplying()) return;
     set({ playbackSpeed: speed });
     savePlayerSessionSync(get());
   },

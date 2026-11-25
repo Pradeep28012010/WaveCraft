@@ -719,7 +719,7 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
                     <span className="font-medium">Audio Quality</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full glass-button text-[10px] font-semibold text-white/80 uppercase">
-                    {audioQuality === 'auto' ? 'HD (Auto)' : audioQuality === 'high' ? '320k AAC' : audioQuality === 'medium' ? '192k' : '128k'}
+                    {audioQuality === 'auto' ? 'HD (Auto)' : audioQuality === 'high' ? '320k AAC' : audioQuality === 'medium' ? '160k' : '96k'}
                   </span>
                 </button>
 

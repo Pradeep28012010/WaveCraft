@@ -187,8 +187,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
     if (currentTrack) toggleLike(currentTrack);
   };
 
-  if (!currentTrack) return null;
-
   const dragControls = useDragControls();
 
   // Native Pull-Down & Artwork Swipe Navigation Gestures
@@ -196,6 +194,14 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
   const artTouchStartY = useRef<number | null>(null);
   const artTouchStartTime = useRef<number>(0);
   const [artSwipeOffset, setArtSwipeOffset] = useState<number>(0);
+
+  const nextUpTrack = currentTrack
+    ? queue[queueIndex + 1] || (repeatMode === 'all' && queue.length > 0 ? queue[0] : null)
+    : null;
+  const artSrc = currentTrack?.thumbnailLarge || currentTrack?.thumbnail || DEFAULT_THUMBNAIL;
+  const { palette } = useColorExtract(currentTrack ? artSrc : undefined);
+
+  if (!currentTrack) return null;
 
   const handleArtTouchStart = (e: React.TouchEvent) => {
     artTouchStartX.current = e.touches[0].clientX;
@@ -241,10 +247,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
       }
     }
   };
-
-  const nextUpTrack = queue[queueIndex + 1] || (repeatMode === 'all' ? queue[0] : null);
-  const artSrc = currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL;
-  const { palette } = useColorExtract(artSrc);
 
   return (
     <motion.div
@@ -325,7 +327,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                     triggerAndroidHaptic('light');
                     onClose();
                   }}
-                  className="w-10 h-10 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
+                  className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
                   title="Minimize Player"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -333,7 +335,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   </svg>
                 </button>
 
-                <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center max-w-[48vw] text-center pointer-events-none">
+                <div className="flex-1 min-w-0 px-2 flex flex-col items-center text-center pointer-events-none">
                   <span className="text-[10px] font-bold tracking-[0.16em] text-white/50 uppercase truncate w-full">
                     PLAYING FROM QUEUE
                   </span>
@@ -342,7 +344,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
@@ -620,72 +622,75 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
           {zenMode ? (
             <div className="relative z-10 flex-1 flex flex-col justify-between p-4 sm:p-8">
               {/* Top Compact Floating Capsule & Popover Grid */}
-              <div ref={visualizerPickerRef} className="relative w-full flex items-center justify-center mt-1 select-none">
-                <div className="flex items-center gap-1 p-1 rounded-full liquid-glass border-0 shadow-2xl backdrop-blur-2xl">
-                  {/* Previous Visualizer */}
-                  <button
-                    type="button"
-                    onClick={() => cycleVisualizer(-1)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
-                    title="Previous visualizer style"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                  </button>
-
-                  {/* Active Visualizer Mode Button with Dropdown Trigger */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      triggerAndroidHaptic('light');
-                      setShowVisualizerPicker((prev) => !prev);
-                    }}
-                    className="flex items-center gap-2 px-4 py-1.5 rounded-full glass-button-primary pointer-events-auto text-xs font-bold text-white shadow-[0_4px_16px_rgba(250,45,72,0.35)] cursor-pointer select-none hover:brightness-110 active:scale-[0.96] transition-all relative z-20"
-                    title="Change visualizer style"
-                  >
-                    <span className="text-xs">✨</span>
-                    <span className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
-                      {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || 'Visualizer'}
-                    </span>
-                    <span className="text-[10px] text-white/60 font-semibold tabular-nums">
-                      ({Math.max(1, VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle) + 1)}/{VISUALIZER_MODES.length})
-                    </span>
-                    <svg
-                      className={`w-3.5 h-3.5 text-white/70 transition-transform duration-200 ${
-                        showVisualizerPicker ? 'rotate-180' : ''
-                      }`}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
+              <div ref={visualizerPickerRef} className="relative w-full flex items-center justify-between gap-2 mt-1 select-none">
+                <div className="hidden sm:block w-[92px] flex-shrink-0" aria-hidden="true" />
+                <div className="flex-1 min-w-0 flex justify-center">
+                  <div className="flex items-center gap-1 p-1 rounded-full liquid-glass border-0 shadow-2xl backdrop-blur-2xl max-w-full">
+                    {/* Previous Visualizer */}
+                    <button
+                      type="button"
+                      onClick={() => cycleVisualizer(-1)}
+                      className="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                      title="Previous visualizer style"
                     >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
 
-                  {/* Next Visualizer */}
-                  <button
-                    type="button"
-                    onClick={() => cycleVisualizer(1)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
-                    title="Next visualizer style"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </button>
+                    {/* Active Visualizer Mode Button with Dropdown Trigger */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        triggerAndroidHaptic('light');
+                        setShowVisualizerPicker((prev) => !prev);
+                      }}
+                      className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 rounded-full glass-button-primary pointer-events-auto text-xs font-bold text-white shadow-[0_4px_16px_rgba(250,45,72,0.35)] cursor-pointer select-none hover:brightness-110 active:scale-[0.96] transition-all relative z-20 min-w-0"
+                      title="Change visualizer style"
+                    >
+                      <span className="text-xs flex-shrink-0">✨</span>
+                      <span className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)] truncate">
+                        {VISUALIZER_MODES.find((m) => m.id === visualizerStyle)?.label || 'Visualizer'}
+                      </span>
+                      <span className="text-[10px] text-white/60 font-semibold tabular-nums flex-shrink-0">
+                        ({Math.max(1, VISUALIZER_MODES.findIndex((m) => m.id === visualizerStyle) + 1)}/{VISUALIZER_MODES.length})
+                      </span>
+                      <svg
+                        className={`w-3.5 h-3.5 flex-shrink-0 text-white/70 transition-transform duration-200 ${
+                          showVisualizerPicker ? 'rotate-180' : ''
+                        }`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+
+                    {/* Next Visualizer */}
+                    <button
+                      type="button"
+                      onClick={() => cycleVisualizer(1)}
+                      className="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                      title="Next visualizer style"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Exit Zen Mode Quick Pill positioned on the right without shifting the centered capsule */}
+                {/* Exit Zen Mode Quick Pill */}
                 <button
                   type="button"
                   onClick={() => {
                     triggerAndroidHaptic('light');
                     setZenMode(false);
                   }}
-                  className="absolute right-0 sm:right-2 h-10 px-3.5 rounded-full liquid-glass border-0 text-white/75 hover:text-white hover:bg-white/10 flex items-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all shadow-lg"
+                  className="flex-shrink-0 h-10 px-3 sm:px-3.5 rounded-full liquid-glass border-0 text-white/75 hover:text-white hover:bg-white/10 flex items-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all shadow-lg"
                   title="Exit Zen Mode to standard player"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1626,7 +1631,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
             isOpen={showWaveCard}
             onClose={() => setShowWaveCard(false)}
             track={currentTrack}
-            currentTime={usePlayerStore.getState().currentTime}
             initialQuote={waveCardQuote}
           />
     </motion.div>

@@ -11,12 +11,16 @@ const BAND_LABELS = ['32Hz', '64Hz', '125Hz', '250Hz', '500Hz', '1kHz', '2kHz', 
 export const SettingsEqualizer = memo(function SettingsEqualizer() {
   const equalizerBands = useSettingsStore((s) => s.equalizerBands || Array(10).fill(0));
   const setEqualizerBands = useSettingsStore((s) => s.setEqualizerBands);
-  const eqPreset = useSettingsStore((s) => s.eqPreset || 'Flat');
-  const setEqPreset = useSettingsStore((s) => s.setEqPreset);
+  const eqPreset = useSettingsStore((s) => s.equalizerPreset || s.eqPreset || 'Flat');
+  const setEqualizerPreset = useSettingsStore((s) => s.setEqualizerPreset);
 
   const [activeSettingsBandIdx, setActiveSettingsBandIdx] = useState<number | null>(null);
 
-  const presetOptions = Object.keys(EQ_PRESETS).map((p) => ({
+  const presetKeys = eqPreset === 'Custom'
+    ? [...Object.keys(EQ_PRESETS), 'Custom']
+    : Object.keys(EQ_PRESETS);
+
+  const presetOptions = presetKeys.map((p) => ({
     value: p,
     label: p
   }));
@@ -82,9 +86,13 @@ export const SettingsEqualizer = memo(function SettingsEqualizer() {
           <GlassSelect
             value={eqPreset}
             options={presetOptions}
-            onChange={(preset) => setEqPreset(preset)}
+            onChange={(preset) => {
+              if (preset !== 'Custom') {
+                setEqualizerPreset(preset);
+              }
+            }}
           />
-          <GlassButton size="sm" onClick={() => setEqPreset('Flat')}>
+          <GlassButton size="sm" onClick={() => setEqualizerPreset('Flat')}>
             Reset
           </GlassButton>
         </div>
@@ -101,7 +109,7 @@ export const SettingsEqualizer = memo(function SettingsEqualizer() {
                 type="button"
                 onClick={() => {
                   triggerAndroidHaptic('light');
-                  setEqPreset(presetName);
+                  setEqualizerPreset(presetName);
                 }}
                 className="relative px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer select-none"
               >
@@ -130,17 +138,14 @@ export const SettingsEqualizer = memo(function SettingsEqualizer() {
       </div>
 
       {/* Equalizer Visual Fader Rack */}
-      <div
-        className="rounded-[22px] glass-bloom-menu p-4 overflow-x-auto no-scrollbar shadow-lg"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        <div className="flex justify-between gap-1 sm:gap-3 min-w-[340px] sm:min-w-[540px] h-52 items-center pt-2 pb-1 px-1">
+      <div className="rounded-[22px] glass-bloom-menu p-2.5 sm:p-4 shadow-lg overflow-hidden">
+        <div className="grid grid-cols-10 gap-0.5 sm:gap-2.5 w-full min-w-0 h-52 items-center pt-2 pb-1">
           {equalizerBands.map((val, idx) => {
             const pct = ((val + 12) / 24) * 100;
             return (
-              <div key={idx} className="flex flex-col items-center gap-2 flex-1 h-full select-none min-w-0">
+              <div key={idx} className="flex flex-col items-center gap-1.5 sm:gap-2 h-full select-none min-w-0">
                 <span
-                  className={`text-[10px] font-bold tabular-nums truncate ${
+                  className={`text-[9px] sm:text-[10px] font-bold tabular-nums truncate max-w-full text-center ${
                     val > 0 ? 'text-[var(--color-accent)]' : val < 0 ? 'text-sky-400' : 'text-white/50'
                   }`}
                 >
@@ -153,7 +158,7 @@ export const SettingsEqualizer = memo(function SettingsEqualizer() {
                   onPointerUp={(e) => handleBandPointerUp(idx, e)}
                   onPointerCancel={(e) => handleBandPointerUp(idx, e)}
                   onDoubleClick={() => handleBandChange(idx, 0)}
-                  className="relative w-7 sm:w-9 flex-1 bg-white/[0.08] hover:bg-white/[0.14] border-0 rounded-full cursor-ns-resize flex justify-center overflow-hidden touch-none select-none"
+                  className="relative w-5 sm:w-8 md:w-9 flex-1 bg-white/[0.08] hover:bg-white/[0.14] border-0 rounded-full cursor-ns-resize flex justify-center overflow-hidden touch-none select-none"
                   role="slider"
                   aria-label={BAND_LABELS[idx]}
                   aria-valuenow={val}
@@ -172,7 +177,6 @@ export const SettingsEqualizer = memo(function SettingsEqualizer() {
                   >
                     <div
                       style={{
-                        width: activeSettingsBandIdx === idx ? '26px' : '22px',
                         height: '14px',
                         borderRadius: '7px',
                         background: 'linear-gradient(180deg, #FFFFFF 0%, #EDF0F5 50%, #D2D7E3 100%)',
@@ -185,7 +189,9 @@ export const SettingsEqualizer = memo(function SettingsEqualizer() {
                         transform: activeSettingsBandIdx === idx ? 'scale(1.15)' : 'scale(1)',
                         transition: 'width 100ms ease-out, transform 100ms ease-out'
                       }}
-                      className="relative flex items-center justify-center overflow-hidden"
+                      className={`relative flex items-center justify-center overflow-hidden ${
+                        activeSettingsBandIdx === idx ? 'w-5 sm:w-[26px]' : 'w-4 sm:w-[22px]'
+                      }`}
                     >
                       <div className="absolute top-[1px] inset-x-1 h-[1px] rounded-full bg-gradient-to-r from-transparent via-white to-transparent opacity-95" />
                       <div
@@ -201,7 +207,9 @@ export const SettingsEqualizer = memo(function SettingsEqualizer() {
                   </div>
                 </div>
 
-                <span className="text-[10px] sm:text-[11px] text-white/60 font-semibold">{BAND_LABELS[idx]}</span>
+                <span className="text-[8px] sm:text-[11px] text-white/60 font-semibold truncate max-w-full text-center">
+                  {BAND_LABELS[idx]}
+                </span>
               </div>
             );
           })}

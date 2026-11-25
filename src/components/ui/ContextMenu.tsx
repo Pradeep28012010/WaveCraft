@@ -16,6 +16,7 @@ import { useDevicePreset } from '../../hooks/useDevicePreset';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useDownloadStore } from '../../stores/downloadStore';
 import { getShareBaseUrl } from '../../services/apiConfig';
+import { useOverlayEscape } from './dialogStack';
 import type { Playlist } from '../../types';
 
 class ContextMenuErrorBoundary extends Component<
@@ -97,6 +98,7 @@ function ContextMenuInner() {
   const { isPhone } = useDevicePreset();
 
   const menuRef = useRef<HTMLDivElement>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [menuView, setMenuView] = useState<'main' | 'playlist'>('main');
   const [playlistFilter, setPlaylistFilter] = useState('');
@@ -137,33 +139,41 @@ function ContextMenuInner() {
       setOfflineOverride(null);
       setToastMessage(null);
     } else {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
       setMenuView('main');
       setIsCreatingPlaylist(false);
       setToastMessage(null);
     }
   }, [isOpen, initialView]);
 
-  // Escape key listener
   useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (menuView === 'playlist' && initialView === 'main') {
-          setMenuView('main');
-        } else {
-          closeMenu();
-        }
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
       }
     };
+  }, []);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, menuView, initialView, closeMenu]);
+  useOverlayEscape(isOpen, () => {
+    if (isCreatingPlaylist) {
+      setIsCreatingPlaylist(false);
+    } else if (menuView === 'playlist' && initialView === 'main') {
+      setMenuView('main');
+    } else {
+      closeMenu();
+    }
+  });
 
   const showToast = useCallback((msg: string, delay = 1000) => {
     setToastMessage(msg);
-    setTimeout(() => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = setTimeout(() => {
+      toastTimerRef.current = null;
       setToastMessage(null);
       closeMenu();
     }, delay);
@@ -176,7 +186,6 @@ function ContextMenuInner() {
     return playlists.filter((p) => p.name.toLowerCase().includes(q));
   }, [playlists, playlistFilter]);
 
-  if (!isOpen) return null;
   if (typeof document === 'undefined') return null;
 
   // Viewport-safe bounds calculation
@@ -530,8 +539,13 @@ function ContextMenuInner() {
   // MOBILE BOTTOM SHEET RENDERING
   // ---------------------------------------------------------------------------
   if (isPhone) {
-    return createPortal(
-      <div
+    return (
+      <motion.div
+        key="context-menu-phone"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.16 }}
         className="fixed inset-0 z-[99999] select-none flex flex-col justify-end"
         onClick={closeMenu}
         onContextMenu={(e) => {
@@ -895,16 +909,20 @@ function ContextMenuInner() {
             </>
           )}
         </motion.div>
-      </div>,
-      document.body
+      </motion.div>
     );
   }
 
   // ---------------------------------------------------------------------------
   // DESKTOP FLOATING LIQUID GLASS CONTEXT MENU RENDERING
   // ---------------------------------------------------------------------------
-  return createPortal(
-    <div
+  return (
+    <motion.div
+      key="context-menu-desktop"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.14 }}
       className="fixed inset-0 z-[99999] select-none"
       onClick={closeMenu}
       onContextMenu={(e) => {
@@ -1447,16 +1465,20 @@ function ContextMenuInner() {
           )}
         </AnimatePresence>
       </motion.div>
-    </div>,
-    document.body
+    </motion.div>
   );
 }
 
 export default function ContextMenu() {
+  const isOpen = useContextMenuStore((s) => s.isOpen);
   const closeMenu = useContextMenuStore((s) => s.closeMenu);
-  return (
+
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <ContextMenuErrorBoundary onClose={closeMenu}>
-      <ContextMenuInner />
-    </ContextMenuErrorBoundary>
+      <AnimatePresence>{isOpen && <ContextMenuInner />}</AnimatePresence>
+    </ContextMenuErrorBoundary>,
+    document.body
   );
 }

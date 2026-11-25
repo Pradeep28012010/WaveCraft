@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
@@ -9,10 +9,12 @@ import { useOfflineVault } from '../../services/offlineVault';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { preloadRoute } from '../../utils/routePreloader';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
+import { useOverlayEscape } from '../ui/dialogStack';
 import type { Playlist } from '../../types';
 
-const CreatePlaylist = lazy(() => import('../library/CreatePlaylist'));
-const ImportPlaylistModal = lazy(() => import('../library/ImportPlaylistModal'));
+const CreatePlaylist = lazyWithRetry(() => import('../library/CreatePlaylist'));
+const ImportPlaylistModal = lazyWithRetry(() => import('../library/ImportPlaylistModal'));
 
 interface NavItem {
   name: string;
@@ -51,15 +53,8 @@ export default function Sidebar() {
   const { isPhone, isMobileDrawerOpen, setMobileDrawerOpen } = useDevicePreset();
   const { isInstalled } = usePWAInstall();
 
-  // Close mobile navigation drawer on Escape
-  useEffect(() => {
-    if (!isMobileDrawerOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMobileDrawerOpen(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isMobileDrawerOpen, setMobileDrawerOpen]);
+  // Close mobile navigation drawer on Escape (respecting top-of-stack modals/menus)
+  useOverlayEscape(isMobileDrawerOpen, () => setMobileDrawerOpen(false));
 
   // Save collapsed state preference
   const handleToggleCollapse = () => {
@@ -500,8 +495,16 @@ export default function Sidebar() {
     return (
       <>
         {typeof document !== 'undefined' ? createPortal(mobileDrawer, document.body) : mobileDrawer}
-        <CreatePlaylist isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
-        <ImportPlaylistModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />
+        {isCreateOpen && (
+          <Suspense fallback={null}>
+            <CreatePlaylist isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+          </Suspense>
+        )}
+        {isImportOpen && (
+          <Suspense fallback={null}>
+            <ImportPlaylistModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />
+          </Suspense>
+        )}
       </>
     );
   }

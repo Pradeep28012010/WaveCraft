@@ -1,8 +1,11 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, useEffect, useRef, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useStudioStore } from '../../stores/studioStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useJamStore } from '../../stores/jamStore';
+import { isJamGuestBlocked } from '../../services/jamAuthority';
 import { getTrackHarmonics, getHarmonicCompatibility } from '../../utils/audioHarmonics';
 import { playVinylBackspin } from '../../services/audioEngine';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
@@ -17,10 +20,15 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const queue = usePlayerStore((s) => s.queue);
   const queueIndex = usePlayerStore((s) => s.queueIndex);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const togglePlay = usePlayerStore((s) => s.togglePlay);
   const nextTrack = usePlayerStore((s) => s.nextTrack);
   const prevTrack = usePlayerStore((s) => s.prevTrack);
+
+  const jamRoomCode = useJamStore((s) => s.roomCode);
+  const jamIsHost = useJamStore((s) => s.isHost);
+  const isJamGuest = Boolean(jamRoomCode && !jamIsHost) || isJamGuestBlocked('skip');
 
   const djVinylBackspin = useSettingsStore((s) => s.djVinylBackspin ?? true);
   const setDjVinylBackspin = useSettingsStore((s) => s.setDjVinylBackspin);
@@ -29,12 +37,37 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
 
   const smartDjAutoMix = useStudioStore((s) => s.smartDjAutoMix ?? true);
   const setSmartDjAutoMix = useStudioStore((s) => s.setSmartDjAutoMix);
+  const crossfaderPos = useStudioStore((s) => s.smartDjCrossfader ?? 50);
+  const setCrossfaderPos = useStudioStore((s) => s.setSmartDjCrossfader);
+  const filterSweep = useStudioStore((s) => s.smartDjFilterSweep ?? 0);
+  const setFilterSweep = useStudioStore((s) => s.setSmartDjFilterSweep);
 
   const [isScratching, setIsScratching] = useState(false);
-  const [crossfaderPos, setCrossfaderPos] = useState(50); // 0 (Deck A) to 100 (Deck B)
-  const [filterSweep, setFilterSweep] = useState(0); // -100 (LPF) to +100 (HPF)
+  const scratchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const nextTrackItem = queue[queueIndex + 1] || queue[0] || null;
+  useEffect(() => {
+    return () => {
+      if (scratchTimerRef.current) clearTimeout(scratchTimerRef.current);
+      if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
+  const nextTrackItem =
+    queue[queueIndex + 1] ||
+    (repeatMode === 'all' && queue.length > 1 && queue[0]?.id !== currentTrack?.id ? queue[0] : null);
 
   // Deck A Harmonics
   const deckAHarmonics = useMemo(() => {
@@ -57,33 +90,47 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
     triggerAndroidHaptic('medium');
     setIsScratching(true);
     playVinylBackspin();
-    setTimeout(() => {
+    if (scratchTimerRef.current) clearTimeout(scratchTimerRef.current);
+    scratchTimerRef.current = setTimeout(() => {
+      scratchTimerRef.current = null;
       setIsScratching(false);
     }, 600);
   };
 
   const handleTriggerHarmonicDrop = () => {
+    if (isJamGuest) return;
     triggerAndroidHaptic('medium');
     playVinylBackspin();
-    setTimeout(() => {
-      nextTrack();
+    if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
+    dropTimerRef.current = setTimeout(() => {
+      dropTimerRef.current = null;
+      nextTrack({ silent: true });
     }, 380);
   };
 
-  if (!isOpen) return null;
-
+  const isAutomixEffective = smartDjAutoMix && crossfadeDuration > 0;
   const artSrcA = currentTrack?.thumbnailLarge || currentTrack?.thumbnail || DEFAULT_THUMBNAIL;
   const artSrcB = nextTrackItem?.thumbnailLarge || nextTrackItem?.thumbnail || DEFAULT_THUMBNAIL;
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-[105] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xl animate-in fade-in duration-200">
+      {isOpen && (
+      <div
+        onClick={onClose}
+        className="fixed inset-0 z-[9995] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xl animate-in fade-in duration-200"
+      >
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Smart DJ Console"
+          onClick={(e) => e.stopPropagation()}
           initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 16 }}
           transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-          className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto no-scrollbar rounded-3xl liquid-glass border border-white/15 bg-gradient-to-b from-[#0e0e18]/95 via-[#080811]/98 to-[#040408] p-5 sm:p-7 shadow-[0_24px_70px_rgba(0,0,0,0.85)] text-white"
+          className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto no-scrollbar rounded-3xl liquid-glass border border-white/15 bg-gradient-to-b from-[#0e0e18]/95 via-[#080811]/98 to-[#040408] p-4 sm:p-7 shadow-[0_24px_70px_rgba(0,0,0,0.85)] text-white"
         >
           {/* Header Bar */}
           <div className="flex items-center justify-between pb-4 mb-5 border-b border-white/10">
@@ -175,12 +222,14 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
               <div className="flex items-center gap-2 mt-3">
                 <button
                   type="button"
+                  disabled={isJamGuest}
                   onClick={() => {
+                    if (isJamGuest) return;
                     triggerAndroidHaptic('light');
                     prevTrack();
                   }}
-                  className="p-1.5 rounded-full glass-button text-white/80 hover:text-white cursor-pointer"
-                  title="Previous Track"
+                  className={`p-1.5 rounded-full glass-button text-white/80 hover:text-white ${isJamGuest ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                  title={isJamGuest ? 'Host controls playback in Jam' : 'Previous Track'}
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                     <polygon points="19 20 9 12 19 4 19 20" />
@@ -189,12 +238,14 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
                 </button>
                 <button
                   type="button"
+                  disabled={isJamGuest}
                   onClick={() => {
+                    if (isJamGuest) return;
                     triggerAndroidHaptic('medium');
                     togglePlay();
                   }}
-                  className="p-2 rounded-full glass-button-primary text-white cursor-pointer active:scale-95 transition-transform"
-                  title={isPlaying ? 'Pause' : 'Play'}
+                  className={`p-2 rounded-full glass-button-primary text-white active:scale-95 transition-transform ${isJamGuest ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                  title={isJamGuest ? 'Host controls playback in Jam' : isPlaying ? 'Pause' : 'Play'}
                 >
                   {isPlaying ? (
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -248,9 +299,10 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
 
                 <button
                   type="button"
+                  disabled={isJamGuest}
                   onClick={handleTriggerHarmonicDrop}
-                  className="w-full py-2 px-3 rounded-xl glass-button-primary text-xs font-black uppercase tracking-wider text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-lg"
-                  title="Harmonic Drop into Next Track"
+                  className={`w-full py-2 px-3 rounded-xl glass-button-primary text-xs font-black uppercase tracking-wider text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-lg ${isJamGuest ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                  title={isJamGuest ? 'Host controls playback in Jam' : 'Harmonic Drop into Next Track'}
                 >
                   <span>⏩</span>
                   <span>Drop Next</span>
@@ -320,20 +372,27 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
               <span className="text-[11px] font-bold text-white/60">Automix:</span>
               <button
                 type="button"
-                onClick={() => setSmartDjAutoMix(!smartDjAutoMix)}
+                onClick={() => {
+                  if (isAutomixEffective) {
+                    setSmartDjAutoMix(false);
+                  } else {
+                    setSmartDjAutoMix(true);
+                    if (crossfadeDuration === 0) setCrossfade(4);
+                  }
+                }}
                 className={`px-3 py-1 rounded-full text-xs font-black transition-all cursor-pointer ${
-                  smartDjAutoMix
+                  isAutomixEffective
                     ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
                     : 'bg-white/10 text-white/60 hover:text-white'
                 }`}
               >
-                {smartDjAutoMix ? 'ACTIVE' : 'OFF'}
+                {isAutomixEffective ? 'ACTIVE' : crossfadeDuration === 0 ? 'OFF (0s)' : 'OFF'}
               </button>
             </div>
           </div>
 
           {/* Interactive DJ Performance Controls: Crossfader & Filter Sweep */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-white/10">
             {/* DJ Crossfader */}
             <div className="rounded-2xl p-4 bg-white/[0.02] border border-white/10">
               <div className="flex justify-between items-center text-xs font-bold mb-2">
@@ -379,7 +438,7 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
             </div>
 
             {/* Smart Crossfade Timing & Vinyl Backspin Setting */}
-            <div className="rounded-2xl p-4 bg-white/[0.02] border border-white/10 flex flex-col justify-between">
+            <div className="rounded-2xl p-4 bg-white/[0.02] border border-white/10 flex flex-col justify-between sm:col-span-2 lg:col-span-1">
               <div className="flex items-center justify-between text-xs font-bold mb-2">
                 <span className="text-white">Procedural Vinyl Backspin on Skip</span>
                 <button
@@ -410,7 +469,9 @@ export const SmartDJModal = memo(({ isOpen, onClose }: SmartDJModalProps) => {
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 });
 

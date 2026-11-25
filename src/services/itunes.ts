@@ -57,17 +57,20 @@ function combineSignals(signalA?: AbortSignal, signalB?: AbortSignal): AbortSign
     return AbortSignal.any([signalA, signalB]);
   }
   const controller = new AbortController();
-  const onAbort = () => {
-    controller.abort();
+  const cleanup = () => {
     signalA.removeEventListener('abort', onAbort);
     signalB.removeEventListener('abort', onAbort);
+  };
+  const onAbort = () => {
+    cleanup();
+    controller.abort();
   };
   if (signalA.aborted || signalB.aborted) {
     controller.abort();
     return controller.signal;
   }
-  signalA.addEventListener('abort', onAbort);
-  signalB.addEventListener('abort', onAbort);
+  signalA.addEventListener('abort', onAbort, { once: true });
+  signalB.addEventListener('abort', onAbort, { once: true });
   return controller.signal;
 }
 export const FALLBACK_NEW_RELEASES: AlbumResult[] = [
@@ -215,7 +218,8 @@ export function cleanAlbumSearchQuery(title: string, artist: string): string {
   return `${cleanTitle || title} ${primaryArtist}`.trim();
 }
 
-export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
+export async function getAlbumTracks(album: AlbumResult, signal?: AbortSignal): Promise<Track[]> {
+  if (signal?.aborted) return [];
   const cacheKey = `${album.id}_${album.title || album.name}_${album.artist}`.toLowerCase();
   if (albumTracksCache.has(cacheKey)) {
     return albumTracksCache.get(cacheKey)!;
@@ -226,10 +230,12 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
     try {
       const collectionId = album.id.replace('itunes_alb_', '');
       const res = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=song&limit=100`, {
-        signal: AbortSignal.timeout(4500)
+        signal: combineSignals(signal, AbortSignal.timeout(4500))
       }).catch(() => null);
+      if (signal?.aborted) return [];
       if (res?.ok) {
         const data = await res.json();
+        if (signal?.aborted) return [];
         const results: RawItunesTrack[] = data?.results || [];
         const songEntries = results.filter((r) => r.wrapperType === 'track');
         if (songEntries.length > 0) {
@@ -254,15 +260,19 @@ export async function getAlbumTracks(album: AlbumResult): Promise<Track[]> {
     } catch {}
   }
 
+  if (signal?.aborted) return [];
   const cleanQuery = cleanAlbumSearchQuery(album.title || album.name, album.artist);
   try {
-    const tracks = await searchTracks(cleanQuery);
+    const tracks = await searchTracks(cleanQuery, 1, signal);
+    if (signal?.aborted) return [];
     if (tracks.length > 0) {
       setBoundedCache(albumTracksCache, cacheKey, tracks);
       return tracks;
     }
   } catch (err) {
-    console.warn('Error fetching album tracks from search:', err);
+    if (!signal?.aborted) {
+      console.warn('Error fetching album tracks from search:', err);
+    }
   }
 
   return [];

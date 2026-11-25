@@ -58,6 +58,7 @@ class JamSyncEngine {
   private lastRttMs = 0;
   private pingSamples: PingSample[] = [];
   private pllInterval: ReturnType<typeof setInterval> | null = null;
+  private seekTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSeekAt = 0;
   private userLatencyOffsetMs = 0;
   private telemetrySubscribers = new Set<(telemetry: SyncTelemetry) => void>();
@@ -65,6 +66,8 @@ class JamSyncEngine {
   private currentPhaseDeltaMs = 0;
   private currentTransport: SyncTelemetry['transport'] = 'relay';
   private isAwaitingSeekCompletion = false;
+  private lastNotifiedSnap: SyncTelemetry | null = null;
+  private lastTelemetryNotifyAt = 0;
 
   constructor() {
     try {
@@ -127,10 +130,13 @@ class JamSyncEngine {
     const bestSamples = validSamples.slice(0, Math.max(1, Math.ceil(validSamples.length * 0.5)));
     const medianOffset = bestSamples[Math.floor(bestSamples.length / 2)].offset;
 
-    // Smooth clock offset with moving average to eliminate clock jitter
+    // Avoid blending fake initial 0ms offset on the very first calibration sample
     const alpha = isP2P ? 0.85 : 0.65;
-    this.clockOffsetMs = Math.round(this.clockOffsetMs * (1 - alpha) + medianOffset * alpha);
-    this.notifyTelemetry();
+    this.clockOffsetMs =
+      this.pingSamples.length === 1
+        ? Math.round(medianOffset)
+        : Math.round(this.clockOffsetMs * (1 - alpha) + medianOffset * alpha);
+    this.notifyTelemetry(true);
   }
 
   /**
@@ -183,10 +189,30 @@ class JamSyncEngine {
       clearInterval(this.pllInterval);
       this.pllInterval = null;
     }
+    if (this.seekTimer) {
+      clearTimeout(this.seekTimer);
+      this.seekTimer = null;
+    }
+    this.isAwaitingSeekCompletion = false;
     this.currentSyncState = 'idle';
     this.currentPhaseDeltaMs = 0;
     setPlaybackRateSteering(1.0);
-    this.notifyTelemetry();
+    this.notifyTelemetry(true);
+  }
+
+  /**
+   * Reset all synchronization telemetry and clock calibration state when switching or leaving rooms.
+   */
+  public reset(): void {
+    this.activeAnchor = null;
+    this.clockOffsetMs = 0;
+    this.lastRttMs = 0;
+    this.pingSamples = [];
+    this.lastSeekAt = 0;
+    this.currentTransport = 'relay';
+    this.lastNotifiedSnap = null;
+    this.lastTelemetryNotifyAt = 0;
+    this.stopPLL();
   }
 
   /**
@@ -201,7 +227,10 @@ class JamSyncEngine {
     }
 
     const player = usePlayerStore.getState();
-    if (!player.currentTrack) return;
+    if (!player.currentTrack) {
+      setPlaybackRateSteering(1.0);
+      return;
+    }
 
     // Track ID mismatch: wait for track transition to settle
     if (anchor.trackId && player.currentTrack.id !== anchor.trackId) {
@@ -253,7 +282,9 @@ class JamSyncEngine {
         seekToTime(seekTarget);
         setPlaybackRateSteering(1.0);
 
-        setTimeout(() => {
+        if (this.seekTimer) clearTimeout(this.seekTimer);
+        this.seekTimer = setTimeout(() => {
+          this.seekTimer = null;
           this.isAwaitingSeekCompletion = false;
         }, 350);
       }
@@ -353,9 +384,40 @@ class JamSyncEngine {
     };
   }
 
-  private notifyTelemetry(): void {
+  private notifyTelemetry(force = false): void {
     if (this.telemetrySubscribers.size === 0) return;
     const snap = this.getTelemetrySnapshot();
+    const prev = this.lastNotifiedSnap;
+
+    if (
+      prev &&
+      prev.phaseDeltaMs === snap.phaseDeltaMs &&
+      prev.rttMs === snap.rttMs &&
+      prev.clockOffsetMs === snap.clockOffsetMs &&
+      prev.syncState === snap.syncState &&
+      prev.userLatencyOffsetMs === snap.userLatencyOffsetMs &&
+      prev.transport === snap.transport &&
+      prev.isPhaseLocked === snap.isPhaseLocked
+    ) {
+      return;
+    }
+
+    const now = Date.now();
+    const stateOrConfigChanged =
+      !prev ||
+      prev.syncState !== snap.syncState ||
+      prev.transport !== snap.transport ||
+      prev.isPhaseLocked !== snap.isPhaseLocked ||
+      prev.userLatencyOffsetMs !== snap.userLatencyOffsetMs ||
+      prev.rttMs !== snap.rttMs ||
+      prev.clockOffsetMs !== snap.clockOffsetMs;
+
+    if (!force && !stateOrConfigChanged && now - this.lastTelemetryNotifyAt < 200) {
+      return;
+    }
+
+    this.lastNotifiedSnap = snap;
+    this.lastTelemetryNotifyAt = now;
     this.telemetrySubscribers.forEach((cb) => cb(snap));
   }
 }

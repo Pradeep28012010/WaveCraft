@@ -392,7 +392,7 @@ export async function resolveDirectAudio(
         isPlayableAudioStreamUrl(data.audioUrl)
       ) {
         const fullUrl = data.audioUrl.startsWith('/') ? apiUrl(data.audioUrl) : data.audioUrl;
-        if (fullUrl.startsWith('http')) {
+        if (fullUrl.startsWith('/') || fullUrl.startsWith('http')) {
           if (streamCache.size >= MAX_CACHE_ENTRIES) {
             const first = streamCache.keys().next().value;
             if (first) streamCache.delete(first);

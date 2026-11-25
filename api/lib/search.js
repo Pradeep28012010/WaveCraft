@@ -262,11 +262,15 @@ export async function fetchSpotifyTrending(categoryKey = 'global') {
   const embedUrl = `https://open.spotify.com/embed/playlist/${cat.id}`;
 
   try {
-    const r = await fetch(embedUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
-    });
+    const r = await fetchWithTimeout(
+      embedUrl,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      },
+      5000
+    );
     if (r.ok) {
       const html = await r.text();
       const idx = html.indexOf('__NEXT_DATA__');

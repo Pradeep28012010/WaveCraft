@@ -122,11 +122,44 @@ export function isStrictSaavnMatch(
   const candSub = decodeHtml(candSubtitle || '').toLowerCase().trim();
   const candFull = `${normCand} ${candSub}`.trim();
 
-  // If user searched for a vocal track, reject candidate if candidate title is pure instrumental / BGM / karaoke
+  // If user searched for a vocal track, reject candidate if candidate title/subtitle is instrumental / BGM / karaoke
   const isTargetInst = BGM_REGEX.test(normTarget) || BGM_REGEX.test(rawTarget);
-  const isCandInst = BGM_REGEX.test(normCand);
+  const isCandInst = BGM_REGEX.test(candFull);
   if (!isTargetInst && isCandInst) {
     return false;
+  }
+
+  const normArtistRaw = decodeHtml(targetArtist || '').toLowerCase().trim();
+  const isGenericArtist =
+    !normArtistRaw ||
+    /^(wavecraft|youtube\s*music|youtube|various\s*artists|unknown\s*artist|official\s*audio|top\s*hits|music|artist)$/i.test(
+      normArtistRaw
+    ) ||
+    LABEL_CHANNEL_REGEX.test(normArtistRaw);
+
+  if (!isGenericArtist && normArtistRaw.length > 1) {
+    const cleanTargetArtist = normArtistRaw
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const cleanCandMeta = `${candSub} ${normCand}`
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const artistTokens = cleanTargetArtist.split(/\s+/).filter((t) => t.length > 2);
+    const fallbackArtistTokens =
+      artistTokens.length > 0 ? artistTokens : cleanTargetArtist.split(/\s+/).filter((t) => t.length > 1);
+    if (fallbackArtistTokens.length > 0) {
+      const candMetaWords = cleanCandMeta.split(/\s+/).filter(Boolean);
+      const hasArtistMatch = fallbackArtistTokens.some(
+        (tok) =>
+          cleanCandMeta.includes(tok) ||
+          candMetaWords.some((cw) => cw.length > 2 && cw === tok)
+      );
+      if (!hasArtistMatch) {
+        return false;
+      }
+    }
   }
 
   const cleanTarget = normTarget
@@ -200,10 +233,10 @@ export function isStrictSaavnMatch(
       if (candSub) {
         const subTokens = candSub.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((t) => t.length > 2);
         const subMatches = subTokens.some((st) => cleanRawTarget.includes(st));
-        if (subMatches || candTokens[0].length >= 5) {
+        if (subMatches || (rawTargetTokens.length <= 2 && candTokens[0].length >= 5)) {
           return true;
         }
-      } else {
+      } else if (rawTargetTokens.length <= 2) {
         return true;
       }
     }

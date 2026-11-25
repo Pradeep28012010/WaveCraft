@@ -167,22 +167,22 @@ body,
 }
 
 /* Liquid Glass Blooming Menu & Panel Style */
-.glass-bloom-menu {
-  background: linear-gradient(
-    145deg,
-    rgba(32, 33, 52, 0.88) 0%,
-    rgba(14, 15, 27, 0.94) 100%
-  );
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  backdrop-filter: blur(28px) saturate(190%);
-  border: none !important;
-  border-radius: 20px;
-  box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.85),
-    0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
 @layer components {
+  .glass-bloom-menu {
+    background: linear-gradient(
+      145deg,
+      rgba(32, 33, 52, 0.88) 0%,
+      rgba(14, 15, 27, 0.94) 100%
+    );
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+    backdrop-filter: blur(28px) saturate(190%);
+    border: 0;
+    border-radius: 20px;
+    box-shadow:
+      0 24px 64px rgba(0, 0, 0, 0.85),
+      0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+
   .glass {
     background: linear-gradient(
       145deg,
@@ -191,7 +191,7 @@ body,
     );
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     backdrop-filter: blur(20px) saturate(180%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-lg);
     box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.45);
   }
@@ -204,7 +204,7 @@ body,
     );
     -webkit-backdrop-filter: blur(32px) saturate(190%);
     backdrop-filter: blur(32px) saturate(190%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-lg);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
   }
@@ -213,7 +213,7 @@ body,
     background: rgba(255, 255, 255, 0.04);
     -webkit-backdrop-filter: blur(14px) saturate(150%);
     backdrop-filter: blur(14px) saturate(150%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-md);
   }
 
@@ -226,7 +226,7 @@ body,
     );
     -webkit-backdrop-filter: blur(24px) saturate(185%);
     backdrop-filter: blur(24px) saturate(185%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-lg);
     box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5);
   }
@@ -240,7 +240,7 @@ body,
     );
     -webkit-backdrop-filter: blur(24px) saturate(190%);
     backdrop-filter: blur(24px) saturate(190%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-full);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     color: var(--color-text-primary);
@@ -256,7 +256,6 @@ body,
       rgba(255, 255, 255, 0.09) 55%,
       rgba(255, 255, 255, 0.14) 100%
     );
-    border: none !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
     transform: translate3d(0, -1px, 0);
   }
@@ -374,7 +373,7 @@ body,
     );
     -webkit-backdrop-filter: blur(24px) saturate(195%);
     backdrop-filter: blur(24px) saturate(195%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-full);
     box-shadow: 0 2px 10px rgba(250, 45, 72, 0.25);
     color: #ffffff;
@@ -390,7 +389,6 @@ body,
       rgba(250, 45, 72, 0.24) 55%,
       rgba(168, 85, 247, 0.34) 100%
     );
-    border: none !important;
     box-shadow: 0 4px 14px rgba(250, 45, 72, 0.35);
     transform: translate3d(0, -1px, 0);
   }
@@ -409,7 +407,7 @@ body,
     );
     -webkit-backdrop-filter: blur(22px) saturate(190%);
     backdrop-filter: blur(22px) saturate(190%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-full);
     box-shadow: 0 2px 10px rgba(16, 185, 129, 0.2);
     color: #a7f3d0;
@@ -431,7 +429,6 @@ body,
       rgba(16, 185, 129, 0.22) 55%,
       rgba(5, 150, 105, 0.32) 100%
     );
-    border: none !important;
     color: #ffffff;
     box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
     transform: translate3d(0, -1px, 0);
@@ -447,7 +444,7 @@ body,
     );
     -webkit-backdrop-filter: blur(22px) saturate(190%);
     backdrop-filter: blur(22px) saturate(190%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-full);
     box-shadow: 0 2px 10px rgba(139, 92, 246, 0.2);
     color: #e9d5ff;
@@ -463,7 +460,6 @@ body,
       rgba(124, 58, 237, 0.26) 55%,
       rgba(217, 70, 239, 0.36) 100%
     );
-    border: none !important;
     color: #ffffff;
     box-shadow: 0 4px 14px rgba(139, 92, 246, 0.3);
     transform: translate3d(0, -1px, 0);
@@ -479,7 +475,7 @@ body,
     );
     -webkit-backdrop-filter: blur(22px) saturate(190%);
     backdrop-filter: blur(22px) saturate(190%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-full);
     box-shadow: 0 2px 10px rgba(6, 182, 212, 0.2);
     color: #a5f3fc;
@@ -495,7 +491,6 @@ body,
       rgba(6, 182, 212, 0.24) 55%,
       rgba(59, 130, 246, 0.34) 100%
     );
-    border: none !important;
     color: #ffffff;
     box-shadow: 0 4px 14px rgba(6, 182, 212, 0.3);
     transform: translate3d(0, -1px, 0);
@@ -511,7 +506,7 @@ body,
     );
     -webkit-backdrop-filter: blur(22px) saturate(190%);
     backdrop-filter: blur(22px) saturate(190%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-full);
     box-shadow: 0 2px 10px rgba(245, 158, 11, 0.2);
     color: #fef3c7;
@@ -527,7 +522,6 @@ body,
       rgba(217, 119, 6, 0.24) 55%,
       rgba(251, 191, 36, 0.34) 100%
     );
-    border: none !important;
     color: #ffffff;
     box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
     transform: translate3d(0, -1px, 0);
@@ -537,7 +531,7 @@ body,
     background: rgba(255, 255, 255, 0.06);
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
-    border: none !important;
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
     color: var(--color-text-primary);
     outline: none;
@@ -566,12 +560,12 @@ body,
     );
     -webkit-backdrop-filter: blur(40px) saturate(190%);
     backdrop-filter: blur(40px) saturate(190%);
-    border: none !important;
+    border: 0;
     border-radius: var(--radius-2xl);
     box-shadow: 0 32px 100px rgba(0, 0, 0, 0.88);
   }
 
-  /* Prevent nested backdrop-filter compositing flashes inside already-blurred modals */
+  /* Prevent nested backdrop-filter compositing flashes inside already-blurred modals & menus */
   .glass-heavy .glass-button,
   .glass-heavy .glass-button-primary,
   .glass-heavy .glass-button-emerald,
@@ -580,6 +574,16 @@ body,
   .glass-heavy .glass-button-amber,
   .glass-heavy .glass-input,
   .glass-heavy .liquid-glass,
+  .glass-bloom-menu .glass-button,
+  .glass-bloom-menu .glass-button-primary,
+  .glass-bloom-menu .glass-button-emerald,
+  .glass-bloom-menu .glass-button-purple,
+  .glass-bloom-menu .glass-button-cyan,
+  .glass-bloom-menu .glass-button-amber,
+  .glass-bloom-menu .glass-input,
+  .glass-bloom-menu .liquid-glass,
+  .glass-bloom-menu .glass,
+  .glass-bloom-menu .glass-light,
   .modal-glass-panel .glass-button,
   .modal-glass-panel .glass-button-primary,
   .modal-glass-panel .glass-button-emerald,

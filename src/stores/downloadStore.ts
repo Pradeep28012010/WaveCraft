@@ -40,9 +40,12 @@ interface DownloadStore {
   setDrawerOpen: (open: boolean) => void;
 }
 
-// Internal cancellation and pause tokens
-let cancelRequested = false;
-const pauseResolvers = new Set<() => void>();
+// Per-job cancellation and pause tokens so starting a new batch cleanly supersedes any paused prior batch
+interface JobControl {
+  cancelled: boolean;
+  pauseResolvers: Set<() => void>;
+}
+let activeJobControl: JobControl | null = null;
 
 export const useDownloadStore = create<DownloadStore>((set, get) => ({
   activeJob: null,
@@ -60,16 +63,38 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       return { success: 0, failed: 0 };
     }
 
-    cancelRequested = false;
-    pauseResolvers.clear();
+    // Deduplicate incoming tracks by ID so totals and queue counts are accurate
+    const uniqueTracks: Track[] = [];
+    const seenIds = new Set<string>();
+    for (const t of tracks) {
+      if (t && t.id && !seenIds.has(t.id)) {
+        seenIds.add(t.id);
+        uniqueTracks.push(t);
+      }
+    }
+    if (uniqueTracks.length === 0) {
+      return { success: 0, failed: 0 };
+    }
 
-    const alreadyOfflineCount = tracks.filter((t) => isTrackOffline(t.id)).length;
-    const missingTracks = tracks.filter((t) => !isTrackOffline(t.id));
+    // Cleanly cancel and unblock any prior paused/running batch before starting a new one
+    if (activeJobControl) {
+      activeJobControl.cancelled = true;
+      activeJobControl.pauseResolvers.forEach((res) => res());
+      activeJobControl.pauseResolvers.clear();
+    }
+    const jobControl: JobControl = {
+      cancelled: false,
+      pauseResolvers: new Set<() => void>()
+    };
+    activeJobControl = jobControl;
+
+    const alreadyOfflineCount = uniqueTracks.filter((t) => isTrackOffline(t.id)).length;
+    const missingTracks = uniqueTracks.filter((t) => !isTrackOffline(t.id));
 
     const initialJob: DownloadBatchJob = {
       id,
       name,
-      total: tracks.length,
+      total: uniqueTracks.length,
       completed: alreadyOfflineCount,
       failed: 0,
       currentTrackTitle: missingTracks[0]?.title || '',
@@ -77,7 +102,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       isPaused: false,
       isCancelled: false,
       startedAt: Date.now(),
-      tracks
+      tracks: uniqueTracks
     };
 
     set({ activeJob: initialJob });
@@ -85,11 +110,15 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
     if (missingTracks.length === 0) {
       // All tracks already offline
-      set((s) => ({
-        activeJob: s.activeJob
-          ? { ...s.activeJob, isDownloading: false, completedAt: Date.now() }
-          : null
-      }));
+      set((s) => {
+        if (activeJobControl !== jobControl) return s;
+        return {
+          activeJob: s.activeJob
+            ? { ...s.activeJob, isDownloading: false, completedAt: Date.now() }
+            : null
+        };
+      });
+      if (activeJobControl === jobControl) activeJobControl = null;
       return { success: 0, failed: 0 };
     }
 
@@ -100,21 +129,21 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
     async function worker() {
       while (queueIdx < missingTracks.length) {
-        if (cancelRequested) break;
+        if (jobControl.cancelled || activeJobControl !== jobControl) break;
 
         // Handle pause
         if (get().activeJob?.isPaused) {
           await new Promise<void>((resolve) => {
-            pauseResolvers.add(resolve);
+            jobControl.pauseResolvers.add(resolve);
           });
         }
-        if (cancelRequested) break;
+        if (jobControl.cancelled || activeJobControl !== jobControl) break;
 
         const track = missingTracks[queueIdx++];
         if (!track) break;
 
         set((s) => {
-          if (!s.activeJob || s.activeJob.id !== id) return s;
+          if (activeJobControl !== jobControl || !s.activeJob || s.activeJob.id !== id) return s;
           return {
             activeJob: {
               ...s.activeJob,
@@ -127,17 +156,19 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
         try {
           const ok = await saveTrackOffline(track, 'manual');
+          if (jobControl.cancelled || activeJobControl !== jobControl) break;
           if (ok) {
             completed++;
           } else {
             failed++;
           }
         } catch {
+          if (jobControl.cancelled || activeJobControl !== jobControl) break;
           failed++;
         }
 
         set((s) => {
-          if (!s.activeJob || s.activeJob.id !== id) return s;
+          if (activeJobControl !== jobControl || !s.activeJob || s.activeJob.id !== id) return s;
           return {
             activeJob: {
               ...s.activeJob,
@@ -156,28 +187,33 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
     await Promise.all(workers);
 
-    const isCancelled = cancelRequested;
+    const isCancelled = jobControl.cancelled;
+    const isOwner = activeJobControl === jobControl;
+    if (isOwner) {
+      activeJobControl = null;
+    }
     const completedAt = Date.now();
 
-    set((s) => {
-      if (!s.activeJob || s.activeJob.id !== id) return s;
-      const finalCompleted = completed;
-      const finishedJob: DownloadBatchJob = {
-        ...s.activeJob,
-        isDownloading: false,
-        isCancelled,
-        completed: finalCompleted,
-        failed,
-        completedAt
-      };
-      return {
-        activeJob: finishedJob,
-        recentJobs: [finishedJob, ...s.recentJobs.slice(0, 9)]
-      };
-    });
+    if (isOwner) {
+      set((s) => {
+        if (!s.activeJob || s.activeJob.id !== id) return s;
+        const finishedJob: DownloadBatchJob = {
+          ...s.activeJob,
+          isDownloading: false,
+          isCancelled,
+          completed,
+          failed,
+          completedAt
+        };
+        return {
+          activeJob: finishedJob,
+          recentJobs: [finishedJob, ...s.recentJobs.slice(0, 9)]
+        };
+      });
 
-    if (!isCancelled) {
-      triggerAndroidHaptic('medium');
+      if (!isCancelled) {
+        triggerAndroidHaptic('medium');
+      }
     }
 
     return { success: completed - alreadyOfflineCount, failed };
@@ -200,15 +236,19 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         activeJob: { ...s.activeJob, isPaused: false }
       };
     });
-    pauseResolvers.forEach((res) => res());
-    pauseResolvers.clear();
+    if (activeJobControl) {
+      activeJobControl.pauseResolvers.forEach((res) => res());
+      activeJobControl.pauseResolvers.clear();
+    }
     triggerAndroidHaptic('light');
   },
 
   cancelBatchDownload: () => {
-    cancelRequested = true;
-    pauseResolvers.forEach((res) => res());
-    pauseResolvers.clear();
+    if (activeJobControl) {
+      activeJobControl.cancelled = true;
+      activeJobControl.pauseResolvers.forEach((res) => res());
+      activeJobControl.pauseResolvers.clear();
+    }
     set((s) => {
       if (!s.activeJob) return s;
       return {

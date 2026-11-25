@@ -1,4 +1,5 @@
 import React, {
+  useState,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -93,6 +94,7 @@ export default function ReactBitsReorderList<T extends { id: string | number }>(
   className = '',
   itemClassName = ''
 }: ReactBitsReorderListProps<T>) {
+  const [draggingKey, setDraggingKey] = useState<string | number | null>(null);
   const rootRef = useRef<HTMLUListElement | null>(null);
   const slotEls = useRef<Map<string | number, HTMLElement>>(new Map());
   const itemEls = useRef<Map<string | number, HTMLElement>>(new Map());
@@ -273,6 +275,7 @@ export default function ReactBitsReorderList<T extends { id: string | number }>(
           if (!d.moved && Math.hypot(d.px - d.ox, d.py - d.oy) > 5) {
             d.moved = true;
             d.el.dataset.state = 'drag';
+            setDraggingKey(d.key);
           }
           if (d.moved) {
             aim(d, m);
@@ -306,6 +309,7 @@ export default function ReactBitsReorderList<T extends { id: string | number }>(
             d.el.style.transform = '';
             delete d.el.dataset.state;
             s.drag = null;
+            setDraggingKey(null);
           }
         }
       }
@@ -421,7 +425,7 @@ export default function ReactBitsReorderList<T extends { id: string | number }>(
     d.py = p.y;
   };
 
-  const onPointerUp = (e: React.PointerEvent) => {
+  const finishDrag = (e: React.PointerEvent, cancelled: boolean) => {
     const d = sim.current.drag;
     if (!d || d.pointerId !== e.pointerId) return;
     d.pointerId = null;
@@ -432,7 +436,7 @@ export default function ReactBitsReorderList<T extends { id: string | number }>(
       }
     } catch {}
 
-    if (d.moved && d.j !== d.from && d.j >= 0) {
+    if (!cancelled && d.moved && d.j !== d.from && d.j >= 0) {
       const from = d.from;
       const to = clamp(d.j, 0, cfg.current.items.length - 1);
       cfg.current.onReorder?.(from, to);
@@ -445,18 +449,22 @@ export default function ReactBitsReorderList<T extends { id: string | number }>(
     if (d.moved) {
       d.phase = 'return';
     } else {
-      // Just a tap/click
+      // Just a tap/click or cancelled pan
       d.el.style.transform = '';
       delete d.el.dataset.state;
       sim.current.drag = null;
+      setDraggingKey(null);
     }
 
     run();
   };
 
+  const onPointerUp = (e: React.PointerEvent) => finishDrag(e, false);
+  const onPointerCancel = (e: React.PointerEvent) => finishDrag(e, true);
+
   useLayoutEffect(() => {
     settle();
-  });
+  }, [items]);
 
   useEffect(() => {
     const s = sim.current;
@@ -481,7 +489,7 @@ export default function ReactBitsReorderList<T extends { id: string | number }>(
   return (
     <ul ref={rootRef} className={`rb-reorder-list ${className}`.trim()}>
       {items.map((item, index) => {
-        const isDragging = sim.current.drag?.key === item.id;
+        const isDragging = draggingKey === item.id;
         return (
           <li
             key={item.id}
@@ -495,8 +503,8 @@ export default function ReactBitsReorderList<T extends { id: string | number }>(
               onPointerDown={(e) => onPointerDown(e, item, index)}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
-              onPointerCancel={onPointerUp}
-              onLostPointerCapture={onPointerUp}
+              onPointerCancel={onPointerCancel}
+              onLostPointerCapture={onPointerCancel}
             >
               {renderItem(item, index, isDragging)}
             </div>

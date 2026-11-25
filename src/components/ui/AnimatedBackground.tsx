@@ -18,6 +18,56 @@ interface BufferState {
   bgDark: string;
 }
 
+const bgColorCache = new Map<string, [number, number, number]>();
+let bgParserCtx: CanvasRenderingContext2D | null | undefined;
+
+function toRgba(color: string, alpha: number): string {
+  const a = Math.max(0, Math.min(1, alpha));
+  const key = color.trim();
+  let rgb = bgColorCache.get(key);
+
+  if (!rgb) {
+    const hexMatch = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(key);
+    if (hexMatch) {
+      const h = hexMatch[1];
+      rgb =
+        h.length === 3
+          ? [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)]
+          : [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+    } else {
+      const rgbMatch = /^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/i.exec(key);
+      if (rgbMatch) {
+        rgb = [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+      } else if (typeof document !== 'undefined') {
+        if (bgParserCtx === undefined) {
+          bgParserCtx = document.createElement('canvas').getContext('2d');
+        }
+        if (bgParserCtx) {
+          bgParserCtx.fillStyle = '#000000';
+          bgParserCtx.fillStyle = key;
+          const p = bgParserCtx.fillStyle;
+          const pHex = /^#([0-9a-f]{6})$/i.exec(p);
+          const pRgb = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i.exec(p);
+          if (pHex) {
+            rgb = [
+              parseInt(pHex[1].slice(0, 2), 16),
+              parseInt(pHex[1].slice(2, 4), 16),
+              parseInt(pHex[1].slice(4, 6), 16)
+            ];
+          } else if (pRgb) {
+            rgb = [Number(pRgb[1]), Number(pRgb[2]), Number(pRgb[3])];
+          }
+        }
+      }
+    }
+    if (!rgb) rgb = [250, 45, 72];
+    if (bgColorCache.size >= 64) bgColorCache.clear();
+    bgColorCache.set(key, rgb);
+  }
+
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`;
+}
+
 const DEFAULT_BUFFER: BufferState = {
   c1: '#fa2d48',
   c2: '#8b5cf6',
@@ -52,7 +102,7 @@ const FluidLiquidMeshCanvas = memo(({
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    let animId: number;
+    let animId = 0;
     let width = (canvas.width = Math.max(220, Math.floor(window.innerWidth / 3.5)));
     let height = (canvas.height = Math.max(160, Math.floor(window.innerHeight / 3.5)));
 
@@ -67,16 +117,23 @@ const FluidLiquidMeshCanvas = memo(({
     let time = 0;
     let smoothBass = 0;
     let smoothMid = 0;
+    let lastNow = performance.now();
     let lastRenderTime = performance.now();
 
     const render = (now: number = performance.now()) => {
+      if (!isAppVisible || document.hidden) {
+        animId = 0;
+        return;
+      }
       animId = requestAnimationFrame(render);
       // When paused or idle, throttle to ~30fps to cut GPU/CPU load in half with zero visual degradation
       if (!isPlaying && now - lastRenderTime < 32) {
         return;
       }
+      const dt = Math.min(2.5, Math.max(0.1, (now - lastNow) / 16.667));
+      lastNow = now;
       lastRenderTime = now;
-      time += 0.016;
+      time += 0.016 * dt;
 
       let hasLive = false;
       try {
@@ -103,8 +160,8 @@ const FluidLiquidMeshCanvas = memo(({
       const y1 = height * (0.28 + 0.18 * Math.sin(time * 0.55));
       const r1 = Math.max(40, width * 0.38 * (1 + smoothBass * 0.52));
       const g1 = ctx.createRadialGradient(x1, y1, 0, x1, y1, r1);
-      g1.addColorStop(0, `${c1}dd`);
-      g1.addColorStop(0.55, `${c1}55`);
+      g1.addColorStop(0, toRgba(c1, 0.87));
+      g1.addColorStop(0.55, toRgba(c1, 0.33));
       g1.addColorStop(1, 'transparent');
       ctx.fillStyle = g1;
       ctx.beginPath();
@@ -116,8 +173,8 @@ const FluidLiquidMeshCanvas = memo(({
       const y2 = height * (0.35 + 0.22 * Math.cos(time * 0.48 + 0.8));
       const r2 = Math.max(40, width * 0.42 * (1 + smoothMid * 0.45));
       const g2 = ctx.createRadialGradient(x2, y2, 0, x2, y2, r2);
-      g2.addColorStop(0, `${c2}cc`);
-      g2.addColorStop(0.5, `${c2}44`);
+      g2.addColorStop(0, toRgba(c2, 0.8));
+      g2.addColorStop(0.5, toRgba(c2, 0.27));
       g2.addColorStop(1, 'transparent');
       ctx.fillStyle = g2;
       ctx.beginPath();
@@ -129,8 +186,8 @@ const FluidLiquidMeshCanvas = memo(({
       const y3 = height * (0.78 + 0.16 * Math.sin(time * 0.44 + 1.8));
       const r3 = Math.max(50, width * 0.46 * (1 + smoothBass * 0.62));
       const g3 = ctx.createRadialGradient(x3, y3, 0, x3, y3, r3);
-      g3.addColorStop(0, `${c3}aa`);
-      g3.addColorStop(0.6, `${c3}33`);
+      g3.addColorStop(0, toRgba(c3, 0.67));
+      g3.addColorStop(0.6, toRgba(c3, 0.2));
       g3.addColorStop(1, 'transparent');
       ctx.fillStyle = g3;
       ctx.beginPath();
@@ -142,8 +199,8 @@ const FluidLiquidMeshCanvas = memo(({
       const y4 = height * (0.50 + 0.18 * Math.cos(time * 0.58 + 2.1));
       const r4 = Math.max(30, width * 0.28 * (1 + smoothBass * 0.72 + smoothMid * 0.32));
       const g4 = ctx.createRadialGradient(x4, y4, 0, x4, y4, r4);
-      g4.addColorStop(0, `${accent}ee`);
-      g4.addColorStop(0.45, `${accent}66`);
+      g4.addColorStop(0, toRgba(accent, 0.93));
+      g4.addColorStop(0.45, toRgba(accent, 0.4));
       g4.addColorStop(1, 'transparent');
       ctx.fillStyle = g4;
       ctx.beginPath();
@@ -211,6 +268,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
 
   // Dual-buffer state for liquid cross-fading
   const [activeBuffer, setActiveBuffer] = useState<'A' | 'B'>('A');
+  const activeBufferRef = useRef<'A' | 'B'>('A');
   const [bufferA, setBufferA] = useState<BufferState>(DEFAULT_BUFFER);
   const [bufferB, setBufferB] = useState<BufferState>(DEFAULT_BUFFER);
 
@@ -226,26 +284,25 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
   const lastTargetKey = useRef<string>('');
 
   useEffect(() => {
-    const key = `${target.c1}-${target.c2}-${target.c3}`;
+    const key = `${target.c1}-${target.c2}-${target.c3}-${target.accent}-${target.bgDark}`;
     if (key === lastTargetKey.current) return;
     lastTargetKey.current = key;
 
     // Set dynamic accent glow on root document for liquid glass reflections
     if (dynamicEnabled && typeof document !== 'undefined') {
       document.documentElement.style.setProperty('--ambient-dynamic-accent', target.c1);
-      document.documentElement.style.setProperty('--ambient-dynamic-glow', `${target.c1}40`);
+      document.documentElement.style.setProperty('--ambient-dynamic-glow', toRgba(target.c1, 0.25));
     }
 
-    setActiveBuffer((prev) => {
-      if (prev === 'A') {
-        setBufferB(target);
-        return 'B';
-      } else {
-        setBufferA(target);
-        return 'A';
-      }
-    });
-  }, [target.c1, target.c2, target.c3, dynamicEnabled]);
+    const nextBuffer = activeBufferRef.current === 'A' ? 'B' : 'A';
+    activeBufferRef.current = nextBuffer;
+    if (nextBuffer === 'B') {
+      setBufferB(target);
+    } else {
+      setBufferA(target);
+    }
+    setActiveBuffer(nextBuffer);
+  }, [target.c1, target.c2, target.c3, target.accent, target.bgDark, dynamicEnabled]);
 
   // Opacity tiers based on user settings
   const baseOpacity =
@@ -264,9 +321,9 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
       }`}
       style={{
         background: `
-          radial-gradient(circle at 14% 18%, ${buf.c1}35 0%, transparent 48%),
-          radial-gradient(circle at 86% 24%, ${buf.c2}30 0%, transparent 52%),
-          radial-gradient(circle at 50% 84%, ${buf.c3}22 0%, transparent 56%),
+          radial-gradient(circle at 14% 18%, ${toRgba(buf.c1, 0.21)} 0%, transparent 48%),
+          radial-gradient(circle at 86% 24%, ${toRgba(buf.c2, 0.19)} 0%, transparent 52%),
+          radial-gradient(circle at 50% 84%, ${toRgba(buf.c3, 0.13)} 0%, transparent 56%),
           ${buf.bgDark}
         `
       }}
@@ -341,7 +398,7 @@ const AnimatedBackground = memo(({ colors, palette }: AnimatedBackgroundProps) =
       {renderAuroraLayer(bufferB, activeBuffer === 'B')}
 
       {/* Hardware-Accelerated Audio-Reactive Fluid Liquid Glass Mesh Canvas */}
-      {dynamicEnabled && (
+      {dynamicEnabled && shouldAnimateNodes && (
         <FluidLiquidMeshCanvas
           c1={target.c1}
           c2={target.c2}

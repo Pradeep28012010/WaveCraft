@@ -63,6 +63,7 @@ public class WaveCraftMediaService extends Service {
     private long lastNotificationUpdateMs = 0;
     private BroadcastReceiver noisyAudioReceiver;
     private boolean isNoisyReceiverRegistered = false;
+    private boolean isForegroundActive = false;
 
     private AudioManager audioManager;
     private AudioFocusRequest audioFocusRequest;
@@ -257,10 +258,39 @@ public class WaveCraftMediaService extends Service {
                 long dur = intent.getLongExtra(EXTRA_DURATION_MS, 0L);
                 startForegroundPlayback(title, artist, thumb, playing, pos, dur);
             } else if (ACTION_UPDATE_STATE.equals(action)) {
+                String maybeTitle = intent.getStringExtra(EXTRA_TITLE);
+                String maybeArtist = intent.getStringExtra(EXTRA_ARTIST);
+                String maybeThumb = intent.getStringExtra(EXTRA_THUMBNAIL);
                 boolean playing = intent.getBooleanExtra(EXTRA_IS_PLAYING, isCurrentlyPlaying);
                 long pos = intent.getLongExtra(EXTRA_POSITION_MS, currentPositionMs);
                 long dur = intent.getLongExtra(EXTRA_DURATION_MS, currentDurationMs);
-                updatePlaybackStateOnly(playing, pos, dur);
+                boolean metaChanged = false;
+                if (maybeTitle != null && !maybeTitle.trim().isEmpty() && !maybeTitle.equals(currentTitle)) {
+                    currentTitle = maybeTitle;
+                    metaChanged = true;
+                }
+                if (maybeArtist != null && !maybeArtist.trim().isEmpty() && !maybeArtist.equals(currentArtist)) {
+                    currentArtist = maybeArtist;
+                    metaChanged = true;
+                }
+                if (maybeThumb != null && !maybeThumb.equals(currentArtUrl)) {
+                    currentArtBitmap = null;
+                    metaChanged = true;
+                }
+                if (!isForegroundActive) {
+                    initMediaSession();
+                    Notification fgNotif = buildNotification();
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(NOTIFICATION_ID, fgNotif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                    } else {
+                        startForeground(NOTIFICATION_ID, fgNotif);
+                    }
+                    isForegroundActive = true;
+                }
+                updatePlaybackStateOnly(playing, pos, dur, metaChanged);
+                if (maybeThumb != null && !maybeThumb.trim().isEmpty() && !maybeThumb.equals(currentArtUrl)) {
+                    fetchArtworkWithFallback(maybeThumb);
+                }
             } else if (ACTION_STOP.equals(action)) {
                 stopForegroundPlayback();
             } else if (ACTION_PREV.equals(action)) {
@@ -279,7 +309,12 @@ public class WaveCraftMediaService extends Service {
     }
 
     private void updatePlaybackStateOnly(boolean playing, long pos, long dur) {
+        updatePlaybackStateOnly(playing, pos, dur, false);
+    }
+
+    private void updatePlaybackStateOnly(boolean playing, long pos, long dur, boolean metadataChanged) {
         boolean playStateChanged = (isCurrentlyPlaying != playing);
+        boolean durationChanged = (dur > 0 && dur != currentDurationMs);
         isCurrentlyPlaying = playing;
         if (pos >= 0) currentPositionMs = pos;
         if (dur > 0) currentDurationMs = dur;
@@ -294,6 +329,9 @@ public class WaveCraftMediaService extends Service {
                 abandonAudioFocus();
                 unregisterNoisyReceiver();
             }
+        }
+
+        if (playStateChanged || durationChanged || metadataChanged) {
             updateMediaMetadata();
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager != null) {
@@ -320,8 +358,11 @@ public class WaveCraftMediaService extends Service {
         currentPositionMs = Math.max(0, pos);
         if (dur > 0) currentDurationMs = dur;
 
-        // Reset art bitmap if thumbnail changed to prevent stale artwork from prior track
-        if (thumbnail != null && !thumbnail.equals(currentArtUrl)) {
+        // Reset art bitmap if thumbnail changed or was cleared to prevent stale artwork
+        if (thumbnail == null || thumbnail.trim().isEmpty()) {
+            currentArtBitmap = null;
+            currentArtUrl = null;
+        } else if (!thumbnail.equals(currentArtUrl)) {
             currentArtBitmap = null;
         }
 
@@ -340,6 +381,7 @@ public class WaveCraftMediaService extends Service {
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
+        isForegroundActive = true;
 
         // Explicitly repaint the foreground notification on modern Android (12+)
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -419,15 +461,21 @@ public class WaveCraftMediaService extends Service {
             Bitmap downloadedBmp = null;
             Bitmap fallbackBmp = null;
             for (String urlStr : candidates) {
+                HttpURLConnection conn = null;
+                InputStream input = null;
                 try {
                     URL url = new URL(urlStr);
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    if (!"https".equalsIgnoreCase(url.getProtocol())) {
+                        continue;
+                    }
+                    conn = (HttpURLConnection) url.openConnection();
                     conn.setDoInput(true);
                     conn.setConnectTimeout(3000);
                     conn.setReadTimeout(3000);
+                    conn.setInstanceFollowRedirects(false);
                     conn.connect();
                     if (conn.getResponseCode() == 200) {
-                        InputStream input = conn.getInputStream();
+                        input = conn.getInputStream();
                         Bitmap bmp = BitmapFactory.decodeStream(input);
                         if (bmp != null) {
                             // YouTube returns 120x90 gray placeholder for missing maxresdefault/sddefault
@@ -439,7 +487,11 @@ public class WaveCraftMediaService extends Service {
                             }
                         }
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                } finally {
+                    try { if (input != null) input.close(); } catch (Exception ignored) {}
+                    try { if (conn != null) conn.disconnect(); } catch (Exception ignored) {}
+                }
             }
             if (downloadedBmp == null && fallbackBmp != null) {
                 downloadedBmp = fallbackBmp;
@@ -538,6 +590,7 @@ public class WaveCraftMediaService extends Service {
         if (mediaSession != null) {
             mediaSession.setActive(false);
         }
+        isForegroundActive = false;
         stopForeground(true);
         stopSelf();
     }
@@ -563,6 +616,7 @@ public class WaveCraftMediaService extends Service {
 
     @Override
     public void onDestroy() {
+        isForegroundActive = false;
         abandonAudioFocus();
         unregisterNoisyReceiver();
         if (wakeLock != null && wakeLock.isHeld()) {

@@ -269,6 +269,8 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
   const seekTo = usePlayerStore((s) => s.seekTo);
 
   const activeDuration = duration || currentTrackDuration || 210;
+  const activeDurationRef = useRef(activeDuration);
+  activeDurationRef.current = activeDuration;
 
   // Load saved per-song offset whenever track changes
   useEffect(() => {
@@ -290,7 +292,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
 
       setIsLoading(true);
       try {
-        const data = await getLyricsData(artist, title, activeDuration);
+        const data = await getLyricsData(artist, title, activeDurationRef.current);
         if (isMounted) {
           setResult(data);
         }
@@ -305,7 +307,7 @@ export default function LyricsView({ artist, title, onShareLyric, onClose, heade
     return () => {
       isMounted = false;
     };
-  }, [artist, title, activeDuration]);
+  }, [artist, title]);
 
   const lyricsShowRomanization = useSettingsStore((s) => s.lyricsShowRomanization ?? true);
   const setLyricsShowRomanization = useSettingsStore((s) => s.setLyricsShowRomanization);

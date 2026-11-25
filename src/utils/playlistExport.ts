@@ -48,8 +48,9 @@ export function exportToM3U8(playlist: Playlist): void {
     lines.push(`#EXTINF:${duration},${artist} - ${title}`);
     if (track.audioUrl) {
       lines.push(track.audioUrl);
-    } else if (track.youtubeId || track.id) {
-      lines.push(`https://www.youtube.com/watch?v=${track.youtubeId || track.id}`);
+    } else if (track.youtubeId || track.id?.startsWith('yt_')) {
+      const ytId = track.youtubeId || track.id.slice(3);
+      lines.push(`https://www.youtube.com/watch?v=${ytId}`);
     } else {
       lines.push(`#TRACKID:${track.id}`);
     }
@@ -205,7 +206,7 @@ export function parseJSONPlaylistString(content: string, defaultName = 'Imported
     title: t.title || 'Untitled',
     artist: t.artist || 'Unknown Artist',
     duration: t.duration || 0,
-    videoId: t.youtubeId || t.id,
+    videoId: t.youtubeId || (t.id?.startsWith('yt_') ? t.id.slice(3) : undefined),
     audioUrl: t.audioUrl
   });
 

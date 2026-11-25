@@ -312,7 +312,7 @@ export function romanizeIndicText(text: string): string {
           i++;
           continue;
         }
-        const next = i + 1 < len ? text[i + 1] : '';
+        const next = i + 1 < len ? cleanText[i + 1] : '';
         if (next && VIRAMAS.has(next)) {
           out += base.slice(0, -1);
           i += 2;
@@ -343,7 +343,7 @@ export function romanizeIndicText(text: string): string {
       }
       if (TELUGU_CONSONANTS[ch]) {
         const base = TELUGU_CONSONANTS[ch];
-        const next = i + 1 < len ? text[i + 1] : '';
+        const next = i + 1 < len ? cleanText[i + 1] : '';
         if (next && VIRAMAS.has(next)) {
           out += base.slice(0, -1);
           i += 2;
@@ -374,7 +374,7 @@ export function romanizeIndicText(text: string): string {
       }
       if (KANNADA_CONSONANTS[ch]) {
         const base = KANNADA_CONSONANTS[ch];
-        const next = i + 1 < len ? text[i + 1] : '';
+        const next = i + 1 < len ? cleanText[i + 1] : '';
         if (next && VIRAMAS.has(next)) {
           out += base.slice(0, -1);
           i += 2;
@@ -405,7 +405,7 @@ export function romanizeIndicText(text: string): string {
       }
       if (TAMIL_CONSONANTS[ch]) {
         const base = TAMIL_CONSONANTS[ch];
-        const next = i + 1 < len ? text[i + 1] : '';
+        const next = i + 1 < len ? cleanText[i + 1] : '';
         if (next && VIRAMAS.has(next)) {
           out += base.slice(0, -1);
           i += 2;
@@ -436,7 +436,7 @@ export function romanizeIndicText(text: string): string {
       }
       if (BENGALI_CONSONANTS[ch]) {
         const base = BENGALI_CONSONANTS[ch];
-        const next = i + 1 < len ? text[i + 1] : '';
+        const next = i + 1 < len ? cleanText[i + 1] : '';
         if (next && VIRAMAS.has(next)) {
           out += base.slice(0, -1);
           i += 2;
@@ -467,7 +467,7 @@ export function romanizeIndicText(text: string): string {
       }
       if (GURMUKHI_CONSONANTS[ch]) {
         const base = GURMUKHI_CONSONANTS[ch];
-        const next = i + 1 < len ? text[i + 1] : '';
+        const next = i + 1 < len ? cleanText[i + 1] : '';
         if (next && VIRAMAS.has(next)) {
           out += base.slice(0, -1);
           i += 2;
@@ -498,7 +498,7 @@ export function romanizeIndicText(text: string): string {
       }
       if (GUJARATI_CONSONANTS[ch]) {
         const base = GUJARATI_CONSONANTS[ch];
-        const next = i + 1 < len ? text[i + 1] : '';
+        const next = i + 1 < len ? cleanText[i + 1] : '';
         if (next && VIRAMAS.has(next)) {
           out += base.slice(0, -1);
           i += 2;

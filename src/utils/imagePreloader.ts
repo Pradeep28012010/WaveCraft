@@ -1,4 +1,5 @@
 const preloadedUrls = new Set<string>();
+const MAX_PRELOADED_URLS = 300;
 const preloadQueue: string[] = [];
 let activePreloads = 0;
 const MAX_CONCURRENT_PRELOADS = 4;
@@ -14,14 +15,20 @@ function processQueue(): void {
     try {
       const img = new Image();
       img.decoding = 'async';
-      const onDone = () => {
+      const onLoad = () => {
         activePreloads--;
         scheduleQueueProcessing();
       };
-      img.onload = onDone;
-      img.onerror = onDone;
+      const onError = () => {
+        preloadedUrls.delete(url);
+        activePreloads--;
+        scheduleQueueProcessing();
+      };
+      img.onload = onLoad;
+      img.onerror = onError;
       img.src = url;
     } catch {
+      preloadedUrls.delete(url);
       activePreloads--;
     }
   }

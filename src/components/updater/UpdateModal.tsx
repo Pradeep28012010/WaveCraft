@@ -1,9 +1,12 @@
-import { useEffect, memo } from 'react';
+import { useRef, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUpdateStore } from '../../stores/updateStore';
 import { isAndroidNative } from '../../services/nativeAndroid';
+import { useOverlayEscape, useFocusTrap } from '../ui/dialogStack';
 
 export default memo(function UpdateModal() {
+  const modalRef = useRef<HTMLDivElement>(null);
   const {
     isModalOpen,
     closeModal,
@@ -24,41 +27,46 @@ export default memo(function UpdateModal() {
     isElectron ||
     (typeof navigator !== 'undefined' && /Win/i.test(navigator.userAgent || navigator.platform));
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isModalOpen && status !== 'downloading') {
-        closeModal();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModalOpen, closeModal, status]);
-
   // Strictly block rendering on web platform; updating is only for native Android APK or Electron Windows desktop
-  if (!isModalOpen || (!isNative && !isElectron)) return null;
+  const isVisible = isModalOpen && (isNative || isElectron);
 
-  return (
+  useOverlayEscape(isVisible, () => {
+    if (status !== 'downloading') {
+      closeModal();
+    }
+  });
+  useFocusTrap(isVisible, modalRef);
+
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => {
-            if (status !== 'downloading') closeModal();
-          }}
-          className="fixed inset-0 bg-black/80 backdrop-blur-md"
-        />
+      {isVisible && (
+        <div className="fixed inset-0 z-[9996] flex items-center justify-center p-4 sm:p-6">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              if (status !== 'downloading') closeModal();
+            }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md"
+          />
 
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.94, y: 16 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 16 }}
-          transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="relative w-full max-w-md max-h-[90vh] flex flex-col rounded-3xl bg-[#090a12]/95 border-0 shadow-[0_32px_96px_rgba(0,0,0,0.9)] overflow-hidden z-10"
-        >
+          {/* Modal Window */}
+          <motion.div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="WaveCraft Updates"
+            tabIndex={-1}
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 16 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            className="relative w-full max-w-md max-h-[90vh] flex flex-col rounded-3xl bg-[#090a12]/95 border-0 shadow-[0_32px_96px_rgba(0,0,0,0.9)] overflow-hidden z-10 focus:outline-none"
+          >
           {/* Top specular glow header */}
           <div className="relative px-6 pt-6 pb-4 border-0 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -281,6 +289,8 @@ export default memo(function UpdateModal() {
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 });

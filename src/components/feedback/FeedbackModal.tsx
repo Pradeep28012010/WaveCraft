@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useFeedbackStore, type FeedbackType } from '../../stores/feedbackStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useUpdateStore } from '../../stores/updateStore';
@@ -7,6 +8,7 @@ import { getActiveEngine } from '../../services/audioEngine';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { apiUrl, PROD_API_ORIGIN } from '../../services/apiConfig';
 import { LiquidGlassToggle } from '../ui/LiquidGlassToggle';
+import { useOverlayEscape, useFocusTrap } from '../ui/dialogStack';
 
 const CATEGORIES: Record<FeedbackType, string[]> = {
   bug: [
@@ -52,6 +54,8 @@ export default function FeedbackModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showDiagnosticsDetail, setShowDiagnosticsDetail] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -59,26 +63,28 @@ export default function FeedbackModal() {
       setCategory(initialCategory || CATEGORIES[initialType || 'bug'][0]);
       setIsSuccess(false);
       setIsSubmitting(false);
+    } else if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
     }
   }, [isOpen, initialType, initialCategory]);
+
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (CATEGORIES[type] && !CATEGORIES[type].includes(category)) {
       setCategory(CATEGORIES[type][0]);
     }
-  }, [type]);
+  }, [type, category]);
 
-  // Close on Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeFeedback();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, closeFeedback]);
-
-  if (!isOpen) return null;
+  useOverlayEscape(isOpen, closeFeedback);
+  useFocusTrap(isOpen, modalRef);
 
   // Diagnostics payload
   const diagnostics = {
@@ -139,7 +145,9 @@ export default function FeedbackModal() {
 
       setIsSuccess(true);
       triggerAndroidHaptic('medium');
-      setTimeout(() => {
+      if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = setTimeout(() => {
+        autoCloseTimerRef.current = null;
         closeFeedback();
       }, 2400);
     } catch {
@@ -151,7 +159,9 @@ export default function FeedbackModal() {
       } catch {}
 
       setIsSuccess(true);
-      setTimeout(() => {
+      if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = setTimeout(() => {
+        autoCloseTimerRef.current = null;
         closeFeedback();
       }, 2400);
     } finally {
@@ -179,25 +189,34 @@ export default function FeedbackModal() {
     return `https://github.com/Pradeep28012010/WaveCraft/issues/new?title=${issueTitle}&body=${issueBody}`;
   };
 
-  return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={closeFeedback}
-        className="fixed inset-0 bg-black/80 backdrop-blur-xl"
-      />
+  if (typeof document === 'undefined') return null;
 
-      {/* Modal Dialog */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.94, y: 15 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.94, y: 15 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-        className="relative z-10 w-full max-w-xl rounded-3xl bg-[#090a12]/95 backdrop-blur-3xl border-0 shadow-[0_24px_70px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col my-auto max-h-[92vh]"
-      >
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[9996] flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeFeedback}
+            className="fixed inset-0 bg-black/80 backdrop-blur-xl"
+          />
+
+          {/* Modal Dialog */}
+          <motion.div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={type === 'bug' ? 'Report a Bug' : type === 'feature' ? 'Suggest a Feature' : 'Feedback & Suggestions'}
+            tabIndex={-1}
+            initial={{ opacity: 0, scale: 0.94, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 15 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            className="relative z-10 w-full max-w-xl rounded-3xl bg-[#090a12]/95 backdrop-blur-3xl border-0 shadow-[0_24px_70px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col my-auto max-h-[92vh] focus:outline-none"
+          >
         {/* Header */}
         <div className="p-5 sm:p-6 pb-4 border-0 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -442,7 +461,10 @@ export default function FeedbackModal() {
             </div>
           </form>
         )}
-      </motion.div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }

@@ -161,18 +161,21 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
               `https://wavecraft-alpha.vercel.app/api/music?action=version&_t=${t}`
             ];
 
-        for (const ep of endpoints) {
-          try {
-            const res = await fetch(ep, { cache: 'no-store' });
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.version) {
-                if (!versionData || safeCompareVersions(data.version, versionData.version)) {
-                  versionData = data;
-                }
-              }
+        const results = await Promise.allSettled(
+          endpoints.map(async (ep) => {
+            const res = await fetch(ep, { cache: 'no-store', signal: AbortSignal.timeout(6500) });
+            if (!res.ok) return null;
+            const data = await res.json();
+            return data && data.version ? (data as AppVersionInfo) : null;
+          })
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value) {
+            if (!versionData || safeCompareVersions(result.value.version, versionData.version)) {
+              versionData = result.value;
             }
-          } catch {}
+          }
         }
 
         // Fallback to GitHub Release API
@@ -180,7 +183,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
           try {
             const res = await fetch(
               'https://api.github.com/repos/Pradeep28012010/WaveCraft/releases/latest',
-              { headers: { Accept: 'application/vnd.github.v3+json' } }
+              { headers: { Accept: 'application/vnd.github.v3+json' }, signal: AbortSignal.timeout(6500) }
             );
             if (res.ok) {
               const gh = await res.json();

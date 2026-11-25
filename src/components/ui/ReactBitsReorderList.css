@@ -16,7 +16,7 @@
 .rb-reorder-item {
   position: relative;
   outline: none;
-  touch-action: none;
+  touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
   transform-origin: 50% 50%;
@@ -26,6 +26,7 @@
 
 .rb-reorder-item[data-state='drag'] {
   cursor: grabbing;
+  touch-action: none;
   z-index: 50 !important;
   filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.5));
 }

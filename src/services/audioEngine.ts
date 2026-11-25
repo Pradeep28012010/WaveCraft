@@ -52,9 +52,12 @@ let reverbWetGain: GainNode | null = null;
 let masterLimiter: DynamicsCompressorNode | null = null;
 let gainNode: GainNode | null = null;
 let analyserNode: AnalyserNode | null = null;
+let djFilterNode: BiquadFilterNode | null = null;
 let lastExciterDrive = -1;
 let autoMixerLowPass: BiquadFilterNode | null = null;
 let autoMixerHighTilt: BiquadFilterNode | null = null;
+let currentDjCrossfader = 50;
+let currentDjFilterSweep = 0;
 
 function createAnalogSaturationCurve(driveAmount: number): Float32Array<ArrayBuffer> {
   const samples = 4096;
@@ -162,6 +165,10 @@ export function getMasterLimiterNode(): DynamicsCompressorNode | null {
 
 export function getPreGainNode(): GainNode | null {
   return preGainNode;
+}
+
+export function getGainNode(): GainNode | null {
+  return gainNode;
 }
 
 export function getAudioContext(): AudioContext {
@@ -392,13 +399,27 @@ export function playVinylBackspin(): void {
   osc.connect(oscGain);
   oscGain.connect(masterGain);
 
-  const limiter = getMasterLimiterNode() || ctx.destination;
-  masterGain.connect(limiter);
+  const targetNode = gainNode || getMasterLimiterNode() || ctx.destination;
+  masterGain.connect(targetNode);
 
   noiseSource.start(now);
   noiseSource.stop(now + dur);
   osc.start(now);
   osc.stop(now + dur);
+
+  noiseSource.onended = () => {
+    try {
+      noiseSource.disconnect();
+      bpf.disconnect();
+      masterGain.disconnect();
+    } catch {}
+  };
+  osc.onended = () => {
+    try {
+      osc.disconnect();
+      oscGain.disconnect();
+    } catch {}
+  };
 }
 
 let cachedImpulseBuffer: AudioBuffer | null = null;
@@ -469,12 +490,20 @@ function createStudioImpulseResponse(
   return impulse;
 }
 
+function getSmartDjCrossfadeGainScale(): number {
+  const pos = useStudioStore.getState().smartDjCrossfader ?? currentDjCrossfader;
+  if (pos <= 50) return 1.0;
+  const t = Math.max(0, Math.min(1, (pos - 50) / 50));
+  return Math.cos(t * Math.PI * 0.5);
+}
+
 export function getTargetOutputGain(): number {
   const pState = usePlayerStore.getState();
   const userVol = pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume ?? 0.8));
   const studioState = useStudioStore.getState();
   const settings = useSettingsStore.getState();
   const isSleepFade = settings.sleepFadeOut ?? true;
+  const levelingFactor = settings.loudnessNormalization ?? true ? 0.94 : 1.0;
 
   let sleepScale = 1;
   if (studioState.sleepActive && !studioState.sleepEndAtTrack) {
@@ -484,7 +513,69 @@ export function getTargetOutputGain(): number {
     }
   }
 
-  return userVol * sleepScale;
+  return userVol * sleepScale * levelingFactor * getSmartDjCrossfadeGainScale();
+}
+
+export function getYoutubeTargetVolume(): number {
+  return Math.max(0, Math.min(100, Math.round(getTargetOutputGain() * 100)));
+}
+
+export function syncActiveOutputGain(timeConstant = 0.035): void {
+  const targetGain = getTargetOutputGain();
+  setSmoothOutputGain(htmlAudioElement, targetGain, timeConstant);
+  if (
+    ytPlayerInstance &&
+    window.ytPlayerReady &&
+    activeEngine === 'youtube' &&
+    useStudioStore.getState().fxMode !== '8d-orbit'
+  ) {
+    const pState = usePlayerStore.getState();
+    try {
+      if (pState.isMuted) {
+        ytPlayerInstance.mute?.();
+        ytPlayerInstance.setVolume?.(0);
+      } else {
+        ytPlayerInstance.unMute?.();
+        const ytVol = Math.round(targetGain * 100);
+        lastAppliedYtVolume = ytVol;
+        ytPlayerInstance.setVolume?.(ytVol);
+      }
+    } catch {}
+  }
+}
+
+function applyDjFilterToNode(sweepPercent: number): void {
+  currentDjFilterSweep = Math.max(-100, Math.min(100, Number.isFinite(sweepPercent) ? sweepPercent : 0));
+  if (!audioCtx || !djFilterNode) return;
+  const now = audioCtx.currentTime;
+  if (Math.abs(currentDjFilterSweep) < 2) {
+    djFilterNode.type = 'allpass';
+    djFilterNode.Q.setTargetAtTime(0.707, now, 0.025);
+    return;
+  }
+  if (currentDjFilterSweep < 0) {
+    const norm = (currentDjFilterSweep + 100) / 100; // 0 at -100, 1 at 0
+    const freq = 260 * Math.pow(18000 / 260, Math.max(0, Math.min(1, norm)));
+    djFilterNode.type = 'lowpass';
+    djFilterNode.Q.setTargetAtTime(2.2, now, 0.025);
+    djFilterNode.frequency.setTargetAtTime(freq, now, 0.025);
+  } else {
+    const norm = currentDjFilterSweep / 100; // 0 at 0, 1 at +100
+    const freq = 30 * Math.pow(4500 / 30, Math.max(0, Math.min(1, norm)));
+    djFilterNode.type = 'highpass';
+    djFilterNode.Q.setTargetAtTime(2.2, now, 0.025);
+    djFilterNode.frequency.setTargetAtTime(freq, now, 0.025);
+  }
+}
+
+export function setSmartDjFilterSweep(sweepPercent: number): void {
+  applyDjFilterToNode(sweepPercent);
+}
+
+export function setSmartDjCrossfader(pos: number): void {
+  currentDjCrossfader = Math.max(0, Math.min(100, Number.isFinite(pos) ? pos : 50));
+  syncActiveOutputGain(0.03);
+  syncHeadroomAndEQ(useSettingsStore.getState().equalizerBands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], useStudioStore.getState().fxMode);
 }
 
 export function syncHeadroomAndEQ(eqBands: number[], fxMode: StudioFXMode): void {
@@ -492,6 +583,7 @@ export function syncHeadroomAndEQ(eqBands: number[], fxMode: StudioFXMode): void
   const now = audioCtx.currentTime;
   const offsets = FX_EQ_OFFSETS[fxMode] || FX_EQ_OFFSETS.normal;
   const studio = useStudioStore.getState();
+  const settings = useSettingsStore.getState();
 
   eqBands.forEach((db, idx) => {
     const combined = Math.max(-12, Math.min(12, (db || 0) + (offsets[idx] || 0)));
@@ -500,14 +592,20 @@ export function syncHeadroomAndEQ(eqBands: number[], fxMode: StudioFXMode): void
     }
   });
 
+  const bassBoostNorm = Math.max(0, Math.min(100, settings.bassBoostStrength ?? 0)) / 100;
+  const baseSubGain = Math.max(0, Math.min(9, studio.subBassBoost || 0));
+  const combinedSubGain = Math.max(0, Math.min(12, baseSubGain + bassBoostNorm * 4.5));
   if (subBassRackNode) {
-    subBassRackNode.gain.setTargetAtTime(Math.min(6, studio.subBassBoost || 0), now, 0.035);
+    subBassRackNode.gain.setTargetAtTime(combinedSubGain, now, 0.035);
   }
   if (trebleAirRackNode) {
-    trebleAirRackNode.gain.setTargetAtTime(Math.min(4, studio.trebleAir || 0), now, 0.035);
+    const clampedTreble = Math.max(-6, Math.min(6, studio.trebleAir || 0));
+    trebleAirRackNode.gain.setTargetAtTime(clampedTreble, now, 0.035);
   }
 
-  const effectiveDrive = Math.min(1, studio.harmonicDrive || 0);
+  const djPos = studio.smartDjCrossfader ?? currentDjCrossfader;
+  const djDeckADrive = djPos < 50 ? ((50 - djPos) / 50) * 0.2 : 0;
+  const effectiveDrive = Math.min(1, Math.max(0, (studio.harmonicDrive || 0) + bassBoostNorm * 0.25 + djDeckADrive));
   if (exciterWaveShaper && Math.abs(effectiveDrive - lastExciterDrive) > 0.01) {
     lastExciterDrive = effectiveDrive;
     exciterWaveShaper.curve = createAnalogSaturationCurve(effectiveDrive);
@@ -649,9 +747,15 @@ export function initAudioGraph(
       autoMixerHighTilt.frequency.value = 4000;
       autoMixerHighTilt.gain.value = 0;
 
+      djFilterNode = audioCtx.createBiquadFilter();
+      djFilterNode.type = 'allpass';
+      djFilterNode.frequency.value = 20000;
+      djFilterNode.Q.value = 0.707;
+
       preGainNode.connect(autoMixerLowPass);
       autoMixerLowPass.connect(autoMixerHighTilt);
-      autoMixerHighTilt.connect(eqFilters[0]);
+      autoMixerHighTilt.connect(djFilterNode);
+      djFilterNode.connect(eqFilters[0]);
       let prev: AudioNode = eqFilters[0];
       for (let i = 1; i < eqFilters.length; i++) {
         prev.connect(eqFilters[i]);
@@ -704,16 +808,18 @@ export function initAudioGraph(
         msMerger.connect(reverbHP);
       }
 
-      dryPathGain.connect(masterLimiter);
+      dryPathGain.connect(gainNode);
 
       reverbHP.connect(reverbAirLP);
       reverbAirLP.connect(convolver);
       convolver.connect(reverbWetGain);
-      reverbWetGain.connect(masterLimiter);
+      reverbWetGain.connect(gainNode);
 
-      masterLimiter.connect(gainNode);
-      gainNode.connect(analyserNode);
+      gainNode.connect(masterLimiter);
+      masterLimiter.connect(analyserNode);
       analyserNode.connect(audioCtx.destination);
+
+      applyDjFilterToNode(useStudioStore.getState().smartDjFilterSweep ?? currentDjFilterSweep);
 
       ensureLiveAcousticsGraph(audioCtx);
       attachAudioEngineSubscriptions();
@@ -849,9 +955,13 @@ function updateSpatialFrame(rawX: number, rawZ: number, angle: number): void {
 
   // Subtle Head-Shadow attenuation for YouTube Player (~0.5 dB max, never jarring)
   // Optimized: Throttled IPC so postMessage is never spammed more than ~30 times/sec
-  if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
-    const pState = usePlayerStore.getState();
-    const baseUserVol = (pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume))) * 100;
+  if (
+    activeEngine === 'youtube' &&
+    ytPlayerInstance &&
+    window.ytPlayerReady &&
+    typeof ytPlayerInstance.setVolume === 'function'
+  ) {
+    const baseUserVol = getYoutubeTargetVolume();
     const headShadow = oz > 0 ? 1 - (oz * 0.06) : 1.0;
     const earProximity = 1 + Math.abs(ox) * 0.02;
     const distanceDecay = 1 - Math.min(0.04, Math.max(0, rawDist - 0.85) * 0.15);
@@ -899,19 +1009,12 @@ function runOrbitLoop(now: number): void {
   const studio = useStudioStore.getState();
   const isPlaying = usePlayerStore.getState().isPlaying;
 
-  if (studio.fxMode === '8d-orbit' && isPlaying) {
-    if (studio.spatialOrbitAuto) {
-      const speed = Math.max(0.04, Math.min(0.40, studio.spatialOrbitSpeed || 0.12));
-      orbitAngle = (orbitAngle + dt * speed * Math.PI * 2) % (Math.PI * 2);
-      const ox = Math.sin(orbitAngle) * 0.95;
-      const oz = -Math.cos(orbitAngle) * 0.95;
-      updateSpatialFrame(ox, oz, orbitAngle);
-    } else {
-      const ox = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
-      const oz = Math.max(-1, Math.min(1, studio.spatialManualPos?.z ?? 0));
-      orbitAngle = (Math.atan2(ox, -oz) + Math.PI * 2) % (Math.PI * 2);
-      updateSpatialFrame(ox, oz, orbitAngle);
-    }
+  if (studio.fxMode === '8d-orbit' && isPlaying && studio.spatialOrbitAuto) {
+    const speed = Math.max(0.04, Math.min(0.40, studio.spatialOrbitSpeed || 0.12));
+    orbitAngle = (orbitAngle + dt * speed * Math.PI * 2) % (Math.PI * 2);
+    const ox = Math.sin(orbitAngle) * 0.95;
+    const oz = -Math.cos(orbitAngle) * 0.95;
+    updateSpatialFrame(ox, oz, orbitAngle);
 
     if (typeof document !== 'undefined' && !document.hidden) {
       orbitRafId = requestAnimationFrame(runOrbitLoop);
@@ -988,7 +1091,7 @@ if (typeof document !== 'undefined') {
         audioCtx.resume().catch(() => {});
       }
       if (document.hidden) {
-        if (studio.fxMode === '8d-orbit' && isPlaying && isOrbitLoopRunning) {
+        if (studio.fxMode === '8d-orbit' && studio.spatialOrbitAuto && isPlaying && isOrbitLoopRunning) {
           if (orbitRafId) {
             cancelAnimationFrame(orbitRafId);
             orbitRafId = 0;
@@ -1004,7 +1107,7 @@ if (typeof document !== 'undefined') {
           clearInterval(backgroundIntervalId);
           backgroundIntervalId = null;
         }
-        if (studio.fxMode === '8d-orbit' && isPlaying && isOrbitLoopRunning && !orbitRafId) {
+        if (studio.fxMode === '8d-orbit' && studio.spatialOrbitAuto && isPlaying && isOrbitLoopRunning && !orbitRafId) {
           lastOrbitTime = performance.now();
           orbitRafId = requestAnimationFrame(runOrbitLoop);
         }
@@ -1080,7 +1183,7 @@ function ensureLiveAcousticsGraph(ctx: AudioContext): void {
       crowdGain.connect(arenaAcousticsGain);
       arenaCrowdSource.start();
 
-      arenaAcousticsGain.connect(analyserNode || ctx.destination);
+      arenaAcousticsGain.connect(gainNode || masterLimiter || analyserNode || ctx.destination);
     }
 
     // 3. Sentinel gain nodes for guard-check (no synthetic oscillators or noise buffers).
@@ -1133,12 +1236,17 @@ export function applyStudioFXToAudio(
     } catch {}
   }
 
+  const settings = useSettingsStore.getState();
+
   // Ensure AudioContext and Live Acoustics Graph are awake when any effect is enabled
   if (
     fxMode !== 'normal' ||
     studio.subBassBoost > 0 ||
-    studio.trebleAir > 0 ||
-    studio.reverbMix > 0
+    studio.trebleAir !== 0 ||
+    studio.reverbMix > 0 ||
+    (settings.bassBoostStrength || 0) > 0 ||
+    (settings.spatialStereoWidth ?? 100) > 100 ||
+    Math.abs(studio.smartDjFilterSweep ?? currentDjFilterSweep) > 2
   ) {
     resumeAudioContextIfNeeded();
     if (ctx) {
@@ -1151,17 +1259,34 @@ export function applyStudioFXToAudio(
   const userVol = pState.isMuted ? 0 : Math.max(0, Math.min(1, pState.volume ?? 0.8));
   const now = ctx ? ctx.currentTime : 0;
 
+  // Apply FX-mode EQ offsets & mastering clamps whenever FX or racks change
+  syncHeadroomAndEQ(settings.equalizerBands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], fxMode);
+
   // 1. Real-time 3D Spatial Audio processing (orbit loop drives stereoPanner on actual music)
   if (fxMode === '8d-orbit' && isPlaying && userVol > 0) {
-    startGlobalOrbitLoop();
+    if (studio.spatialOrbitAuto) {
+      startGlobalOrbitLoop();
+    } else {
+      stopGlobalOrbitLoop();
+      const ox = Math.max(-1, Math.min(1, studio.spatialManualPos?.x ?? 0));
+      const oz = Math.max(-1, Math.min(1, studio.spatialManualPos?.z ?? -0.85));
+      const manualAngle = (Math.atan2(ox, -oz) + Math.PI * 2) % (Math.PI * 2);
+      orbitAngle = manualAngle;
+      updateSpatialFrame(ox, oz, manualAngle);
+    }
   } else {
     stopGlobalOrbitLoop();
     if (spatialAcousticGain && ctx) {
       spatialAcousticGain.gain.setTargetAtTime(0, now, 0.05);
     }
-    // Restore YouTube volume to user's set level when leaving 3D spatial
-    if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
-      const baseVol = Math.round(userVol * 100);
+    // Restore YouTube volume cleanly only when YouTube is the active engine
+    if (
+      activeEngine === 'youtube' &&
+      ytPlayerInstance &&
+      window.ytPlayerReady &&
+      typeof ytPlayerInstance.setVolume === 'function'
+    ) {
+      const baseVol = getYoutubeTargetVolume();
       lastAppliedYtVolume = baseVol;
       try {
         ytPlayerInstance.setVolume(baseVol);
@@ -1176,10 +1301,11 @@ export function applyStudioFXToAudio(
     }
   }
 
-  // 2. Real-time Live Concert Arena processing
+  // 2. Real-time Live Concert Arena processing (gainNode downstream applies userVol * sleepScale)
   if (arenaAcousticsGain && ctx) {
     if (fxMode === 'arena-live' && isPlaying && userVol > 0) {
-      const arenaVolume = Math.min(0.48, (0.28 + (studio.reverbMix || 0) * 0.22) * userVol);
+      const arenaBase = Math.min(0.48, 0.28 + (studio.reverbMix || 0) * 0.22);
+      const arenaVolume = gainNode ? arenaBase : arenaBase * userVol;
       arenaAcousticsGain.gain.setTargetAtTime(arenaVolume, now, 0.05);
     } else {
       arenaAcousticsGain.gain.setTargetAtTime(0, now, 0.05);
@@ -1216,19 +1342,22 @@ export function applyStudioFXToAudio(
 
     if (panLfoGain && stereoPanner && !isSpatial3D) {
       panLfoGain.gain.setTargetAtTime(0, now, 0.06);
-      stereoPanner.pan.setTargetAtTime(0, now, 0.06);
+      const jamPan = activeSpatialJamPan !== null ? Math.max(-0.85, Math.min(0.85, activeSpatialJamPan)) : 0;
+      stereoPanner.pan.setTargetAtTime(jamPan, now, 0.06);
     }
 
     if (dryPathGain) {
       dryPathGain.gain.setTargetAtTime(1.0, now, 0.04);
     }
 
-    // Mastering Rack: Stereo Width
+    // Mastering Rack & Settings: Stereo Width (base + studio offset + 100-200% Settings expansion)
     if (sideWidthGain) {
       const basePresetWidth =
         fxMode === '8d-orbit' ? 1.35 : fxMode === 'arena-live' ? 1.45 : 1.0;
       const customWidthOffset = (studio.stereoWidth || 0) * 0.50;
-      const finalWidth = Math.max(0.2, Math.min(1.80, basePresetWidth + customWidthOffset));
+      const settingsWidthOffset =
+        Math.max(0, ((settings.spatialStereoWidth ?? 100) - 100) / 100) * 0.55;
+      const finalWidth = Math.max(0.2, Math.min(2.0, basePresetWidth + customWidthOffset + settingsWidthOffset));
       sideWidthGain.gain.setTargetAtTime(finalWidth, now, 0.05);
     }
 
@@ -1245,23 +1374,7 @@ export function applyStudioFXToAudio(
       reverbWetGain.gain.setTargetAtTime(wetAmount, now, 0.05);
     }
 
-    // Mastering Rack: Sub-Bass Boost (lowshelf filter at 54Hz for direct streams)
-    if (subBassRackNode) {
-      const targetGain = Math.max(0, Math.min(9, studio.subBassBoost || 0));
-      subBassRackNode.gain.setTargetAtTime(targetGain, now, 0.035);
-    }
-
-    // Mastering Rack: Treble Air (highshelf filter at 11kHz for direct streams)
-    if (trebleAirRackNode) {
-      const targetAir = Math.max(-6, Math.min(6, studio.trebleAir || 0));
-      trebleAirRackNode.gain.setTargetAtTime(targetAir, now, 0.035);
-    }
-
-    // Mastering Rack: Harmonic Analog Saturation WaveShaper
-    if (exciterWaveShaper && Math.abs((studio.harmonicDrive || 0) - lastExciterDrive) > 0.01) {
-      lastExciterDrive = studio.harmonicDrive || 0;
-      exciterWaveShaper.curve = createAnalogSaturationCurve(lastExciterDrive);
-    }
+    applyDjFilterToNode(studio.smartDjFilterSweep ?? currentDjFilterSweep);
   }
 }
 
@@ -1317,6 +1430,9 @@ export const getAudioFrequencyData = (out: Uint8Array): boolean => {
   return false;
 };
 
+const SILENT_UNLOCK_WAV =
+  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+
 /**
  * Call synchronously inside a click handler before async operations (like network search)
  * so the browser unlocks audio playback for subsequent async playTrack() calls.
@@ -1328,21 +1444,36 @@ export const unlockAudioEngine = (): void => {
     if (ctx && ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
     }
-    if (htmlAudioElement && htmlAudioElement.paused && !htmlAudioElement.src) {
-      // Silent tiny WAV data URI to unlock HTMLAudioElement gesture requirement
-      htmlAudioElement.src =
-        'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-      htmlAudioElement.volume = 0;
-      htmlAudioElement
+    const targetEl = htmlAudioElement;
+    if (
+      targetEl &&
+      targetEl.paused &&
+      !targetEl.getAttribute('src') &&
+      !usePlayerStore.getState().isPlaying
+    ) {
+      targetEl.src = SILENT_UNLOCK_WAV;
+      targetEl.volume = 0;
+      targetEl
         .play()
         .then(() => {
-          htmlAudioElement?.pause();
-          if (htmlAudioElement) {
-            htmlAudioElement.currentTime = 0;
-            htmlAudioElement.volume = audioCtx ? 1.0 : usePlayerStore.getState().volume;
+          // Guard against aborting real native audio that started before this promise resolved
+          if (
+            targetEl === htmlAudioElement &&
+            targetEl.getAttribute('src') === SILENT_UNLOCK_WAV &&
+            !usePlayerStore.getState().isPlaying
+          ) {
+            targetEl.pause();
+            targetEl.currentTime = 0;
+            targetEl.removeAttribute('src');
+            targetEl.load();
+            targetEl.volume = audioCtx ? 1.0 : usePlayerStore.getState().volume;
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          if (targetEl === htmlAudioElement && targetEl.getAttribute('src') === SILENT_UNLOCK_WAV) {
+            targetEl.removeAttribute('src');
+          }
+        });
     }
   } catch {}
 };
@@ -1353,6 +1484,8 @@ export const seekToTime = (seconds: number): void => {
     if (audioCtx && gainNode) {
       const now = audioCtx.currentTime;
       const target = getTargetOutputGain();
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
       gainNode.gain.setTargetAtTime(target * 0.35, now, 0.008);
       htmlAudioElement.currentTime = seconds;
       gainNode.gain.setTargetAtTime(target, now + 0.018, 0.025);
@@ -1377,6 +1510,12 @@ export function attachAudioEngineSubscriptions(): void {
   try {
     // Reactive subscription to Studio store changes
     useStudioStore.subscribe((state, prevState) => {
+      if (state.smartDjCrossfader !== prevState.smartDjCrossfader) {
+        setSmartDjCrossfader(state.smartDjCrossfader);
+      }
+      if (state.smartDjFilterSweep !== prevState.smartDjFilterSweep) {
+        setSmartDjFilterSweep(state.smartDjFilterSweep);
+      }
       if (
         state.fxMode !== prevState.fxMode ||
         state.subBassBoost !== prevState.subBassBoost ||
@@ -1398,13 +1537,24 @@ export function attachAudioEngineSubscriptions(): void {
       }
     });
 
-    // Reactive subscription to Settings store Equalizer and Loudness Normalization changes
+    // Reactive subscription to Settings store Equalizer, Bass Boost, Stereo Expansion & Loudness
     useSettingsStore.subscribe((state, prevState) => {
-      if (state.equalizerBands !== prevState.equalizerBands) {
+      if (
+        state.equalizerBands !== prevState.equalizerBands ||
+        state.bassBoostStrength !== prevState.bassBoostStrength
+      ) {
         syncHeadroomAndEQ(state.equalizerBands, useStudioStore.getState().fxMode);
+      }
+      if (state.spatialStereoWidth !== prevState.spatialStereoWidth) {
+        applyStudioFXToAudio(
+          htmlAudioElement,
+          useStudioStore.getState().fxMode,
+          usePlayerStore.getState().playbackSpeed || 1
+        );
       }
       if (state.loudnessNormalization !== prevState.loudnessNormalization) {
         syncLoudnessNormalization();
+        syncActiveOutputGain(0.03);
       }
     });
 

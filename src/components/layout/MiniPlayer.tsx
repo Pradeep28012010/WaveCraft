@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, memo, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, memo, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useJamStore } from '../../stores/jamStore';
@@ -9,9 +9,10 @@ import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { useTrackOfflineStatus } from '../../services/offlineVault';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useIsKeyboardOpen } from '../../hooks/useIsKeyboardOpen';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
-const NowPlaying = lazy(() => import('../player/NowPlaying'));
-const QueuePanel = lazy(() => import('../player/QueuePanel'));
+const NowPlaying = lazyWithRetry(() => import('../player/NowPlaying'));
+const QueuePanel = lazyWithRetry(() => import('../player/QueuePanel'));
 
 const prefetchPlayerPanels = () => {
   import('../player/NowPlaying').catch(() => {});
@@ -260,10 +261,15 @@ export default function MiniPlayer() {
     currentTrack?.id || ''
   );
 
-  if (!currentTrack) return null;
-
   const [isVolumeDragging, setIsVolumeDragging] = useState(false);
   const volumeTrackRef = useRef<HTMLDivElement>(null);
+
+  const [swipeOffset, setSwipeOffset] = useState<number>(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const isSwipingHoriz = useRef<boolean>(false);
+
+  if (!currentTrack) return null;
 
   const updateVolumeFromPointer = (clientX: number) => {
     if (!volumeTrackRef.current) return;
@@ -303,11 +309,6 @@ export default function MiniPlayer() {
       triggerAndroidHaptic('medium');
     }
   };
-
-  const [swipeOffset, setSwipeOffset] = useState<number>(0);
-  const touchStartX = useRef<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
-  const isSwipingHoriz = useRef<boolean>(false);
 
   const handleMiniPlayerTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
