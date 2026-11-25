@@ -882,6 +882,14 @@ export default function WaveCardModal({
       a.click();
       URL.revokeObjectURL(url);
       return true;
+      } finally {
+        try {
+          if (videoEncoder && videoEncoder.state !== 'closed') videoEncoder.close();
+        } catch {}
+        try {
+          if (audioEncoder && audioEncoder.state !== 'closed') audioEncoder.close();
+        } catch {}
+      }
     } catch (err) {
       console.warn('[Fast Video Export Error, falling back to real-time]', err);
       return false;
