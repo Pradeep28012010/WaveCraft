@@ -814,7 +814,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       {/* Prev */}
                       <button
                         type="button"
-                        onClick={prevTrack}
+                        onClick={() => prevTrack()}
                         aria-label="Previous track"
                         title="Previous track"
                         className="text-white/75 hover:text-white active:scale-90 transition-transform cursor-pointer"
@@ -847,7 +847,7 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                       {/* Next */}
                       <button
                         type="button"
-                        onClick={nextTrack}
+                        onClick={() => nextTrack()}
                         aria-label="Next track"
                         title="Next track"
                         className="text-white/75 hover:text-white active:scale-90 transition-transform cursor-pointer"

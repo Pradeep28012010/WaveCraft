@@ -187,7 +187,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
             );
             if (res.ok) {
               const gh = await res.json();
-              const tag = (gh.tag_name || '5.0.0').replace(/^v/, '');
+              const tag = (gh.tag_name || '5.4.0').replace(/^v/, '');
               const apkAsset = gh.assets?.find((a: { name: string; browser_download_url: string }) =>
                 a.name.endsWith('.apk')
               );
@@ -206,7 +206,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => {
           } catch {}
         }
 
-        let current = getNativeAppVersion() || get().currentVersion || '5.0.0';
+        let current = getNativeAppVersion() || get().currentVersion || '5.4.0';
         if (typeof window !== 'undefined' && window.electronAPI?.getAppVersion) {
           try {
             const electronVer = await window.electronAPI.getAppVersion();

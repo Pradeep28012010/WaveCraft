@@ -1,5 +1,4 @@
 const preloadedUrls = new Set<string>();
-const MAX_PRELOADED_URLS = 300;
 const preloadQueue: string[] = [];
 let activePreloads = 0;
 const MAX_CONCURRENT_PRELOADS = 4;
@@ -56,6 +55,10 @@ export function preloadImage(url?: string | null): void {
   if (!url || typeof window === 'undefined' || preloadedUrls.has(url)) return;
   if (url.startsWith('data:')) return;
 
+  if (preloadedUrls.size >= MAX_PRELOADED_URLS) {
+    const oldest = preloadedUrls.values().next().value;
+    if (oldest !== undefined) preloadedUrls.delete(oldest);
+  }
   preloadedUrls.add(url);
   preloadQueue.push(url);
   scheduleQueueProcessing();

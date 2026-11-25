@@ -509,7 +509,9 @@ export default function StatsPage() {
       const a = document.createElement('a');
       a.href = url;
       a.download = 'wavecraft-wrapped-passport.png';
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
     } finally {
       setIsExportingPoster(false);
     }
@@ -543,7 +545,7 @@ export default function StatsPage() {
         />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-accent)]/20 border-0(--color-accent)]/40 text-[11px] font-extrabold uppercase tracking-widest text-[var(--color-accent)] mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-accent)]/20 border border-[var(--color-accent)]/30 text-[11px] font-extrabold uppercase tracking-widest text-[var(--color-accent)] mb-3">
               <span>🏆 WAVECRAFT WRAPPED • LISTENER PASSPORT</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">

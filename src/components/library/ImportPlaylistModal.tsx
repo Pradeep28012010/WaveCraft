@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlassModal from '../ui/GlassModal';
@@ -55,6 +55,18 @@ export default function ImportPlaylistModal({
   const [progressPct, setProgressPct] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
   const abortRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      abortRef.current = true;
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current = true;
+    };
+  }, []);
 
   // File import state
   const [parsedFile, setParsedFile] = useState<ParsedPlaylistFile | null>(null);
@@ -141,168 +153,188 @@ export default function ImportPlaylistModal({
     let completed = 0;
     let addedSoFar = 0;
     const matchedFingerprints: string[] = [];
+    const seenTrackIds = new Set<string>();
 
-    // Separate pre-resolved tracks (e.g. YouTube playlist/mix items that already have videoId)
-    // from tracks that require search (Spotify, Apple Music, text)
-    const preResolved: Array<{ track: Track; fp: string }> = [];
-    const pendingSearch: Array<{ q: ImportQueryItem; index: number }> = [];
+    try {
+      // Separate pre-resolved tracks (e.g. YouTube playlist/mix items that already have videoId)
+      // from tracks that require search (Spotify, Apple Music, text)
+      const preResolved: Array<{ track: Track; fp: string }> = [];
+      const pendingSearch: Array<{ q: ImportQueryItem; index: number }> = [];
 
-    queries.forEach((q, idx) => {
-      const fp = normalizeQueryFingerprint(q.title, q.artist);
-      if (q.videoId) {
-        preResolved.push({
-          fp,
-          track: {
-            id: `yt_${q.videoId}`,
-            title: q.title || 'Imported Track',
-            artist: q.artist || 'Unknown Artist',
-            album: playlistName,
-            duration: 210,
-            thumbnail: `https://i.ytimg.com/vi/${q.videoId}/hqdefault.jpg`,
-            thumbnailLarge: `https://i.ytimg.com/vi/${q.videoId}/maxresdefault.jpg`,
-            youtubeId: q.videoId,
-            quality: 'Studio Stream'
-          }
-        });
-      } else {
-        pendingSearch.push({ q, index: idx });
-      }
-    });
-
-    // Fast-path: Add pre-resolved tracks immediately without network latency
-    if (preResolved.length > 0) {
-      const tracksToAdd = preResolved.map((p) => p.track);
-      preResolved.forEach((p) => matchedFingerprints.push(p.fp));
-      addTracksToPlaylist(newPlaylist.id, tracksToAdd);
-      addedSoFar += tracksToAdd.length;
-      completed += preResolved.length;
-      setMatchedCount(addedSoFar);
-      const pct = Math.min(100, Math.round((completed / queries.length) * 100));
-      setProgressPct(pct);
-      setStatusText(`Imported ${addedSoFar} of ${queries.length} songs...`);
-    }
-
-    // For any remaining tracks that need search resolution (Spotify, Apple Music, text)
-    if (pendingSearch.length > 0 && !abortRef.current) {
-      const batchSize = 15;
-      for (let i = 0; i < pendingSearch.length; i += batchSize) {
-        if (abortRef.current) break;
-
-        const chunk = pendingSearch.slice(i, i + batchSize);
-        setCurrentTrackLabel(
-          chunk[0]?.q?.title
-            ? `${chunk[0].q.title}${chunk[0].q.artist ? ` — ${chunk[0].q.artist}` : ''}`
-            : ''
-        );
-
-        let batchResolvedTracks: Array<{ track: Track; fp: string }> = [];
-
-        // 1. Try server-side batch search first (fast, cached)
-        try {
-          const endpoint = apiUrl('/api/music?action=batch-search');
-          const batchRes = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              queries: chunk.map((c) => ({
-                title: c.q.title,
-                artist: c.q.artist
-              }))
-            }),
-            signal: AbortSignal.timeout(9000)
+      queries.forEach((q, idx) => {
+        const fp = normalizeQueryFingerprint(q.title, q.artist);
+        if (q.videoId) {
+          const trackId = `yt_${q.videoId}`;
+          if (seenTrackIds.has(trackId)) return;
+          seenTrackIds.add(trackId);
+          preResolved.push({
+            fp,
+            track: {
+              id: trackId,
+              title: q.title || 'Imported Track',
+              artist: q.artist || 'Unknown Artist',
+              album: playlistName,
+              duration: 210,
+              thumbnail: `https://i.ytimg.com/vi/${q.videoId}/hqdefault.jpg`,
+              thumbnailLarge: `https://i.ytimg.com/vi/${q.videoId}/maxresdefault.jpg`,
+              youtubeId: q.videoId,
+              quality: 'Studio Stream'
+            }
           });
-
-          if (batchRes.ok) {
-            const batchData = await batchRes.json();
-            const results = Array.isArray(batchData?.results) ? batchData.results : [];
-            results.forEach((r: { title?: string; artist?: string; track?: Track | null }) => {
-              if (r.track) {
-                const fp = normalizeQueryFingerprint(r.title || '', r.artist || '');
-                batchResolvedTracks.push({ track: r.track, fp });
-              }
-            });
-          }
-        } catch {
-          // If batch-search failed or timed out, will fall back below
+        } else {
+          pendingSearch.push({ q, index: idx });
         }
+      });
 
-        // 2. Fallback single search for missing ones
-        if (batchResolvedTracks.length < chunk.length && !abortRef.current) {
-          const resolvedTitles = new Set(
-            batchResolvedTracks.map((b) => b.track.title.toLowerCase())
+      // Fast-path: Add pre-resolved tracks immediately without network latency
+      if (preResolved.length > 0) {
+        const tracksToAdd = preResolved.map((p) => p.track);
+        preResolved.forEach((p) => matchedFingerprints.push(p.fp));
+        addTracksToPlaylist(newPlaylist.id, tracksToAdd);
+        addedSoFar += tracksToAdd.length;
+        completed += preResolved.length;
+        setMatchedCount(addedSoFar);
+        const pct = Math.min(100, Math.round((completed / queries.length) * 100));
+        setProgressPct(pct);
+        setStatusText(`Imported ${addedSoFar} of ${queries.length} songs...`);
+      }
+
+      // For any remaining tracks that need search resolution (Spotify, Apple Music, text)
+      if (pendingSearch.length > 0 && !abortRef.current) {
+        const batchSize = 15;
+        for (let i = 0; i < pendingSearch.length; i += batchSize) {
+          if (abortRef.current) break;
+
+          const chunk = pendingSearch.slice(i, i + batchSize);
+          setCurrentTrackLabel(
+            chunk[0]?.q?.title
+              ? `${chunk[0].q.title}${chunk[0].q.artist ? ` — ${chunk[0].q.artist}` : ''}`
+              : ''
           );
-          const unresolved = chunk.filter(
-            (c) => !resolvedTitles.has((c.q.title || '').toLowerCase())
-          );
 
-          const fallbackResults = await Promise.all(
-            unresolved.map(async (c) => {
-              const fp = normalizeQueryFingerprint(c.q.title, c.q.artist);
-              const searchStr = `${c.q.title} ${c.q.artist || ''}`.trim();
-              if (!searchStr) return null;
+          const batchResolvedTracks: Array<{ track: Track; fp: string }> = [];
+          const resolvedFps = new Set<string>();
 
-              try {
-                const res = await searchTracks(searchStr);
-                if (res && res.length > 0) return { track: res[0], fp };
-              } catch {}
+          // 1. Try server-side batch search first (fast, cached)
+          try {
+            const endpoint = apiUrl('/api/music?action=batch-search');
+            const batchRes = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                queries: chunk.map((c) => ({
+                  title: c.q.title,
+                  artist: c.q.artist
+                }))
+              }),
+              signal: AbortSignal.timeout(9000)
+            });
 
-              // Clean title fallback if title had noisy words
-              const cleanTitle = (c.q.title || '')
-                .replace(/\s*[\(\[][^)\]]*?(?:feat\.|ft\.|remaster|deluxe|edition|version|anniversary|live|bonus|explicit)[^)\]]*?[\)\]]/gi, '')
-                .replace(/\s*[-–—]\s*(?:(?:\d{4}\s*)?(?:remaster|deluxe|version|live|radio edit)|bonus|anniversary).*$/gi, '')
-                .trim();
+            if (batchRes.ok) {
+              const batchData = await batchRes.json();
+              const results = Array.isArray(batchData?.results) ? batchData.results : [];
+              results.forEach((r: { title?: string; artist?: string; track?: Track | null }) => {
+                if (r.track) {
+                  const queryFp = normalizeQueryFingerprint(r.title || r.track.title || '', r.artist || r.track.artist || '');
+                  const trackFp = normalizeQueryFingerprint(r.track.title || '', r.track.artist || '');
+                  resolvedFps.add(queryFp);
+                  resolvedFps.add(trackFp);
+                  batchResolvedTracks.push({ track: r.track, fp: queryFp });
+                }
+              });
+            }
+          } catch {
+            // If batch-search failed or timed out, will fall back below
+          }
 
-              if (cleanTitle && cleanTitle !== c.q.title) {
+          // 2. Fallback single search for missing ones
+          if (batchResolvedTracks.length < chunk.length && !abortRef.current) {
+            const unresolved = chunk.filter(
+              (c) => !resolvedFps.has(normalizeQueryFingerprint(c.q.title, c.q.artist))
+            );
+
+            const fallbackResults = await Promise.all(
+              unresolved.map(async (c) => {
+                if (abortRef.current) return null;
+                const fp = normalizeQueryFingerprint(c.q.title, c.q.artist);
+                const searchStr = `${c.q.title} ${c.q.artist || ''}`.trim();
+                if (!searchStr) return null;
+
                 try {
-                  const res = await searchTracks(`${cleanTitle} ${c.q.artist || ''}`.trim());
+                  const res = await searchTracks(searchStr);
                   if (res && res.length > 0) return { track: res[0], fp };
                 } catch {}
-              }
 
-              return null;
-            })
+                // Clean title fallback if title had noisy words
+                const cleanTitle = (c.q.title || '')
+                  .replace(/\s*[\(\[][^)\]]*?(?:feat\.|ft\.|remaster|deluxe|edition|version|anniversary|live|bonus|explicit)[^)\]]*?[\)\]]/gi, '')
+                  .replace(/\s*[-–—]\s*(?:(?:\d{4}\s*)?(?:remaster|deluxe|version|live|radio edit)|bonus|anniversary).*$/gi, '')
+                  .trim();
+
+                if (cleanTitle && cleanTitle !== c.q.title && !abortRef.current) {
+                  try {
+                    const res = await searchTracks(`${cleanTitle} ${c.q.artist || ''}`.trim());
+                    if (res && res.length > 0) return { track: res[0], fp };
+                  } catch {}
+                }
+
+                return null;
+              })
+            );
+
+            fallbackResults.forEach((fr) => {
+              if (fr) batchResolvedTracks.push(fr);
+            });
+          }
+
+          if (abortRef.current) break;
+
+          // Add the deduplicated batch of resolved tracks to the playlist
+          const uniqueBatch: Array<{ track: Track; fp: string }> = [];
+          for (const item of batchResolvedTracks) {
+            if (!item.track?.id || seenTrackIds.has(item.track.id)) continue;
+            seenTrackIds.add(item.track.id);
+            uniqueBatch.push(item);
+          }
+
+          if (uniqueBatch.length > 0) {
+            const tracksToAdd = uniqueBatch.map((b) => b.track);
+            uniqueBatch.forEach((b) => matchedFingerprints.push(b.fp));
+            addTracksToPlaylist(newPlaylist.id, tracksToAdd);
+            addedSoFar += tracksToAdd.length;
+          }
+
+          completed += chunk.length;
+          const pct = Math.min(100, Math.round((completed / queries.length) * 100));
+          setMatchedCount(addedSoFar);
+          setProgressPct(pct);
+          setStatusText(
+            `Matched ${addedSoFar} of ${queries.length} songs (${Math.min(completed, queries.length)} scanned)...`
           );
 
-          fallbackResults.forEach((fr) => {
-            if (fr) batchResolvedTracks.push(fr);
-          });
-        }
-
-        // Add the batch of resolved tracks to the playlist
-        if (batchResolvedTracks.length > 0) {
-          const tracksToAdd = batchResolvedTracks.map((b) => b.track);
-          batchResolvedTracks.forEach((b) => matchedFingerprints.push(b.fp));
-          addTracksToPlaylist(newPlaylist.id, tracksToAdd);
-          addedSoFar += tracksToAdd.length;
-        }
-
-        completed += chunk.length;
-        const pct = Math.min(100, Math.round((completed / queries.length) * 100));
-        setMatchedCount(addedSoFar);
-        setProgressPct(pct);
-        setStatusText(
-          `Matched ${addedSoFar} of ${queries.length} songs (${Math.min(completed, queries.length)} scanned)...`
-        );
-
-        if (i + batchSize < pendingSearch.length && !abortRef.current) {
-          await new Promise((r) => setTimeout(r, 120));
+          if (i + batchSize < pendingSearch.length && !abortRef.current) {
+            await new Promise((r) => setTimeout(r, 120));
+          }
         }
       }
-    }
 
-    if (extraMeta?.sourceUrl) {
-      updatePlaylist(newPlaylist.id, {
-        remoteFingerprints: matchedFingerprints,
-        lastSyncedAt: Date.now()
-      });
-    }
+      if (extraMeta?.sourceUrl) {
+        updatePlaylist(newPlaylist.id, {
+          remoteFingerprints: matchedFingerprints,
+          lastSyncedAt: Date.now()
+        });
+      }
 
-    setIsImporting(false);
-    setStatusText('');
-    setCurrentTrackLabel('');
-    setProgressPct(0);
-    onClose();
-    navigate(`/playlist/${newPlaylist.id}`);
+      if (!abortRef.current) {
+        onClose();
+        navigate(`/playlist/${newPlaylist.id}`);
+      }
+    } finally {
+      setIsImporting(false);
+      setStatusText('');
+      setCurrentTrackLabel('');
+      setProgressPct(0);
+    }
   };
 
   const handleImportUrl = async (e: React.FormEvent) => {
@@ -334,7 +366,8 @@ export default function ImportPlaylistModal({
 
       try {
         const res = await fetch(
-          apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`)
+          apiUrl(`/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`),
+          { signal: AbortSignal.timeout(10000) }
         );
         if (res.ok) {
           data = await res.json();
@@ -346,7 +379,8 @@ export default function ImportPlaylistModal({
       if (!data || data.error || !Array.isArray(data.queries) || data.queries.length === 0) {
         try {
           const directRes = await fetch(
-            `https://wavecraft-alpha.vercel.app/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`
+            `https://wavecraft-alpha.vercel.app/api/music?action=import-playlist&url=${encodeURIComponent(cleanedUrl)}`,
+            { signal: AbortSignal.timeout(10000) }
           );
           if (directRes.ok) {
             const directData = await directRes.json();
@@ -404,21 +438,27 @@ export default function ImportPlaylistModal({
     setIsImporting(true);
     setErrorMsg('');
 
-    const queries: ImportQueryItem[] = lines.map((line) => {
-      const cleaned = line.replace(/^\d+[\.\)\-]\s*/, '').trim();
-      const parts = cleaned.split(/\s+[-–—]\s+/);
-      return {
-        title: parts[0].trim(),
-        artist: parts.slice(1).join(' ').trim()
-      };
-    });
+    try {
+      const queries: ImportQueryItem[] = lines.map((line) => {
+        const cleaned = line.replace(/^\d+[\.\)\-]\s*/, '').trim();
+        const parts = cleaned.split(/\s+[-–—]\s+/);
+        return {
+          title: parts[0].trim(),
+          artist: parts.slice(1).join(' ').trim()
+        };
+      });
 
-    await matchQueriesToTracks(
-      queries,
-      customName.trim() || 'Imported Mix',
-      '',
-      'Tracklist Import'
-    );
+      await matchQueriesToTracks(
+        queries,
+        customName.trim() || 'Imported Mix',
+        '',
+        'Tracklist Import'
+      );
+    } catch {
+      setErrorMsg('Failed to import pasted song list.');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleProcessFile = (file: File) => {
@@ -461,18 +501,24 @@ export default function ImportPlaylistModal({
     setIsImporting(true);
     setErrorMsg('');
 
-    const queries: ImportQueryItem[] = parsedFile.tracks.map((t) => ({
-      title: t.title,
-      artist: t.artist,
-      videoId: t.videoId
-    }));
+    try {
+      const queries: ImportQueryItem[] = parsedFile.tracks.map((t) => ({
+        title: t.title,
+        artist: t.artist,
+        videoId: t.videoId
+      }));
 
-    await matchQueriesToTracks(
-      queries,
-      customName.trim() || parsedFile.name,
-      parsedFile.description || '',
-      fileName.endsWith('.json') ? 'JSON File Import' : 'M3U8 Playlist File'
-    );
+      await matchQueriesToTracks(
+        queries,
+        customName.trim() || parsedFile.name,
+        '',
+        fileName.endsWith('.json') ? 'JSON File Import' : 'M3U8 Playlist File'
+      );
+    } catch {
+      setErrorMsg('Failed to import tracks from selected file.');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const parsedLineCount = textInput

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLibraryStore } from '../../stores/libraryStore';
@@ -40,9 +40,16 @@ export default function LibraryPage() {
   const [editingFolder, setEditingFolder] = useState<PlaylistFolder | null>(null);
   const [selectedTagFilter, setSelectedTagFilter] = useState<string>('all');
   const [savedBanner, setSavedBanner] = useState('');
+  const savedBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchLibraryQuery, setSearchLibraryQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'tracks' | 'sync'>('recent');
+
+  useEffect(() => {
+    return () => {
+      if (savedBannerTimerRef.current) clearTimeout(savedBannerTimerRef.current);
+    };
+  }, []);
 
   const livePlaylistsCount = playlists.filter((p) => p.isLiveSync && p.sourceUrl).length;
   const isAnySyncing = Object.values(syncingPlaylistIds).some(Boolean);
@@ -109,8 +116,9 @@ export default function LibraryPage() {
       `${smart.description} (Saved from WaveCraft Smart Playlists)`
     );
     addTracksToPlaylist(newPl.id, smart.tracks);
-    setSavedBanner(`Saved "${smart.name}" with ${smart.tracks.length} tracks to your playlists!`);
-    setTimeout(() => setSavedBanner(''), 3500);
+    setSavedBanner(`Saved "${smart.name}" with ${smart.tracks.length} track${smart.tracks.length === 1 ? '' : 's'} to your playlists!`);
+    if (savedBannerTimerRef.current) clearTimeout(savedBannerTimerRef.current);
+    savedBannerTimerRef.current = setTimeout(() => setSavedBanner(''), 3500);
   };
 
   const openImportModal = (mode: 'live' | 'url' | 'text' | 'file') => {
@@ -516,7 +524,7 @@ export default function LibraryPage() {
                     {smart.description}
                   </p>
                   <span className="text-[11px] font-bold text-white/45 block mt-1">
-                    {smart.tracks.length} tracks • Click to inspect
+                    {smart.tracks.length} {smart.tracks.length === 1 ? 'track' : 'tracks'} • Click to inspect
                   </span>
                 </div>
 

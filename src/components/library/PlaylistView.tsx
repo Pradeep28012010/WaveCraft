@@ -60,6 +60,17 @@ export default function PlaylistView() {
 
   const folderDropdownRef = useRef<HTMLDivElement>(null);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
+  const smartSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attachSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (smartSaveTimerRef.current) clearTimeout(smartSaveTimerRef.current);
+      if (copyFeedbackTimerRef.current) clearTimeout(copyFeedbackTimerRef.current);
+      if (attachSyncTimerRef.current) clearTimeout(attachSyncTimerRef.current);
+    };
+  }, []);
 
   // Close folder dropdown on click outside or Escape
   useEffect(() => {
@@ -134,7 +145,8 @@ export default function PlaylistView() {
     );
     addTracksToPlaylist(newPl.id, smartMatch.tracks);
     setSaveSmartSuccess(true);
-    setTimeout(() => {
+    if (smartSaveTimerRef.current) clearTimeout(smartSaveTimerRef.current);
+    smartSaveTimerRef.current = setTimeout(() => {
       setSaveSmartSuccess(false);
       navigate(`/playlist/${newPl.id}`);
     }, 1200);
@@ -171,7 +183,8 @@ export default function PlaylistView() {
       navigator.clipboard?.writeText(text)?.catch(() => {});
     } catch {}
     setCopyFeedback(true);
-    setTimeout(() => setCopyFeedback(false), 2200);
+    if (copyFeedbackTimerRef.current) clearTimeout(copyFeedbackTimerRef.current);
+    copyFeedbackTimerRef.current = setTimeout(() => setCopyFeedback(false), 2200);
   };
 
   // Auto-sync on mount & interval if Live Sync is enabled
@@ -309,7 +322,8 @@ export default function PlaylistView() {
     });
     setShowAttachSource(false);
     setAttachUrlInput('');
-    setTimeout(() => {
+    if (attachSyncTimerRef.current) clearTimeout(attachSyncTimerRef.current);
+    attachSyncTimerRef.current = setTimeout(() => {
       syncLivePlaylist(playlist.id, (status, pct) => {
         setSyncStatusText(status);
         setSyncProgressPct(pct);
@@ -999,7 +1013,7 @@ export default function PlaylistView() {
       {tracks.length > 0 && (
         <div className="relative z-10 hidden sm:flex items-center px-3 sm:px-4 py-2 border-b border-white/[0.08] text-[11px] font-black uppercase tracking-wider text-white/40 mb-2">
           <span className="w-7 text-center">#</span>
-          <span className="flex-1 ml-3">Title &amp; Artist</span>
+          <span className="flex-1 ml-3">Title, Artist &amp; Album</span>
           <span className="w-28 text-right pr-11">Duration</span>
         </div>
       )}

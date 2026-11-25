@@ -902,7 +902,7 @@ export async function getOfflineStorageEstimate(): Promise<{
 }> {
   const tracks = getOfflineTracks();
   const used = tracks.reduce(
-    (acc, t) => acc + (t.fileSizeBytes && t.fileSizeBytes > 0 ? t.fileSizeBytes : 6.8 * 1024 * 1024),
+    (acc, t) => acc + (t.fileSizeBytes && t.fileSizeBytes > 0 ? t.fileSizeBytes : 0),
     0
   );
   let total = 0;
@@ -952,11 +952,11 @@ export async function getOfflineDetailedStorageBreakdown(): Promise<DetailedStor
   const autoCacheTracks = allTracks.filter((t) => t.offlineSource === 'auto-cache');
 
   const manualBytes = manualTracks.reduce(
-    (acc, t) => acc + (t.fileSizeBytes || 6.8 * 1024 * 1024),
+    (acc, t) => acc + (t.fileSizeBytes && t.fileSizeBytes > 0 ? t.fileSizeBytes : 0),
     0
   );
   const autoCacheBytes = autoCacheTracks.reduce(
-    (acc, t) => acc + (t.fileSizeBytes || 6.8 * 1024 * 1024),
+    (acc, t) => acc + (t.fileSizeBytes && t.fileSizeBytes > 0 ? t.fileSizeBytes : 0),
     0
   );
   const totalUsedBytes = manualBytes + autoCacheBytes;

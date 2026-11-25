@@ -389,7 +389,7 @@ export default function CreatePlaylist({ isOpen, onClose, editPlaylist }: Create
         </div>
 
         {/* ── Footer Actions ── */}
-        <div className="flex items-center justify-end gap-2.5 pt-2 border-0 mt-1">
+        <div className="sticky bottom-0 z-10 bg-[#0d0e18]/95 backdrop-blur-xl py-3 -mx-2 px-2 mt-2 border-t border-white/[0.08] flex items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}

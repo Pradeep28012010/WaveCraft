@@ -684,7 +684,7 @@ export default function MiniPlayer() {
                 <motion.button
                   whileHover={{ scale: 1.12, x: -1 }}
                   whileTap={{ scale: 0.88 }}
-                  onClick={prevTrack}
+                  onClick={() => prevTrack()}
                   title="Previous"
                   className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white transition-colors cursor-pointer"
                 >
@@ -718,7 +718,7 @@ export default function MiniPlayer() {
                 <motion.button
                   whileHover={{ scale: 1.12, x: 1 }}
                   whileTap={{ scale: 0.88 }}
-                  onClick={nextTrack}
+                  onClick={() => nextTrack()}
                   title="Next"
                   className="w-9 h-9 p-0 flex items-center justify-center rounded-full glass-button text-white/80 hover:text-white transition-colors cursor-pointer"
                 >

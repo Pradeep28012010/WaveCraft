@@ -348,23 +348,28 @@ function GradualBlur(props: GradualBlurProps) {
     return baseStyle;
   }, [config, responsiveHeight, responsiveWidth, isVisible]);
 
-  const { hoverIntensity, animated, onAnimationComplete, duration } = config;
+  const {
+    hoverIntensity: cfgHoverIntensity,
+    animated: cfgAnimated,
+    onAnimationComplete,
+    duration: cfgDuration
+  } = config;
 
   useEffect(() => {
-    if (isVisible && animated === 'scroll' && onAnimationComplete) {
-      const ms = parseFloat(duration || '0.3') * 1000;
+    if (isVisible && cfgAnimated === 'scroll' && onAnimationComplete) {
+      const ms = parseFloat(cfgDuration || '0.3') * 1000;
       const t = setTimeout(() => onAnimationComplete(), ms);
       return () => clearTimeout(t);
     }
-  }, [isVisible, animated, onAnimationComplete, duration]);
+  }, [isVisible, cfgAnimated, onAnimationComplete, cfgDuration]);
 
   return (
     <div
       ref={containerRef}
       className={`gradual-blur ${config.target === 'page' ? 'gradual-blur-page' : 'gradual-blur-parent'} ${config.className || ''}`}
       style={containerStyle}
-      onMouseEnter={hoverIntensity ? () => setIsHovered(true) : undefined}
-      onMouseLeave={hoverIntensity ? () => setIsHovered(false) : undefined}
+      onMouseEnter={cfgHoverIntensity ? () => setIsHovered(true) : undefined}
+      onMouseLeave={cfgHoverIntensity ? () => setIsHovered(false) : undefined}
     >
       <div
         className="gradual-blur-inner"

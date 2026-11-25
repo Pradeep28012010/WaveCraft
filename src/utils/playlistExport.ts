@@ -26,6 +26,18 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'playlist';
 }
 
+export function extractValidYoutubeId(track: { youtubeId?: string; id?: string }): string | undefined {
+  if (typeof track.youtubeId === 'string' && /^[a-zA-Z0-9_-]{11}$/.test(track.youtubeId.trim())) {
+    return track.youtubeId.trim();
+  }
+  if (typeof track.id === 'string') {
+    const ytPrefixed = track.id.match(/^yt[_-]([a-zA-Z0-9_-]{11})$/);
+    if (ytPrefixed) return ytPrefixed[1];
+    if (/^[a-zA-Z0-9_-]{11}$/.test(track.id)) return track.id;
+  }
+  return undefined;
+}
+
 /**
  * Export a playlist to standard Extended M3U8 format (.m3u8)
  * Compatible with VLC, Apple Music, Foobar2000, Winamp, Android/iOS audio players
@@ -46,10 +58,10 @@ export function exportToM3U8(playlist: Playlist): void {
     const artist = track.artist || 'Unknown Artist';
     const title = track.title || 'Unknown Title';
     lines.push(`#EXTINF:${duration},${artist} - ${title}`);
+    const ytId = extractValidYoutubeId(track);
     if (track.audioUrl) {
       lines.push(track.audioUrl);
-    } else if (track.youtubeId || track.id?.startsWith('yt_')) {
-      const ytId = track.youtubeId || track.id.slice(3);
+    } else if (ytId) {
       lines.push(`https://www.youtube.com/watch?v=${ytId}`);
     } else {
       lines.push(`#TRACKID:${track.id}`);
@@ -206,7 +218,7 @@ export function parseJSONPlaylistString(content: string, defaultName = 'Imported
     title: t.title || 'Untitled',
     artist: t.artist || 'Unknown Artist',
     duration: t.duration || 0,
-    videoId: t.youtubeId || (t.id?.startsWith('yt_') ? t.id.slice(3) : undefined),
+    videoId: extractValidYoutubeId(t),
     audioUrl: t.audioUrl
   });
 

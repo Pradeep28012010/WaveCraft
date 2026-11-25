@@ -34,15 +34,6 @@ export const DEFAULT_AMBIENT_PALETTE: AmbientPalette = {
 };
 
 const paletteCache = new Map<string, AmbientPalette>();
-const MAX_PALETTE_CACHE = 120;
-
-function cachePalette(url: string, pal: AmbientPalette): void {
-  if (paletteCache.size >= MAX_PALETTE_CACHE) {
-    const oldest = paletteCache.keys().next().value;
-    if (oldest !== undefined) paletteCache.delete(oldest);
-  }
-  paletteCache.set(url, pal);
-}
 
 /**
  * Converts RGB tuple to Hex string.
@@ -238,16 +229,18 @@ export async function extractPaletteFromImage(
 
   return new Promise<AmbientPalette>((resolve) => {
     let resolved = false;
-    const finish = (pal: AmbientPalette) => {
+    const finish = (pal: AmbientPalette, shouldCache = true) => {
       if (resolved) return;
       resolved = true;
-      paletteCache.set(imageUrl, pal);
+      if (shouldCache) {
+        cachePalette(imageUrl, pal);
+      }
       resolve(pal);
     };
 
-    // Safety timeout in case image never loads or network hangs
+    // Safety timeout in case image never loads or network hangs (never poison cache with fallback)
     const timeoutTimer = setTimeout(() => {
-      finish(synthesizeHarmonicPalette(fallbackAccent));
+      finish(synthesizeHarmonicPalette(fallbackAccent), false);
     }, 2500);
 
     const img = new Image();
@@ -331,12 +324,12 @@ export async function extractPaletteFromImage(
         // CORS tainted canvas fallback
       }
 
-      finish(synthesizeHarmonicPalette(fallbackAccent));
+      finish(synthesizeHarmonicPalette(fallbackAccent), false);
     };
 
     img.onerror = () => {
       clearTimeout(timeoutTimer);
-      finish(synthesizeHarmonicPalette(fallbackAccent));
+      finish(synthesizeHarmonicPalette(fallbackAccent), false);
     };
 
     img.src = imageUrl;

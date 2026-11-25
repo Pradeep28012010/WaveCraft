@@ -102,6 +102,7 @@ export const initNativeAndroid = (navigate?: (to: number) => void) => {
 };
 
 import { seekToTime } from './audioEngine';
+import { isJamGuestBlocked, isJamRemoteApplying } from './jamAuthority';
 
 declare global {
   interface Window {
@@ -162,15 +163,21 @@ export const fetchAndroidNativeUrl = (url: string): string | null => {
 if (typeof window !== 'undefined') {
   window.__wavecraft_media_action = (action: string) => {
     const store = usePlayerStore.getState();
+    const remoteApplying = isJamRemoteApplying();
     if (action === 'play_pause') {
+      if (isJamGuestBlocked('pause') && !remoteApplying) return;
       store.togglePlay();
     } else if (action === 'play') {
+      if (isJamGuestBlocked('play') && !remoteApplying) return;
       store.resume();
     } else if (action === 'pause') {
+      if (isJamGuestBlocked('pause') && !remoteApplying) return;
       store.pause();
     } else if (action === 'next') {
+      if (isJamGuestBlocked('skip') && !remoteApplying) return;
       store.nextTrack();
     } else if (action === 'prev') {
+      if (isJamGuestBlocked('skip') && !remoteApplying) return;
       store.prevTrack();
     } else if (action === 'duck') {
       const win = window as unknown as { __wavecraft_pre_duck_vol?: number; __wavecraft_is_ducked?: boolean };
@@ -179,7 +186,8 @@ if (typeof window !== 'undefined') {
         win.__wavecraft_is_ducked = true;
       }
       const baseVol = typeof win.__wavecraft_pre_duck_vol === 'number' ? win.__wavecraft_pre_duck_vol : store.volume;
-      store.setVolume(Math.max(0.15, baseVol * 0.28));
+      const ducked = baseVol <= 0 ? 0 : Math.min(baseVol, Math.max(0.05, baseVol * 0.28));
+      store.setVolume(ducked);
     } else if (action === 'unduck') {
       const win = window as unknown as { __wavecraft_pre_duck_vol?: number; __wavecraft_is_ducked?: boolean };
       if (win.__wavecraft_is_ducked && typeof win.__wavecraft_pre_duck_vol === 'number') {
@@ -188,6 +196,7 @@ if (typeof window !== 'undefined') {
       win.__wavecraft_is_ducked = false;
       win.__wavecraft_pre_duck_vol = undefined;
     } else if (action.startsWith('seek:')) {
+      if (isJamGuestBlocked('seek') && !remoteApplying) return;
       const time = parseFloat(action.replace('seek:', ''));
       if (!isNaN(time)) {
         store.seekTo(time);

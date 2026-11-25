@@ -22,21 +22,21 @@ export default function LikedSongs() {
   const [sortBy, setSortBy] = useState<'date' | 'title' | 'artist'>('date');
 
   const filteredAndSortedSongs = useMemo(() => {
-    let result = likedSongs.filter((t) => t && typeof t === 'object' && t.title);
+    let result = likedSongs.filter((t) => t && typeof t === 'object' && (t.title || t.name));
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (track) =>
-          track.title.toLowerCase().includes(q) ||
-          track.artist.toLowerCase().includes(q)
+          (track.title || track.name || '').toLowerCase().includes(q) ||
+          (track.artist || '').toLowerCase().includes(q)
       );
     }
 
     if (sortBy === 'title') {
-      result = [...result].sort((a, b) => a.title.localeCompare(b.title));
+      result = [...result].sort((a, b) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
     } else if (sortBy === 'artist') {
-      result = [...result].sort((a, b) => a.artist.localeCompare(b.artist));
+      result = [...result].sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
     }
 
     return result;
@@ -104,7 +104,7 @@ export default function LikedSongs() {
           </span>
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">Liked Songs</h1>
           <p className="text-sm text-white/60 mt-1">
-            {filteredAndSortedSongs.length} favorite tracks • 320kbps Studio HD
+            {filteredAndSortedSongs.length} favorite {filteredAndSortedSongs.length === 1 ? 'track' : 'tracks'} • 320kbps Studio HD
           </p>
         </div>
       </div>

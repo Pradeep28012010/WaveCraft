@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Playlist } from '../../types';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useDownloadStore } from '../../stores/downloadStore';
-import { isPlaylistFullyOffline, getPlaylistOfflineCount } from '../../services/offlineVault';
+import { isPlaylistFullyOffline, getPlaylistOfflineCount, useOfflineVault } from '../../services/offlineVault';
 import GlassCard from '../ui/GlassCard';
 
 interface PlaylistCardProps {
@@ -130,19 +130,20 @@ const PlaylistCard = memo(function PlaylistCard({
 
   const activeDownloadJob = useDownloadStore((s) => s.activeJob);
   const startBatchDownload = useDownloadStore((s) => s.startBatchDownload);
+  const { offlineTracks } = useOfflineVault();
 
   const isCurrentDownloading = Boolean(
     activeDownloadJob && activeDownloadJob.id === playlist.id && activeDownloadJob.isDownloading
   );
 
-  const isFullyOffline = useMemo(
-    () => isPlaylistFullyOffline(playlist.tracks),
-    [playlist.tracks, activeDownloadJob]
-  );
-  const offlineCount = useMemo(
-    () => getPlaylistOfflineCount(playlist.tracks),
-    [playlist.tracks, activeDownloadJob]
-  );
+  const isFullyOffline = useMemo(() => {
+    void offlineTracks.length;
+    return isPlaylistFullyOffline(playlist.tracks);
+  }, [playlist.tracks, activeDownloadJob, offlineTracks]);
+  const offlineCount = useMemo(() => {
+    void offlineTracks.length;
+    return getPlaylistOfflineCount(playlist.tracks);
+  }, [playlist.tracks, activeDownloadJob, offlineTracks]);
 
   const handleDownloadClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -184,7 +185,7 @@ const PlaylistCard = memo(function PlaylistCard({
               )}
             </div>
             <div className="flex items-center gap-2 text-xs text-white/55 mt-0.5 font-medium">
-              <span>{playlist.tracks.length} tracks</span>
+              <span>{playlist.tracks.length} {playlist.tracks.length === 1 ? 'track' : 'tracks'}</span>
               {playlist.isLiveSync && (
                 <>
                   <span>•</span>
@@ -387,7 +388,7 @@ const PlaylistCard = memo(function PlaylistCard({
         {/* Track count & sync delta */}
         <div className="flex items-center justify-between gap-2 mt-1">
           <p className="text-xs text-white/60 whitespace-nowrap">
-            {playlist.tracks.length} tracks
+            {playlist.tracks.length} {playlist.tracks.length === 1 ? 'track' : 'tracks'}
             {playlist.isLiveSync ? ' • Live' : ''}
           </p>
           {playlist.isLiveSync && (playlist.lastSyncDelta || 0) > 0 && (

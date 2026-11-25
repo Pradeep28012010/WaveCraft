@@ -532,6 +532,51 @@ export async function restoreFullLibraryBackup(backup: LibraryBackupPayload): Pr
     await saveFolders(merged);
   }
 
+  if (Array.isArray(backup.recentlyPlayed) && backup.recentlyPlayed.length > 0) {
+    const existing = await loadRecentlyPlayed();
+    const existingIds = new Set(existing.map((r) => r?.track?.id).filter(Boolean));
+    const merged = [...existing];
+    for (const r of backup.recentlyPlayed) {
+      if (r?.track?.id && !existingIds.has(r.track.id)) {
+        existingIds.add(r.track.id);
+        merged.push(r);
+      }
+    }
+    await saveRecentlyPlayed(merged.slice(0, 100));
+  }
+
+  if (Array.isArray(backup.playHistory) && backup.playHistory.length > 0) {
+    const existing = await loadPlayHistory();
+    const seen = new Set(existing.map((h) => `${h.trackId}_${h.playedAt}`));
+    const merged = [...existing];
+    for (const h of backup.playHistory) {
+      if (h?.trackId && typeof h.playedAt === 'number') {
+        const key = `${h.trackId}_${h.playedAt}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(h);
+        }
+      }
+    }
+    merged.sort((a, b) => a.playedAt - b.playedAt);
+    await savePlayHistory(merged);
+  }
+
+  if (backup.galaxyPrefs && typeof backup.galaxyPrefs === 'object') {
+    await saveGalaxyPrefs(backup.galaxyPrefs);
+  }
+
+  if (backup.settings && typeof backup.settings === 'object') {
+    const current = await loadSettings();
+    const mergedSettings = { ...(current || {}), ...backup.settings } as SettingsState;
+    await saveSettings(mergedSettings);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('wavecraft_settings_v1', JSON.stringify(mergedSettings));
+      }
+    } catch {}
+  }
+
   // Force an immediate vault snapshot update across CacheStorage
   await saveVaultSnapshotToCache().catch(() => {});
 

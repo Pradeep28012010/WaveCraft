@@ -104,12 +104,15 @@ export default function DownloadsPage() {
     triggerAndroidHaptic('medium');
     setIsImporting(true);
     setImportStatus(`Analyzing and importing ${files.length} audio file${files.length === 1 ? '' : 's'}...`);
-    const res = await importLocalAudioFiles(files);
-    refreshStorage();
-    setIsImporting(false);
-    setImportStatus('');
-    if (res.imported.length > 0) {
-      showToast(`✓ Imported ${res.imported.length} song${res.imported.length === 1 ? '' : 's'} to Offline Vault!`, 4500);
+    try {
+      const res = await importLocalAudioFiles(files);
+      refreshStorage();
+      if (res.imported.length > 0) {
+        showToast(`✓ Imported ${res.imported.length} song${res.imported.length === 1 ? '' : 's'} to Offline Vault!`, 4500);
+      }
+    } finally {
+      setIsImporting(false);
+      setImportStatus('');
     }
   };
 
@@ -183,8 +186,8 @@ export default function DownloadsPage() {
     const q = searchQuery.toLowerCase().trim();
     return tabFilteredTracks.filter(
       (t) =>
-        t.title.toLowerCase().includes(q) ||
-        t.artist.toLowerCase().includes(q) ||
+        (t.title || '').toLowerCase().includes(q) ||
+        (t.artist || '').toLowerCase().includes(q) ||
         (t.album && t.album.toLowerCase().includes(q))
     );
   }, [tabFilteredTracks, searchQuery]);
@@ -194,9 +197,9 @@ export default function DownloadsPage() {
     const list = [...searchedTracks];
     switch (sortBy) {
       case 'title':
-        return list.sort((a, b) => a.title.localeCompare(b.title));
+        return list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
       case 'artist':
-        return list.sort((a, b) => a.artist.localeCompare(b.artist));
+        return list.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
       case 'size':
         return list.sort((a, b) => (b.fileSizeBytes || 0) - (a.fileSizeBytes || 0));
       case 'recent':
@@ -221,18 +224,24 @@ export default function DownloadsPage() {
 
   const handleConfirmClearAll = async () => {
     setIsClearing(true);
-    await clearAllOfflineTracks();
-    setIsClearing(false);
-    setShowClearConfirm(false);
-    refreshStorage();
+    try {
+      await clearAllOfflineTracks();
+      setShowClearConfirm(false);
+      refreshStorage();
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   const handleConfirmClearAutoCache = async () => {
     setIsClearing(true);
-    await clearAutoCacheOnly();
-    setIsClearing(false);
-    setShowClearCacheConfirm(false);
-    refreshStorage();
+    try {
+      await clearAutoCacheOnly();
+      setShowClearCacheConfirm(false);
+      refreshStorage();
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   const handleExportCatalog = () => {

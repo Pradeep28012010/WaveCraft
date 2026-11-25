@@ -1,10 +1,12 @@
-import { getApiBaseUrl } from './apiConfig';
+import { getApiBaseUrl, getShareBaseUrl } from './apiConfig';
 import type { LibraryBackupPayload } from './storage';
 import {
   loadLikedSongs,
   loadPlaylists,
   loadFolders,
   loadRecentlyPlayed,
+  loadPlayHistory,
+  loadSettings,
   loadGalaxyPrefs
 } from './storage';
 
@@ -21,13 +23,26 @@ export interface CloudSyncResult {
  * Creates a comprehensive library snapshot ready for cross-device beam syncing.
  */
 export async function createSyncPayload(): Promise<LibraryBackupPayload> {
-  const [likedSongs, playlists, folders, recentlyPlayed, galaxyPrefs] = await Promise.all([
+  const [likedSongs, playlists, folders, recentlyPlayed, playHistory, settings, galaxyPrefs] = await Promise.all([
     loadLikedSongs(),
     loadPlaylists(),
     loadFolders(),
     loadRecentlyPlayed(),
+    loadPlayHistory(),
+    loadSettings(),
     loadGalaxyPrefs()
   ]);
+
+  const syncedHistory =
+    playHistory.length > 0
+      ? playHistory.slice(-500)
+      : recentlyPlayed.map((r) => ({
+          trackId: r.track.id,
+          title: r.track.title,
+          artist: r.track.artist,
+          playedAt: r.playedAt,
+          duration: r.track.duration || 0
+        }));
 
   return {
     wavecraftVersion: '5.4.0',
@@ -36,14 +51,10 @@ export async function createSyncPayload(): Promise<LibraryBackupPayload> {
     likedSongs,
     playlists,
     folders,
+    recentlyPlayed,
+    settings: settings || undefined,
     galaxyPrefs,
-    playHistory: recentlyPlayed.map((r) => ({
-      trackId: r.track.id,
-      title: r.track.title,
-      artist: r.track.artist,
-      playedAt: r.playedAt,
-      duration: r.track.duration || 0
-    }))
+    playHistory: syncedHistory
   };
 }
 
@@ -68,14 +79,18 @@ export async function publishCloudSync(
       body: JSON.stringify({
         code: customCode || undefined,
         payload: dataToSync
-      })
+      }),
+      signal: AbortSignal.timeout(10000)
     });
 
-    const data = await res.json();
-    if (!res.ok || !data.success) {
+    let data: { success?: boolean; error?: string; code?: string; expiresAt?: number; expiresInMinutes?: number } | null = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (!res.ok || !data?.success) {
       return {
         success: false,
-        error: data.error || 'Failed to publish cloud sync room.'
+        error: data?.error || 'Failed to publish cloud sync room.'
       };
     }
 
@@ -110,14 +125,18 @@ export async function pullCloudSync(code: string): Promise<CloudSyncResult> {
     const res = await fetch(endpoint, {
       headers: {
         Accept: 'application/json'
-      }
+      },
+      signal: AbortSignal.timeout(10000)
     });
 
-    const data = await res.json();
-    if (!res.ok || !data.success) {
+    let data: { success?: boolean; error?: string; code?: string; payload?: LibraryBackupPayload; expiresAt?: number } | null = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (!res.ok || !data?.success) {
       return {
         success: false,
-        error: data.error || 'Sync code not found or expired.'
+        error: data?.error || 'Sync code not found or expired.'
       };
     }
 
@@ -140,9 +159,6 @@ export async function pullCloudSync(code: string): Promise<CloudSyncResult> {
  * Builds a direct shareable deep-link for instant one-tap sync on another device.
  */
 export function buildSyncUrl(code: string): string {
-  const origin =
-    typeof window !== 'undefined' && window.location.origin.includes('localhost')
-      ? window.location.origin
-      : 'https://wavecraft-alpha.vercel.app';
+  const origin = getShareBaseUrl();
   return `${origin}/?sync=${encodeURIComponent(code.trim().toUpperCase())}`;
 }
