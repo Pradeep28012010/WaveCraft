@@ -172,16 +172,19 @@ export default async (req: Request): Promise<Response> => {
     },
     json(data: unknown): ApiResponse {
       headers.set('Content-Type', 'application/json');
-      return mockRes.end(JSON.stringify(data));
+      mockRes.end(JSON.stringify(data));
+      return mockRes;
     },
     send(data: unknown): ApiResponse {
       if (typeof data !== 'string' && !(data instanceof Uint8Array)) {
         if (!headers.has('Content-Type')) {
           headers.set('Content-Type', 'application/json');
         }
-        return mockRes.end(JSON.stringify(data));
+        mockRes.end(JSON.stringify(data));
+        return mockRes;
       }
-      return mockRes.end(data);
+      mockRes.end(data);
+      return mockRes;
     },
     write(chunk: unknown, encodingOrCb?: unknown, cb?: unknown): boolean {
       const bytes = toBytes(chunk);

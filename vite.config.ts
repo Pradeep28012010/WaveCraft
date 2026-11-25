@@ -1,11 +1,12 @@
 import { defineConfig, type Connect, type ViteDevServer, type PreviewServer } from 'vite';
+import type { ServerResponse } from 'node:http';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import musicApiHandler, { type ApiResponse } from './api/music.js';
 
 function wavecraftApiPlugin() {
-  const middleware = async (req: Connect.IncomingMessage, res: Connect.ServerResponse, next: Connect.NextFunction) => {
+  const middleware = async (req: Connect.IncomingMessage, res: ServerResponse, next: Connect.NextFunction) => {
     const pathname = req.url?.split('?')[0];
     if (pathname === '/api/music' || pathname === '/api/music/') {
       const wrappedRes: ApiResponse = Object.assign(res, {
