@@ -1,4 +1,5 @@
 const preloadedUrls = new Set<string>();
+const MAX_PRELOADED_URLS = 300;
 const preloadQueue: string[] = [];
 let activePreloads = 0;
 const MAX_CONCURRENT_PRELOADS = 4;
