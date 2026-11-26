@@ -235,7 +235,21 @@ function ContextMenuInner() {
     return playlists.filter((p) => p.name.toLowerCase().includes(q));
   }, [playlists, playlistFilter]);
 
-  // Measure actual rendered dimensions so viewport clamping adapts dynamically
+  const [viewportSize, setViewportSize] = useState<{ w: number; h: number }>(() => ({
+    w: typeof window !== 'undefined' ? window.innerWidth : 1024,
+    h: typeof window !== 'undefined' ? window.innerHeight : 768
+  }));
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => {
+      setViewportSize({ w: window.innerWidth, h: window.innerHeight });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Measure actual unscaled rendered dimensions + observe layout changes so viewport clamping never clips off-screen
   useLayoutEffect(() => {
     if (!isOpen || isPhone) {
       setMeasuredSize(null);
@@ -243,16 +257,30 @@ function ContextMenuInner() {
     }
     const el = menuRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      const nextWidth = Math.ceil(rect.width);
-      const nextHeight = Math.ceil(rect.height);
-      setMeasuredSize((prev) =>
-        prev && prev.width === nextWidth && prev.height === nextHeight
-          ? prev
-          : { width: nextWidth, height: nextHeight }
-      );
+
+    const measure = () => {
+      const nextWidth = Math.ceil(el.offsetWidth || el.getBoundingClientRect().width);
+      const nextHeight = Math.ceil(Math.max(el.offsetHeight, el.scrollHeight));
+      if (nextWidth > 0 && nextHeight > 0) {
+        setMeasuredSize((prev) =>
+          prev && prev.width === nextWidth && prev.height === nextHeight
+            ? prev
+            : { width: nextWidth, height: nextHeight }
+        );
+      }
+    };
+
+    measure();
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(measure);
+      ro.observe(el);
     }
+
+    return () => {
+      ro?.disconnect();
+    };
   }, [
     isOpen,
     isPhone,
@@ -264,7 +292,9 @@ function ContextMenuInner() {
     onRemove,
     isCreatingPlaylist,
     filteredPlaylists.length,
-    toastMessage
+    toastMessage,
+    x,
+    y
   ]);
 
   if (typeof document === 'undefined') return null;
@@ -275,13 +305,14 @@ function ContextMenuInner() {
     hasTrackHeader: type === 'track' && Boolean(track),
     hasContextualRemove: Boolean(onRemove)
   });
-  const winW = typeof window !== 'undefined' ? window.innerWidth : 1024;
-  const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
+  const winW = viewportSize.w;
+  const winH = viewportSize.h;
+  const effectiveHeight = Math.min(measuredSize?.height ?? estimatedSize.height, Math.max(160, winH - 24));
   const { left: safeX, top: safeY } = computeClampedMenuPosition({
     x,
     y,
     menuWidth: measuredSize?.width ?? estimatedSize.width,
-    menuHeight: measuredSize?.height ?? estimatedSize.height,
+    menuHeight: effectiveHeight,
     viewportWidth: winW,
     viewportHeight: winH,
     margin: 12
@@ -1175,7 +1206,8 @@ function ContextMenuInner() {
         style={{
           position: 'fixed',
           left: `${safeX}px`,
-          top: `${safeY}px`
+          top: `${safeY}px`,
+          maxHeight: `${Math.max(160, winH - safeY - 12)}px`
         }}
         data-density={density}
         className={`${tokens.widthClass} ${tokens.containerRadius} ${tokens.containerPadding} max-h-[calc(100vh-24px)] overflow-y-auto no-scrollbar glass-compact-menu flex flex-col ${tokens.listGap} text-white/90`}
