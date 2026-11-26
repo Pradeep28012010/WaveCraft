@@ -1,17 +1,14 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+﻿import { useState, useEffect, useRef, useMemo } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
 import { searchTracks } from '../../services/youtube';
 import { unlockAudioEngine, getAudioFrequencyData } from '../player/YouTubeEmbed';
-import GlassCard from '../ui/GlassCard';
-import GlassSelect from '../ui/GlassSelect';
-import { DEFAULT_THUMBNAIL } from '../../utils/constants';
-import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 import { loadGalaxyPrefs, saveGalaxyPrefs } from '../../services/storage';
 import WaveCardModal from '../player/WaveCardModal';
+import GalaxyHud from './GalaxyHud';
+import GalaxyTooltip from './GalaxyTooltip';
 import type { Track } from '../../types';
 import type {
   SonicDNA,
@@ -25,14 +22,12 @@ import type {
 } from './galaxyTypes';
 import {
   CLUSTERS,
-  WORMHOLE_PRESETS,
   hashString,
   clamp,
   analyzeTrackSonicDNA,
   computeDnaCosineSimilarity,
   getCachedAlbumImage
 } from './galaxyAnalysis';
-import SonicSpiderRadar from './SonicSpiderRadar';
 
 function getInitialGalaxyLayout(): 'quadrants' | 'rings' | 'spiral' {
   try {
@@ -83,7 +78,6 @@ export default function SonicGalaxyPage() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const playTrack = usePlayerStore((s) => s.playTrack);
-  const addNext = usePlayerStore((s) => s.addNext);
   const togglePlay = usePlayerStore((s) => s.togglePlay);
 
   const likedSongs = useLibraryStore((s) => s.likedSongs);
@@ -93,7 +87,7 @@ export default function SonicGalaxyPage() {
 
   const [predictedTracks, setPredictedTracks] = useState<Track[]>([]);
   const [wormholeTracks, setWormholeTracks] = useState<Track[] | null>(null);
-  const [activeWormholeLabel, setActiveWormholeLabel] = useState('🌌 My Taste Universe');
+  const [activeWormholeLabel, setActiveWormholeLabel] = useState('ðŸŒŒ My Taste Universe');
   const [warpQuery, setWarpQuery] = useState('');
   const [isWarping, setIsWarping] = useState(false);
 
@@ -101,9 +95,7 @@ export default function SonicGalaxyPage() {
   const [hoveredStarId, setHoveredStarId] = useState<string | null>(null);
   const [activeClusterFilter, setActiveClusterFilter] = useState<number | null>(null);
   const [galaxyLayout, setGalaxyLayout] = useState<'quadrants' | 'rings' | 'spiral'>(getInitialGalaxyLayout);
-  const [inspectorTab, setInspectorTab] = useState<'dna' | 'neighbors' | 'roster'>('dna');
   const [rosterSearch, setRosterSearch] = useState('');
-  const [rosterSort, setRosterSort] = useState<'match' | 'title' | 'artist'>('match');
   const [zoom, setZoom] = useState(1.05);
   const [autoOrbit, setAutoOrbit] = useState(true);
   const [isCinematicTour, setIsCinematicTour] = useState(false);
@@ -112,6 +104,7 @@ export default function SonicGalaxyPage() {
   const [audioReactivityMode, setAudioReactivityMode] = useState<'dynamic' | 'ambient' | 'off'>('dynamic');
   const [isOrbitLocked, setIsOrbitLocked] = useState(false);
   const [showStoryModal, setShowStoryModal] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
 
   // Load and hydrate persisted galaxy layout & audio reactivity settings across cache sweeps
   useEffect(() => {
@@ -159,23 +152,9 @@ export default function SonicGalaxyPage() {
     };
   }, []);
 
-  // Flythrough Camera smoothly into selected star system
-  const flyToStar = (star: StarNode3D) => {
-    triggerAndroidHaptic('medium');
-    setSelectedStar(star);
-    cameraRef.current.targetFocusX = star.x;
-    cameraRef.current.targetFocusY = star.y;
-    cameraRef.current.targetFocusZ = star.z;
-    setZoom(1.35);
-    setIsOrbitLocked(true);
-    shockwavesRef.current.push({
-      x: canvasRef.current ? canvasRef.current.clientWidth / 2 : 0,
-      y: canvasRef.current ? canvasRef.current.clientHeight / 2 : 0,
-      radius: 12,
-      maxRadius: 210,
-      color: star.color,
-      alpha: 0.95
-    });
+  const handleLayoutChange = (layout: 'quadrants' | 'rings' | 'spiral') => {
+    setGalaxyLayout(layout);
+    saveGalaxyPrefs({ layout });
   };
 
   // Reset Camera smoothly to galactic core nucleus
@@ -220,7 +199,7 @@ export default function SonicGalaxyPage() {
 
     if (!query.trim()) {
       setWormholeTracks(null);
-      setActiveWormholeLabel('🌌 My Taste Universe');
+      setActiveWormholeLabel('ðŸŒŒ My Taste Universe');
       warpTimerRef.current = setTimeout(() => {
         if (reqId === warpRequestIdRef.current) {
           setIsWarping(false);
@@ -229,7 +208,7 @@ export default function SonicGalaxyPage() {
       return;
     }
 
-    setActiveWormholeLabel(label || `🚀 ${query}`);
+    setActiveWormholeLabel(label || `ðŸš€ ${query}`);
     try {
       const results = await searchTracks(query.trim());
       if (reqId !== warpRequestIdRef.current) return;
@@ -370,15 +349,15 @@ export default function SonicGalaxyPage() {
 
       let reason = '';
       if (isLiked) {
-        reason = `Saved in Liked Songs • ${sonicSimilarityPct}% 4D Cosine DNA resonance`;
+        reason = `Saved in Liked Songs â€¢ ${sonicSimilarityPct}% 4D Cosine DNA resonance`;
       } else if (isRecent) {
-        reason = `In Recent Rotation • ${sonicSimilarityPct}% Sonic DNA alignment`;
+        reason = `In Recent Rotation â€¢ ${sonicSimilarityPct}% Sonic DNA alignment`;
       } else if (artistPlayCount >= 2) {
-        reason = `Artist appears ${artistPlayCount}× in library • ${sonicSimilarityPct}% DNA match`;
+        reason = `Artist appears ${artistPlayCount}Ã— in library â€¢ ${sonicSimilarityPct}% DNA match`;
       } else if (artistPlayCount === 1) {
-        reason = `Familiar artist • ${vibeSynergyPct}% ${cluster.shortName} sector synergy`;
+        reason = `Familiar artist â€¢ ${vibeSynergyPct}% ${cluster.shortName} sector synergy`;
       } else {
-        reason = `Discovery Star • ${sonicSimilarityPct}% Cosine DNA match to your taste`;
+        reason = `Discovery Star â€¢ ${sonicSimilarityPct}% Cosine DNA match to your taste`;
       }
 
       const h = hashString(track.id + track.title);
@@ -483,29 +462,6 @@ export default function SonicGalaxyPage() {
       if (updated) setSelectedStar(updated);
     }
   }, [stars, currentTrack?.id]);
-
-  // Top 5 nearest harmonic neighbors with astronomical parsec distances
-  const harmonicNeighbors = useMemo(() => {
-    if (!selectedStar) return [];
-    return stars
-      .filter((s) => s.id !== selectedStar.id)
-      .map((s) => {
-        const dnaSim = computeDnaCosineSimilarity(selectedStar.dna, s.dna);
-        const sameClusterBonus = s.clusterIndex === selectedStar.clusterIndex ? 4 : 0;
-        const sameArtistBonus =
-          s.track.artist.split(',')[0].trim().toLowerCase() ===
-          selectedStar.track.artist.split(',')[0].trim().toLowerCase()
-            ? 6
-            : 0;
-        const pairMatch = clamp(dnaSim + sameClusterBonus + sameArtistBonus, 60, 99);
-        const spatialDist = +(
-          Math.hypot(s.x - selectedStar.x, s.y - selectedStar.y, s.z - selectedStar.z) * 18.5
-        ).toFixed(1);
-        return { star: s, pairMatch, spatialDist };
-      })
-      .sort((a, b) => b.pairMatch - a.pairMatch)
-      .slice(0, 5);
-  }, [selectedStar, stars]);
 
   // Harmonic resonance filaments linking stars with > 80% Sonic DNA Cosine Similarity
   const constellationFilaments = useMemo<ConstellationFilament[]>(() => {
@@ -1011,21 +967,32 @@ export default function SonicGalaxyPage() {
         cameraRef.current.warpBoost *= 0.91;
       }
 
-      // Deep Cinema-Grade Cosmic Gradient Background
+      // Deep-Space Realism Backdrop + Faint Milky Way Dust Band
       const bgGrad = ctx.createRadialGradient(
         cx,
         cy,
         8,
         cx,
         cy,
-        Math.max(width, height) * 0.78
+        Math.max(width, height) * 0.85
       );
-      bgGrad.addColorStop(0, '#10061e');
-      bgGrad.addColorStop(0.35, '#070411');
-      bgGrad.addColorStop(0.75, '#030206');
-      bgGrad.addColorStop(1, '#000002');
+      bgGrad.addColorStop(0, '#070912');
+      bgGrad.addColorStop(0.45, '#030409');
+      bgGrad.addColorStop(1, '#010103');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
+
+      // Subtle diagonal Milky Way dust band
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-0.42 + cameraRef.current.yaw * 0.08);
+      const milkyGrad = ctx.createLinearGradient(0, -height * 0.28, 0, height * 0.28);
+      milkyGrad.addColorStop(0, 'rgba(15, 23, 42, 0)');
+      milkyGrad.addColorStop(0.5, `rgba(148, 163, 184, ${0.045 + bassEnergy * 0.015})`);
+      milkyGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+      ctx.fillStyle = milkyGrad;
+      ctx.fillRect(-width, -height * 0.28, width * 2, height * 0.56);
+      ctx.restore();
 
       // 1. Draw 3D Astrolabe Celestial Coordinate Grid (Elevation & Azimuth - Minimalist)
       if (showGrid) {
@@ -1209,7 +1176,7 @@ export default function SonicGalaxyPage() {
           ctx.fillStyle = `${cluster.secondary}55`;
           ctx.font = '700 9px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(`✦ ${cluster.name.toUpperCase()}`, proj.sx, proj.sy - nebulaR * 0.65);
+          ctx.fillText(`âœ¦ ${cluster.name.toUpperCase()}`, proj.sx, proj.sy - nebulaR * 0.65);
         });
       }
 
@@ -1480,23 +1447,21 @@ export default function SonicGalaxyPage() {
         ctx.arc(sx, sy, r, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Floating Title & Real Match % Pill - Minimal & Realistic
-        // Only render floating badges for the active/selected star, currently hovered star, or currently playing star
+        // Floating Title Pill - Minimal & Realistic (only hovered or currently playing star when not selected)
         if (
-          activeMix > 0.05 ||
-          hoverMix > 0.1 ||
-          isPlayingNow
+          (hoverMix > 0.15 || isPlayingNow) &&
+          currentSelected?.id !== node.id
         ) {
           const shortTitle =
             node.track.title.length > 20
-              ? node.track.title.slice(0, 18) + '…'
+              ? node.track.title.slice(0, 18) + 'â€¦'
               : node.track.title;
 
           ctx.font =
             activeMix > 0.3 || isPlayingNow
               ? '800 11px Inter, sans-serif'
               : '600 10px Inter, sans-serif';
-          const labelText = `${shortTitle} • ${node.affinityScore}%`;
+          const labelText = `${shortTitle} â€¢ ${node.affinityScore}%`;
           const textWidth = ctx.measureText(labelText).width;
           const pillW = textWidth + 20;
           const pillH = 22;
@@ -1599,6 +1564,20 @@ export default function SonicGalaxyPage() {
         ctx.restore();
       }
 
+      // Sync inline Liquid Glass tooltip position directly at 60fps without React re-renders
+      if (tooltipRef.current) {
+        const selProj = currentSelected ? projectedMap.get(currentSelected.id) : null;
+        if (selProj) {
+          const tipW = 256;
+          const tipH = 112;
+          const tx = Math.max(12, Math.min(width - tipW - 12, selProj.sx + selProj.drawR + 14));
+          const ty = Math.max(64, Math.min(height - tipH - 76, selProj.sy - tipH / 2));
+          tooltipRef.current.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
+        } else {
+          tooltipRef.current.style.transform = 'translate3d(-9999px, -9999px, 0)';
+        }
+      }
+
       rafId = requestAnimationFrame(render);
     };
 
@@ -1634,17 +1613,6 @@ export default function SonicGalaxyPage() {
     };
   }, []);
 
-  const handleLaunchConstellation = (clusterIdx: number) => {
-    triggerAndroidHaptic('medium');
-    const clusterTracks = stars
-      .filter((s) => s.clusterIndex === clusterIdx)
-      .map((s) => s.track);
-    if (clusterTracks.length > 0) {
-      unlockAudioEngine();
-      playTrack(clusterTracks[0], clusterTracks, 0);
-    }
-  };
-
   const handleSupernovaShuffle = () => {
     if (stars.length === 0) return;
     triggerAndroidHaptic('medium');
@@ -1655,997 +1623,64 @@ export default function SonicGalaxyPage() {
     playTrackWithSmartQueue(randomStar.track);
   };
 
-  const handleChainHarmonicQueue = () => {
-    if (harmonicNeighbors.length === 0) return;
-    triggerAndroidHaptic('heavy');
+  const handlePlayStar = (star: StarNode3D) => {
     unlockAudioEngine();
-    const neighborTracks = harmonicNeighbors.map((n) => n.star.track);
-    playTrack(neighborTracks[0], neighborTracks, 0);
-  };
-
-  // Filter & Sort Roster Stars
-  const filteredRosterStars = useMemo(() => {
-    let result = stars.filter(
-      (s) => activeClusterFilter === null || s.clusterIndex === activeClusterFilter
-    );
-
-    if (rosterSearch.trim()) {
-      const q = rosterSearch.toLowerCase();
-      result = result.filter(
-        (s) =>
-          s.track.title.toLowerCase().includes(q) ||
-          s.track.artist.toLowerCase().includes(q) ||
-          s.clusterName.toLowerCase().includes(q)
+    if (currentTrack?.id === star.track.id) {
+      togglePlay();
+    } else {
+      playTrack(
+        star.track,
+        stars.map((s) => s.track),
+        Math.max(0, stars.findIndex((s) => s.id === star.id))
       );
     }
-
-    if (rosterSort === 'title') {
-      result.sort((a, b) => a.track.title.localeCompare(b.track.title));
-    } else if (rosterSort === 'artist') {
-      result.sort((a, b) => a.track.artist.localeCompare(b.track.artist));
-    } else {
-      result.sort((a, b) => b.affinityScore - a.affinityScore);
-    }
-
-    return result;
-  }, [stars, activeClusterFilter, rosterSearch, rosterSort]);
+  };
 
   return (
-    <div className="pb-28 pt-1 text-white space-y-4 select-none">
-      {/* ================= VisionOS Liquid Glass Astrolabe Command Deck ================= */}
-      <div className="rounded-3xl liquid-glass border-0 p-5 sm:p-6 space-y-4 shadow-2xl">
-        {/* Tier 1: Main Header & Formation Switcher */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-0">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-[11px] font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
-              <span className="uppercase tracking-widest text-emerald-300 font-extrabold">
-                Observatory Live
-              </span>
-              <span className="text-white/25">•</span>
-              <span className="text-white/70">
-                {stars.length} {stars.length === 1 ? 'Star' : 'Stars'}
-              </span>
-              <span className="text-white/25">•</span>
-              <span className="text-cyan-300 font-extrabold">
-                {avgTasteMatch}% Resonance
-              </span>
-              {likedSongs.length > 0 && (
-                <>
-                  <span className="text-white/25">•</span>
-                  <span className="text-rose-300 font-extrabold">
-                    ❤️ {likedSongs.length} Liked Orbit
-                  </span>
-                </>
-              )}
-            </div>
+    <div className="relative w-full h-[calc(100vh-8.5rem)] min-h-[540px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-[#020307] select-none">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full block cursor-grab active:cursor-grabbing touch-none"
+      />
 
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2.5">
-              <span>Sonic Galaxy</span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 text-white/70 font-semibold border-0">
-                3D Spatial Map
-              </span>
-            </h1>
-            <p className="text-xs text-white/50">
-              Visualizing your library's 4D Sonic DNA across space, tempo, and harmonic affinity
-            </p>
-          </div>
+      <GalaxyHud
+        galaxyLayout={galaxyLayout}
+        onChangeLayout={handleLayoutChange}
+        rosterSearch={rosterSearch}
+        onSearchChange={setRosterSearch}
+        activeClusterFilter={activeClusterFilter}
+        onClusterFilterChange={setActiveClusterFilter}
+        isCinematicTour={isCinematicTour}
+        onToggleTour={() => setIsCinematicTour((prev) => !prev)}
+        autoOrbit={autoOrbit}
+        onToggleAutoOrbit={() => {
+          setAutoOrbit((prev) => {
+            const next = !prev;
+            saveGalaxyPrefs({ autoOrbit: next });
+            return next;
+          });
+        }}
+        onResetCamera={resetToNucleus}
+        onSupernovaShuffle={handleSupernovaShuffle}
+        isWarping={isWarping}
+        activeWormholeLabel={activeWormholeLabel}
+        warpQuery={warpQuery}
+        onWarpQueryChange={setWarpQuery}
+        onTriggerWormhole={triggerWormholeWarp}
+        starCount={stars.length}
+      />
 
-          {/* 3-Way Formation Switcher with Liquid Glass Sliding Pill */}
-          <div className="flex items-center p-1 rounded-2xl bg-white/[0.05] border-0 backdrop-blur-xl shadow-inner self-start md:self-center relative">
-            {[
-              { id: 'quadrants', label: '8-Sector Galaxy', icon: '🪐' },
-              { id: 'rings', label: 'Taste Radar', icon: '🎯' },
-              { id: 'spiral', label: '8-Arm Spiral', icon: '🌀' }
-            ].map((fmt) => {
-              const isSelected = galaxyLayout === fmt.id;
-              return (
-                <button
-                  key={fmt.id}
-                  type="button"
-                  onClick={() => {
-                    triggerAndroidHaptic('light');
-                    const targetLayout = fmt.id as any;
-                    setGalaxyLayout(targetLayout);
-                    saveGalaxyPrefs({ layout: targetLayout });
-                  }}
-                  className="relative px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap select-none"
-                >
-                  {isSelected && (
-                    <motion.div
-                      layoutId="galaxy-formation-liquid-pill"
-                      transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                      className="absolute inset-0 rounded-xl liquid-sliding-pill -z-0 pointer-events-none"
-                    />
-                  )}
-                  <span
-                    className={`relative z-10 flex items-center gap-1.5 transition-colors duration-150 ${
-                      isSelected
-                        ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
-                        : 'text-white/60 hover:text-white'
-                    }`}
-                  >
-                    <span>{fmt.icon}</span>
-                    <span>{fmt.label}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      <GalaxyTooltip
+        selectedStar={selectedStar}
+        isCurrentTrackPlaying={Boolean(
+          selectedStar && currentTrack?.id === selectedStar.track.id && isPlaying
+        )}
+        tooltipRef={tooltipRef}
+        onPlay={handlePlayStar}
+        onOpenPoster={() => setShowStoryModal(true)}
+        onClose={() => setSelectedStar(null)}
+      />
 
-        {/* Tier 2: 8-Sector Constellation Filters & Integrated Search Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
-          {/* Sector Constellation Filter Pills */}
-          <div className="flex flex-wrap items-center gap-2 py-1 max-w-full">
-            <button
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setActiveClusterFilter(null);
-              }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all flex-shrink-0 ${
-                activeClusterFilter === null
-                  ? 'glass-button-primary text-white shadow-sm'
-                  : 'glass-button text-white/70 hover:text-white'
-              }`}
-            >
-              All 8 Sectors ({stars.length})
-            </button>
-            {CLUSTERS.map((c, idx) => (
-              <button
-                key={c.name}
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setActiveClusterFilter(activeClusterFilter === idx ? null : idx);
-                }}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 flex-shrink-0 ${
-                  activeClusterFilter === idx
-                    ? 'glass-button text-white border-white/50 bg-white/20 shadow-md'
-                    : 'glass-button text-white/70 hover:text-white'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
-                <span>{c.shortName}</span>
-                <span className="text-[10px] text-white/50 font-mono">({clusterCounts[idx]})</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Integrated Sleek Search / Warp Bar */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (warpQuery.trim()) {
-                triggerWormholeWarp(warpQuery.trim());
-              }
-            }}
-            className="relative flex items-center w-full lg:w-72 flex-shrink-0"
-          >
-            <span className="absolute left-3 text-white/40 text-xs pointer-events-none">🔍</span>
-            <input
-              type="text"
-              value={warpQuery}
-              onChange={(e) => setWarpQuery(e.target.value)}
-              placeholder="Warp to artist, genre, or mood..."
-              className="w-full h-9 pl-8 pr-20 rounded-full glass-input text-xs text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
-            />
-            <button
-              type="submit"
-              disabled={isWarping}
-              className="absolute right-1 top-1 bottom-1 px-3 rounded-full glass-button-primary text-white font-extrabold text-[11px] cursor-pointer transition-all flex items-center gap-1 shadow-sm"
-            >
-              {isWarping ? '...' : '🚀 Warp'}
-            </button>
-          </form>
-        </div>
-
-        {/* Tier 3: Universe Jump Presets Bar */}
-        <div
-          className="pt-3 flex items-center gap-2 overflow-x-auto no-scrollbar py-3.5 -my-1.5 px-1.5"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          <span className="text-[11px] font-extrabold text-white/45 whitespace-nowrap flex items-center gap-1 flex-shrink-0">
-            <span>🌌</span>
-            <span>Jump Universe:</span>
-          </span>
-          <div className="flex items-center gap-1.5 flex-nowrap">
-            {WORMHOLE_PRESETS.map((preset) => {
-              const isActive = activeWormholeLabel === preset.label;
-              return (
-                <button
-                  key={preset.label}
-                  onClick={() => triggerWormholeWarp(preset.query, preset.label)}
-                  className={`px-3 py-1 rounded-full text-[11px] font-extrabold whitespace-nowrap transition-all cursor-pointer ${
-                    isActive
-                      ? 'glass-button-purple text-white shadow-sm'
-                      : 'glass-button text-white/70 hover:text-white'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ================= Main 12-Column Layout ================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        {/* Left: 120fps 3D Interactive Star Map Viewport (7 cols) */}
-        <div className="lg:col-span-7 relative rounded-3xl overflow-hidden border-0 bg-[#040208] shadow-[0_30px_100px_rgba(0,0,0,0.9)] h-[480px] sm:h-[620px] lg:h-[700px]">
-          <canvas ref={canvasRef} className="w-full h-full block touch-none" />
-
-          {/* Top Viewport VisionOS Controls */}
-          <div className="absolute top-3.5 left-3.5 right-3.5 flex items-start justify-between gap-2 pointer-events-none">
-            <div className="flex flex-wrap items-center gap-1.5 py-1 px-1 pointer-events-auto max-w-full">
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setAutoOrbit((v) => !v);
-                }}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
-                  autoOrbit ? 'glass-button-emerald' : 'glass-button text-white/75'
-                }`}
-              >
-                {autoOrbit ? '🔄 Orbit: ON' : '✋ Orbit: PAUSED'}
-              </button>
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('medium');
-                  setIsCinematicTour((t) => !t);
-                }}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
-                  isCinematicTour ? 'glass-button-purple animate-pulse' : 'glass-button text-white/85'
-                }`}
-                title="Glide autonomously from star to star in a cinematic cosmic tour"
-              >
-                {isCinematicTour ? '🛸 Tour: ACTIVE' : '🚀 Cinematic Tour'}
-              </button>
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setShowConstellationFilaments((f) => !f);
-                }}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
-                  showConstellationFilaments ? 'glass-button-cyan text-white' : 'glass-button text-white/40'
-                }`}
-                title="Toggle harmonic resonance constellation filaments"
-              >
-                {showConstellationFilaments ? '✨ Filaments: ON' : '✨ Filaments: OFF'}
-              </button>
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setAudioReactivityMode((m) =>
-                    m === 'dynamic' ? 'ambient' : m === 'ambient' ? 'off' : 'dynamic'
-                  );
-                }}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
-                  audioReactivityMode === 'dynamic'
-                    ? 'glass-button-primary text-white shadow-sm'
-                    : audioReactivityMode === 'ambient'
-                    ? 'glass-button text-cyan-300'
-                    : 'glass-button text-white/40'
-                }`}
-                title="Cycle Audio Reactivity: Dynamic / Ambient / Off"
-              >
-                {audioReactivityMode === 'dynamic'
-                  ? '⚡ FX: DYNAMIC'
-                  : audioReactivityMode === 'ambient'
-                  ? '🌊 FX: AMBIENT'
-                  : '⏸ FX: OFF'}
-              </button>
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setShowCoordinateGrid((g) => !g);
-                }}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
-                  showCoordinateGrid ? 'glass-button text-white' : 'glass-button text-white/40'
-                }`}
-                title="Toggle celestial coordinate grid lines"
-              >
-                🌐 Grid
-              </button>
-              <button
-                onClick={resetToNucleus}
-                className="px-3 py-1.5 rounded-full glass-button text-[11px] font-bold text-white/85 cursor-pointer whitespace-nowrap flex-shrink-0"
-                title="Center camera on galactic nucleus"
-              >
-                🎯 Nucleus
-              </button>
-              <button
-                onClick={handleSupernovaShuffle}
-                className="px-3 py-1.5 rounded-full glass-button-primary text-[11px] font-extrabold text-white cursor-pointer whitespace-nowrap flex-shrink-0"
-              >
-                ✨ Shuffle
-              </button>
-            </div>
-
-            <div className="hidden 2xl:flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass border-0 text-[10px] font-bold text-white/75 flex-shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              <span>DRAG TO ROTATE • SCROLL / PINCH TO ZOOM</span>
-            </div>
-          </div>
-
-          {/* Bottom-Left Floating Selected Star Quick-Bar */}
-          {selectedStar && (
-            <div className="absolute bottom-3.5 left-3.5 right-36 sm:right-auto sm:max-w-xs pointer-events-auto">
-              <div
-                onContextMenu={(e) => {
-                  if (e.shiftKey) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  useContextMenuStore.getState().openTrackMenu(
-                    { clientX: e.clientX, clientY: e.clientY },
-                    selectedStar.track
-                  );
-                }}
-                className="p-2.5 rounded-2xl liquid-glass border-0 shadow-2xl flex items-center gap-3 cursor-pointer"
-              >
-                <img
-                  src={selectedStar.track.thumbnail || DEFAULT_THUMBNAIL}
-                  alt={selectedStar.track.title}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                  }}
-                  className={`w-10 h-10 rounded-xl object-cover flex-shrink-0 border-0 ${
-                    currentTrack?.id === selectedStar.id && isPlaying
-                      ? 'animate-[spin_6s_linear_infinite]'
-                      : ''
-                  }`}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: selectedStar.color }}
-                    />
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 truncate">
-                      {selectedStar.affinityScore}% Match • {selectedStar.parsecDistance} pc
-                    </span>
-                  </div>
-                  <p className="text-xs font-extrabold text-white truncate">
-                    {selectedStar.track.title}
-                  </p>
-                  <p className="text-[10px] text-white/60 truncate">
-                    {selectedStar.track.artist}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button
-                    onClick={() => {
-                      if (isOrbitLocked && cameraRef.current.targetFocusX === selectedStar.x) {
-                        resetToNucleus();
-                      } else {
-                        flyToStar(selectedStar);
-                      }
-                    }}
-                    className={`px-2.5 py-2 rounded-full text-xs font-bold cursor-pointer transition-all ${
-                      isOrbitLocked && cameraRef.current.targetFocusX === selectedStar.x
-                        ? 'glass-button-cyan text-white shadow-sm'
-                        : 'glass-button text-white/80 hover:text-white'
-                    }`}
-                    title={isOrbitLocked ? 'Reset Camera to Galactic Nucleus' : 'Fly and Orbit Star System'}
-                  >
-                    {isOrbitLocked && cameraRef.current.targetFocusX === selectedStar.x ? '🎯 Orbit' : '🚀 Fly'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      unlockAudioEngine();
-                      if (currentTrack?.id === selectedStar.id) {
-                        togglePlay();
-                      } else {
-                        playTrackWithSmartQueue(selectedStar.track);
-                      }
-                    }}
-                    className="px-3.5 py-2 rounded-full glass-button-primary text-white font-extrabold text-xs cursor-pointer flex-shrink-0"
-                  >
-                    {currentTrack?.id === selectedStar.id && isPlaying ? '⏸' : '▶'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Bottom-Right Zoom Controls */}
-          <div className="absolute bottom-3.5 right-3.5 flex items-center gap-1.5">
-            <button
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setZoom((z) => Math.max(0.65, +(z - 0.15).toFixed(2)));
-              }}
-              className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white font-bold cursor-pointer"
-              title="Zoom Out"
-            >
-              −
-            </button>
-            <button
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setZoom(1.05);
-              }}
-              className="px-3 h-9 rounded-full glass-button flex items-center justify-center text-xs font-bold text-white/90 cursor-pointer tabular-nums"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                setZoom((z) => Math.min(1.95, +(z + 0.15).toFixed(2)));
-              }}
-              className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white font-bold cursor-pointer"
-              title="Zoom In"
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        {/* Right: VisionOS Planetary Telemetry Station (5 cols) */}
-        <GlassCard
-          variant="liquid"
-          padding="md"
-          className="lg:col-span-5 flex flex-col justify-between border-0 h-[520px] sm:h-[620px] lg:h-[700px] overflow-hidden"
-        >
-          {/* Top Inspector Navigation Tabs with Liquid Glass Sliding Pill */}
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-black/50 border-0 mb-3 flex-shrink-0 w-full min-w-0 overflow-hidden relative">
-            {[
-              { id: 'dna', label: '4D DNA', icon: '🧬', count: null },
-              { id: 'neighbors', label: 'Harmonic', icon: '🔗', count: harmonicNeighbors.length },
-              { id: 'roster', label: 'Roster', icon: '📋', count: filteredRosterStars.length }
-            ].map((tab) => {
-              const isSelected = inspectorTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    triggerAndroidHaptic('light');
-                    setInspectorTab(tab.id as any);
-                  }}
-                  className="relative py-2 px-1 sm:px-2 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 select-none"
-                >
-                  {isSelected && (
-                    <motion.div
-                      layoutId="galaxy-inspector-liquid-pill"
-                      transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
-                      className="absolute inset-0 rounded-xl liquid-sliding-pill -z-0 pointer-events-none"
-                    />
-                  )}
-                  <span
-                    className={`relative z-10 flex items-center justify-center gap-1 truncate transition-colors duration-150 ${
-                      isSelected
-                        ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
-                        : 'text-white/65 hover:text-white'
-                    }`}
-                  >
-                    <span>{tab.icon}</span>
-                    <span className="truncate">{tab.label}</span>
-                    {tab.count !== null && (
-                      <span className="text-[10px] opacity-75 tabular-nums">({tab.count})</span>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Scrollable Inspector Body */}
-          <div className="flex-1 overflow-y-auto pr-1 space-y-4">
-            {selectedStar ? (
-              <>
-                {/* Hero Planet Card Header */}
-                <div
-                  className="p-4 rounded-3xl backdrop-blur-xl relative overflow-hidden transition-all duration-300 flex flex-col gap-3"
-                  style={{
-                    background:
-                      'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
-                    boxShadow: `0 12px 36px -8px ${selectedStar.color}35`,
-                    border: `1px solid ${selectedStar.color}45`
-                  }}
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    {/* Vinyl Sleeve with Peeking Vinyl Record & Play/Pause Interactive Preview */}
-                    <div className="relative flex-shrink-0 flex items-center pr-2">
-                      {/* Peeking Vinyl Record Disc */}
-                      <div
-                        className={`absolute right-0 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#0d0e14] border border-white/20 shadow-lg flex items-center justify-center transition-transform duration-700 pointer-events-none ${
-                          currentTrack?.id === selectedStar.track.id && isPlaying
-                            ? 'animate-spin'
-                            : ''
-                        }`}
-                      >
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/10 flex items-center justify-center">
-                          <div className="w-4 h-4 rounded-full bg-white/20 border border-black/50" />
-                        </div>
-                      </div>
-
-                      {/* Front Album Sleeve */}
-                      <div
-                        className="relative z-10 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shadow-xl border border-white/30 group cursor-pointer"
-                        onClick={() => {
-                          triggerAndroidHaptic('light');
-                          if (currentTrack?.id === selectedStar.track.id && isPlaying) {
-                            togglePlay();
-                          } else {
-                            unlockAudioEngine();
-                            playTrackWithSmartQueue(selectedStar.track);
-                          }
-                        }}
-                        title={
-                          currentTrack?.id === selectedStar.track.id && isPlaying
-                            ? 'Pause Preview'
-                            : 'Play Preview'
-                        }
-                      >
-                        <img
-                          src={selectedStar.track.thumbnail || DEFAULT_THUMBNAIL}
-                          alt={selectedStar.track.title}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                          }}
-                          className="w-full h-full object-cover"
-                        />
-                        {/* Specular Glow */}
-                        <div
-                          className="absolute inset-0 opacity-25 pointer-events-none"
-                          style={{ backgroundColor: selectedStar.color }}
-                        />
-                        {/* Play/Pause Overlay */}
-                        <div
-                          className={`absolute inset-0 bg-black/45 flex items-center justify-center transition-opacity ${
-                            currentTrack?.id === selectedStar.track.id && isPlaying
-                              ? 'opacity-100'
-                              : 'opacity-0 group-hover:opacity-100'
-                          }`}
-                        >
-                          <span className="text-white text-sm sm:text-base drop-shadow-md">
-                            {currentTrack?.id === selectedStar.track.id && isPlaying ? '⏸' : '▶'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm sm:text-base font-black text-white truncate leading-tight">
-                        {selectedStar.track.title}
-                      </h3>
-                      <p className="text-xs font-semibold text-white/70 truncate mt-0.5">
-                        {selectedStar.track.artist}
-                      </p>
-                    </div>
-
-                    {/* Real Taste Match Circular Badge */}
-                    <div className="flex flex-col items-center justify-center px-2.5 py-1.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex-shrink-0 shadow-sm">
-                      <span className="text-base sm:text-lg font-black text-emerald-300 leading-none tabular-nums whitespace-nowrap">
-                        {selectedStar.affinityScore}%
-                      </span>
-                      <span className="text-[8px] font-extrabold uppercase tracking-wider text-emerald-200/80 mt-0.5 whitespace-nowrap">
-                        Match
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Badges Row: Dedicated row with wrap so badges NEVER clip */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5 border-0">
-                    <span
-                      className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white whitespace-nowrap shadow-sm"
-                      style={{
-                        backgroundColor: `${selectedStar.color}40`,
-                        border: `1px solid ${selectedStar.color}`
-                      }}
-                    >
-                      {selectedStar.clusterName}
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[9px] font-bold text-white/75 whitespace-nowrap">
-                      {selectedStar.sourceLabel}
-                    </span>
-                    <span className="text-[9px] font-semibold text-white/50 ml-auto whitespace-nowrap">
-                      {selectedStar.parsecDistance} pc
-                    </span>
-                  </div>
-
-                  {/* Actions Row: Story Poster Generator + Fly & Orbit Lock */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08] flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        triggerAndroidHaptic('medium');
-                        setShowStoryModal(true);
-                      }}
-                      className="px-3.5 py-1.5 rounded-full text-[11px] font-black cursor-pointer shadow-lg transition-all flex items-center gap-1.5 bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 text-white hover:brightness-110 active:scale-95 border-0"
-                    >
-                      <span>📸 Story Poster</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isOrbitLocked && cameraRef.current.targetFocusX === selectedStar.x) {
-                          resetToNucleus();
-                        } else {
-                          flyToStar(selectedStar);
-                        }
-                      }}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all flex items-center gap-1.5 ${
-                        isOrbitLocked && cameraRef.current.targetFocusX === selectedStar.x
-                          ? 'glass-button-cyan text-white shadow-md'
-                          : 'glass-button text-white/80 hover:text-white'
-                      }`}
-                    >
-                      <span>
-                        {isOrbitLocked && cameraRef.current.targetFocusX === selectedStar.x
-                          ? '🎯 Orbital Lock Active'
-                          : '🚀 Fly & Orbit Star'}
-                      </span>
-                    </button>
-
-                    {isOrbitLocked && (
-                      <button
-                        type="button"
-                        onClick={resetToNucleus}
-                        className="px-2.5 py-1.5 rounded-full glass-button text-[10px] font-bold text-white/60 hover:text-white cursor-pointer ml-auto"
-                      >
-                        ↩ Core View
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {inspectorTab === 'dna' && (
-                    <motion.div
-                      key="tab-dna"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.16 }}
-                      className="space-y-3.5"
-                    >
-                      {/* Real Taste Match Breakdown Card */}
-                      <div className="p-3.5 rounded-2xl bg-black/40 border-0 space-y-2.5">
-                        <div className="flex flex-wrap items-center justify-between gap-1.5">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 whitespace-nowrap">
-                            🎯 Real Taste Match Breakdown
-                          </span>
-                          <span className="text-[10px] font-bold text-white/50 whitespace-nowrap">
-                            Cosine Vector Engine
-                          </span>
-                        </div>
-                        <p className="text-xs text-white/85 font-semibold leading-relaxed bg-white/[0.04] px-3 py-2 rounded-xl border-0">
-                          {selectedStar.matchBreakdown.reason}
-                        </p>
-                        <div className="grid grid-cols-3 gap-2 pt-1">
-                          <div className="p-2 rounded-xl bg-white/[0.04] border-0 text-center">
-                            <div className="text-sm font-black text-cyan-300 tabular-nums whitespace-nowrap">
-                              {selectedStar.matchBreakdown.sonicSimilarityPct}%
-                            </div>
-                            <div className="text-[9px] font-bold uppercase text-white/50 whitespace-nowrap">
-                              4D Sonic DNA
-                            </div>
-                          </div>
-                          <div className="p-2 rounded-xl bg-white/[0.04] border-0 text-center">
-                            <div className="text-sm font-black text-purple-300 tabular-nums whitespace-nowrap">
-                              {selectedStar.matchBreakdown.artistAffinityPct}%
-                            </div>
-                            <div className="text-[9px] font-bold uppercase text-white/50 whitespace-nowrap">
-                              Artist Affinity
-                            </div>
-                          </div>
-                          <div className="p-2 rounded-xl bg-white/[0.04] border-0 text-center">
-                            <div className="text-sm font-black text-rose-300 tabular-nums whitespace-nowrap">
-                              {selectedStar.matchBreakdown.vibeSynergyPct}%
-                            </div>
-                            <div className="text-[9px] font-bold uppercase text-white/50 whitespace-nowrap">
-                              Cluster Fit
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Interactive 4D Sonic Spider/Radar SVG Chart */}
-                      <SonicSpiderRadar
-                        trackDna={selectedStar.dna}
-                        userDna={userTasteProfile.userDna}
-                        clusterColor={selectedStar.color}
-                      />
-
-                      {/* Planetary Sonic DNA 4-Channel Visualizer Bars */}
-                      <div className="p-3.5 rounded-2xl bg-black/40 border-0 space-y-2.5">
-                        <div className="flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase tracking-wider text-white/65">
-                          <span className="whitespace-nowrap truncate">🧬 Acoustic Dimension Channels</span>
-                          <span className="text-cyan-300 whitespace-nowrap flex-shrink-0">320kbps HD</span>
-                        </div>
-                        {[
-                          {
-                            label: 'Energy Velocity',
-                            val: selectedStar.dna.energy,
-                            userVal: userTasteProfile.userDna.energy,
-                            color: '#f43f5e'
-                          },
-                          {
-                            label: 'Sub-Bass Gravity',
-                            val: selectedStar.dna.bass,
-                            userVal: userTasteProfile.userDna.bass,
-                            color: '#a855f7'
-                          },
-                          {
-                            label: 'Vocal Presence',
-                            val: selectedStar.dna.vocal,
-                            userVal: userTasteProfile.userDna.vocal,
-                            color: '#06b6d4'
-                          },
-                          {
-                            label: 'Cosmic Euphoria',
-                            val: selectedStar.dna.euphoria,
-                            userVal: userTasteProfile.userDna.euphoria,
-                            color: '#f59e0b'
-                          }
-                        ].map((metric) => (
-                          <div key={metric.label} className="space-y-1">
-                            <div className="flex justify-between gap-2 text-[11px] font-bold">
-                              <span className="text-white/75 whitespace-nowrap">{metric.label}</span>
-                              <span className="text-white tabular-nums whitespace-nowrap flex-shrink-0">
-                                {metric.val}%{' '}
-                                <span className="text-[10px] text-white/40 font-normal">
-                                  (You: {metric.userVal}%)
-                                </span>
-                              </span>
-                            </div>
-                            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${metric.val}%` }}
-                                transition={{ duration: 0.4, ease: 'easeOut' }}
-                                className="h-full rounded-full"
-                                style={{ backgroundColor: metric.color }}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {inspectorTab === 'neighbors' && (
-                    <motion.div
-                      key="tab-neighbors"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.16 }}
-                      className="space-y-2.5"
-                    >
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-[11px] font-bold text-white/60">
-                          Resonating stars near <span className="text-white font-extrabold">{selectedStar.track.title}</span>:
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleChainHarmonicQueue}
-                          className="px-2.5 py-1 rounded-full glass-button-purple text-[10px] font-extrabold text-white cursor-pointer hover:scale-105 active:scale-95 transition-all"
-                        >
-                          ⚡ Play Resonant Queue
-                        </button>
-                      </div>
-
-                      {harmonicNeighbors.map(({ star: neighbor, pairMatch, spatialDist }) => (
-                        <div
-                          key={neighbor.id}
-                          onClick={() => {
-                            triggerAndroidHaptic('light');
-                            flyToStar(neighbor);
-                          }}
-                          className="p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.1] border-0 flex items-center justify-between gap-2.5 cursor-pointer transition-all"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <img
-                              src={neighbor.track.thumbnail || DEFAULT_THUMBNAIL}
-                              alt={neighbor.track.title}
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                              }}
-                              className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border-0"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-xs font-extrabold text-white truncate">
-                                {neighbor.track.title}
-                              </p>
-                              <p className="text-[11px] text-white/55 truncate">
-                                {neighbor.track.artist}
-                              </p>
-                              <span className="text-[9px] text-cyan-300/80 font-mono">
-                                🌌 {spatialDist} parsecs away
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border-0 text-[10px] font-extrabold text-emerald-300 tabular-nums whitespace-nowrap flex-shrink-0">
-                              {pairMatch}% DNA
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                triggerAndroidHaptic('medium');
-                                unlockAudioEngine();
-                                playTrackWithSmartQueue(neighbor.track);
-                              }}
-                              className="w-7 h-7 rounded-full glass-button-primary flex items-center justify-center text-white text-[10px] cursor-pointer"
-                              title="Play Track"
-                            >
-                              ▶
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </motion.div>
-                  )}
-
-                  {inspectorTab === 'roster' && (
-                    <motion.div
-                      key="tab-roster"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.16 }}
-                      className="space-y-2.5"
-                    >
-                      {/* Search & Sort Bar inside Roster */}
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={rosterSearch}
-                          onChange={(e) => setRosterSearch(e.target.value)}
-                          placeholder="Search star roster..."
-                          className="flex-1 h-8 px-3 rounded-xl bg-white/[0.06] border-0 text-xs text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
-                        />
-                        <GlassSelect
-                          size="sm"
-                          value={rosterSort}
-                          onChange={(val) => setRosterSort(val as any)}
-                          options={[
-                            { value: 'match', label: 'Match %' },
-                            { value: 'title', label: 'Title' },
-                            { value: 'artist', label: 'Artist' }
-                          ]}
-                          prefix="Sort:"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {filteredRosterStars.map((node, i) => {
-                          const isSel = selectedStar?.id === node.id;
-                          return (
-                            <div
-                              key={node.id}
-                              onClick={() => {
-                                triggerAndroidHaptic('light');
-                                flyToStar(node);
-                              }}
-                              className={`p-2 rounded-xl border flex items-center justify-between gap-2.5 cursor-pointer transition-all ${
-                                isSel
-                                  ? 'bg-white/15 border-white/30 shadow-md'
-                                  : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/10'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="text-[10px] font-extrabold text-white/45 w-5 text-center tabular-nums">
-                                  #{i + 1}
-                                </span>
-                                <img
-                                  src={node.track.thumbnail || DEFAULT_THUMBNAIL}
-                                  alt={node.track.title}
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                                  }}
-                                  className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
-                                />
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-white truncate">
-                                    {node.track.title}
-                                  </p>
-                                  <p className="text-[10px] text-white/50 truncate">
-                                    {node.track.artist}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1.5 flex-shrink-0">
-                                <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-extrabold text-emerald-300 tabular-nums">
-                                  {node.affinityScore}%
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    triggerAndroidHaptic('medium');
-                                    unlockAudioEngine();
-                                    playTrackWithSmartQueue(node.track);
-                                  }}
-                                  className="w-7 h-7 rounded-full glass-button flex items-center justify-center text-white text-[10px] cursor-pointer"
-                                >
-                                  ▶
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
-            ) : (
-              <div className="py-16 text-center text-white/50 text-sm">
-                Tap any planet in the 3D galaxy to inspect its real Sonic DNA and Taste Match.
-              </div>
-            )}
-          </div>
-
-          {/* Sticky Bottom Action Dock inside Right Telemetry Inspector */}
-          {selectedStar && (
-            <div className="pt-3 mt-2 border-0 space-y-2 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  triggerAndroidHaptic('medium');
-                  unlockAudioEngine();
-                  playTrackWithSmartQueue(selectedStar.track);
-                }}
-                className="w-full py-2.5 rounded-full glass-button-primary text-white font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-lg hover:scale-105 active:scale-95 transition-all"
-              >
-                ▶ Play Star + Smart Gravity Queue
-              </button>
-
-              <div className="grid grid-cols-4 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerAndroidHaptic('light');
-                    addNext(selectedStar.track);
-                  }}
-                  className="py-2 px-1.5 rounded-full glass-button text-white font-bold text-[10px] cursor-pointer truncate hover:text-white text-center"
-                >
-                  ➕ Next
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerAndroidHaptic('medium');
-                    setShowStoryModal(true);
-                  }}
-                  className="py-2 px-1.5 rounded-full glass-button text-pink-300 font-extrabold text-[10px] cursor-pointer truncate hover:text-white text-center border-pink-500/30"
-                >
-                  📸 Poster
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleLaunchConstellation(selectedStar.clusterIndex)}
-                  className="py-2 px-1.5 rounded-full glass-button-cyan font-bold text-[10px] cursor-pointer truncate text-center"
-                >
-                  🌌 Nebula
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    triggerWormholeWarp(
-                      selectedStar.track.artist.split(',')[0].trim(),
-                      `🪐 ${selectedStar.track.artist.split(',')[0].trim()}`
-                    )
-                  }
-                  className="py-2 px-1.5 rounded-full glass-button-purple font-bold text-[10px] cursor-pointer truncate text-center"
-                >
-                  🚀 Orbit
-                </button>
-              </div>
-            </div>
-          )}
-        </GlassCard>
-      </div>
-
-      {/* High-Res Story & Feed Poster Generator Modal */}
       {selectedStar && (
         <WaveCardModal
           isOpen={showStoryModal}
