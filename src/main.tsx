@@ -3,12 +3,12 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Load Inter webfont asynchronously after first paint so it never blocks FCP/LCP
+// Load Inter webfont asynchronously after first paint with display=optional so it never blocks FCP/LCP or causes font-swap CLS
 if (typeof document !== 'undefined') {
   requestAnimationFrame(() => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
+    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional';
     document.head.appendChild(link);
   });
 }
