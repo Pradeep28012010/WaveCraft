@@ -700,10 +700,10 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
       />
 
       {/* ── Top Apple Floating Window Header ── */}
-      <div className="flex items-center justify-between gap-2 px-3.5 sm:px-5 py-3.5 border-0 flex-shrink-0 bg-white/[0.02]">
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] via-purple-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/20 text-white flex-shrink-0">
-            <svg className="w-4.5 h-4.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 border-b border-white/[0.08] flex-shrink-0 bg-white/[0.02]">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--color-accent)] via-purple-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/25 text-white flex-shrink-0">
+            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="4" y1="21" x2="4" y2="14" />
               <line x1="4" y1="10" x2="4" y2="3" />
               <line x1="12" y1="21" x2="12" y2="12" />
@@ -714,14 +714,15 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 id="studio-fx-modal-title" className="text-sm sm:text-base font-bold tracking-tight text-white truncate">
+              <h2 id="studio-fx-modal-title" className="text-base sm:text-lg font-black tracking-tight text-white truncate">
                 Studio FX & Audio EQ
               </h2>
-              <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-cyan-500/15 border-0 text-cyan-300 text-[9px] font-black tracking-wider uppercase whitespace-nowrap items-center">
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/25 text-cyan-300 text-[9px] font-black tracking-wider uppercase whitespace-nowrap">
+                <span className={`w-1.5 h-1.5 rounded-full ${hasCustomDSP ? 'bg-cyan-400 animate-pulse' : 'bg-white/40'}`} />
                 32-Bit Lossless DSP
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-white/50 font-medium truncate mt-0.5">
+            <p className="text-[11px] text-white/55 font-medium truncate mt-0.5">
               360° Spatial Audio • Catmull-Rom Spline EQ • 12AX7 Tube Saturation
             </p>
           </div>
@@ -919,21 +920,29 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                       e.currentTarget.releasePointerCapture(e.pointerId);
                     } catch {}
                   }}
-                  className="relative w-44 h-44 rounded-full border-0 bg-black/60 shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center cursor-crosshair flex-shrink-0 touch-none select-none"
+                  className="relative w-48 h-48 rounded-full border border-cyan-400/20 bg-black/70 shadow-[0_0_40px_rgba(6,182,212,0.18)] flex items-center justify-center cursor-crosshair flex-shrink-0 touch-none select-none overflow-hidden"
                 >
-                  <div className="absolute inset-4 rounded-full border-0 bg-cyan-500/[0.04] pointer-events-none" />
-                  <div className="absolute inset-9 rounded-full border-0 bg-cyan-500/[0.06] pointer-events-none" />
-                  <div className="absolute inset-14 rounded-full border-0 bg-cyan-500/[0.08] pointer-events-none" />
+                  {/* Compass Crosshairs & Concentric Rings */}
+                  <div className="absolute inset-x-0 top-1/2 h-px bg-cyan-400/10 pointer-events-none" />
+                  <div className="absolute inset-y-0 left-1/2 w-px bg-cyan-400/10 pointer-events-none" />
+                  <div className="absolute inset-4 rounded-full border border-cyan-400/10 bg-cyan-500/[0.03] pointer-events-none" />
+                  <div className="absolute inset-9 rounded-full border border-cyan-400/15 bg-cyan-500/[0.05] pointer-events-none" />
+                  <div className="absolute inset-14 rounded-full border border-cyan-400/20 bg-cyan-500/[0.07] pointer-events-none" />
+
+                  <span className="absolute top-1.5 text-[8px] font-mono font-bold text-cyan-300/60 pointer-events-none">0°</span>
+                  <span className="absolute right-2 text-[8px] font-mono font-bold text-cyan-300/60 pointer-events-none">90°</span>
+                  <span className="absolute bottom-1.5 text-[8px] font-mono font-bold text-cyan-300/60 pointer-events-none">180°</span>
+                  <span className="absolute left-1.5 text-[8px] font-mono font-bold text-cyan-300/60 pointer-events-none">270°</span>
 
                   {/* Listener Head */}
-                  <div className="w-8 h-8 rounded-full bg-white/15 border-0 flex items-center justify-center text-xs shadow-md z-10 pointer-events-none">
+                  <div className="w-9 h-9 rounded-full bg-white/15 ring-1 ring-white/25 flex items-center justify-center text-sm shadow-md z-10 pointer-events-none">
                     🎧
                   </div>
 
                   {/* Positioned Sound Dot */}
                   <div
                     ref={orbDotRef}
-                    className="absolute w-5 h-5 rounded-full bg-cyan-400 border-0 shadow-[0_0_16px_rgba(6,182,212,1)] z-20 pointer-events-none transition-none"
+                    className="absolute w-5 h-5 rounded-full bg-cyan-400 ring-2 ring-white/70 shadow-[0_0_18px_rgba(6,182,212,1)] z-20 pointer-events-none transition-none"
                     style={{
                       left: 'calc(50% - 10px)',
                       top: 'calc(50% - 10px)',
@@ -1142,7 +1151,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             </div>
 
             {/* Apple Fluid Gesture Sliders Card */}
-            <div className="p-4 rounded-2xl border-0 liquid-glass space-y-4">
+            <div className="p-4 sm:p-5 rounded-3xl border border-white/10 liquid-glass space-y-4">
               <AppleFluidSlider
                 label="Sub-Bass Floor (54Hz Low-Shelf)"
                 value={subBassBoost}
@@ -1155,53 +1164,55 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                 onReset={() => setSubBassBoost(0)}
               />
 
-              <AppleFluidSlider
-                label="Harmonic Drive (Analog Tape Warmth)"
-                value={harmonicDrive}
-                min={0}
-                max={1}
-                step={0.05}
-                formattedValue={`${Math.round(harmonicDrive * 100)}%`}
-                accentColor="amber"
-                onChange={setHarmonicDrive}
-                onReset={() => setHarmonicDrive(0)}
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <AppleFluidSlider
+                  label="Harmonic Drive (Analog Tape)"
+                  value={harmonicDrive}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  formattedValue={`${Math.round(harmonicDrive * 100)}%`}
+                  accentColor="amber"
+                  onChange={setHarmonicDrive}
+                  onReset={() => setHarmonicDrive(0)}
+                />
 
-              <AppleFluidSlider
-                label="Stereo Width (Haas Matrix)"
-                value={stereoWidth}
-                min={0}
-                max={1}
-                step={0.05}
-                formattedValue={`${Math.round(stereoWidth * 100)}%`}
-                accentColor="indigo"
-                onChange={setStereoWidth}
-                onReset={() => setStereoWidth(0)}
-              />
+                <AppleFluidSlider
+                  label="Stereo Width (Haas Matrix)"
+                  value={stereoWidth}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  formattedValue={`${Math.round(stereoWidth * 100)}%`}
+                  accentColor="indigo"
+                  onChange={setStereoWidth}
+                  onReset={() => setStereoWidth(0)}
+                />
 
-              <AppleFluidSlider
-                label="Treble Silk Air (11kHz Silk Shelf / Lo-Fi Cut)"
-                value={trebleAir}
-                min={-6}
-                max={6}
-                step={0.5}
-                formattedValue={trebleAir > 0 ? `+${trebleAir.toFixed(1)} dB` : `${trebleAir.toFixed(1)} dB`}
-                accentColor="pink"
-                onChange={setTrebleAir}
-                onReset={() => setTrebleAir(0)}
-              />
+                <AppleFluidSlider
+                  label="Treble Silk Air (11kHz Shelf)"
+                  value={trebleAir}
+                  min={-6}
+                  max={6}
+                  step={0.5}
+                  formattedValue={trebleAir > 0 ? `+${trebleAir.toFixed(1)} dB` : `${trebleAir.toFixed(1)} dB`}
+                  accentColor="pink"
+                  onChange={setTrebleAir}
+                  onReset={() => setTrebleAir(0)}
+                />
 
-              <AppleFluidSlider
-                label="Concert Hall Reverb Echo"
-                value={reverbMix}
-                min={0}
-                max={0.75}
-                step={0.02}
-                formattedValue={`${Math.round(reverbMix * 100)}%`}
-                accentColor="amber"
-                onChange={setReverbMix}
-                onReset={() => setReverbMix(0)}
-              />
+                <AppleFluidSlider
+                  label="Concert Hall Reverb Echo"
+                  value={reverbMix}
+                  min={0}
+                  max={0.75}
+                  step={0.02}
+                  formattedValue={`${Math.round(reverbMix * 100)}%`}
+                  accentColor="amber"
+                  onChange={setReverbMix}
+                  onReset={() => setReverbMix(0)}
+                />
+              </div>
             </div>
 
             {/* 1-Tap Mastering Preset Chips */}
@@ -1398,27 +1409,29 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
             </div>
 
             {/* ── Sleep & Focus Timers Section ── */}
-            <div className="pt-4 border-0 space-y-4">
+            <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Sleep Timer */}
-              <div className="p-4 rounded-2xl border-0 liquid-glass space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">🌙</span>
+              <div className="p-4 rounded-3xl border border-white/10 liquid-glass flex flex-col justify-between gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center text-lg flex-shrink-0">
+                      🌙
+                    </div>
                     <div>
                       <div className="font-bold text-sm text-white">Sleep Timer</div>
                       <div className="text-[11px] text-white/50">
-                        Automatically fades volume over 10s and pauses playback
+                        10s volume fade & pause
                       </div>
                     </div>
                   </div>
                   {sleepActive && (
-                    <span className="text-xs font-mono font-bold text-amber-300 bg-amber-500/15 px-2.5 py-0.5 rounded-full border-0">
+                    <span className="text-xs font-mono tabular-nums font-bold text-amber-300 bg-amber-500/15 px-2.5 py-1 rounded-full">
                       {sleepEndAtTrack ? 'End of song' : formatClock(sleepRemaining)}
                     </span>
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {sleepActive ? (
                     <button
                       type="button"
@@ -1426,7 +1439,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         triggerAndroidHaptic('light');
                         stopSleepTimer();
                       }}
-                      className="px-4 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border-0 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer"
+                      className="w-full py-2 rounded-xl bg-rose-500/20 text-rose-200 text-xs font-bold hover:bg-rose-500/30 transition cursor-pointer"
                     >
                       Cancel Sleep Timer
                     </button>
@@ -1440,9 +1453,9 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                             triggerAndroidHaptic('light');
                             startSleepTimer(mins);
                           }}
-                          className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
                         >
-                          {mins} mins
+                          {mins}m
                         </button>
                       ))}
                       <button
@@ -1451,7 +1464,7 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                           triggerAndroidHaptic('light');
                           setEndAtTrack(true);
                         }}
-                        className="px-3 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl glass-button text-xs font-bold text-white/80 hover:text-white transition cursor-pointer"
                       >
                         End of Song
                       </button>
@@ -1461,25 +1474,25 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Pomodoro Focus Timer */}
-              <div className="p-4 rounded-2xl border-0 liquid-glass space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">🍅</span>
+              <div className="p-4 rounded-3xl border border-white/10 liquid-glass flex flex-col justify-between gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/15 flex items-center justify-center text-lg flex-shrink-0">
+                      🍅
+                    </div>
                     <div>
-                      <div className="font-bold text-sm text-white">Pomodoro Focus Timer</div>
+                      <div className="font-bold text-sm text-white">Focus Sprint</div>
                       <div className="text-[11px] text-white/50">
-                        25-minute deep focus sprints with 5-minute restorative breaks
+                        25m focus • 5m break
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-500/15 px-2.5 py-0.5 rounded-full border-0">
-                      {formatClock(pomodoroSeconds)} ({pomodoroMode})
-                    </span>
-                  </div>
+                  <span className="text-xs font-mono tabular-nums font-bold text-cyan-300 bg-cyan-500/15 px-2.5 py-1 rounded-full">
+                    {formatClock(pomodoroSeconds)}
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
                   {pomodoroActive ? (
                     <button
                       type="button"
@@ -1487,9 +1500,9 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         triggerAndroidHaptic('light');
                         stopPomodoro();
                       }}
-                      className="px-4 py-1.5 rounded-xl glass-button text-rose-300 border-0 text-xs font-bold transition cursor-pointer"
+                      className="flex-1 py-2 rounded-xl glass-button text-rose-300 text-xs font-bold transition cursor-pointer"
                     >
-                      Pause Focus Sprint
+                      Pause ({pomodoroMode})
                     </button>
                   ) : (
                     <button
@@ -1498,14 +1511,14 @@ function StudioFXModalContent({ onClose }: { onClose: () => void }) {
                         triggerAndroidHaptic('light');
                         startPomodoro(pomodoroMode);
                       }}
-                      className="px-4 py-1.5 rounded-xl glass-button-emerald text-emerald-100 text-xs font-bold transition cursor-pointer"
+                      className="flex-1 py-2 rounded-xl glass-button-emerald text-emerald-100 text-xs font-bold transition cursor-pointer"
                     >
                       Start Focus ({formatClock(pomodoroSeconds)})
                     </button>
                   )}
                   {completedSessions > 0 && (
-                    <span className="text-xs text-white/50 font-medium">
-                      🎉 {completedSessions} session{completedSessions === 1 ? '' : 's'} completed
+                    <span className="text-xs text-white/60 font-semibold whitespace-nowrap">
+                      🎉 {completedSessions}
                     </span>
                   )}
                 </div>
@@ -1666,7 +1679,7 @@ export default function StudioFXModal() {
         aria-modal="true"
         aria-labelledby="studio-fx-modal-title"
         onClick={(e) => e.stopPropagation()}
-        className={`relative z-10 w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/92 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.12)] overflow-hidden border-0 pb-[max(env(safe-area-inset-bottom,0px),0px)] transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`relative z-10 w-full max-w-3xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[32px] sm:rounded-[28px] liquid-glass bg-[#080812]/94 backdrop-blur-3xl text-white shadow-[0_32px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(6,182,212,0.14)] overflow-hidden ring-1 ring-white/12 pb-[max(env(safe-area-inset-bottom,0px),0px)] transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isVisible
             ? 'opacity-100 scale-100 translate-y-0 filter-none pointer-events-auto'
             : 'opacity-0 scale-95 translate-y-4 blur-[10px] pointer-events-none'
