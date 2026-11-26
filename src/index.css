@@ -184,18 +184,22 @@ body,
   }
 
   .glass-compact-menu {
-    background: linear-gradient(
-      155deg,
-      rgba(22, 24, 38, 0.74) 0%,
-      rgba(10, 11, 20, 0.84) 100%
-    );
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    background:
+      linear-gradient(
+        155deg,
+        rgba(255, 255, 255, 0.13) 0%,
+        rgba(255, 255, 255, 0.045) 45%,
+        rgba(255, 255, 255, 0.025) 100%
+      ),
+      rgba(12, 13, 22, 0.52);
+    -webkit-backdrop-filter: blur(42px) saturate(210%) brightness(1.06);
+    backdrop-filter: blur(42px) saturate(210%) brightness(1.06);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     box-shadow:
-      0 18px 44px rgba(0, 0, 0, 0.68),
-      0 4px 14px rgba(0, 0, 0, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      0 24px 56px rgba(0, 0, 0, 0.62),
+      0 6px 18px rgba(0, 0, 0, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.34),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.06);
   }
 
   .glass {
