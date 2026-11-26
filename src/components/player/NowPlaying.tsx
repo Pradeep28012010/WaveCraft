@@ -5,7 +5,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useJamStore } from '../../stores/jamStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
+import { useStudioStore } from '../../stores/studioStore';
 import { useContextMenuStore } from '../../stores/contextMenuStore';
 import QueuePanel from './QueuePanel';
 import LyricsView from '../lyrics/LyricsView';
@@ -344,69 +344,66 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div ref={toolsMenuRef} className="relative flex items-center gap-1.5 flex-shrink-0">
                   <button
                     onClick={() => {
                       triggerAndroidHaptic('light');
-                      setStudioModalOpen(true);
+                      setShowToolsMenu((prev) => !prev);
                     }}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-90 relative ${
-                      fxMode !== 'normal'
-                        ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(250,45,72,0.4)]'
-                        : isAmbientActive
-                        ? 'glass-button-emerald text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]'
-                        : 'glass-button text-white/80 hover:text-white'
+                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-all cursor-pointer active:scale-90 relative ${
+                      showToolsMenu
+                        ? 'glass-button-primary text-white shadow-lg'
+                        : 'glass-button text-white'
                     }`}
-                    title="Studio Audio FX & Atmosphere"
-                  >
-                    <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                      <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
-                    </svg>
-                    {(isAmbientActive || fxMode !== 'normal') && (
-                      <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${isAmbientActive && fxMode === 'normal' ? 'bg-emerald-400' : 'bg-rose-400'} animate-pulse`} />
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      useStudioStore.getState().setSmartDJOpen(true);
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
-                    title="Smart DJ Console"
-                  >
-                    <span className="text-sm">🎧</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      setNightstandOpen(true);
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
-                    title="Bedside Nightstand Mode"
-                  >
-                    <span className="text-sm">🌙</span>
-                  </button>
-
-                  <button
-                    onClick={(e) => {
-                      triggerAndroidHaptic('light');
-                      useContextMenuStore.getState().openTrackMenu(
-                        { clientX: e.clientX, clientY: e.clientY },
-                        currentTrack,
-                        usePlayerStore.getState().queue
-                      );
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-full glass-button text-white cursor-pointer active:scale-90 transition-transform"
-                    title="Track Options & Playlist"
+                    title="Tools, Studio FX & Track Options"
+                    aria-label="Tools menu"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                       <circle cx="12" cy="5" r="2" />
                       <circle cx="12" cy="12" r="2" />
                       <circle cx="12" cy="19" r="2" />
                     </svg>
+                    {(isAmbientActive || fxMode !== 'normal' || sleepActive) && (
+                      <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${isAmbientActive && fxMode === 'normal' ? 'bg-emerald-400' : 'bg-rose-400'} animate-pulse`} />
+                    )}
                   </button>
+
+                  <NowPlayingToolsMenu
+                    isOpen={showToolsMenu}
+                    onClose={() => setShowToolsMenu(false)}
+                    currentTrack={currentTrack}
+                    isLiked={isLiked}
+                    toggleLike={toggleLike}
+                    trackIsOffline={trackIsOffline}
+                    isSavingOffline={isSavingOffline}
+                    toggleOfflineTrack={toggleOfflineTrack}
+                    isChorusPreviewActive={isChorusPreviewActive}
+                    toggleChorusPreview={toggleChorusPreview}
+                    isAmbientActive={isAmbientActive}
+                    fxMode={fxMode}
+                    setStudioModalOpen={setStudioModalOpen}
+                    setShowWaveCard={setShowWaveCard}
+                    setWaveCardQuote={setWaveCardQuote}
+                    showVisualizer={showVisualizer}
+                    setShowVisualizer={setShowVisualizer}
+                    visualizerStyle={visualizerStyle}
+                    setVisualizerStyle={setVisualizerStyle}
+                    zenMode={zenMode}
+                    setZenMode={setZenMode}
+                    setNightstandOpen={setNightstandOpen}
+                    sleepActive={sleepActive}
+                    sleepRemaining={sleepRemaining}
+                    sleepEndAtTrack={sleepEndAtTrack}
+                    startSleepTimer={startSleepTimer}
+                    setEndAtTrack={setEndAtTrack}
+                    stopSleepTimer={stopSleepTimer}
+                    audioQuality={audioQuality}
+                    setAudioQuality={setAudioQuality}
+                    preservePitch={preservePitch}
+                    setPreservePitch={setPreservePitch}
+                    playbackSpeed={playbackSpeed}
+                    setPlaybackSpeed={setPlaybackSpeed}
+                  />
                 </div>
               </>
             ) : (
@@ -489,82 +486,17 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                 </div>
 
                 <div className="flex items-center gap-2 app-region-no-drag relative">
-                  {/* Studio Audio FX & Atmosphere Button */}
-                  <button
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      setStudioModalOpen(true);
-                    }}
-                    className={`px-4 h-9 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all app-region-no-drag relative ${
-                      fxMode !== 'normal'
-                        ? 'glass-button-primary text-white shadow-[0_0_16px_rgba(250,45,72,0.35)]'
-                        : isAmbientActive
-                        ? 'glass-button-emerald text-white shadow-[0_0_16px_rgba(16,185,129,0.35)]'
-                        : 'glass-button text-white/90 hover:text-white'
-                    }`}
-                    title="Open Studio Audio FX & Atmosphere Soundscapes"
-                  >
-                    <svg className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="4" x2="4" y1="21" y2="14" />
-                      <line x1="4" x2="4" y1="10" y2="3" />
-                      <line x1="12" x2="12" y1="21" y2="12" />
-                      <line x1="12" x2="12" y1="8" y2="3" />
-                      <line x1="20" x2="20" y1="21" y2="16" />
-                      <line x1="20" x2="20" y1="12" y2="3" />
-                      <line x1="2" x2="6" y1="14" y2="14" />
-                      <line x1="10" x2="14" y1="8" y2="8" />
-                      <line x1="18" x2="22" y1="16" y2="16" />
-                    </svg>
-                    <span>
-                      {fxMode !== 'normal'
-                        ? STUDIO_FX_MODES.find((m) => m.id === fxMode)?.name || 'Studio FX'
-                        : 'Studio FX'}
-                    </span>
-                    {isAmbientActive && (
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-full flex items-center gap-1 font-semibold">
-                        <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-                        🌧️
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Smart DJ Console & Automix Button */}
-                  <button
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      useStudioStore.getState().setSmartDJOpen(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 h-9 rounded-full glass-button text-white/80 hover:text-white cursor-pointer active:scale-95 transition-transform app-region-no-drag"
-                    title="Smart DJ Console & Harmonic Automix"
-                  >
-                    <span className="text-sm">🎧</span>
-                    <span className="hidden sm:inline text-xs font-semibold">Smart DJ</span>
-                  </button>
-
-                  {/* Bedside Nightstand Mode Button */}
-                  <button
-                    onClick={() => {
-                      triggerAndroidHaptic('light');
-                      setNightstandOpen(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 h-9 rounded-full glass-button text-white/80 hover:text-white cursor-pointer active:scale-90 transition-transform app-region-no-drag"
-                    title="Open Bedside Nightstand Mode"
-                  >
-                    <span className="text-sm">🌙</span>
-                    <span className="hidden md:inline text-xs font-semibold">Nightstand</span>
-                  </button>
-
-                  {/* Single Sleek ••• Tools Menu Button & Popover */}
+                  {/* Single Sleek ••• Tools Menu Button & Popover (Track, Studio & Playback) */}
                   <div ref={toolsMenuRef} className="relative">
                     <motion.button
                       whileTap={{ scale: 0.96 }}
                       onClick={() => setShowToolsMenu((prev) => !prev)}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer app-region-no-drag ${
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer app-region-no-drag relative ${
                         showToolsMenu
                           ? 'glass-button-primary text-white shadow-lg'
                           : 'glass-button text-white/80 hover:text-white'
                       }`}
-                      title="Tools & Playback Options"
+                      title="Tools, Studio FX & Playback Options"
                       aria-label="Tools menu"
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -572,6 +504,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                         <circle cx="12" cy="12" r="2" />
                         <circle cx="12" cy="19" r="2" />
                       </svg>
+                      {(isAmbientActive || fxMode !== 'normal' || sleepActive) && (
+                        <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${isAmbientActive && fxMode === 'normal' ? 'bg-emerald-400' : 'bg-rose-400'} animate-pulse`} />
+                      )}
                     </motion.button>
 
                     {/* Frosted-glass ••• Tools Menu Popover */}
@@ -1476,27 +1411,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                   {/* Mobile Actions vs Desktop Volume & Feature Toggles */}
                   {isPhone ? (
                     <div
-                      className="w-full flex items-center justify-between gap-1.5 mt-5 pt-3 border-0"
+                      className="w-full flex items-center justify-between gap-2 mt-5 pt-3 border-0"
                       style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}
                     >
-                      {/* Studio FX Pill */}
-                      <button
-                        onClick={() => {
-                          triggerAndroidHaptic('light');
-                          setStudioModalOpen(true);
-                        }}
-                        className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
-                          fxMode !== 'normal'
-                            ? 'glass-button-primary text-white'
-                            : 'glass-button text-white/75 hover:text-white'
-                        }`}
-                      >
-                        <svg className="w-3.5 h-3.5 text-[var(--color-accent)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="4" x2="4" y1="21" y2="14" /><line x1="4" x2="4" y1="10" y2="3" /><line x1="12" x2="12" y1="21" y2="12" /><line x1="12" x2="12" y1="8" y2="3" />
-                        </svg>
-                        <span className="truncate">{fxMode !== 'normal' ? 'FX' : 'Studio'}</span>
-                      </button>
-
                       {/* Lyrics Pill */}
                       <button
                         onClick={() => {

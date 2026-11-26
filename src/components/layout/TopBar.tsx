@@ -94,8 +94,27 @@ export default function TopBar() {
   const { isInstalled, showInstallGuide, setShowInstallGuide, triggerInstall } = usePWAInstall();
   const { isPhone, toggleMobileDrawer } = useDevicePreset();
 
+  const [openTopMenu, setOpenTopMenu] = useState<'studio' | 'app' | null>(null);
+  const topMenuContainerRef = useRef<HTMLDivElement>(null);
+
   useOverlayEscape(showSuggestions, () => setShowSuggestions(false));
   useOverlayEscape(showInstallGuide && !isInstalled, () => setShowInstallGuide(false));
+  useOverlayEscape(openTopMenu !== null, () => setOpenTopMenu(null));
+
+  useEffect(() => {
+    if (!openTopMenu) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (topMenuContainerRef.current && !topMenuContainerRef.current.contains(e.target as Node)) {
+        setOpenTopMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [openTopMenu]);
 
   const updateDropdownPosition = useCallback(() => {
     const anchor = isPhone ? mobileSearchRef.current : desktopSearchRef.current;
@@ -593,7 +612,6 @@ export default function TopBar() {
   if (isPhone) {
     const isRoot = location.pathname === '/';
     const isSearch = location.pathname.startsWith('/search');
-    const hasCompactBadge = hasUpdate || offlineModeOnly || !isOnline;
 
     return (
       <>
@@ -722,8 +740,8 @@ export default function TopBar() {
           </div>
         )}
 
-        {/* Right Action Icons (Studio FX, Active Timers & Drawer) */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* Right Action Icons (Grouped Studio Dropdown & Drawer) */}
+        <div ref={topMenuContainerRef} className="relative flex items-center gap-1.5 flex-shrink-0">
           {hasUpdate && !isSearch && (isAndroidNative() || isElectronApp()) && (
             <button
               onClick={() => {
@@ -758,19 +776,21 @@ export default function TopBar() {
 
           {sleepActive && !isSearch && <MobileSleepCountdown />}
 
-          {/* Studio Audio FX & EQ Button */}
+          {/* Grouped Studio Menu Trigger */}
           <button
+            type="button"
             onClick={() => {
               triggerAndroidHaptic('light');
-              setStudioModalOpen(true);
+              setOpenTopMenu((prev) => (prev === 'studio' ? null : 'studio'));
             }}
-            aria-label="Open Studio FX"
+            aria-label="Open Studio Menu"
+            aria-expanded={openTopMenu === 'studio'}
             className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-90 cursor-pointer ${
-              fxMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
+              openTopMenu === 'studio' || fxMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
                 ? 'glass-button-primary text-white shadow-[0_0_12px_rgba(250,45,72,0.4)]'
                 : 'glass-button text-white/80 hover:text-white'
             }`}
-            title="Studio FX (8D Audio, EQ & Spatial Radar)"
+            title="Studio Tools (FX, Smart DJ, Nightstand & Timers)"
           >
             <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <line x1="4" y1="21" x2="4" y2="14" />
@@ -782,58 +802,11 @@ export default function TopBar() {
             </svg>
           </button>
 
-          {/* Secondary tools stay accessible on home/subpages when header has room, and inside Drawer on narrow search */}
-          {!isSearch && !hasCompactBadge && (
-            <>
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setSmartDJOpen(true);
-                }}
-                aria-label="Smart DJ"
-                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 glass-button text-white/90 active:scale-90 cursor-pointer"
-                title="Smart DJ Console"
-              >
-                <span className="text-sm">🎧</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  triggerAndroidHaptic('light');
-                  setNightstandOpen(true);
-                }}
-                aria-label="Nightstand"
-                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 glass-button text-white/90 active:scale-90 cursor-pointer"
-                title="Bedside Nightstand Mode"
-              >
-                <span className="text-sm">🌙</span>
-              </button>
-            </>
-          )}
-
-          {/* Mobile Download App Button */}
-          {!isInstalled && !isSearch && (
-            <button
-              onClick={() => {
-                triggerAndroidHaptic('light');
-                navigate('/download');
-              }}
-              aria-label="Download App"
-              className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-emerald-400 hover:text-white active:scale-90 transition-transform cursor-pointer flex-shrink-0"
-              title="Download APK / Windows App"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-            </button>
-          )}
-
           {/* Mobile Drawer Menu Button (Available on all mobile screens) */}
           <button
             onClick={() => {
               triggerAndroidHaptic('light');
+              setOpenTopMenu(null);
               toggleMobileDrawer();
             }}
             aria-label="Open Navigation Menu"
@@ -846,6 +819,51 @@ export default function TopBar() {
               <line x1="4" y1="17" x2="20" y2="17" />
             </svg>
           </button>
+
+          {/* Mobile Studio Dropdown Popover */}
+          {openTopMenu === 'studio' && (
+            <div
+              role="menu"
+              aria-label="Studio Tools"
+              className="absolute right-0 top-11 w-64 rounded-2xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-2 shadow-2xl z-50 border border-white/15 space-y-1"
+            >
+              <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/45">
+                Studio & Atmosphere
+              </div>
+              <button
+                type="button"
+                onClick={() => { setOpenTopMenu(null); setStudioModalOpen(true); }}
+                className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+              >
+                <span className="flex items-center gap-2"><span>🎛️</span><span>Studio FX & EQ</span></span>
+                <span className="text-[10px] text-white/55">{activeFxLabel}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setOpenTopMenu(null); openStudioWithTab('atmosphere'); }}
+                className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+              >
+                <span className="flex items-center gap-2"><span>🌧️</span><span>Atmosphere & Timers</span></span>
+                <span className="text-[10px] text-white/55">{hasActiveAmbient || sleepActive || pomodoroActive ? 'Active' : 'Off'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setOpenTopMenu(null); setSmartDJOpen(true); }}
+                className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+              >
+                <span className="flex items-center gap-2"><span>🎧</span><span>Smart DJ Console</span></span>
+                <span className="text-[10px] text-rose-300/80">Automix</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setOpenTopMenu(null); setNightstandOpen(true); }}
+                className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+              >
+                <span className="flex items-center gap-2"><span>🌙</span><span>Nightstand Mode</span></span>
+                <span className="text-[10px] text-purple-200/80">OLED</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
       {suggestionsPortal}
@@ -962,37 +980,14 @@ export default function TopBar() {
           </div>
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-1.5 lg:gap-2 flex-shrink-0">
-          {/* Offline Mode Indicator & Instant Toggle */}
-          {(offlineModeOnly || !isOnline) && (
-            <button
-              onClick={() => {
-                triggerAndroidHaptic('medium');
-                toggleOfflineModeOnly();
-              }}
-              className={`inline-flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer flex-shrink-0 ${
-                offlineModeOnly
-                  ? 'glass-button-emerald text-emerald-200'
-                  : 'glass-button-amber text-amber-200 animate-pulse'
-              }`}
-              title={
-                offlineModeOnly
-                  ? 'Offline Mode Active (Playing strictly from local Vault) — Click to go online'
-                  : 'Device is offline — Click to toggle Offline Mode'
-              }
-            >
-              <span className={`w-2 h-2 rounded-full ${offlineModeOnly ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              <span>{offlineModeOnly ? '⚡ Offline Vault Only' : 'Offline • Vault Ready'}</span>
-            </button>
-          )}
-
+        {/* Right Actions: Active Status Pills + 2 Clean Grouped Dropdowns (Studio & App) */}
+        <div ref={topMenuContainerRef} className="relative flex items-center gap-1.5 lg:gap-2 flex-shrink-0">
           {/* Active Focus Pomodoro Pill */}
           {pomodoroActive && (
             <PomodoroTimerPill onOpenStudio={() => openStudioWithTab('atmosphere')} />
           )}
 
-          {/* Unified Active Sleep Timer Pill */}
+          {/* Active Sleep Timer Pill */}
           {sleepActive && (
             <SleepTimerPill onOpenStudio={() => openStudioWithTab('atmosphere')} />
           )}
@@ -1009,80 +1004,160 @@ export default function TopBar() {
             </button>
           )}
 
-          {/* Unified Studio FX, Ambient Soundscape & Timers Hub Button */}
-          <button
-            onClick={() => setStudioModalOpen(true)}
-            aria-label={activeFxLabel}
-            title="Studio Audio FX, Ambient Mixer, Focus & Sleep Timer"
-            className={`flex items-center gap-1.5 px-2.5 lg:px-3.5 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
-              fxMode !== 'normal' || hasActiveAmbient || sleepActive
-                ? 'glass-button-primary text-white'
-                : 'glass-button text-white/90 hover:text-white'
-            }`}
-          >
-            <span>🎛️</span>
-            <span className="hidden lg:inline">{activeFxLabel}</span>
-          </button>
-
-          {/* Smart DJ Console & Harmonic Automix Button */}
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              setSmartDJOpen(true);
-            }}
-            aria-label="Smart DJ"
-            title="Smart DJ Console — Camelot Key Automix & Procedural Turntables"
-            className="flex items-center gap-1.5 px-2.5 lg:px-3.5 h-9 rounded-full glass-button text-xs font-extrabold text-white/90 hover:text-white cursor-pointer active:scale-95 transition-transform"
-          >
-            <span className="text-sm">🎧</span>
-            <span className="hidden lg:inline">Smart DJ</span>
-          </button>
-
-          {/* Bedside Nightstand Clock Button */}
-          <button
-            onClick={() => {
-              triggerAndroidHaptic('light');
-              setNightstandOpen(true);
-            }}
-            aria-label="Nightstand"
-            title="OLED Bedside Nightstand Mode & Sleep Clock"
-            className="flex items-center gap-1.5 px-2.5 lg:px-3 h-9 rounded-full glass-button text-xs font-extrabold text-white/90 hover:text-white cursor-pointer active:scale-95 transition-transform"
-          >
-            <span className="text-sm">🌙</span>
-            <span className="hidden lg:inline">Nightstand</span>
-          </button>
-
-          {/* Download App Hub Button (only shown in standard web browsers when not installed) */}
-          {!isInstalled && (
+          {/* 1. Studio Dropdown (FX & EQ, Atmosphere & Timers, Smart DJ, Nightstand) */}
+          <div className="relative">
             <button
-              onClick={() => navigate('/download')}
-              title="Download WaveCraft App (.apk / .exe)"
-              className="hidden lg:flex items-center gap-1.5 px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/90 hover:text-white cursor-pointer"
+              type="button"
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setOpenTopMenu((prev) => (prev === 'studio' ? null : 'studio'));
+              }}
+              aria-label="Studio Menu"
+              aria-expanded={openTopMenu === 'studio'}
+              title="Studio Tools — FX & EQ, Atmosphere, Smart DJ & Nightstand"
+              className={`flex items-center gap-1.5 px-3 lg:px-3.5 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+                openTopMenu === 'studio' || fxMode !== 'normal' || hasActiveAmbient || sleepActive || pomodoroActive
+                  ? 'glass-button-primary text-white'
+                  : 'glass-button text-white/90 hover:text-white'
+              }`}
             >
-              <svg className="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
+              <span>🎛️</span>
+              <span className="hidden sm:inline">{fxMode !== 'normal' ? activeFxLabel : 'Studio'}</span>
+              <svg className={`w-3 h-3 opacity-70 transition-transform ${openTopMenu === 'studio' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9" />
               </svg>
-              <span>Download App</span>
             </button>
-          )}
 
-          {/* Install App (PWA) Button — only shown in standard web browsers when not installed */}
-          {!isInstalled && (
+            {openTopMenu === 'studio' && (
+              <div
+                role="menu"
+                aria-label="Studio Tools"
+                className="absolute right-0 top-11 w-64 rounded-2xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-2 shadow-2xl z-50 border border-white/15 space-y-1"
+              >
+                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/45">
+                  Audio Studio & Modes
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setOpenTopMenu(null); setStudioModalOpen(true); }}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+                >
+                  <span className="flex items-center gap-2"><span>🎛️</span><span>Studio FX & EQ</span></span>
+                  <span className="text-[10px] text-white/55">{activeFxLabel}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setOpenTopMenu(null); openStudioWithTab('atmosphere'); }}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+                >
+                  <span className="flex items-center gap-2"><span>🌧️</span><span>Atmosphere & Timers</span></span>
+                  <span className="text-[10px] text-white/55">{hasActiveAmbient || sleepActive || pomodoroActive ? 'Active' : 'Off'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setOpenTopMenu(null); setSmartDJOpen(true); }}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+                >
+                  <span className="flex items-center gap-2"><span>🎧</span><span>Smart DJ Console</span></span>
+                  <span className="text-[10px] text-rose-300/80">Automix</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setOpenTopMenu(null); setNightstandOpen(true); }}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+                >
+                  <span className="flex items-center gap-2"><span>🌙</span><span>Nightstand Mode</span></span>
+                  <span className="text-[10px] text-purple-200/80">OLED</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 2. App & Status Dropdown (Offline Mode, Jam Room, Download Native, Install PWA) */}
+          <div className="relative">
             <button
-              onClick={triggerInstall}
-              title="Install WaveCraft as Desktop / Mobile App"
-              className="hidden xl:flex items-center gap-1.5 px-3.5 h-9 rounded-full glass-button text-xs font-bold text-white/90 hover:text-white cursor-pointer"
+              type="button"
+              onClick={() => {
+                triggerAndroidHaptic('light');
+                setOpenTopMenu((prev) => (prev === 'app' ? null : 'app'));
+              }}
+              aria-label="App and Status Menu"
+              aria-expanded={openTopMenu === 'app'}
+              title="App & Status — Offline Vault, Live Jam, Download & Install"
+              className={`flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+                offlineModeOnly
+                  ? 'glass-button-emerald text-emerald-200'
+                  : !isOnline
+                    ? 'glass-button-amber text-amber-200'
+                    : openTopMenu === 'app'
+                      ? 'glass-button-primary text-white'
+                      : 'glass-button text-white/90 hover:text-white'
+              }`}
             >
-              <svg className="w-3.5 h-3.5 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
+              <span className={`w-2 h-2 rounded-full ${offlineModeOnly ? 'bg-emerald-400' : !isOnline ? 'bg-amber-400 animate-pulse' : 'bg-white/60'}`} />
+              <span className="hidden lg:inline">{offlineModeOnly ? 'Offline' : 'App'}</span>
+              <svg className={`w-3 h-3 opacity-70 transition-transform ${openTopMenu === 'app' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9" />
               </svg>
-              <span>Install App</span>
             </button>
-          )}
+
+            {openTopMenu === 'app' && (
+              <div
+                role="menu"
+                aria-label="App and Status"
+                className="absolute right-0 top-11 w-64 rounded-2xl modal-glass-panel backdrop-blur-2xl backdrop-saturate-150 p-2 shadow-2xl z-50 border border-white/15 space-y-1"
+              >
+                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/45">
+                  Connection & App
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('medium');
+                    toggleOfflineModeOnly();
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${offlineModeOnly ? 'bg-emerald-400' : 'bg-white/40'}`} />
+                    <span>Offline Vault Mode</span>
+                  </span>
+                  <span className={`text-[10px] font-bold ${offlineModeOnly ? 'text-emerald-300' : 'text-white/50'}`}>
+                    {offlineModeOnly ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setOpenTopMenu(null); navigate('/jam'); }}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+                >
+                  <span className="flex items-center gap-2"><span>📡</span><span>Live Jam Room</span></span>
+                  <span className="text-[10px] text-emerald-300/85">{roomCode || 'Open'}</span>
+                </button>
+                {!isInstalled && (
+                  <>
+                    <div className="h-px bg-white/10 my-1 mx-1" />
+                    <button
+                      type="button"
+                      onClick={() => { setOpenTopMenu(null); navigate('/download'); }}
+                      className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2"><span>⬇️</span><span>Download Native App</span></span>
+                      <span className="text-[10px] text-emerald-300/80">.apk / .exe</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setOpenTopMenu(null); triggerInstall(); }}
+                      className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold text-white/90 hover:bg-white/10 cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2"><span>💻</span><span>Install Web App (PWA)</span></span>
+                      <span className="text-[10px] text-white/50">Desktop</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </header>
       {suggestionsPortal}

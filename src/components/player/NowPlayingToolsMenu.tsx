@@ -101,7 +101,7 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
 }: NowPlayingToolsMenuProps) {
   const playlists = useLibraryStore((s) => s.playlists);
   const equalizerPreset = useSettingsStore((s) => s.equalizerPreset);
-  const [toolsTab, setToolsTab] = useState<'tools' | 'playlist'>('tools');
+  const [toolsTab, setToolsTab] = useState<'track' | 'studio' | 'playback' | 'playlist'>('track');
   const [toolsToast, setToolsToast] = useState<string | null>(null);
   const [isCreatingInTools, setIsCreatingInTools] = useState(false);
   const [newPlaylistTitleInTools, setNewPlaylistTitleInTools] = useState('');
@@ -122,7 +122,7 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
           animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, y: -6, scale: 0.95, filter: 'blur(8px)' }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute right-0 top-12 w-72 max-h-[82vh] overflow-y-auto no-scrollbar rounded-[22px] border-0 glass-bloom-menu p-2 z-50 text-xs shadow-[0_24px_50px_rgba(0,0,0,0.7)] flex flex-col gap-1"
+          className="absolute right-0 top-12 w-[min(19rem,calc(100vw-2rem))] max-h-[82vh] overflow-y-auto no-scrollbar rounded-[22px] border-0 glass-bloom-menu p-2 z-50 text-xs shadow-[0_24px_50px_rgba(0,0,0,0.7)] flex flex-col gap-1"
         >
           {/* Feedback Toast */}
           {toolsToast && (
@@ -138,7 +138,7 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
               <div className="flex items-center justify-between pb-1.5 border-0 px-1">
                 <button
                   type="button"
-                  onClick={() => setToolsTab('tools')}
+                  onClick={() => setToolsTab('track')}
                   className="flex items-center gap-1 text-xs font-semibold text-white/70 hover:text-white transition-colors cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -307,7 +307,33 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
                 </div>
               )}
 
-              {/* Section 1: Track Actions */}
+              {/* 3-Tab Category Switcher: Track | Studio | Playback */}
+              <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-white/[0.06] mb-1">
+                {(['track', 'studio', 'playback'] as const).map((tab) => {
+                  const isActiveTab = toolsTab === tab;
+                  const label = tab === 'track' ? 'Track' : tab === 'studio' ? 'Studio' : 'Playback';
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => {
+                        triggerAndroidHaptic('light');
+                        setToolsTab(tab);
+                      }}
+                      className={`py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        isActiveTab
+                          ? 'glass-button-primary text-white shadow-sm'
+                          : 'text-white/60 hover:text-white hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* TAB 1: TRACK ACTIONS */}
+              {toolsTab === 'track' && (
               <div className="flex flex-col gap-0.5">
                 {/* Add to Playlist */}
                 <button
@@ -479,12 +505,32 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
                     <span className="font-semibold">Share / Copy Link</span>
                   </div>
                 </button>
+
+                {/* Generate Poster */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWaveCardQuote('');
+                    setShowWaveCard(true);
+                    onClose();
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <svg className="w-4 h-4 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="3" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    <span className="font-semibold">Generate Story Poster</span>
+                  </div>
+                  <span className="text-[10px] text-white/45">Visual</span>
+                </button>
               </div>
+              )}
 
-              {/* Divider between Track actions and Studio tools */}
-              <div className="h-px bg-white/10 my-1 mx-1" />
-
-              {/* Section 2: Audio & Visual Studio Controls */}
+              {/* TAB 2: STUDIO & VISUALIZER */}
+              {toolsTab === 'studio' && (
               <div className="flex flex-col gap-0.5">
                 {/* Atmosphere Soundscapes */}
                 <button
@@ -531,27 +577,6 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
                         ? equalizerPreset
                         : 'Default'}
                   </span>
-                </button>
-
-                {/* Generate Poster */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWaveCardQuote('');
-                    setShowWaveCard(true);
-                    onClose();
-                  }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl text-white/85 hover:text-white hover:bg-white/[0.12] active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <svg className="w-4 h-4 text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="3" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                    <span className="font-medium">Generate Story Poster</span>
-                  </div>
-                  <span className="text-[10px] text-white/45">Visual</span>
                 </button>
 
                 {/* Visualizer Mode */}
@@ -677,7 +702,12 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
                     OLED Clock
                   </span>
                 </button>
+              </div>
+              )}
 
+              {/* TAB 3: PLAYBACK SETTINGS */}
+              {toolsTab === 'playback' && (
+              <div className="flex flex-col gap-0.5">
                 {/* Sleep Timer */}
                 <button
                   type="button"
@@ -763,6 +793,7 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
                   </span>
                 </button>
               </div>
+              )}
             </>
           )}
         </motion.div>
