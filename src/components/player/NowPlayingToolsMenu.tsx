@@ -308,7 +308,7 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
               )}
 
               {/* 3-Tab Category Switcher: Track | Studio | Playback */}
-              <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-white/[0.06] mb-1">
+              <div className="grid grid-cols-3 gap-1 p-1 rounded-full liquid-glass border-0 relative mb-1">
                 {(['track', 'studio', 'playback'] as const).map((tab) => {
                   const isActiveTab = toolsTab === tab;
                   const label = tab === 'track' ? 'Track' : tab === 'studio' ? 'Studio' : 'Playback';
@@ -320,13 +320,24 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
                         triggerAndroidHaptic('light');
                         setToolsTab(tab);
                       }}
-                      className={`py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                        isActiveTab
-                          ? 'glass-button-primary text-white shadow-sm'
-                          : 'text-white/60 hover:text-white hover:bg-white/[0.06]'
-                      }`}
+                      className="relative py-1.5 rounded-full text-[11px] font-bold cursor-pointer select-none flex items-center justify-center"
                     >
-                      {label}
+                      {isActiveTab && (
+                        <motion.div
+                          layoutId="tools-menu-tab-pill"
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                          className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
+                        />
+                      )}
+                      <span
+                        className={`relative z-10 transition-colors duration-150 ${
+                          isActiveTab
+                            ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                            : 'text-white/60 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </span>
                     </button>
                   );
                 })}
