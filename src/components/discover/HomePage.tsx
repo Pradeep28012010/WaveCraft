@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -11,8 +11,10 @@ import { computeSmartPlaylists, type SmartPlaylistDef } from '../../services/sma
 import { unlockAudioEngine } from '../../services/audioEngine';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
 import Skeleton from '../ui/Skeleton';
-import GenreBrowser from '../search/GenreBrowser';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import TrendingSection from './TrendingSection';
+
+const GenreBrowser = lazyWithRetry(() => import('../search/GenreBrowser'));
 import {
   MOOD_PLAYLISTS,
   getCurrentTimePhase,
@@ -2075,7 +2077,9 @@ export default function HomePage() {
       {/* ================= GENRES ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && (
         <div className="mt-8 px-1">
-          <GenreBrowser />
+          <Suspense fallback={null}>
+            <GenreBrowser />
+          </Suspense>
         </div>
       )}
     </div>

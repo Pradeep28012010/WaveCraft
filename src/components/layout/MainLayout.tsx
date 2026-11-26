@@ -99,12 +99,31 @@ export default function MainLayout() {
   const isSmartDJOpen = useStudioStore((s) => s.isSmartDJOpen);
   const setSmartDJOpen = useStudioStore((s) => s.setSmartDJOpen);
   const isStudioModalOpen = useStudioStore((s) => s.isStudioModalOpen);
+  const isCommandPaletteOpen = useStudioStore((s) => s.isCommandPaletteOpen);
   const isFeedbackOpen = useFeedbackStore((s) => s.isOpen);
   const isUpdateModalOpen = useUpdateStore((s) => s.isModalOpen);
 
   // Latch mount once opened so AnimatePresence exit transitions finish cleanly before unmount
+  const [hasMountedCommandPalette, setHasMountedCommandPalette] = useState(isCommandPaletteOpen);
   const [hasMountedFeedback, setHasMountedFeedback] = useState(isFeedbackOpen);
   const [hasMountedUpdate, setHasMountedUpdate] = useState(isUpdateModalOpen);
+
+  useEffect(() => {
+    if (isCommandPaletteOpen) setHasMountedCommandPalette(true);
+  }, [isCommandPaletteOpen]);
+
+  // Global Ctrl+K / Cmd+K shortcut listener so CommandPalette chunk stays unloaded until opened
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        const studio = useStudioStore.getState();
+        studio.setCommandPaletteOpen(!studio.isCommandPaletteOpen);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   useEffect(() => {
     if (isFeedbackOpen) setHasMountedFeedback(true);
@@ -174,7 +193,7 @@ export default function MainLayout() {
 
       {/* Global Ctrl+K Command Palette, Studio FX & Context Menu */}
       <Suspense fallback={null}>
-        <CommandPalette />
+        {hasMountedCommandPalette && <CommandPalette />}
         {isStudioModalOpen && <StudioFXModal />}
         {hasMountedFeedback && <FeedbackModal />}
         {hasMountedUpdate && <UpdateModal />}

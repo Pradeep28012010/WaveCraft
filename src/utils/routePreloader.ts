@@ -27,7 +27,7 @@ export function preloadRoute(path: string): void {
 
 /**
  * Pre-warms the most frequently accessed routes during browser idle time
- * after the initial page view has rendered.
+ * after the initial page load & LCP have settled.
  */
 export function prewarmCoreRoutes(): void {
   if (typeof window === 'undefined') return;
@@ -40,10 +40,20 @@ export function prewarmCoreRoutes(): void {
     import('../components/player/QueuePanel').catch(() => {});
   };
 
-  if ('requestIdleCallback' in window) {
-    (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
-      .requestIdleCallback(prewarm, { timeout: 2000 });
+  const scheduleIdlePrewarm = () => {
+    setTimeout(() => {
+      if ('requestIdleCallback' in window) {
+        (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
+          .requestIdleCallback(prewarm, { timeout: 3000 });
+      } else {
+        prewarm();
+      }
+    }, 4500);
+  };
+
+  if (document.readyState === 'complete') {
+    scheduleIdlePrewarm();
   } else {
-    setTimeout(prewarm, 1000);
+    window.addEventListener('load', scheduleIdlePrewarm, { once: true });
   }
 }

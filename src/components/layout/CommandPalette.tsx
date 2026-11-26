@@ -27,18 +27,6 @@ export default function CommandPalette() {
 
   useOverlayEscape(isCommandPaletteOpen, () => setCommandPaletteOpen(false));
 
-  // Global Ctrl+K / Cmd+K shortcut listener
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setCommandPaletteOpen(!useStudioStore.getState().isCommandPaletteOpen);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [setCommandPaletteOpen]);
-
   if (typeof document === 'undefined') return null;
 
   return createPortal(
