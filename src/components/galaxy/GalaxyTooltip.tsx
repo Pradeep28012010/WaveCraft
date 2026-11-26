@@ -7,7 +7,7 @@ import { triggerAndroidHaptic } from '../../services/nativeAndroid';
 interface GalaxyTooltipProps {
   selectedStar: StarNode3D | null;
   isCurrentTrackPlaying: boolean;
-  tooltipRef: React.RefObject<HTMLDivElement | null>;
+  tooltipRef: React.RefObject<HTMLDivElement>;
   onPlay: (star: StarNode3D) => void;
   onOpenPoster: () => void;
   onClose: () => void;

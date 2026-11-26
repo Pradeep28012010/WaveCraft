@@ -104,7 +104,7 @@ export default function SonicGalaxyPage() {
   const [audioReactivityMode, setAudioReactivityMode] = useState<'dynamic' | 'ambient' | 'off'>('dynamic');
   const [isOrbitLocked, setIsOrbitLocked] = useState(false);
   const [showStoryModal, setShowStoryModal] = useState(false);
-  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   // Load and hydrate persisted galaxy layout & audio reactivity settings across cache sweeps
   useEffect(() => {
@@ -432,19 +432,6 @@ export default function SonicGalaxyPage() {
 
     return rawNodes.sort((a, b) => b.affinityScore - a.affinityScore);
   }, [wormholeTracks, likedSongs, predictedTracks, userTasteProfile, galaxyLayout]);
-
-  const avgTasteMatch = useMemo(() => {
-    if (stars.length === 0) return 92;
-    return Math.round(stars.reduce((s, n) => s + n.affinityScore, 0) / stars.length);
-  }, [stars]);
-
-  const clusterCounts = useMemo(() => {
-    const counts = new Array(CLUSTERS.length).fill(0);
-    for (const s of stars) {
-      if (counts[s.clusterIndex] !== undefined) counts[s.clusterIndex]++;
-    }
-    return counts;
-  }, [stars]);
 
   useEffect(() => {
     if (stars.length === 0) return;
@@ -788,7 +775,13 @@ export default function SonicGalaxyPage() {
         const dy = my - p.sy;
         if (dx * dx + dy * dy <= (p.drawR + 16) * (p.drawR + 16)) {
           hit = true;
-          flyToStar(p.node);
+          triggerAndroidHaptic('medium');
+          setSelectedStar(p.node);
+          cameraRef.current.targetFocusX = p.node.x;
+          cameraRef.current.targetFocusY = p.node.y;
+          cameraRef.current.targetFocusZ = p.node.z;
+          setZoom(1.35);
+          setIsOrbitLocked(true);
           break;
         }
       }
