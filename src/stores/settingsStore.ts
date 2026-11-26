@@ -1,7 +1,25 @@
 import { create } from 'zustand';
-import type { SettingsState, VisualizerStyle, ScrollMotionMode, ScrollMotionIntensity } from '../types';
+import type {
+  SettingsState,
+  VisualizerStyle,
+  ScrollMotionMode,
+  ScrollMotionIntensity,
+  ContextMenuConfig,
+  ContextMenuDensity,
+  ContextMenuTrackActionId,
+  ContextMenuPageActionId
+} from '../types';
 import { loadSettings, saveSettings } from '../services/storage';
 import { EQ_PRESETS } from '../utils/constants';
+import {
+  createDefaultContextMenuConfig,
+  normalizeContextMenuConfig,
+  setContextMenuDensity as updateContextMenuDensity,
+  toggleContextMenuAction as updateContextMenuActionToggle,
+  reorderContextMenuActions as updateContextMenuActionOrder,
+  moveContextMenuAction as updateContextMenuActionMove,
+  type ContextMenuScope
+} from '../utils/contextMenuConfig';
 
 const SETTINGS_LOCAL_KEY = 'wavecraft_settings_v1';
 
@@ -16,6 +34,7 @@ interface SettingsStore extends SettingsState {
   performanceProfile: 'ultra' | 'balanced' | 'performance';
   scrollMotionMode: ScrollMotionMode;
   scrollMotionIntensity: ScrollMotionIntensity;
+  contextMenu: ContextMenuConfig;
   loadFromStorage: () => Promise<void>;
   setTheme: (theme: 'dark' | 'light' | 'auto') => void;
   setAccentColor: (color: string) => void;
@@ -63,6 +82,23 @@ interface SettingsStore extends SettingsState {
   setCompactMiniPlayer: (enabled: boolean) => void;
   setDjVinylBackspin: (enabled: boolean) => void;
   setSleepFadeOut: (enabled: boolean) => void;
+  setContextMenuDensity: (density: ContextMenuDensity) => void;
+  toggleContextMenuAction: (
+    scope: ContextMenuScope,
+    id: ContextMenuTrackActionId | ContextMenuPageActionId,
+    enabled?: boolean
+  ) => void;
+  reorderContextMenuActions: (
+    scope: ContextMenuScope,
+    fromIndex: number,
+    toIndex: number
+  ) => void;
+  moveContextMenuAction: (
+    scope: ContextMenuScope,
+    id: ContextMenuTrackActionId | ContextMenuPageActionId,
+    direction: 'up' | 'down'
+  ) => void;
+  resetContextMenuConfig: () => void;
   resetSettings: () => void;
 }
 
@@ -111,7 +147,8 @@ const defaultSettings: SettingsState = {
   scrollMotionMode: 'all',
   scrollMotionIntensity: 'balanced',
   djVinylBackspin: true,
-  sleepFadeOut: true
+  sleepFadeOut: true,
+  contextMenu: createDefaultContextMenuConfig()
 };
 
 /**
@@ -166,7 +203,8 @@ function extractSerializableSettings(state: SettingsState): SettingsState {
     scrollMotionMode: state.scrollMotionMode ?? 'all',
     scrollMotionIntensity: state.scrollMotionIntensity ?? 'balanced',
     djVinylBackspin: state.djVinylBackspin ?? true,
-    sleepFadeOut: state.sleepFadeOut ?? true
+    sleepFadeOut: state.sleepFadeOut ?? true,
+    contextMenu: normalizeContextMenuConfig(state.contextMenu)
   };
 }
 
@@ -176,7 +214,13 @@ function readInitialSettingsSync(): SettingsState {
     const raw =
       localStorage.getItem(SETTINGS_LOCAL_KEY) ||
       localStorage.getItem('wavecraft_settings');
-    if (!raw) return defaultSettings;
+    if (!raw) {
+      return {
+        ...defaultSettings,
+        equalizerBands: [...defaultSettings.equalizerBands],
+        contextMenu: createDefaultContextMenuConfig()
+      };
+    }
     const parsed = JSON.parse(raw) as Partial<SettingsState>;
     const merged: SettingsState = {
       ...defaultSettings,
@@ -184,14 +228,19 @@ function readInitialSettingsSync(): SettingsState {
       equalizerBands:
         Array.isArray(parsed.equalizerBands) && parsed.equalizerBands.length === 10
           ? parsed.equalizerBands
-          : [...defaultSettings.equalizerBands]
+          : [...defaultSettings.equalizerBands],
+      contextMenu: normalizeContextMenuConfig(parsed.contextMenu)
     };
     if (merged.accentColor && typeof document !== 'undefined') {
       document.documentElement.style.setProperty('--color-accent', merged.accentColor);
     }
     return merged;
   } catch {
-    return defaultSettings;
+    return {
+      ...defaultSettings,
+      equalizerBands: [...defaultSettings.equalizerBands],
+      contextMenu: createDefaultContextMenuConfig()
+    };
   }
 }
 
@@ -218,6 +267,9 @@ if (typeof window !== 'undefined') {
 
 function persistSettings(state: SettingsState): void {
   pendingSettingsState = state;
+  try {
+    localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(extractSerializableSettings(state)));
+  } catch {}
   if (settingsSaveTimer) clearTimeout(settingsSaveTimer);
   settingsSaveTimer = setTimeout(flushSettings, 120);
 }
@@ -231,6 +283,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   crossfade: initialSyncSettings.crossfadeDuration ?? 0,
   eqPreset: initialSyncSettings.equalizerPreset ?? 'Flat',
   eqBands: initialSyncSettings.equalizerBands ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  contextMenu: normalizeContextMenuConfig(initialSyncSettings.contextMenu),
 
   loadFromStorage: async () => {
     // Prefer localStorage if already present; fallback to IndexedDB if localStorage was empty
@@ -243,23 +296,25 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         equalizerBands:
           Array.isArray(stored.equalizerBands) && stored.equalizerBands.length === 10
             ? stored.equalizerBands
-            : [...defaultSettings.equalizerBands]
+            : [...defaultSettings.equalizerBands],
+        contextMenu: normalizeContextMenuConfig((stored as Partial<SettingsState>).contextMenu)
       };
-      if (merged.accentColor) {
+      if (merged.accentColor && typeof document !== 'undefined') {
         document.documentElement.style.setProperty('--color-accent', merged.accentColor);
       }
       set({
         ...merged,
         crossfade: merged.crossfadeDuration ?? 0,
         eqPreset: merged.equalizerPreset ?? 'Flat',
-        eqBands: merged.equalizerBands
+        eqBands: merged.equalizerBands,
+        contextMenu: merged.contextMenu
       });
       try {
         localStorage.setItem(SETTINGS_LOCAL_KEY, JSON.stringify(extractSerializableSettings(merged)));
       } catch {}
     } else {
       const currentAccent = get().accentColor;
-      if (currentAccent) {
+      if (currentAccent && typeof document !== 'undefined') {
         document.documentElement.style.setProperty('--color-accent', currentAccent);
       }
     }
@@ -498,14 +553,66 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     persistSettings(get());
   },
 
+  setContextMenuDensity: (density: ContextMenuDensity) => {
+    set((state) => ({
+      contextMenu: updateContextMenuDensity(state.contextMenu, density)
+    }));
+    persistSettings(get());
+  },
+
+  toggleContextMenuAction: (
+    scope: ContextMenuScope,
+    id: ContextMenuTrackActionId | ContextMenuPageActionId,
+    enabled?: boolean
+  ) => {
+    set((state) => ({
+      contextMenu: updateContextMenuActionToggle(state.contextMenu, scope, id, enabled)
+    }));
+    persistSettings(get());
+  },
+
+  reorderContextMenuActions: (
+    scope: ContextMenuScope,
+    fromIndex: number,
+    toIndex: number
+  ) => {
+    set((state) => ({
+      contextMenu: updateContextMenuActionOrder(state.contextMenu, scope, fromIndex, toIndex)
+    }));
+    persistSettings(get());
+  },
+
+  moveContextMenuAction: (
+    scope: ContextMenuScope,
+    id: ContextMenuTrackActionId | ContextMenuPageActionId,
+    direction: 'up' | 'down'
+  ) => {
+    set((state) => ({
+      contextMenu: updateContextMenuActionMove(state.contextMenu, scope, id, direction)
+    }));
+    persistSettings(get());
+  },
+
+  resetContextMenuConfig: () => {
+    set({ contextMenu: createDefaultContextMenuConfig() });
+    persistSettings(get());
+  },
+
   resetSettings: () => {
-    document.documentElement.style.setProperty('--color-accent', defaultSettings.accentColor);
-    set({
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--color-accent', defaultSettings.accentColor);
+    }
+    const freshDefaults: SettingsState = {
       ...defaultSettings,
+      equalizerBands: [...defaultSettings.equalizerBands],
+      contextMenu: createDefaultContextMenuConfig()
+    };
+    set({
+      ...freshDefaults,
       crossfade: 0,
       eqPreset: 'Flat',
       eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     });
-    persistSettings(defaultSettings);
+    persistSettings(freshDefaults);
   }
 }));

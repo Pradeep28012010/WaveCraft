@@ -24,6 +24,7 @@ import GlassModal from '../ui/GlassModal';
 import { LiquidGlassToggle } from '../ui/LiquidGlassToggle';
 import { LiquidGlassSlider } from '../ui/LiquidGlassSlider';
 import SettingsEqualizer from './SettingsEqualizer';
+import ContextMenuSettingsSection from './ContextMenuSettingsSection';
 import { resetAutoMixerFilters } from '../../services/audioEngine';
 import type {
   AudioQuality,
@@ -1054,6 +1055,24 @@ export default function SettingsPage() {
           </div>
         </section>
       )}
+
+      {/* ===================================================================== */}
+      {/* 3B. RIGHT-CLICK CONTEXT MENU CUSTOMIZATION (APPEARANCE & CONTROLS)   */}
+      {/* ===================================================================== */}
+      {(activeCategory === 'all' ||
+        activeCategory === 'appearance' ||
+        activeCategory === 'controls') &&
+        matchesSearch([
+          'context',
+          'menu',
+          'right-click',
+          'compact',
+          'ultra-compact',
+          'glass',
+          'density',
+          'actions',
+          'reorder'
+        ]) && <ContextMenuSettingsSection onNotify={showToast} />}
 
       {/* ===================================================================== */}
       {/* 4. SYNCHRONIZED LYRICS & TYPOGRAPHY                                   */}

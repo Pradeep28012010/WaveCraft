@@ -183,6 +183,21 @@ body,
       0 4px 16px rgba(0, 0, 0, 0.4);
   }
 
+  .glass-compact-menu {
+    background: linear-gradient(
+      155deg,
+      rgba(22, 24, 38, 0.74) 0%,
+      rgba(10, 11, 20, 0.84) 100%
+    );
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 18px 44px rgba(0, 0, 0, 0.68),
+      0 4px 14px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
   .glass {
     background: linear-gradient(
       145deg,
@@ -584,6 +599,16 @@ body,
   .glass-bloom-menu .liquid-glass,
   .glass-bloom-menu .glass,
   .glass-bloom-menu .glass-light,
+  .glass-compact-menu .glass-button,
+  .glass-compact-menu .glass-button-primary,
+  .glass-compact-menu .glass-button-emerald,
+  .glass-compact-menu .glass-button-purple,
+  .glass-compact-menu .glass-button-cyan,
+  .glass-compact-menu .glass-button-amber,
+  .glass-compact-menu .glass-input,
+  .glass-compact-menu .liquid-glass,
+  .glass-compact-menu .glass,
+  .glass-compact-menu .glass-light,
   .modal-glass-panel .glass-button,
   .modal-glass-panel .glass-button-primary,
   .modal-glass-panel .glass-button-emerald,

@@ -134,6 +134,8 @@ export interface SettingsState {
   // Smart DJ & Bedside Nightstand
   djVinylBackspin?: boolean;
   sleepFadeOut?: boolean;
+  // Right-click context menu customization
+  contextMenu?: ContextMenuConfig;
 }
 
 export interface SearchResult {
@@ -278,6 +280,43 @@ export type PerformanceProfile = SettingsState['performanceProfile'];
 export type AmbientGlowIntensity = SettingsState['ambientGlowIntensity'];
 export type ScrollMotionMode = 'off' | 'momentum' | 'glass' | 'artwork' | 'cinematic' | 'all';
 export type ScrollMotionIntensity = 'subtle' | 'balanced' | 'intense';
+
+export type ContextMenuDensity = 'compact' | 'ultra-compact';
+
+export type ContextMenuTrackActionId =
+  | 'playNow'
+  | 'playNext'
+  | 'addToQueue'
+  | 'toggleLike'
+  | 'addToPlaylist'
+  | 'chorusPreview'
+  | 'toggleOffline'
+  | 'viewLyrics'
+  | 'studioFx'
+  | 'share';
+
+export type ContextMenuPageActionId =
+  | 'togglePlay'
+  | 'nextTrack'
+  | 'prevTrack'
+  | 'toggleShuffle'
+  | 'cycleRepeat'
+  | 'toggleMute'
+  | 'studioFx'
+  | 'commandPalette'
+  | 'smartDj'
+  | 'nightstand';
+
+export interface ContextMenuActionItem<T extends string = string> {
+  id: T;
+  enabled: boolean;
+}
+
+export interface ContextMenuConfig {
+  density: ContextMenuDensity;
+  trackActions: ContextMenuActionItem<ContextMenuTrackActionId>[];
+  pageActions: ContextMenuActionItem<ContextMenuPageActionId>[];
+}
 
 
 
