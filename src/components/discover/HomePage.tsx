@@ -92,6 +92,12 @@ export default function HomePage() {
     }, 2200);
   };
 
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
+
   // Top 8 quick-access mix tracks
   const quickMixTracks = React.useMemo<Track[]>(() => {
     const list: Track[] = [];
@@ -453,6 +459,11 @@ export default function HomePage() {
   const handleQueueMood = useCallback(
     async (mood: MoodPlaylist, customQuery: string, e: React.MouseEvent) => {
       e.stopPropagation();
+      const jam = useJamStore.getState();
+      if (jam.roomCode && !jam.isHost) {
+        showToast('Only the Jam Host can queue or change tracks');
+        return;
+      }
       unlockAudioEngine();
       triggerAndroidHaptic('light');
 
@@ -478,6 +489,11 @@ export default function HomePage() {
   const handleShuffleMood = useCallback(
     async (mood: MoodPlaylist, customQuery: string, e: React.MouseEvent) => {
       e.stopPropagation();
+      const jam = useJamStore.getState();
+      if (jam.roomCode && !jam.isHost) {
+        showToast('Only the Jam Host can shuffle or change tracks');
+        return;
+      }
       unlockAudioEngine();
       triggerAndroidHaptic('medium');
 
@@ -1422,96 +1438,88 @@ export default function HomePage() {
 
       {/* ================= GLOBAL CHARTS & CITY PULSE ================= */}
       {(activeFilter === 'all' || activeFilter === 'charts') && (
-        <section
-          className="mb-10 px-1"
-          style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 360px' }}
+        <HorizontalScroll
+          title="Global Charts & Pulse"
+          subtitle="Top stream rankings updated hourly across global markets"
+          actionButton={
+            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/20">
+              Spotify Verified
+            </span>
+          }
         >
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                <span>Global Charts & Pulse</span>
-                <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/20">
-                  Spotify Verified
-                </span>
-              </h2>
-              <p className="text-xs text-white/50 mt-0.5">Top stream rankings updated hourly across global markets</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {CURATED_CHARTS.map((chart) => {
-              const isChartActive = activeTrendingCategory === chart.key;
-              const isChartLoading = playingChartKey === chart.key;
-              return (
-                <div
-                  key={chart.key}
-                  onClick={() => handlePlayChart(chart.key, chart.name)}
-                  className={`group relative p-3.5 rounded-2xl liquid-glass border transition-all duration-300 cursor-pointer overflow-hidden flex flex-col justify-between active:scale-[0.98] ${
-                    isChartActive
-                      ? 'ring-2 ring-emerald-400 border-transparent shadow-[0_8px_25px_rgba(16,185,129,0.35)]'
-                      : `${chart.border} hover:border-white/30`
-                  }`}
-                  style={{
-                    background: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.7) 100%)`
-                  }}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xl">{chart.icon}</span>
-                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/80">
-                        {chart.badge}
-                      </span>
-                    </div>
-                    <h4 className="font-extrabold text-xs sm:text-sm text-white group-hover:text-emerald-300 transition-colors line-clamp-1">
-                      {chart.name}
-                    </h4>
-                    <p className="text-[10px] text-white/55 line-clamp-2 mt-1 leading-snug">
-                      {chart.sub}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10">
-                    <span className="text-[10px] font-bold text-emerald-400">
-                      {isChartLoading ? (
-                        <span className="flex items-center gap-1 text-emerald-300">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          Loading...
-                        </span>
-                      ) : isChartActive && isPlaying ? (
-                        <span className="flex items-center gap-1 text-emerald-300">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          Playing
-                        </span>
-                      ) : isChartActive ? (
-                        'Active Chart'
-                      ) : (
-                        'Play Chart'
-                      )}
+          {CURATED_CHARTS.map((chart) => {
+            const isChartActive = activeTrendingCategory === chart.key;
+            const isChartLoading = playingChartKey === chart.key;
+            return (
+              <div
+                key={chart.key}
+                onClick={() => handlePlayChart(chart.key, chart.name)}
+                className={`min-w-[200px] max-w-[200px] sm:min-w-[230px] sm:max-w-[230px] flex-shrink-0 snap-start rounded-3xl p-4.5 liquid-glass border transition-all duration-300 cursor-pointer relative overflow-hidden flex flex-col justify-between group active:scale-[0.98] shadow-md hover:shadow-xl ${
+                  isChartActive
+                    ? 'ring-2 ring-emerald-400 border-transparent shadow-[0_8px_25px_rgba(16,185,129,0.35)]'
+                    : `${chart.border} hover:border-white/30`
+                }`}
+                style={{
+                  background: `linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.65) 100%)`
+                }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-transparent pointer-events-none" />
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-2xl p-2 rounded-2xl bg-white/10 backdrop-blur-md shadow-sm">{chart.icon}</span>
+                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+                      {chart.badge}
                     </span>
-                    <button
-                      type="button"
-                      onClick={(e) => handlePlayChart(chart.key, chart.name, e)}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md ${
-                        isChartActive
-                          ? 'bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.5)]'
-                          : 'bg-white/10 text-white/80 group-hover:bg-emerald-500 group-hover:text-black'
-                      }`}
-                      title={`Play ${chart.name}`}
-                    >
-                      {isChartLoading ? (
-                        <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      )}
-                    </button>
                   </div>
+                  <h4 className="font-extrabold text-sm sm:text-base text-white group-hover:text-emerald-300 transition-colors line-clamp-1">
+                    {chart.name}
+                  </h4>
+                  <p className="text-[11px] text-white/55 line-clamp-2 mt-1 leading-relaxed">
+                    {chart.sub}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        </section>
+
+                <div className="mt-4 flex items-center justify-between pt-2.5 border-t border-white/10">
+                  <span className="text-[10px] font-bold text-emerald-400">
+                    {isChartLoading ? (
+                      <span className="flex items-center gap-1 text-emerald-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Loading...
+                      </span>
+                    ) : isChartActive && isPlaying ? (
+                      <span className="flex items-center gap-1 text-emerald-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Playing
+                      </span>
+                    ) : isChartActive ? (
+                      'Active Chart'
+                    ) : (
+                      'Play Chart'
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => handlePlayChart(chart.key, chart.name, e)}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md ${
+                      isChartActive
+                        ? 'bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                        : 'bg-white/10 text-white/80 group-hover:bg-emerald-500 group-hover:text-black'
+                    }`}
+                    title={`Play ${chart.name}`}
+                  >
+                    {isChartLoading ? (
+                      <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </HorizontalScroll>
       )}
 
       {/* ================= TRENDING HIT CHARTS ================= */}
@@ -1738,7 +1746,10 @@ export default function HomePage() {
 
       {/* ================= RECENTLY PLAYED ================= */}
       {(activeFilter === 'all' || activeFilter === 'music') && recentlyPlayed.length > 0 && (() => {
-        const recentTracks = recentlyPlayed.map((r) => r.track).filter(Boolean) as Track[];
+        const seenRecentIds = new Set<string>();
+        const recentTracks = recentlyPlayed
+          .map((r) => r.track)
+          .filter((t): t is Track => Boolean(t && t.id && !seenRecentIds.has(t.id) && seenRecentIds.add(t.id)));
         if (recentTracks.length === 0) return null;
         return (
         <HorizontalScroll title="Recently Played" subtitle="Jump back into your recent sessions">
@@ -1807,7 +1818,6 @@ export default function HomePage() {
                     onClick={(e) => {
                       e.stopPropagation();
                       triggerAndroidHaptic('light');
-                      const recentTracks = recentlyPlayed.map((r) => r.track).filter(Boolean) as Track[];
                       useContextMenuStore.getState().openTrackMenu(
                         { clientX: e.clientX, clientY: e.clientY },
                         track,
