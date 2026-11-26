@@ -1472,9 +1472,9 @@ export default function HomePage() {
                       {chart.badge}
                     </span>
                   </div>
-                  <h4 className="font-extrabold text-sm sm:text-base text-white group-hover:text-emerald-300 transition-colors line-clamp-1">
+                  <h3 className="font-extrabold text-sm sm:text-base text-white group-hover:text-emerald-300 transition-colors line-clamp-1">
                     {chart.name}
-                  </h4>
+                  </h3>
                   <p className="text-[11px] text-white/55 line-clamp-2 mt-1 leading-relaxed">
                     {chart.sub}
                   </p>
@@ -1791,7 +1791,7 @@ export default function HomePage() {
                   <img
                     src={track.thumbnail || track.thumbnailUrl || DEFAULT_THUMBNAIL}
                     alt={track.title}
-                    loading="eager"
+                    loading="lazy"
                     decoding="async"
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL; }}
                     className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500 ease-out relative z-[1]"
@@ -1867,7 +1867,7 @@ export default function HomePage() {
                 <img
                   src={artist.avatar}
                   alt={artist.name}
-                  loading="eager"
+                  loading="lazy"
                   decoding="async"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
@@ -1886,9 +1886,9 @@ export default function HomePage() {
                   ✓
                 </div>
               </div>
-              <h4 className="font-bold text-xs sm:text-sm text-white truncate w-full group-hover:text-[var(--color-accent)] transition-colors">
+              <h3 className="font-bold text-xs sm:text-sm text-white truncate w-full group-hover:text-[var(--color-accent)] transition-colors">
                 {artist.name}
-              </h4>
+              </h3>
               <p className="text-[11px] text-white/50 truncate w-full mt-0.5 font-medium">
                 {artist.genre || 'Artist'}
               </p>
@@ -1985,7 +1985,7 @@ export default function HomePage() {
                     <img
                       src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                       alt={album.title || album.name}
-                      loading="eager"
+                      loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
                       crossOrigin="anonymous"
@@ -2038,7 +2038,7 @@ export default function HomePage() {
                       <img
                         src={album.coverUrl || album.thumbnail || DEFAULT_THUMBNAIL}
                         alt={album.title || album.name}
-                        loading="eager"
+                        loading="lazy"
                         decoding="async"
                         referrerPolicy="no-referrer"
                         crossOrigin="anonymous"

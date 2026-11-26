@@ -120,15 +120,20 @@ const FluidLiquidMeshCanvas = memo(({
     let lastNow = performance.now();
     let lastRenderTime = performance.now();
 
+    let hasDrawnIdleFrame = false;
     const render = (now: number = performance.now()) => {
       if (!isAppVisible || document.hidden) {
         animId = 0;
         return;
       }
-      animId = requestAnimationFrame(render);
-      // When paused or idle, throttle to ~30fps to cut GPU/CPU load in half with zero visual degradation
-      if (!isPlaying && now - lastRenderTime < 32) {
+      if (!isPlaying && hasDrawnIdleFrame) {
+        animId = 0;
         return;
+      }
+      if (!isPlaying) {
+        hasDrawnIdleFrame = true;
+      } else {
+        animId = requestAnimationFrame(render);
       }
       const dt = Math.min(2.5, Math.max(0.1, (now - lastNow) / 16.667));
       lastNow = now;

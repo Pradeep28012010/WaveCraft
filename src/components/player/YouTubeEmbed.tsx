@@ -852,8 +852,11 @@ export default function YouTubeEmbed() {
     };
   }, [setDuration, setIsLoading, setProgress]);
 
-  // Initialize YouTube IFrame Player (Primary and sole streaming engine)
+  const hasTrack = Boolean(currentTrack);
+
+  // Initialize YouTube IFrame Player lazily only once a track is loaded
   useEffect(() => {
+    if (!hasTrack) return;
     if (window.ytPlayerReady && getPlayer()) return;
 
     const initPlayer = () => {
@@ -867,6 +870,7 @@ export default function YouTubeEmbed() {
           : window.location.origin;
 
       const player = new window.YT.Player(containerRef.current, {
+        host: 'https://www.youtube-nocookie.com',
         height: '180',
         width: '320',
         playerVars: {
@@ -1247,7 +1251,7 @@ export default function YouTubeEmbed() {
       } catch {}
       setYtPlayerInstance(null);
     };
-  }, []);
+  }, [hasTrack]);
 
   // Helper to fallback or play on YouTube IFrame
   const fallbackToYouTube = (_track: Track, effectiveYtId: string, shouldPlay: boolean, startSeconds = 0) => {
