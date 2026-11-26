@@ -622,11 +622,11 @@ export default function Sidebar() {
                 <AnimatePresence initial={false}>
                   {!isSectionCollapsed && (
                     <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
+                      initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                      animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                      exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
                       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                      className="overflow-hidden space-y-1"
+                      className="space-y-1"
                     >
                 {section.items.map((item) =>
                   item.action ? (
@@ -807,32 +807,47 @@ export default function Sidebar() {
                   to={`/playlist/${playlist.id}`}
                   title={collapsed ? playlist.name : undefined}
                   className={({ isActive }) =>
-                    `flex items-center h-9.5 rounded-xl transition-colors duration-200 overflow-hidden ${
+                    `relative flex items-center h-9.5 rounded-xl transition-colors duration-200 select-none ${
                       isActive
-                        ? 'bg-white/15 text-white font-medium shadow-sm'
+                        ? 'text-white font-semibold'
                         : 'text-white/60 hover:text-white hover:bg-white/[0.05]'
                     }`
                   }
                 >
-                  {/* Playlist Avatar slot - Anchored */}
-                  <div className="w-16 h-9.5 flex items-center justify-center flex-shrink-0">
-                    <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${getPlaylistGradient(playlist.id)} flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-sm`}>
-                      {playlist.name.charAt(0).toUpperCase()}
-                    </div>
-                  </div>
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <motion.div
+                          layoutId="sidebar-active-pill-desktop"
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                          className="absolute inset-0 rounded-xl liquid-sliding-pill pointer-events-none z-0 overflow-hidden"
+                        >
+                          <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)] shadow-[0_0_12px_var(--color-accent)]" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-transparent pointer-events-none" />
+                        </motion.div>
+                      )}
 
-                  {/* Playlist Name - Smooth Glide In / Out */}
-                  <div
-                    className={`flex-1 min-w-0 pr-3 overflow-hidden transition-all duration-200 ease-[cubic-bezier(0.22,1,0.3,1)] ${
-                      collapsed
-                        ? 'opacity-0 -translate-x-2 pointer-events-none'
-                        : 'opacity-100 translate-x-0'
-                    }`}
-                  >
-                    <span className="truncate text-xs font-medium whitespace-nowrap block">
-                      {playlist.name}
-                    </span>
-                  </div>
+                      {/* Playlist Avatar slot - Anchored */}
+                      <div className="w-16 h-9.5 flex items-center justify-center flex-shrink-0 relative z-10">
+                        <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${getPlaylistGradient(playlist.id)} flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-sm`}>
+                          {playlist.name.charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+
+                      {/* Playlist Name - Smooth Glide In / Out */}
+                      <div
+                        className={`relative z-10 flex-1 min-w-0 pr-3 overflow-hidden transition-all duration-200 ease-[cubic-bezier(0.22,1,0.3,1)] ${
+                          collapsed
+                            ? 'opacity-0 -translate-x-2 pointer-events-none'
+                            : 'opacity-100 translate-x-0'
+                        }`}
+                      >
+                        <span className="truncate text-xs font-medium whitespace-nowrap block">
+                          {playlist.name}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </NavLink>
               ))}
             </div>
