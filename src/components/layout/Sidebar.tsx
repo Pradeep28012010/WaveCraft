@@ -313,10 +313,10 @@ export default function Sidebar() {
             className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex"
           >
             <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', stiffness: 420, damping: 40, mass: 0.9 }}
+              initial={{ x: '-100%', scale: 0.97, opacity: 0.92 }}
+              animate={{ x: 0, scale: 1, opacity: 1 }}
+              exit={{ x: '-100%', scale: 0.97, opacity: 0.92 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 34, mass: 0.85 }}
               drag="x"
               dragConstraints={{ right: 0, left: 0 }}
               dragElastic={{ left: 0.35, right: 0 }}
@@ -535,7 +535,7 @@ export default function Sidebar() {
       <motion.aside
         initial={false}
         animate={{ width: collapsed ? 80 : 256 }}
-        transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ type: 'spring', stiffness: 330, damping: 32, mass: 0.85 }}
         className="flex flex-col h-full liquid-glass bg-[#06060f]/85 backdrop-blur-3xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] select-none z-30 flex-shrink-0 overflow-hidden will-change-[width]"
       >
         {/* Brand Header */}
@@ -646,10 +646,10 @@ export default function Sidebar() {
 
                       {/* Text & Badge Container - Seamless Glide In / Out */}
                       <div
-                        className={`relative z-10 flex items-center justify-between flex-1 min-w-0 pr-3 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                        className={`relative z-10 flex items-center justify-between flex-1 min-w-0 pr-3 overflow-hidden transition-all duration-200 ease-[cubic-bezier(0.22,1,0.3,1)] ${
                           collapsed
-                            ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
-                            : 'opacity-100 max-w-[170px] translate-x-0 duration-300 delay-100'
+                            ? 'opacity-0 -translate-x-2 pointer-events-none'
+                            : 'opacity-100 translate-x-0'
                         }`}
                       >
                         <span className="text-sm truncate font-medium whitespace-nowrap">
@@ -711,10 +711,10 @@ export default function Sidebar() {
 
                         {/* Text & Badge Container - Seamless Glide In / Out */}
                         <div
-                          className={`relative z-10 flex items-center justify-between flex-1 min-w-0 pr-3 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                          className={`relative z-10 flex items-center justify-between flex-1 min-w-0 pr-3 overflow-hidden transition-all duration-200 ease-[cubic-bezier(0.22,1,0.3,1)] ${
                             collapsed
-                              ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
-                              : 'opacity-100 max-w-[170px] translate-x-0 duration-300 delay-100'
+                              ? 'opacity-0 -translate-x-2 pointer-events-none'
+                              : 'opacity-100 translate-x-0'
                           }`}
                         >
                           <span className="text-sm truncate font-medium whitespace-nowrap">
@@ -748,10 +748,10 @@ export default function Sidebar() {
           <div className="pt-2 pb-1 space-y-1">
             {/* Header when expanded */}
             <div
-              className={`flex items-center justify-between px-2 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              className={`flex items-center justify-between px-2 overflow-hidden transition-all duration-200 ease-[cubic-bezier(0.22,1,0.3,1)] ${
                 collapsed
-                  ? 'opacity-0 max-h-0 pointer-events-none duration-150 delay-0'
-                  : 'opacity-100 max-h-8 mb-2 duration-300 delay-100'
+                  ? 'opacity-0 max-h-0 pointer-events-none'
+                  : 'opacity-100 max-h-8 mb-2'
               }`}
             >
               <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-wider whitespace-nowrap">
@@ -823,10 +823,10 @@ export default function Sidebar() {
 
                   {/* Playlist Name - Smooth Glide In / Out */}
                   <div
-                    className={`flex-1 min-w-0 pr-3 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    className={`flex-1 min-w-0 pr-3 overflow-hidden transition-all duration-200 ease-[cubic-bezier(0.22,1,0.3,1)] ${
                       collapsed
-                        ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
-                        : 'opacity-100 max-w-[170px] translate-x-0 duration-300 delay-100'
+                        ? 'opacity-0 -translate-x-2 pointer-events-none'
+                        : 'opacity-100 translate-x-0'
                     }`}
                   >
                     <span className="truncate text-xs font-medium whitespace-nowrap block">
