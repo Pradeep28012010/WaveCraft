@@ -1,1775 +1,604 @@
-import { useState, useEffect, useRef, memo, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { useJamStore, type JamMember, type JamReaction } from '../../stores/jamStore';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useJamStore, getJamInviteUrl } from '../../stores/jamStore';
 import { usePlayerStore } from '../../stores/playerStore';
-import { searchTracks, getCachedSearch } from '../../services/youtube';
-import { PROD_API_ORIGIN, getShareBaseUrl } from '../../services/apiConfig';
-import { unlockAudioEngine } from '../player/YouTubeEmbed';
-import { jamSyncEngine, type SyncTelemetry } from '../../services/jamSyncEngine';
-import type { Track } from '../../types';
-import GlassCard from '../ui/GlassCard';
-import TrackRow from '../ui/TrackRow';
+import { searchTracks } from '../../services/youtube';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
-import { formatTime } from '../../utils/formatTime';
+import { triggerAndroidHaptic } from '../../services/nativeAndroid';
+import { useOverlayEscape } from '../ui/dialogStack';
+import type { Track } from '../../types';
 
-const QUICK_SONG_SUGGESTIONS = [
-  'Interstellar Theme',
-  'Hans Zimmer',
-  'Starboy',
-  'Die With A Smile',
-  'Blinding Lights',
-  'Arijit Singh',
-  'Anirudh Mass',
-  'Coldplay'
-];
+const QUICK_REACTIONS = ['🔥', '❤️', '🎧', '✨', '🚀'];
 
-const REACTION_EMOJIS = ['🔥', '💜', '🎧', '⚡', '🚀', '🥹', '🙌', '✨'];
-
-const QUICK_CHAT_CHIPS = [
-  '🔥 This drop is insane!',
-  '🎧 Queue the next banger!',
-  '⚡ Locked in & vibing',
-  '💜 320kbps sounds crystal clear'
-];
-
-const AVATAR_GRADIENTS = [
-  'from-rose-500 to-purple-600',
-  'from-emerald-400 to-cyan-600',
-  'from-amber-400 to-orange-600',
-  'from-violet-500 to-indigo-600',
-  'from-pink-500 to-rose-600',
-  'from-cyan-400 to-blue-600'
-];
-
-function getAvatarGradient(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  }
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+function formatTime(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
-
-const JamStageProgress = memo<{ isHost: boolean }>(({ isHost }) => {
-  const currentTime = usePlayerStore((s) => s.currentTime);
-  const duration = usePlayerStore((s) => s.duration);
-  const seekTo = usePlayerStore((s) => s.seekTo);
-  const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
-
-  return (
-    <div className="mt-3 max-w-xl">
-      <div
-        onClick={(e) => {
-          if (!isHost) return;
-          const rect = e.currentTarget.getBoundingClientRect();
-          const r = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-          seekTo(r * (duration || 210));
-        }}
-        className={`h-2 bg-white/15 rounded-full overflow-hidden border-0 ${
-          isHost ? 'cursor-pointer' : 'cursor-default pointer-events-none'
-        }`}
-      >
-        <div
-          className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-rose-500 rounded-full transition-all duration-150"
-          style={{ width: `${(progressRatio * 100).toFixed(1)}%` }}
-        />
-      </div>
-      <div className="flex justify-between text-[11px] font-bold tabular-nums text-white/50 mt-1">
-        <span>{formatTime(currentTime)}</span>
-        <span>{formatTime(duration)}</span>
-      </div>
-    </div>
-  );
-});
-JamStageProgress.displayName = 'JamStageProgress';
-
-export interface SpatialZone {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  pan: number;
-  icon: string;
-  badge: string;
-  desc: string;
-}
-
-export const SPATIAL_SEATING_ZONES: SpatialZone[] = [
-  {
-    id: 'center-sweetspot',
-    name: 'Acoustic Sweetspot',
-    x: 50,
-    y: 60,
-    pan: 0,
-    icon: '🎯',
-    badge: 'Stereo Balanced',
-    desc: 'Golden-ratio balanced binaural imaging'
-  },
-  {
-    id: 'front-row',
-    name: 'Front Row Center',
-    x: 50,
-    y: 33,
-    pan: 0,
-    icon: '🔥',
-    badge: 'Front Stage',
-    desc: 'Punchy direct acoustic energy at DJ deck'
-  },
-  {
-    id: 'left-wing',
-    name: 'Left Stereo Wing',
-    x: 20,
-    y: 48,
-    pan: -0.55,
-    icon: '◀️',
-    badge: 'Left Pan (-55%)',
-    desc: 'Immersive left soundstage staging'
-  },
-  {
-    id: 'right-wing',
-    name: 'Right Stereo Wing',
-    x: 80,
-    y: 48,
-    pan: 0.55,
-    icon: '▶️',
-    badge: 'Right Pan (+55%)',
-    desc: 'Immersive right soundstage staging'
-  },
-  {
-    id: 'vip-mezzanine',
-    name: 'VIP Lounge',
-    x: 50,
-    y: 80,
-    pan: 0,
-    icon: '👑',
-    badge: 'Rear Mezzanine',
-    desc: 'Elevated wide-angle surround acoustics'
-  }
-];
-
-interface SpatialStageMapProps {
-  members: JamMember[];
-  selfId: string;
-  selfSeatId: string;
-  selfSeatPos: { x: number; y: number; pan: number };
-  spatialAudioEnabled: boolean;
-  isHost: boolean;
-  isPlaying: boolean;
-  reactions: JamReaction[];
-  onSetSeat: (seatId: string, x?: number, y?: number, pan?: number) => void;
-  onToggleSpatial: () => void;
-}
-
-interface ParticleBurst {
-  id: string;
-  emoji: string;
-  x: number;
-  y: number;
-  offsetX: number;
-}
-
-const SpatialListeningStageMap = memo<SpatialStageMapProps>(({
-  members,
-  selfId,
-  selfSeatId,
-  selfSeatPos,
-  spatialAudioEnabled,
-  isHost,
-  isPlaying,
-  reactions,
-  onSetSeat,
-  onToggleSpatial
-}) => {
-  const floorRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [stageParticles, setStageParticles] = useState<ParticleBurst[]>([]);
-  const lastReactionIdRef = useRef<string | null>(null);
-
-  // Trigger real-time particle bursts on stage when emoji reactions arrive
-  useEffect(() => {
-    if (reactions.length === 0) return;
-    const latest = reactions[reactions.length - 1];
-    if (!latest || latest.id === lastReactionIdRef.current) return;
-    lastReactionIdRef.current = latest.id;
-
-    // Find member coordinates
-    const sender = members.find((m) => m.name === latest.sender || m.id === latest.sender);
-    const originX = typeof latest.x === 'number' ? latest.x : sender?.x ?? 50;
-    const originY = typeof latest.y === 'number' ? latest.y : sender?.y ?? 60;
-
-    const burst: ParticleBurst[] = [
-      { id: `${latest.id}-p1`, emoji: latest.emoji, x: originX, y: originY, offsetX: -18 },
-      { id: `${latest.id}-p2`, emoji: latest.emoji, x: originX, y: originY, offsetX: 0 },
-      { id: `${latest.id}-p3`, emoji: latest.emoji, x: originX, y: originY, offsetX: 18 }
-    ];
-
-    setStageParticles((prev) => [...prev.slice(-18), ...burst]);
-    const timer = setTimeout(() => {
-      setStageParticles((prev) => prev.filter((p) => !burst.some((b) => b.id === p.id)));
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [reactions, members]);
-
-  const updatePositionFromPointer = (e: React.PointerEvent<HTMLDivElement>) => {
-    const floor = floorRef.current;
-    if (!floor) return;
-    const rect = floor.getBoundingClientRect();
-    const rawX = ((e.clientX - rect.left) / rect.width) * 100;
-    const rawY = ((e.clientY - rect.top) / rect.height) * 100;
-    const clampedX = Math.max(12, Math.min(88, rawX));
-    const clampedY = Math.max(26, Math.min(90, rawY));
-
-    // Match closest zone if within radius
-    let matchedId = 'custom';
-    for (const z of SPATIAL_SEATING_ZONES) {
-      if (Math.hypot(z.x - clampedX, z.y - clampedY) < 8.5) {
-        matchedId = z.id;
-        break;
-      }
-    }
-    const delta = (clampedX - 50) / 36;
-    const pan = Math.max(-0.85, Math.min(0.85, delta * 0.85));
-    onSetSeat(matchedId, clampedX, clampedY, pan);
-  };
-
-  const currentPan = selfSeatPos.pan;
-  const panLabel = !spatialAudioEnabled
-    ? 'Spatial Bypassed'
-    : Math.abs(currentPan) < 0.05
-    ? '🎯 Center Sweetspot (Balanced 0%)'
-    : currentPan < 0
-    ? `◀️ Stereo Left (${Math.round(Math.abs(currentPan) * 100)}%)`
-    : `Stereo Right (${Math.round(currentPan * 100)}%) ▶️`;
-
-  return (
-    <div className="relative rounded-3xl overflow-hidden liquid-glass border border-white/10 p-4 sm:p-6 shadow-2xl">
-      {/* Top Header & Spatial Audio Telemetry Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-white/10">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-400/30 text-[10px] font-extrabold uppercase tracking-widest text-emerald-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              UltraSync™ 2D Spatial Floor
-            </span>
-            <span className="text-xs text-white/40">•</span>
-            <span className="text-xs font-bold text-white/70">
-              Sub-50ms P2P Stereo Field
-            </span>
-          </div>
-          <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
-            Interactive Spatial Listening Stage
-          </h2>
-          <p className="text-xs text-white/60 mt-0.5">
-            Drag your avatar or tap any seat to dynamically balance your live stereo soundstage
-          </p>
-        </div>
-
-        {/* Spatial Toggle & Active Pan Readout */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="px-3.5 py-1.5 rounded-full bg-black/45 border border-white/10 text-xs font-mono font-bold text-emerald-300 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>{panLabel}</span>
-          </div>
-
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onToggleSpatial}
-            className={`px-4 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
-              spatialAudioEnabled
-                ? 'bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 shadow-[0_0_15px_rgba(52,211,153,0.3)]'
-                : 'bg-white/10 border border-white/15 text-white/60'
-            }`}
-            title="Toggle Web Audio 3D Stereo Panning"
-          >
-            <span>🎧</span>
-            <span>{spatialAudioEnabled ? '3D Spatial: ON' : '3D Spatial: OFF'}</span>
-          </motion.button>
-        </div>
-      </div>
-
-      {/* 2D Acoustic Soundstage Floor */}
-      <div
-        ref={floorRef}
-        onPointerDown={(e) => {
-          setIsDragging(true);
-          updatePositionFromPointer(e);
-        }}
-        onPointerMove={(e) => {
-          if (isDragging) {
-            updatePositionFromPointer(e);
-          }
-        }}
-        onPointerUp={() => setIsDragging(false)}
-        onPointerCancel={() => setIsDragging(false)}
-        className="relative w-full h-80 sm:h-96 md:h-[400px] mt-4 rounded-2xl bg-[#090b14] border border-white/10 overflow-hidden cursor-crosshair select-none touch-none shadow-inner"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 65%), linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)',
-          backgroundSize: '100% 100%, 36px 36px, 36px 36px'
-        }}
-      >
-        {/* DJ Soundstage Deck at Top Center */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-none">
-          <div className="px-4 py-1 rounded-full bg-gradient-to-r from-emerald-500/25 via-cyan-500/25 to-rose-500/25 border border-white/15 shadow-lg flex items-center gap-2">
-            <span className="text-sm">🎧</span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300">
-              DJ Soundstage Deck
-            </span>
-            {isPlaying && (
-              <span className="flex items-end gap-0.5 h-2.5">
-                <span className="w-1 bg-emerald-400 rounded-full animate-eq-1" />
-                <span className="w-1 bg-cyan-400 rounded-full animate-eq-2" />
-                <span className="w-1 bg-rose-400 rounded-full animate-eq-3" />
-              </span>
-            )}
-          </div>
-          <div className="w-32 sm:w-44 h-5 mt-1 rounded-t-xl bg-gradient-to-b from-white/10 to-transparent border-t border-x border-white/10" />
-        </div>
-
-        {/* Radiating Soundwave Rings from DJ Deck when playing */}
-        {isPlaying && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none">
-            <div className="w-48 h-28 rounded-full border border-emerald-400/25 animate-[ping_3.2s_cubic-bezier(0,0,0.2,1)_infinite]" />
-            <div className="w-80 h-44 rounded-full border border-cyan-400/15 animate-[ping_4.2s_cubic-bezier(0,0,0.2,1)_infinite] -mt-24 -ml-16" />
-          </div>
-        )}
-
-        {/* Stereo Stage Wing Banners */}
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 font-mono text-[9px] uppercase tracking-widest text-cyan-300 [writing-mode:vertical-lr] rotate-180">
-          ◀ LEFT STEREO STAGE
-        </div>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 font-mono text-[9px] uppercase tracking-widest text-cyan-300 [writing-mode:vertical-lr]">
-          RIGHT STEREO STAGE ▶
-        </div>
-
-        {/* 5 Preset Seating Zone Pads */}
-        {SPATIAL_SEATING_ZONES.map((zone) => {
-          const isOccupiedBySelf = selfSeatId === zone.id;
-          return (
-            <div
-              key={zone.id}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSetSeat(zone.id, zone.x, zone.y, zone.pan);
-              }}
-              style={{ left: `${zone.x}%`, top: `${zone.y}%` }}
-              className={`absolute -translate-x-1/2 -translate-y-[66%] min-w-[116px] sm:min-w-[140px] px-2.5 pt-1.5 pb-8 sm:pb-10 rounded-2xl transition-all cursor-pointer group flex flex-col items-center ${
-                isOccupiedBySelf
-                  ? 'bg-emerald-500/15 border border-emerald-400/50 shadow-[0_0_20px_rgba(52,211,153,0.3)]'
-                  : 'bg-white/[0.03] hover:bg-white/[0.08] border border-white/10'
-              }`}
-            >
-              <div className="flex items-center gap-1 text-[11px] font-bold text-white/80 group-hover:text-white transition-colors whitespace-nowrap">
-                <span>{zone.icon}</span>
-                <span className="hidden sm:inline text-[10px] uppercase tracking-wider">{zone.name}</span>
-              </div>
-              <span className="text-[9px] text-white/45 font-mono hidden sm:inline whitespace-nowrap">
-                {zone.badge}
-              </span>
-            </div>
-          );
-        })}
-
-        {/* Render Active Room Member Avatars on Stage */}
-        {members.map((m) => {
-          const isSelf = m.id === selfId;
-          const posX = isSelf ? selfSeatPos.x : (typeof m.x === 'number' ? m.x : 50);
-          const posY = isSelf ? selfSeatPos.y : (typeof m.y === 'number' ? m.y : 60);
-          const isMemberHost = typeof m.isHost === 'boolean' ? m.isHost : Boolean(isHost && isSelf);
-
-          return (
-            <motion.div
-              key={m.id}
-              layout
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              style={{
-                left: `${posX}%`,
-                top: `${posY}%`,
-                transform: 'translate(-50%, -22%)'
-              }}
-              className={`absolute z-20 flex flex-col items-center pointer-events-none select-none`}
-            >
-              {/* Avatar Bubble */}
-              <div
-                className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br ${getAvatarGradient(
-                  m.name
-                )} flex items-center justify-center text-xs font-black text-white shadow-xl ${
-                  isSelf
-                    ? 'ring-4 ring-emerald-400/80 ring-offset-2 ring-offset-[#090b14] shadow-[0_0_25px_rgba(52,211,153,0.6)] cursor-grab active:cursor-grabbing pointer-events-auto'
-                    : 'border-2 border-white/30'
-                }`}
-              >
-                {m.name.slice(0, 2).toUpperCase()}
-
-                {/* Host Crown Indicator */}
-                {isMemberHost && (
-                  <span className="absolute -top-2.5 -right-1 text-xs filter drop-shadow">
-                    👑
-                  </span>
-                )}
-
-                {/* Self "YOU" Pill */}
-                {isSelf && (
-                  <span className="absolute -bottom-2 px-1.5 py-0.5 rounded-full bg-emerald-400 text-black font-black text-[8px] uppercase tracking-wider shadow">
-                    YOU
-                  </span>
-                )}
-              </div>
-
-              {/* Name Tag Pill */}
-              <div className="mt-1 px-2 py-0.5 rounded-full bg-black/75 border border-white/10 text-[10px] font-extrabold text-white/90 whitespace-nowrap shadow-md flex items-center gap-1">
-                <span>{m.name}</span>
-                {isPlaying && (
-                  <span className="flex items-end gap-[1.5px] h-2">
-                    <span className="w-0.5 bg-emerald-400 rounded-full animate-eq-1" />
-                    <span className="w-0.5 bg-cyan-400 rounded-full animate-eq-2" />
-                  </span>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
-
-        {/* Reaction Emoji Particle Bursts shooting up from Avatars */}
-        <AnimatePresence>
-          {stageParticles.map((p) => (
-            <motion.div
-              key={p.id}
-              initial={{ opacity: 1, y: 0, x: p.offsetX, scale: 0.6 }}
-              animate={{ opacity: 0, y: -75, x: p.offsetX * 1.6, scale: 1.4 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1.8, ease: 'easeOut' }}
-              className="absolute pointer-events-none text-2xl z-30 select-none drop-shadow-[0_0_12px_rgba(255,255,255,0.7)]"
-              style={{
-                left: `${p.x}%`,
-                top: `${p.y}%`,
-                transform: 'translate(-50%, -50%)'
-              }}
-            >
-              {p.emoji}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Preset Seating Zone Teleporters Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-4 mt-4 border-t border-white/10">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-          <span className="text-[11px] font-extrabold text-white/50 uppercase tracking-wider whitespace-nowrap mr-1">
-            Seating Teleport:
-          </span>
-          {SPATIAL_SEATING_ZONES.map((zone) => {
-            const isSelected = selfSeatId === zone.id;
-            return (
-              <button
-                key={zone.id}
-                type="button"
-                onClick={() => onSetSeat(zone.id, zone.x, zone.y, zone.pan)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  isSelected
-                    ? 'bg-gradient-to-r from-emerald-400 to-cyan-400 text-black shadow-[0_0_15px_rgba(52,211,153,0.4)]'
-                    : 'bg-white/5 hover:bg-white/12 border border-white/10 text-white/80'
-                }`}
-              >
-                <span>{zone.icon}</span>
-                <span>{zone.name}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="text-[11px] text-emerald-300/80 font-medium hidden lg:inline">
-          ✨ Tip: Drag your avatar anywhere on the floor map to adjust stereo balance
-        </div>
-      </div>
-    </div>
-  );
-});
-SpatialListeningStageMap.displayName = 'SpatialListeningStageMap';
 
 export default function JamRoomPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const urlRoom = searchParams.get('room') || '';
 
-  const {
-    roomCode,
-    isHost,
-    userId,
-    userName,
-    hostName,
-    members,
-    reactions,
-    messages,
-    isConnected,
-    selfSeatId,
-    selfSeatPos,
-    spatialAudioEnabled,
-    setUserName,
-    createRoom,
-    joinRoom,
-    leaveRoom,
-    sendReaction,
-    sendMessage,
-    addTrackToJam,
-    playTrackInJam,
-    togglePlayInJam,
-    skipTrackInJam,
-    syncNow,
-    setSeat,
-    toggleSpatialAudio
-  } = useJamStore();
+  const roomCode = useJamStore((s) => s.roomCode);
+  const isHost = useJamStore((s) => s.isHost);
+  const userName = useJamStore((s) => s.userName);
+  const hostName = useJamStore((s) => s.hostName);
+  const members = useJamStore((s) => s.members);
+  const reactions = useJamStore((s) => s.reactions);
+  const messages = useJamStore((s) => s.messages);
+  const isJoining = useJamStore((s) => s.isJoining);
+  const syncError = useJamStore((s) => s.syncError);
+  const transportMode = useJamStore((s) => s.transportMode);
+
+  const setUserName = useJamStore((s) => s.setUserName);
+  const createRoom = useJamStore((s) => s.createRoom);
+  const joinRoom = useJamStore((s) => s.joinRoom);
+  const leaveRoom = useJamStore((s) => s.leaveRoom);
+  const sendReaction = useJamStore((s) => s.sendReaction);
+  const sendMessage = useJamStore((s) => s.sendMessage);
+  const addTrackToJam = useJamStore((s) => s.addTrackToJam);
+  const playTrackInJam = useJamStore((s) => s.playTrackInJam);
+  const togglePlayInJam = useJamStore((s) => s.togglePlayInJam);
+  const skipTrackInJam = useJamStore((s) => s.skipTrackInJam);
+  const prevTrackInJam = useJamStore((s) => s.prevTrackInJam);
+  const syncNow = useJamStore((s) => s.syncNow);
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
   const queue = usePlayerStore((s) => s.queue);
 
-  const [joinInput, setJoinInput] = useState(urlRoom);
   const [nameInput, setNameInput] = useState(userName);
+  const [joinCodeInput, setJoinCodeInput] = useState('');
   const [copiedInvite, setCopiedInvite] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [songQuery, setSongQuery] = useState('');
-  const [songResults, setSongResults] = useState<Track[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const [telemetry, setTelemetry] = useState<SyncTelemetry>(jamSyncEngine.getTelemetrySnapshot());
-  const chatScrollRef = useRef<HTMLDivElement>(null);
-  const stageCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [songQuery, setSongQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Track[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  // Subscribe to real-time UltraSync phase and latency telemetry
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useOverlayEscape(isChatOpen, () => setIsChatOpen(false));
+
+  // Auto-join from ?jam=CODE deep link
   useEffect(() => {
-    return jamSyncEngine.subscribeTelemetry((t) => {
-      setTelemetry(t);
-    });
+    const paramCode = searchParams.get('jam');
+    if (paramCode && !roomCode) {
+      setJoinCodeInput(paramCode.toUpperCase());
+      joinRoom(paramCode);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, roomCode, joinRoom, setSearchParams]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
   }, []);
 
-  // Auto-join if ?room=WAVE-XXXX is in the URL
   useEffect(() => {
-    if (urlRoom && !roomCode) {
-      joinRoom(urlRoom, nameInput);
+    if (isChatOpen && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [urlRoom]);
-
-  // Auto-scroll live chat feed when new messages arrive (if near bottom)
-  useEffect(() => {
-    const el = chatScrollRef.current;
-    if (el) {
-      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-      if (isNearBottom || messages.length <= 1) {
-        el.scrollTop = el.scrollHeight;
-      }
-    }
-  }, [messages.length]);
-
-  // Live Audio-Reactive Spectrum Canvas inside Active Jam Stage
-  const isPlayingRef = useRef(isPlaying);
-  isPlayingRef.current = isPlaying;
-
-  useEffect(() => {
-    if (!roomCode) return;
-    const canvas = stageCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let rafId = 0;
-    let phase = 0;
-    let width = canvas.clientWidth || 300;
-    let height = canvas.clientHeight || 150;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width: w, height: h } = entry.contentRect;
-        if (w > 0 && h > 0) {
-          width = w;
-          height = h;
-          const dpr = Math.min(window.devicePixelRatio || 1, 2);
-          canvas.width = Math.floor(w * dpr);
-          canvas.height = Math.floor(h * dpr);
-        }
-      }
-    });
-    resizeObserver.observe(canvas);
-
-    const render = () => {
-      phase += isPlayingRef.current ? 0.055 : 0.015;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const w = width;
-      const h = height;
-
-      if (w > 0 && h > 0) {
-        ctx.save();
-        ctx.scale(dpr, dpr);
-        ctx.clearRect(0, 0, w, h);
-
-        const barCount = 56;
-        const barW = w / barCount;
-
-        for (let i = 0; i < barCount; i++) {
-          const x = i * barW;
-          const n1 = Math.abs(Math.sin(phase + i * 0.28));
-          const n2 = Math.abs(Math.cos(phase * 1.4 - i * 0.19));
-          const energy = isPlayingRef.current ? 0.18 + (n1 * 0.55 + n2 * 0.27) : 0.08 + n1 * 0.06;
-          const barH = Math.max(4, energy * h * 0.68);
-
-          const grad = ctx.createLinearGradient(0, h, 0, h - barH);
-          grad.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
-          grad.addColorStop(0.6, 'rgba(6, 182, 212, 0.16)');
-          grad.addColorStop(1, 'rgba(250, 45, 72, 0.06)');
-
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.roundRect(x + 1.5, h - barH, Math.max(2, barW - 3), barH, 3);
-          ctx.fill();
-        }
-
-        ctx.restore();
-      }
-
-      rafId = requestAnimationFrame(render);
-    };
-
-    rafId = requestAnimationFrame(render);
-    return () => {
-      cancelAnimationFrame(rafId);
-      resizeObserver.disconnect();
-    };
-  }, [roomCode]);
-
-  const handleStartRoom = async () => {
-    unlockAudioEngine();
-    const code = await createRoom(nameInput);
-    setSearchParams({ room: code });
-  };
-
-  const handleJoinRoom = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!joinInput.trim()) return;
-    unlockAudioEngine();
-    const clean = joinInput.trim().toUpperCase();
-    await joinRoom(clean, nameInput);
-    setSearchParams({ room: clean });
-  };
-
-  const handleLeave = () => {
-    leaveRoom();
-    setSearchParams({});
-  };
-
-  const inviteUrl = roomCode
-    ? `${getShareBaseUrl()}/jam?room=${encodeURIComponent(roomCode)}`
-    : '';
+  }, [messages.length, isChatOpen]);
 
   const handleCopyInvite = async () => {
-    if (!inviteUrl) return;
-    try {
-      await navigator.clipboard.writeText(inviteUrl);
-      setCopiedInvite(true);
-      setTimeout(() => setCopiedInvite(false), 2500);
-    } catch {}
-  };
-
-  const handleCopyCode = async () => {
     if (!roomCode) return;
     try {
-      await navigator.clipboard.writeText(roomCode);
-      setCopiedCode(true);
-      setTimeout(() => setCopiedCode(false), 2000);
+      await navigator.clipboard.writeText(getJamInviteUrl(roomCode));
+      setCopiedInvite(true);
+      triggerAndroidHaptic('light');
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedInvite(false), 2200);
     } catch {}
   };
 
-  const searchSeqRef = useRef(0);
-  const searchAbortRef = useRef<AbortController | null>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      searchAbortRef.current?.abort();
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    };
-  }, []);
-
-  const performSongSearch = useCallback(async (queryText: string) => {
-    const clean = queryText.trim();
-    searchSeqRef.current += 1;
-    const seq = searchSeqRef.current;
-
-    if (searchAbortRef.current) {
-      searchAbortRef.current.abort();
-      searchAbortRef.current = null;
-    }
-
-    if (!clean) {
-      setSongResults([]);
-      setHasSearched(false);
-      setSearchError(null);
-      setIsSearching(false);
-      return;
-    }
-
-    // 1. Instant cache check
-    const cached = getCachedSearch(clean);
-    if (cached && cached.length > 0) {
-      setHasSearched(true);
-      setSearchError(null);
-      setSongResults(cached.slice(0, 8));
-      setIsSearching(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    searchAbortRef.current = controller;
-
+  const handleSearchSongs = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = songQuery.trim();
+    if (!q) return;
     setIsSearching(true);
-    setHasSearched(true);
-    setSearchError(null);
-
     try {
-      let res = await searchTracks(clean, 1, controller.signal);
-      if (seq !== searchSeqRef.current || controller.signal.aborted) return;
-
-      if (res.length === 0) {
-        // Progressive fallback query
-        res = await searchTracks(`${clean} song soundtrack`, 1, controller.signal);
-        if (seq !== searchSeqRef.current || controller.signal.aborted) return;
-      }
-
-      setSongResults(res.slice(0, 8));
-      if (res.length === 0) {
-        setSearchError(`No songs found for "${clean}". Try another title or artist.`);
-      }
-    } catch (err) {
-      if (seq !== searchSeqRef.current || controller.signal.aborted) return;
-      console.warn('Jam search fallback to direct API origin:', err);
-      const fallbackController = new AbortController();
-      const timeoutId = setTimeout(() => fallbackController.abort(), 6000);
-      const onParentAbort = () => fallbackController.abort();
-      controller.signal.addEventListener('abort', onParentAbort, { once: true });
-      try {
-        const fallbackRes = await fetch(
-          `${PROD_API_ORIGIN}/api/music?action=search&q=${encodeURIComponent(clean)}`,
-          { signal: fallbackController.signal }
-        );
-        if (seq !== searchSeqRef.current || controller.signal.aborted) return;
-        if (fallbackRes.ok) {
-          const data = await fallbackRes.json();
-          if (seq !== searchSeqRef.current || controller.signal.aborted) return;
-          const list: Track[] = data.tracks || data.youtube || [];
-          setSongResults(list.slice(0, 8));
-          if (list.length === 0) {
-            setSearchError(`No songs found for "${clean}".`);
-          }
-        } else {
-          setSearchError('Search request timed out. Please tap Search to retry.');
-        }
-      } catch {
-        if (seq !== searchSeqRef.current || controller.signal.aborted) return;
-        setSearchError('Network error while searching songs. Please try again.');
-      } finally {
-        clearTimeout(timeoutId);
-        controller.signal.removeEventListener('abort', onParentAbort);
-      }
+      const results = await searchTracks(q);
+      setSearchResults(results.slice(0, 8));
+    } catch {
+      setSearchResults([]);
     } finally {
-      if (seq === searchSeqRef.current) {
-        if (searchAbortRef.current === controller) {
-          searchAbortRef.current = null;
-        }
-        setIsSearching(false);
-      }
-    }
-  }, []);
-
-  // Debounced live search as user types
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-
-    const clean = songQuery.trim();
-    if (!clean) {
-      searchSeqRef.current += 1;
-      searchAbortRef.current?.abort();
-      searchAbortRef.current = null;
-      setSongResults([]);
-      setHasSearched(false);
-      setSearchError(null);
       setIsSearching(false);
-      return;
     }
-
-    debounceTimerRef.current = setTimeout(() => {
-      debounceTimerRef.current = null;
-      performSongSearch(clean);
-    }, 320);
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
-    };
-  }, [songQuery, performSongSearch]);
-
-  const handleSearchSongs = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    if (!songQuery.trim()) return;
-    performSongSearch(songQuery.trim());
   };
 
   const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
-    const text = chatInput;
+    const clean = chatInput.trim();
+    if (!clean) return;
     setChatInput('');
-    await sendMessage(text);
+    await sendMessage(clean);
   };
 
-  const activeMembers =
-    members.length > 0
-      ? members
-      : [
-          {
-            id: userId || 'self',
-            name: userName || 'Listener',
-            lastSeen: Date.now(),
-            seatId: selfSeatId,
-            x: selfSeatPos.x,
-            y: selfSeatPos.y,
-            pan: selfSeatPos.pan
-          }
-        ];
+  // ==================== LOBBY VIEW ====================
+  if (!roomCode) {
+    return (
+      <div className="max-w-lg mx-auto pt-8 pb-32 px-2 text-white">
+        <div className="rounded-3xl liquid-glass border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="space-y-1.5 text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[11px] font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Live Listening Party</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">WaveCraft Jam</h1>
+            <p className="text-xs text-white/60">
+              Listen together in real time. Host controls playback; everyone adds tracks and chats.
+            </p>
+          </div>
+
+          {syncError && (
+            <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-xs font-semibold text-rose-200 text-center">
+              {syncError}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-white/50">
+              Your Display Name
+            </label>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => {
+                setNameInput(e.target.value);
+                setUserName(e.target.value);
+              }}
+              placeholder="Enter your name..."
+              maxLength={24}
+              className="w-full h-11 px-4 rounded-2xl glass-input text-sm text-white placeholder-white/35 focus:outline-none"
+            />
+          </div>
+
+          <button
+            type="button"
+            disabled={isJoining}
+            onClick={() => {
+              triggerAndroidHaptic('medium');
+              createRoom(nameInput);
+            }}
+            className="w-full h-11 rounded-full glass-button-primary text-sm font-extrabold text-white cursor-pointer shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50"
+          >
+            {isJoining ? 'Starting Room...' : 'Create Jam Room'}
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">or join</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!joinCodeInput.trim()) return;
+              triggerAndroidHaptic('medium');
+              joinRoom(joinCodeInput, nameInput);
+            }}
+            className="flex items-center gap-2"
+          >
+            <input
+              type="text"
+              value={joinCodeInput}
+              onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+              placeholder="WAVE-XXXX"
+              className="flex-1 h-11 px-4 rounded-2xl glass-input text-sm font-mono uppercase text-white placeholder-white/35 focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={isJoining || !joinCodeInput.trim()}
+              className="h-11 px-6 rounded-full glass-button text-sm font-bold text-white cursor-pointer disabled:opacity-40"
+            >
+              Join
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== ACTIVE SINGLE-COLUMN PARTY FEED ====================
+  const progressPct =
+    duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const transportLabel =
+    transportMode === 'webrtc-p2p'
+      ? 'WebRTC P2P'
+      : transportMode === 'server-sse'
+        ? 'Live SSE'
+        : 'Live Relay';
+  const recentReactions = reactions.slice(-5);
 
   return (
-    <div className="pb-44 sm:pb-28 pt-1 px-3 sm:px-6 max-w-[1400px] mx-auto space-y-6 relative select-none text-white overflow-x-hidden">
-      {/* Floating Live Emoji Reactions Cannon Overlay */}
-      <div className="fixed bottom-28 right-6 sm:right-8 z-40 pointer-events-none flex flex-col-reverse items-end gap-2.5">
-        <AnimatePresence>
-          {reactions.slice(-6).map((r) => (
-            <motion.div
-              key={r.id}
-              initial={{ opacity: 0, y: 35, scale: 0.6 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -45, scale: 0.8 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-              className="px-4 py-2 rounded-full liquid-glass border-0 shadow-[0_12px_32px_rgba(0,0,0,0.5)] flex items-center gap-2.5 text-sm"
-            >
-              <span className="text-xl drop-shadow">{r.emoji}</span>
-              <span className="text-xs font-extrabold text-white/90">{r.sender}</span>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+    <div className="max-w-3xl mx-auto pt-2 pb-36 space-y-5 text-white">
+      {/* 1. Top Room Bar */}
+      <div className="rounded-3xl liquid-glass border border-white/10 px-4 py-3 flex flex-wrap items-center justify-between gap-2.5 shadow-xl">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="px-3 py-1 rounded-full bg-white/10 font-mono text-xs font-black tracking-wider text-white">
+            {roomCode}
+          </span>
+          <button
+            type="button"
+            onClick={handleCopyInvite}
+            className="px-3 py-1 rounded-full glass-button text-[11px] font-bold text-white/85 hover:text-white cursor-pointer"
+          >
+            {copiedInvite ? '✓ Copied Link' : 'Share Invite'}
+          </button>
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            {transportLabel} • {members.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              triggerAndroidHaptic('light');
+              setIsChatOpen(true);
+            }}
+            className="px-3.5 py-1.5 rounded-full glass-button text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>💬</span>
+            <span>Chat</span>
+            {messages.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-[var(--color-accent)] text-[10px] font-black">
+                {messages.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerAndroidHaptic('medium');
+              leaveRoom();
+            }}
+            className="px-3.5 py-1.5 rounded-full bg-rose-500/20 hover:bg-rose-500/35 text-rose-200 text-xs font-bold cursor-pointer transition-colors"
+          >
+            {isHost ? 'End Jam' : 'Leave'}
+          </button>
+        </div>
       </div>
 
-      {!roomCode ? (
-        /* ================= LOBBY: SPATIAL SHAREPLAY & LIVE JAM STUDIO ================= */
-        <div className="space-y-6">
-          {/* Cinematic SharePlay Radar Hero */}
-          <div className="relative rounded-3xl overflow-hidden liquid-glass border-0 p-4 sm:p-10 shadow-2xl">
-            <div className="absolute -top-28 -left-24 w-96 h-96 rounded-full bg-emerald-500/20 blur-[110px] pointer-events-none" />
-            <div className="absolute -bottom-28 -right-24 w-96 h-96 rounded-full bg-[var(--color-accent)]/25 blur-[110px] pointer-events-none" />
-
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-7 space-y-4">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/15 border-0 text-[11px] font-extrabold uppercase tracking-widest text-emerald-300">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  TRIPLE-TRANSPORT SHAREPLAY • &lt;15MS SYNC DRIFT
-                </div>
-
-                <h1 className="text-2xl sm:text-5xl font-black text-white tracking-tight leading-[1.1]">
-                  Listen Together in <br />
-                  <span className="bg-gradient-to-r from-emerald-300 via-cyan-300 to-rose-400 bg-clip-text text-transparent">
-                    Real-Time Spatial Sync.
-                  </span>
-                </h1>
-
-                <p className="text-sm sm:text-base text-white/65 max-w-xl leading-relaxed">
-                  Start a live broadcast room or lock into a friend’s code across any phone or laptop. Everyone hears the exact same 320kbps audio frame simultaneously with a shared queue, live lounge chat, and crowd emoji reactions.
-                </p>
-
-                {/* Listener Identity Pill Input */}
-                <div className="pt-2 max-w-md">
-                  <label className="block text-[11px] font-extrabold uppercase tracking-widest text-white/50 mb-2">
-                    Your Studio Display Identity
-                  </label>
-                  <div className="flex items-center gap-3 p-1.5 pl-2.5 rounded-full bg-black/45 border-0 focus-within:ring-1 focus-within:ring-emerald-400 transition-colors">
-                    <div
-                      className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarGradient(
-                        nameInput || 'DJ'
-                      )} flex items-center justify-center text-xs font-black text-white shadow-md flex-shrink-0`}
-                    >
-                      {(nameInput || 'DJ').slice(0, 2).toUpperCase()}
-                    </div>
-                    <input
-                      type="text"
-                      value={nameInput}
-                      onChange={(e) => {
-                        setNameInput(e.target.value);
-                        setUserName(e.target.value);
-                      }}
-                      placeholder="Enter your DJ / Listener name..."
-                      className="flex-1 bg-transparent text-sm font-semibold text-white placeholder-white/35 focus:outline-none pr-4 min-w-0"
-                    />
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-extrabold uppercase tracking-wider mr-1 whitespace-nowrap flex-shrink-0">
-                      Ready
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Animated SharePlay Sonic Radar Visual */}
-              <div className="lg:col-span-5 flex items-center justify-center py-4">
-                <div className="relative w-52 h-52 sm:w-72 sm:h-72 flex items-center justify-center max-w-full">
-                  {/* Concentric Radar Rings */}
-                  <div className="absolute inset-0 rounded-full border-0 animate-[ping_3.5s_cubic-bezier(0,0,0.2,1)_infinite]" />
-                  <div className="absolute inset-4 rounded-full border-0" />
-                  <div className="absolute inset-12 rounded-full border-0 border-white/20 animate-[spin_18s_linear_infinite]" />
-                  <div className="absolute inset-20 rounded-full border-0" />
-
-                  {/* Orbiting Listener Nodes */}
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full liquid-glass border-0 text-[9px] sm:text-[10px] font-extrabold text-emerald-300 shadow-lg flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    <span>Cloud Relay</span>
-                  </div>
-                  <div className="absolute bottom-4 left-2 sm:left-4 px-2 sm:px-2.5 py-1 rounded-full liquid-glass border-0 text-[9px] sm:text-[10px] font-extrabold text-cyan-300 shadow-lg whitespace-nowrap flex-shrink-0">
-                    WebRTC P2P
-                  </div>
-                  <div className="absolute bottom-4 right-2 sm:right-4 px-2 sm:px-2.5 py-1 rounded-full liquid-glass border-0 text-[9px] sm:text-[10px] font-extrabold text-rose-300 shadow-lg whitespace-nowrap flex-shrink-0">
-                    320kbps HD
-                  </div>
-
-                  {/* Center Hub Core */}
-                  <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 via-cyan-500 to-rose-500 p-[2px] shadow-[0_0_50px_rgba(16,185,129,0.4)]">
-                    <div className="w-full h-full rounded-full bg-[#07080f] flex flex-col items-center justify-center">
-                      <div className="flex items-end gap-1 h-6">
-                        <span className="w-1 bg-emerald-400 rounded-full animate-eq-1" />
-                        <span className="w-1 bg-cyan-400 rounded-full animate-eq-2" />
-                        <span className="w-1 bg-rose-400 rounded-full animate-eq-3" />
-                        <span className="w-1 bg-emerald-400 rounded-full animate-eq-2" />
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-white/75 mt-1 whitespace-nowrap">
-                        WAVE SYNC
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Dual Studio Action Cards: Host vs Join */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Host a New Jam Card */}
-            <GlassCard
-              variant="liquid"
-              padding="lg"
-              className="flex flex-col justify-between border-0 relative overflow-hidden group"
-            >
-              <div className="absolute -top-20 -right-20 w-52 h-52 rounded-full bg-rose-500/15 blur-3xl pointer-events-none group-hover:bg-rose-500/25 transition-colors" />
-
-              <div>
-                <div className="flex items-center justify-between mb-5">
-                  <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-rose-500/25">
-                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                      <line x1="12" y1="19" x2="12" y2="22" />
-                    </svg>
-                  </div>
-                  <span className="px-3 py-1 rounded-full bg-rose-500/15 border-0 text-[10px] font-extrabold uppercase tracking-wider text-rose-300 whitespace-nowrap flex-shrink-0">
-                    HOST BROADCAST
-                  </span>
-                </div>
-
-                <h2 className="text-2xl font-extrabold text-white">Start a Live Jam Lounge</h2>
-                <p className="text-sm text-white/60 mt-2 leading-relaxed">
-                  Generate an instant room code and shareable invite link. Your track selection, play/pause, seeks, and collaborative queue sync across every device in the room.
-                </p>
-
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {['Instant Room Code', 'Shared Party Queue', 'Crowd Emoji Reactions'].map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border-0 text-[11px] font-semibold text-white/70 whitespace-nowrap"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <motion.button
-                whileHover={{ y: -2, scale: 1.01 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleStartRoom}
-                className="mt-7 w-full py-3.5 px-6 rounded-full glass-button-primary text-white font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap"
+      {/* 2. Now Playing Hero Card */}
+      <div className="rounded-3xl liquid-glass border border-white/10 p-5 sm:p-6 shadow-2xl space-y-5 relative overflow-hidden">
+        {/* Floating reaction bursts */}
+        {recentReactions.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {recentReactions.map((r) => (
+              <span
+                key={r.id}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-[11px] font-semibold text-white/85"
               >
-                <span>+ Launch Live Jam Room</span>
-              </motion.button>
-            </GlassCard>
-
-            {/* Join Existing Jam Card */}
-            <GlassCard
-              variant="liquid"
-              padding="lg"
-              className="flex flex-col justify-between border-0 relative overflow-hidden group"
-            >
-              <div className="absolute -top-20 -right-20 w-52 h-52 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none group-hover:bg-emerald-500/25 transition-colors" />
-
-              <div>
-                <div className="flex items-center justify-between mb-5">
-                  <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                    <svg className="w-6 h-6 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                    </svg>
-                  </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/15 border-0 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 whitespace-nowrap flex-shrink-0">
-                    TUNE IN LIVE
-                  </span>
-                </div>
-
-                <h2 className="text-2xl font-extrabold text-white">Join a Friend’s Frequency</h2>
-                <p className="text-sm text-white/60 mt-2 leading-relaxed">
-                  Have a room code like <code className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-mono font-bold whitespace-nowrap">WAVE-7X9K</code>? Enter it below to lock your player directly to their live audio stream.
-                </p>
-
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {['Cross-Device Phone & Laptop', 'Auto Drift Correction', 'Co-DJ Queueing'].map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2.5 py-1 rounded-full bg-white/[0.05] border-0 text-[11px] font-semibold text-white/70 whitespace-nowrap"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <form onSubmit={handleJoinRoom} className="mt-7 flex flex-col sm:flex-row gap-2.5">
-                <input
-                  type="text"
-                  value={joinInput}
-                  onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
-                  placeholder="Enter code (e.g. WAVE-7X9K)"
-                  className="flex-1 py-3 px-5 rounded-full bg-black/45 border-0 text-white font-mono uppercase tracking-widest text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                />
-                <motion.button
-                  whileHover={{ y: -2, scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  type="submit"
-                  className="py-3 px-7 rounded-full glass-button-emerald text-white font-extrabold text-sm transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
-                >
-                  Lock Into Jam
-                </motion.button>
-              </form>
-            </GlassCard>
+                <span>{r.emoji}</span>
+                <span className="text-white/55">{r.sender}</span>
+              </span>
+            ))}
           </div>
-        </div>
-      ) : (
-        /* ================= ACTIVE LIVE JAM ROOM STUDIO ================= */
-        <div className="space-y-6">
-          {/* Master Broadcast Stage & Audio-Reactive Waveform Deck */}
-          <div className="relative rounded-3xl overflow-hidden liquid-glass border-0 p-5 sm:p-7 shadow-2xl">
-            {/* Live Audio-Reactive Spectrum Canvas Backdrop */}
-            <canvas
-              ref={stageCanvasRef}
-              className="absolute inset-x-0 bottom-0 w-full h-36 pointer-events-none opacity-80"
-            />
-            <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-emerald-500/20 blur-[100px] pointer-events-none" />
-            <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-cyan-500/20 blur-[100px] pointer-events-none" />
+        )}
 
-            {/* Top Stage Telemetry & Invite Controls */}
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-0">
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={handleCopyCode}
-                    title="Click to copy Room Code"
-                    className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 border-0 text-xs font-black font-mono tracking-wider text-emerald-300 cursor-pointer hover:bg-emerald-500/30 transition-colors"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span>{copiedCode ? '✓ CODE COPIED!' : `ROOM: ${roomCode}`}</span>
-                  </motion.button>
+        <div className="flex flex-col sm:flex-row items-center gap-5">
+          <img
+            src={currentTrack?.thumbnailLarge || currentTrack?.thumbnail || DEFAULT_THUMBNAIL}
+            alt={currentTrack?.title || 'No track playing'}
+            className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl object-cover shadow-2xl border border-white/15 flex-shrink-0"
+          />
 
-                  <span className="px-3 py-1 rounded-full bg-white/10 border-0 text-xs font-bold text-white/90">
-                    {isHost ? '👑 Hosting Broadcast' : `🎧 Synced to ${hostName}`}
-                  </span>
-
-                  <span className="px-3 py-1 rounded-full bg-white/10 border-0 text-xs font-bold text-emerald-300">
-                    {activeMembers.length} {activeMembers.length === 1 ? 'Listener' : 'Listeners'} Online
-                  </span>
-
-                  {isConnected && (
-                    <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 border-0 text-[10px] font-extrabold text-cyan-300 uppercase tracking-wider">
-                      ⚡ Cloud + P2P Relay Locked
-                    </span>
-                  )}
-                </div>
-
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  {isHost ? `${userName}’s Live Jam Broadcast` : `${hostName}’s Live Listening Lounge`}
-                </h1>
+          <div className="flex-1 min-w-0 w-full text-center sm:text-left space-y-3">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-white/50 mb-1">
+                <span>{isHost ? '👑 You are Host DJ' : `🎧 Host: ${hostName || 'DJ'}`}</span>
               </div>
+              <h2 className="text-xl sm:text-2xl font-black text-white truncate">
+                {currentTrack?.title || 'Queue a track below to start the party'}
+              </h2>
+              <p className="text-xs sm:text-sm text-white/60 truncate mt-0.5">
+                {currentTrack?.artist || 'Waiting for music...'}
+              </p>
+            </div>
 
-              {/* Action Pill Buttons */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                {!isHost && (
-                  <motion.button
-                    whileHover={{ y: -1.5, scale: 1.02 }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={syncNow}
-                    className="px-4 py-2.5 rounded-full glass-button text-cyan-200 border-cyan-400/35 text-xs font-extrabold flex items-center gap-1.5"
-                  >
-                    <span>⚡ Resync Audio</span>
-                  </motion.button>
-                )}
-
-                <motion.button
-                  whileHover={{ y: -1.5, scale: 1.02 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={handleCopyInvite}
-                  className="px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-extrabold text-xs cursor-pointer shadow-[0_8px_24px_rgba(16,185,129,0.35)]"
-                >
-                  {copiedInvite ? '✓ Invite Link Copied!' : '🔗 Copy SharePlay Link'}
-                </motion.button>
-
-                <motion.button
-                  whileHover={{ y: -1.5, scale: 1.02 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={handleLeave}
-                  className="px-4 py-2.5 rounded-full bg-rose-500/20 hover:bg-rose-500/30 border-0 text-rose-200 font-extrabold text-xs transition-colors cursor-pointer"
-                >
-                  Leave Lounge
-                </motion.button>
+            {/* Progress Bar */}
+            <div className="space-y-1">
+              <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-300"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-mono text-white/45">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
               </div>
             </div>
 
-            {/* UltraSync™ Real-Time Acoustic Phase Lock, Transport & Hardware Calibration Bar */}
-            <div className="relative z-10 mt-4 p-3 rounded-2xl bg-black/50 border-0 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Transport Status Badge */}
-                {telemetry.transport === 'webrtc-p2p' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border-0 text-emerald-300 text-xs font-black shadow-[0_0_12px_rgba(52,211,153,0.35)]">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-                    ⚡ WEBRTC P2P ({Math.max(1, Math.round(telemetry.rttMs))}ms)
-                  </span>
-                ) : telemetry.transport === 'server-sse' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border-0 text-cyan-300 text-xs font-black">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                    🌐 SERVER SSE ({Math.max(1, Math.round(telemetry.rttMs))}ms)
-                  </span>
-                ) : telemetry.transport === 'broadcast' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/20 border-0 text-teal-300 text-xs font-black">
-                    <span className="w-2 h-2 rounded-full bg-teal-400" />
-                    📻 LOCAL BROADCAST (0ms)
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border-0 text-purple-300 text-xs font-black">
-                    <span className="w-2 h-2 rounded-full bg-purple-400" />
-                    ☁️ CLOUD RELAY ({Math.max(1, Math.round(telemetry.rttMs))}ms)
-                  </span>
-                )}
-
-                {/* Phase Lock State Pill */}
-                {telemetry.syncState === 'locked' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border-0 text-emerald-300 text-xs font-black shadow-[0_0_12px_rgba(52,211,153,0.35)]">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-                    PHASE LOCKED (±{Math.abs(telemetry.phaseDeltaMs)}ms)
-                  </span>
-                ) : telemetry.syncState === 'fine-steer' || telemetry.syncState === 'fast-steer' ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border-0 text-cyan-300 text-xs font-black shadow-[0_0_12px_rgba(6,182,212,0.35)]">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-spin border-2 border-cyan-400 border-t-transparent" />
-                    MICRO-STEERING ({telemetry.phaseDeltaMs > 0 ? `+${telemetry.phaseDeltaMs}` : telemetry.phaseDeltaMs}ms)
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border-0 text-purple-300 text-xs font-black">
-                    <span className="w-2 h-2 rounded-full bg-purple-400" />
-                    {isHost ? '👑 BROADCASTING ANCHOR' : '⚡ PHASE-LOCKING'}
-                  </span>
-                )}
-              </div>
-
-              {/* Hardware Speaker / Bluetooth Latency Calibration Presets */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-white/50 font-bold hidden xl:inline">Hardware Offset:</span>
-                <button
-                  type="button"
-                  onClick={() => jamSyncEngine.setUserLatencyOffsetMs(0)}
-                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
-                    telemetry.userLatencyOffsetMs === 0
-                      ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
-                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/70'
-                  }`}
-                  title="Zero latency compensation for phone or laptop built-in speakers"
-                >
-                  Speaker (0ms)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => jamSyncEngine.setUserLatencyOffsetMs(45)}
-                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
-                    telemetry.userLatencyOffsetMs === 45
-                      ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-300'
-                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/70'
-                  }`}
-                  title="Bluetooth speaker A2DP latency compensation (+45ms)"
-                >
-                  Bluetooth (+45ms)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => jamSyncEngine.setUserLatencyOffsetMs(70)}
-                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
-                    telemetry.userLatencyOffsetMs === 70
-                      ? 'bg-purple-500/20 border-purple-400/50 text-purple-300'
-                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/70'
-                  }`}
-                  title="True Wireless Stereo earbud latency compensation (+70ms)"
-                >
-                  TWS (+70ms)
-                </button>
-                <div className="flex items-center gap-1 ml-1">
+            {/* Playback Controls + Reactions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              {isHost ? (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => jamSyncEngine.setUserLatencyOffsetMs(telemetry.userLatencyOffsetMs - 5)}
-                    className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border-0 text-white/70 text-[10px] font-bold cursor-pointer"
-                    title="Nudge audio -5ms earlier"
+                    onClick={prevTrackInJam}
+                    className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white cursor-pointer"
+                    title="Previous track"
                   >
-                    -5
+                    ⏮
                   </button>
-                  <span className="text-[10px] font-mono text-emerald-300 font-bold px-1 min-w-[36px] text-center">
-                    {telemetry.userLatencyOffsetMs > 0 ? `+${telemetry.userLatencyOffsetMs}` : telemetry.userLatencyOffsetMs}ms
-                  </span>
                   <button
                     type="button"
-                    onClick={() => jamSyncEngine.setUserLatencyOffsetMs(telemetry.userLatencyOffsetMs + 5)}
-                    className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border-0 text-white/70 text-[10px] font-bold cursor-pointer"
-                    title="Nudge audio +5ms later"
+                    onClick={togglePlayInJam}
+                    className="h-9 px-5 rounded-full glass-button-primary text-xs font-extrabold text-white cursor-pointer shadow-lg"
                   >
-                    +5
+                    {isPlaying ? '⏸ Pause' : '▶ Play'}
                   </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Center Now Playing Turntable Stage + Crowd Reaction Cannon */}
-            <div className="relative z-10 mt-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-              {currentTrack ? (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 flex-1 min-w-0">
-                  {/* Spinning Vinyl Platter */}
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 flex items-center justify-center">
-                    <div
-                      className={`w-full h-full rounded-full vinyl-disc border-2 border-emerald-400/50 shadow-[0_0_35px_rgba(16,185,129,0.3)] flex items-center justify-center ${
-                        isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''
-                      }`}
-                    >
-                      <img
-                        src={currentTrack.thumbnailLarge || currentTrack.thumbnail || DEFAULT_THUMBNAIL}
-                        alt={currentTrack.title}
-                        decoding="async"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                        }}
-                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-0"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Track Metadata & Live Synced Scrubber */}
-                  <div className="flex-1 min-w-0 w-full">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border-0 text-[10px] font-extrabold uppercase tracking-widest text-emerald-300">
-                        <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${isPlaying ? 'animate-ping' : ''}`} />
-                        {isPlaying ? 'SYNCING LIVE • 320KBPS HD' : 'PAUSED IN ROOM'}
-                      </span>
-                    </div>
-
-                    <h2 className="text-xl sm:text-2xl font-black text-white truncate">
-                      {currentTrack.title}
-                    </h2>
-                    <p className="text-xs sm:text-sm text-white/65 truncate mt-0.5">
-                      {currentTrack.artist} {currentTrack.album ? `• ${currentTrack.album}` : ''}
-                    </p>
-
-                    {/* Live Room Progress Bar */}
-                    <JamStageProgress isHost={isHost} />
-                  </div>
-
-                  {/* Shared Stage Transport Controls: Host has playback authority; Guests see locked sync indicator */}
-                  {isHost ? (
-                    <div className="flex items-center gap-2.5 flex-shrink-0">
-                      <motion.button
-                        whileHover={{ y: -1.5, scale: 1.03 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => togglePlayInJam()}
-                        className="px-5 py-2.5 rounded-full bg-white text-black font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-lg"
-                      >
-                        {isPlaying ? '⏸ Pause Room' : '▶ Play Room'}
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ y: -1.5, scale: 1.03 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => skipTrackInJam()}
-                        className="px-4 py-2.5 rounded-full glass-button text-white font-extrabold text-xs cursor-pointer"
-                      >
-                        Skip ⏭
-                      </motion.button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex-shrink-0">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>Host DJ in Control • Synced</span>
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={skipTrackInJam}
+                    className="w-9 h-9 rounded-full glass-button flex items-center justify-center text-white cursor-pointer"
+                    title="Next track"
+                  >
+                    ⏭
+                  </button>
                 </div>
               ) : (
-                <div className="text-sm text-white/65 py-4">
-                  No track spinning yet — search any song below and click{' '}
-                  <strong className="text-emerald-300">▶ Play Now</strong> to kick off the party!
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAndroidHaptic('light');
+                    syncNow();
+                  }}
+                  className="h-9 px-4 rounded-full glass-button-primary text-xs font-bold text-white cursor-pointer"
+                >
+                  🔄 Resync to Host
+                </button>
               )}
 
-              {/* Crowd Emoji Reaction Cannon Dock */}
-              <div
-                className="flex items-center gap-1.5 py-3 -my-1 px-2.5 rounded-full bg-black/45 border border-white/[0.04] self-start xl:self-center overflow-x-auto no-scrollbar max-w-full"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/45 px-2.5 hidden sm:inline">
-                  Crowd React
-                </span>
-                {REACTION_EMOJIS.map((emoji) => (
-                  <motion.button
+              <div className="flex items-center gap-1">
+                {QUICK_REACTIONS.map((emoji) => (
+                  <button
                     key={emoji}
-                    whileHover={{ y: -3, scale: 1.22 }}
-                    whileTap={{ scale: 0.85 }}
-                    onClick={() => sendReaction(emoji)}
-                    className="w-9 h-9 rounded-full hover:bg-white/15 flex items-center justify-center text-lg cursor-pointer flex-shrink-0 transition-colors"
-                    title={`Launch ${emoji} reaction`}
+                    type="button"
+                    onClick={() => {
+                      triggerAndroidHaptic('light');
+                      sendReaction(emoji);
+                    }}
+                    className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-sm hover:scale-110 active:scale-90 transition-transform cursor-pointer"
+                    title={`Send ${emoji}`}
                   >
                     {emoji}
-                  </motion.button>
+                  </button>
                 ))}
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* ================= 2D SPATIAL LISTENING STAGE & SEATING MAP ================= */}
-          <SpatialListeningStageMap
-            members={activeMembers}
-            selfId={userId}
-            selfSeatId={selfSeatId}
-            selfSeatPos={selfSeatPos}
-            spatialAudioEnabled={spatialAudioEnabled}
-            isHost={isHost}
-            isPlaying={isPlaying}
-            reactions={reactions}
-            onSetSeat={setSeat}
-            onToggleSpatial={toggleSpatialAudio}
-          />
-
-          {/* ================= BENTO 3-ZONE JAM STUDIO GRID ================= */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            {/* LEFT COLUMN: Connected Listeners Radar + Song Dropper */}
-            <div className="lg:col-span-5 flex flex-col gap-6">
-              {/* Connected Listeners Pod */}
-              <GlassCard variant="liquid" padding="md" className="border-0">
-                <div className="flex items-center justify-between mb-3.5">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-white/70">
-                    Connected Listeners ({activeMembers.length})
-                  </h3>
-                  <span className="text-[10px] font-bold text-emerald-300 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    In Sync
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {activeMembers.map((m) => {
-                    const isMemberHost = m.id === userId ? isHost : Boolean(m.isHost);
-                    const zoneName =
-                      SPATIAL_SEATING_ZONES.find((z) => z.id === m.seatId)?.name ||
-                      (typeof m.pan === 'number' && Math.abs(m.pan) > 0.05
-                        ? m.pan < 0
-                          ? `Left Wing (${Math.round(Math.abs(m.pan) * 100)}%)`
-                          : `Right Wing (${Math.round(m.pan * 100)}%)`
-                        : 'Acoustic Sweetspot');
-
-                    return (
-                      <div
-                        key={m.id}
-                        onClick={() => {
-                          if (m.seatId && typeof m.x === 'number' && typeof m.y === 'number') {
-                            setSeat(m.seatId, m.x, m.y, m.pan ?? 0);
-                          }
-                        }}
-                        className="p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border-0 flex items-center justify-between gap-2.5 transition-colors cursor-pointer"
-                        title={`Click to sit with ${m.name} in ${zoneName}`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div
-                            className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarGradient(
-                              m.name
-                            )} flex items-center justify-center text-xs font-black text-white shadow flex-shrink-0`}
-                          >
-                            {m.name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-extrabold text-white truncate flex items-center gap-1">
-                              <span>{m.name}</span>
-                              {m.id === userId && (
-                                <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-black font-black text-[8px] uppercase">
-                                  YOU
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-emerald-300/80 font-semibold truncate">
-                              {isMemberHost ? '👑 Host' : '🎧'} • {zoneName}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-end gap-[2px] h-3 flex-shrink-0 pr-1">
-                          <span className="w-[2.5px] bg-emerald-400 rounded-full animate-eq-1" />
-                          <span className="w-[2.5px] bg-cyan-400 rounded-full animate-eq-2" />
-                          <span className="w-[2.5px] bg-emerald-400 rounded-full animate-eq-3" />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </GlassCard>
-
-              {/* Instant Song Search & Party Dropper */}
-              <GlassCard variant="liquid" padding="md" className="border-0 flex-1">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="text-base font-extrabold text-white">Drop a Song Into the Jam</h3>
-                    <p className="text-[11px] text-white/50">
-                      Play immediately for the whole room or add to the collaborative queue
-                    </p>
-                  </div>
-                </div>
-
-                <form onSubmit={handleSearchSongs} className="relative flex gap-2">
-                  <div className="relative flex-1">
-                    <svg
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                    <input
-                      type="text"
-                      value={songQuery}
-                      onChange={(e) => setSongQuery(e.target.value)}
-                      placeholder="Search any song, artist, or theme..."
-                      className="w-full h-10 pl-10 pr-9 rounded-full glass-input text-xs text-white placeholder-white/40 focus:ring-1 focus:ring-emerald-400"
-                    />
-                    {songQuery && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSongQuery('');
-                          setSongResults([]);
-                          setHasSearched(false);
-                          setSearchError(null);
-                        }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-[10px] cursor-pointer"
-                        title="Clear search"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.95 }}
-                    type="submit"
-                    disabled={isSearching}
-                    className="px-5 h-10 rounded-full bg-gradient-to-r from-[var(--color-accent)] to-rose-500 hover:brightness-110 text-white font-extrabold text-xs cursor-pointer shadow-md flex items-center gap-1.5 whitespace-nowrap active:scale-95"
-                  >
-                    {isSearching ? (
-                      <>
-                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Finding...</span>
-                      </>
-                    ) : (
-                      'Search'
-                    )}
-                  </motion.button>
-                </form>
-
-                {/* Loading Skeletons */}
-                {isSearching && (
-                  <div className="mt-4 space-y-2">
-                    {[1, 2, 3].map((n) => (
-                      <div
-                        key={n}
-                        className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-white/[0.03] animate-pulse"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-10 h-10 rounded-xl bg-white/10 flex-shrink-0" />
-                          <div className="space-y-1.5 flex-1 min-w-0">
-                            <div className="h-3 w-3/4 bg-white/15 rounded" />
-                            <div className="h-2.5 w-1/2 bg-white/10 rounded" />
-                          </div>
-                        </div>
-                        <div className="h-7 w-20 bg-white/10 rounded-full flex-shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Search Results List */}
-                {!isSearching && songResults.length > 0 && (
-                  <div className="mt-4 space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                    {songResults.map((track) => (
-                      <div
-                        key={track.id}
-                        className="flex items-center justify-between gap-2.5 p-2 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border-0 transition-colors group"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <img
-                            src={track.thumbnail || DEFAULT_THUMBNAIL}
-                            alt={track.title}
-                            decoding="async"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = DEFAULT_THUMBNAIL;
-                            }}
-                            className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-white truncate">{track.title}</p>
-                            <div className="flex items-center gap-1.5 text-[11px] text-white/55">
-                              <span className="truncate">{track.artist}</span>
-                              {track.duration > 0 && (
-                                <>
-                                  <span>•</span>
-                                  <span className="font-mono text-[10px] text-white/40">
-                                    {formatTime(track.duration)}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {isHost && (
-                            <motion.button
-                              whileHover={{ scale: 1.04 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => addTrackToJam(track, true)}
-                              title="Play immediately for everyone in the room"
-                              className="px-3 py-1.5 rounded-full bg-[var(--color-accent)] hover:brightness-110 text-white text-[11px] font-extrabold cursor-pointer shadow"
-                            >
-                              ▶ Play Now
-                            </motion.button>
-                          )}
-                          <motion.button
-                            whileHover={{ scale: 1.04 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => addTrackToJam(track, false)}
-                            title="Add to Shared Room Queue"
-                            className="px-3 py-1.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 border-0 text-emerald-300 text-[11px] font-extrabold cursor-pointer"
-                          >
-                            + Add to Queue
-                          </motion.button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Empty / Error State */}
-                {!isSearching && hasSearched && songResults.length === 0 && (
-                  <div className="mt-4 p-4 rounded-2xl bg-white/[0.03] text-center space-y-2.5">
-                    <p className="text-xs text-white/70 font-semibold">
-                      {searchError || `No songs found for "${songQuery}".`}
-                    </p>
-                    <p className="text-[11px] text-white/45">Try tapping one of these popular tracks:</p>
-                    <div className="flex flex-wrap gap-1.5 justify-center pt-1">
-                      {QUICK_SONG_SUGGESTIONS.slice(0, 5).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => {
-                            setSongQuery(s);
-                            performSongSearch(s);
-                          }}
-                          className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white/80 text-[11px] font-medium cursor-pointer transition-colors"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Initial Quick Suggestions when query is empty */}
-                {!isSearching && !hasSearched && songResults.length === 0 && (
-                  <div className="mt-4 p-3 rounded-2xl bg-white/[0.02]">
-                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-white/40 mb-2 px-1">
-                      Quick Suggestions
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {QUICK_SONG_SUGGESTIONS.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => {
-                            setSongQuery(s);
-                            performSongSearch(s);
-                          }}
-                          className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/15 border-0 text-white/70 hover:text-white text-[11px] font-medium transition-all cursor-pointer"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </GlassCard>
-            </div>
-
-            {/* RIGHT COLUMN: Collaborative Room Queue + Live Lounge Chat */}
-            <div className="lg:col-span-7 flex flex-col gap-6">
-              {/* Shared Room Queue */}
-              <GlassCard variant="liquid" padding="md" className="border-0">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <h3 className="text-base font-extrabold text-white">Collaborative Party Queue</h3>
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border-0 text-[10px] font-extrabold text-emerald-300">
-                      {queue.length} Tracks
-                    </span>
-                  </div>
-                  <span className="text-xs text-white/45 font-medium hidden sm:inline">
-                    {isHost ? 'Click any track to spin for everyone' : 'Host controls playback • Add songs below'}
-                  </span>
-                </div>
-
-                {queue.length === 0 ? (
-                  <p className="text-xs text-white/50 py-10 text-center">
-                    Party queue is empty. Search on the left to drop songs into the room!
-                  </p>
-                ) : (
-                  <LayoutGroup id="jam-queue-tracks">
-                    <div className="flex flex-col gap-1.5 max-h-[340px] overflow-y-auto pr-1">
-                      {queue.map((t, idx) => (
-                        <TrackRow
-                          key={`${t.id}-${idx}`}
-                          track={t}
-                          index={idx + 1}
-                          tracks={queue}
-                          onPlay={isHost ? (selectedTrack) => playTrackInJam(selectedTrack) : undefined}
-                        />
-                      ))}
-                    </div>
-                  </LayoutGroup>
-                )}
-              </GlassCard>
-
-              {/* Live Room Chat & Crowd Activity Feed */}
-              <GlassCard variant="liquid" padding="md" className="border-0 flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-white/70">
-                    💬 Live Lounge Chat & Activity
-                  </h3>
-                  <span className="text-[10px] text-white/40 font-semibold">Real-Time Feed</span>
-                </div>
-
-                <div
-                  ref={chatScrollRef}
-                  className="space-y-2 max-h-52 overflow-y-auto pr-1 mb-3 text-xs"
-                >
-                  {messages.length === 0 ? (
-                    <p className="text-white/40 py-6 text-center">
-                      Drop a message or tap a quick vibe chip below!
-                    </p>
-                  ) : (
-                    messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`px-3.5 py-2 rounded-2xl ${
-                          msg.isSystem
-                            ? 'bg-emerald-500/10 border-0 text-emerald-200 font-semibold text-[11px]'
-                            : 'bg-white/[0.05] border-0 text-white/90 flex items-start gap-2.5'
-                        }`}
-                      >
-                        {!msg.isSystem && (
-                          <div
-                            className={`w-6 h-6 rounded-full bg-gradient-to-br ${getAvatarGradient(
-                              msg.sender
-                            )} flex items-center justify-center text-[9px] font-black text-white flex-shrink-0 mt-0.5`}
-                          >
-                            {msg.sender.slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          {!msg.isSystem && (
-                            <span className="font-extrabold text-emerald-300 mr-1.5">
-                              {msg.sender}:
-                            </span>
-                          )}
-                          <span>{msg.text}</span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* 1-Tap Quick Vibe Chips */}
-                <div
-                  className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-3.5 -my-1.5 px-1.5"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                  {QUICK_CHAT_CHIPS.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => sendMessage(chip)}
-                      className="px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/[0.04] text-[10px] font-bold text-white/75 hover:text-white whitespace-nowrap cursor-pointer transition-colors"
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-
-                <form onSubmit={handleSendChat} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Message everyone in the Jam Room..."
-                    className="flex-1 h-10 px-4 rounded-full glass-input text-xs text-white placeholder-white/40"
-                  />
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.95 }}
-                    type="submit"
-                    className="px-5 h-10 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-extrabold text-xs cursor-pointer shadow-md"
-                  >
-                    Send
-                  </motion.button>
-                </form>
-              </GlassCard>
-            </div>
+      {/* 3. Shared Queue + Inline Song Search */}
+      <div className="rounded-3xl liquid-glass border border-white/10 p-5 space-y-4 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-extrabold text-white">Shared Queue ({queue.length})</h3>
+            <p className="text-[11px] text-white/50">
+              Anyone in the room can search and add songs
+            </p>
           </div>
         </div>
-      )}
+
+        <form onSubmit={handleSearchSongs} className="flex items-center gap-2">
+          <input
+            type="text"
+            value={songQuery}
+            onChange={(e) => setSongQuery(e.target.value)}
+            placeholder="Search a song to add to Jam..."
+            className="flex-1 h-10 px-4 rounded-full glass-input text-xs text-white placeholder-white/40 focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={isSearching || !songQuery.trim()}
+            className="h-10 px-5 rounded-full glass-button-primary text-xs font-bold text-white cursor-pointer disabled:opacity-50"
+          >
+            {isSearching ? 'Searching...' : 'Search'}
+          </button>
+        </form>
+
+        {/* Inline Search Results */}
+        {searchResults.length > 0 && (
+          <div className="rounded-2xl bg-white/[0.04] p-2 space-y-1 max-h-64 overflow-y-auto">
+            <div className="flex items-center justify-between px-2 py-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white/45">
+                Search Results
+              </span>
+              <button
+                type="button"
+                onClick={() => setSearchResults([])}
+                className="text-[10px] font-bold text-white/50 hover:text-white cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
+            {searchResults.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white/10 transition-colors"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <img
+                    src={t.thumbnail || DEFAULT_THUMBNAIL}
+                    alt={t.title}
+                    className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white truncate">{t.title}</p>
+                    <p className="text-[10px] text-white/55 truncate">{t.artist}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => addTrackToJam(t, false)}
+                    className="px-2.5 py-1 rounded-full glass-button text-[10px] font-bold text-white cursor-pointer"
+                  >
+                    + Queue
+                  </button>
+                  {isHost && (
+                    <button
+                      type="button"
+                      onClick={() => playTrackInJam(t)}
+                      className="px-2.5 py-1 rounded-full glass-button-primary text-[10px] font-bold text-white cursor-pointer"
+                    >
+                      Play
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Current & Upcoming Queue List */}
+        {queue.length === 0 ? (
+          <p className="text-xs text-white/45 text-center py-6">
+            The shared queue is empty. Search above to add the first track!
+          </p>
+        ) : (
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
+            {queue.map((t, idx) => {
+              const isActive = currentTrack?.id === t.id;
+              return (
+                <div
+                  key={`${t.id}-${idx}`}
+                  onClick={() => {
+                    if (isHost) playTrackInJam(t);
+                  }}
+                  className={`flex items-center justify-between gap-3 p-2.5 rounded-2xl transition-colors ${
+                    isActive
+                      ? 'bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/30'
+                      : 'bg-white/[0.03] hover:bg-white/[0.08]'
+                  } ${isHost ? 'cursor-pointer' : ''}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[11px] font-mono text-white/40 w-5 text-center">
+                      {isActive ? '▶' : idx + 1}
+                    </span>
+                    <img
+                      src={t.thumbnail || DEFAULT_THUMBNAIL}
+                      alt={t.title}
+                      className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className={`text-xs font-bold truncate ${isActive ? 'text-[var(--color-accent)]' : 'text-white'}`}>
+                        {t.title}
+                      </p>
+                      <p className="text-[11px] text-white/55 truncate">{t.artist}</p>
+                    </div>
+                  </div>
+                  {isActive && (
+                    <span className="text-[10px] font-bold text-[var(--color-accent)] px-2 py-0.5 rounded-full bg-[var(--color-accent)]/15">
+                      Playing
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 4. Collapsible Live Chat & Members Drawer */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsChatOpen(false)}
+            className="fixed inset-0 z-[9995] bg-black/70 backdrop-blur-sm flex justify-end"
+          >
+            <motion.aside
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 360, damping: 34 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm h-full modal-glass-panel backdrop-blur-2xl p-4 flex flex-col justify-between border-l border-white/15 shadow-2xl"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 className="text-sm font-extrabold text-white">
+                  Room Chat & Listeners ({members.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsChatOpen(false)}
+                  className="w-8 h-8 rounded-full glass-button flex items-center justify-center text-xs text-white/70 hover:text-white cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Members strip */}
+              <div className="flex items-center gap-1.5 flex-wrap py-2.5 border-b border-white/10">
+                {members.map((m) => (
+                  <span
+                    key={m.id}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                      m.isHost
+                        ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30'
+                        : 'bg-white/10 text-white/80'
+                    }`}
+                  >
+                    {m.isHost ? '👑 ' : ''}{m.name}
+                  </span>
+                ))}
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto py-3 space-y-2 pr-1">
+                {messages.length === 0 ? (
+                  <p className="text-xs text-white/45 text-center py-8">
+                    No messages yet — say hi!
+                  </p>
+                ) : (
+                  messages.map((msg) => (
+                    <div key={msg.id} className="p-2.5 rounded-2xl bg-white/[0.06] space-y-0.5">
+                      <span className="text-[10px] font-bold text-cyan-300">{msg.sender}</span>
+                      <p className="text-xs text-white/90 break-words">{msg.text}</p>
+                    </div>
+                  ))
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Send form */}
+              <form onSubmit={handleSendChat} className="flex items-center gap-2 pt-2 border-t border-white/10">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Send a message..."
+                  className="flex-1 h-10 px-3.5 rounded-full glass-input text-xs text-white placeholder-white/40 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  className="h-10 px-4 rounded-full glass-button-primary text-xs font-bold text-white cursor-pointer disabled:opacity-40"
+                >
+                  Send
+                </button>
+              </form>
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
