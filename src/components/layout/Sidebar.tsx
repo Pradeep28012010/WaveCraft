@@ -308,17 +308,18 @@ export default function Sidebar() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             onClick={() => setMobileDrawerOpen(false)}
-            className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex"
+            className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex"
           >
             <motion.aside
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 40, mass: 0.9 }}
               drag="x"
               dragConstraints={{ right: 0, left: 0 }}
-              dragElastic={{ left: 0.6, right: 0 }}
+              dragElastic={{ left: 0.35, right: 0 }}
               onDragEnd={(_, info) => {
                 if (info.offset.x < -60 || info.velocity.x < -280) {
                   triggerAndroidHaptic('light');
@@ -326,7 +327,7 @@ export default function Sidebar() {
                 }
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-84 max-w-[86vw] h-full liquid-glass bg-[#070714]/98 backdrop-blur-3xl border-0 flex flex-col select-none shadow-[0_24px_80px_rgba(0,0,0,0.95)] z-[10000] relative"
+              className="w-84 max-w-[86vw] h-full liquid-glass bg-[#070714]/98 backdrop-blur-3xl border-0 flex flex-col select-none shadow-[0_24px_80px_rgba(0,0,0,0.95)] z-[10000] relative will-change-transform"
               style={{
                 paddingTop: 'max(env(safe-area-inset-top, 0px), 10px)',
                 paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)'
@@ -531,10 +532,11 @@ export default function Sidebar() {
   // Desktop / Laptop Sidebar
   return (
     <>
-      <aside
-        className={`flex flex-col h-full liquid-glass bg-[#06060f]/85 backdrop-blur-3xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none z-30 flex-shrink-0 overflow-hidden ${
-          collapsed ? 'w-20' : 'w-64'
-        }`}
+      <motion.aside
+        initial={false}
+        animate={{ width: collapsed ? 80 : 256 }}
+        transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+        className="flex flex-col h-full liquid-glass bg-[#06060f]/85 backdrop-blur-3xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] select-none z-30 flex-shrink-0 overflow-hidden will-change-[width]"
       >
         {/* Brand Header */}
         <div className="flex items-center h-18 px-2 flex-shrink-0 overflow-hidden">
@@ -559,10 +561,10 @@ export default function Sidebar() {
 
             {/* Brand Text - Smoothly glides in/out */}
             <div
-              className={`flex flex-col min-w-0 overflow-hidden transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              className={`flex flex-col min-w-0 overflow-hidden transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 collapsed
-                  ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
-                  : 'opacity-100 max-w-[170px] translate-x-0 duration-300 delay-100'
+                  ? 'opacity-0 -translate-x-2 pointer-events-none'
+                  : 'opacity-100 translate-x-0'
               }`}
             >
               <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -593,10 +595,10 @@ export default function Sidebar() {
                     type="button"
                     onClick={() => toggleSection(section.id)}
                     aria-expanded={!isSectionCollapsed}
-                    className={`w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white/70 transition-all ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer ${
+                    className={`w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white/70 transition-all duration-200 ease-[cubic-bezier(0.22,1,0.3,1)] cursor-pointer ${
                       collapsed
-                        ? 'opacity-0 -translate-x-3 duration-150 delay-0 pointer-events-none'
-                        : 'opacity-100 translate-x-0 duration-300 delay-100'
+                        ? 'opacity-0 -translate-x-2 pointer-events-none'
+                        : 'opacity-100 translate-x-0'
                     }`}
                   >
                     <span className="whitespace-nowrap">{section.title}</span>
@@ -611,13 +613,22 @@ export default function Sidebar() {
                     </svg>
                   </button>
                   <div
-                    className={`absolute inset-x-3 h-px bg-white/10 transition-opacity ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                      collapsed ? 'opacity-100 duration-200 delay-100' : 'opacity-0 duration-150 delay-0 pointer-events-none'
+                    className={`absolute inset-x-3 h-px bg-white/10 transition-opacity duration-200 ${
+                      collapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'
                     }`}
                   />
                 </div>
 
-                {!isSectionCollapsed && section.items.map((item) =>
+                <AnimatePresence initial={false}>
+                  {!isSectionCollapsed && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      className="overflow-hidden space-y-1"
+                    >
+                {section.items.map((item) =>
                   item.action ? (
                     <button
                       key={item.name}
@@ -726,6 +737,9 @@ export default function Sidebar() {
                     )}
                   </NavLink>
                 ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               );
             })}
@@ -850,17 +864,17 @@ export default function Sidebar() {
               </svg>
             </div>
             <span
-              className={`truncate whitespace-nowrap transition-all ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              className={`truncate whitespace-nowrap transition-all duration-200 ease-[cubic-bezier(0.22,1,0.3,1)] ${
                 collapsed
-                  ? 'opacity-0 max-w-0 -translate-x-3 pointer-events-none duration-150 delay-0'
-                  : 'opacity-100 max-w-[140px] translate-x-0 duration-300 delay-100'
+                  ? 'opacity-0 -translate-x-2 pointer-events-none'
+                  : 'opacity-100 translate-x-0'
               }`}
             >
               Collapse Sidebar
             </span>
           </button>
         </div>
-      </aside>
+      </motion.aside>
 
       {isCreateOpen && (
         <Suspense fallback={null}>
