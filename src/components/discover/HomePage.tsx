@@ -1454,10 +1454,10 @@ export default function HomePage() {
               <div
                 key={chart.key}
                 onClick={() => handlePlayChart(chart.key, chart.name)}
-                className={`min-w-[200px] max-w-[200px] sm:min-w-[230px] sm:max-w-[230px] flex-shrink-0 snap-start rounded-3xl p-4.5 liquid-glass border transition-all duration-300 cursor-pointer relative overflow-hidden flex flex-col justify-between group active:scale-[0.98] shadow-md hover:shadow-xl ${
+                className={`min-w-[200px] max-w-[200px] sm:min-w-[230px] sm:max-w-[230px] flex-shrink-0 snap-start rounded-3xl p-4.5 liquid-glass transition-all duration-300 cursor-pointer relative overflow-hidden flex flex-col justify-between group active:scale-[0.98] shadow-md hover:shadow-xl ${
                   isChartActive
-                    ? 'ring-2 ring-emerald-400 border-transparent shadow-[0_8px_25px_rgba(16,185,129,0.35)]'
-                    : `${chart.border} hover:border-white/30`
+                    ? 'border-2 border-emerald-400 shadow-[0_8px_25px_rgba(16,185,129,0.35)]'
+                    : `border ${chart.border} hover:border-white/30`
                 }`}
                 style={{
                   background: `linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.65) 100%)`
