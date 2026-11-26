@@ -629,7 +629,7 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
 
                 {/* Interactive Visualizer Mode Chips */}
                 {showVisualizer && (
-                  <div className="grid grid-cols-2 gap-1.5 p-1.5 rounded-xl bg-white/[0.03] my-1 overflow-visible">
+                  <div className="grid grid-cols-2 gap-1 p-1.5 rounded-2xl liquid-glass border-0 my-1 relative overflow-visible">
                     {VISUALIZER_MODES.map((m) => {
                       const isSel = visualizerStyle === m.id;
                       return (
@@ -641,13 +641,24 @@ export const NowPlayingToolsMenu = memo(function NowPlayingToolsMenu({
                             triggerAndroidHaptic('light');
                             setVisualizerStyle(m.id);
                           }}
-                          className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${
-                            isSel
-                              ? 'glass-button-cyan text-cyan-100 shadow-[0_0_10px_rgba(6,182,212,0.45)]'
-                              : 'glass-button text-white/60 hover:text-white hover:bg-white/10'
-                          }`}
+                          className="relative px-2 py-1.5 rounded-xl text-[10px] font-bold text-center cursor-pointer select-none flex items-center justify-center"
                         >
-                          {m.label}
+                          {isSel && (
+                            <motion.div
+                              layoutId="visualizer-mode-pill"
+                              transition={{ type: 'spring', bounce: 0.15, duration: 0.32 }}
+                              className="absolute inset-0 rounded-xl liquid-sliding-pill -z-0 pointer-events-none"
+                            />
+                          )}
+                          <span
+                            className={`relative z-10 transition-colors duration-150 truncate ${
+                              isSel
+                                ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                                : 'text-white/60 hover:text-white'
+                            }`}
+                          >
+                            {m.label}
+                          </span>
                         </button>
                       );
                     })}
