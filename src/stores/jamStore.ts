@@ -301,7 +301,6 @@ function startRoomConnections(
   roomCode: string,
   isHost: boolean,
   userId: string,
-  userName: string,
   set: (partial: Partial<JamStore>) => void,
   get: () => JamStore
 ) {
@@ -309,16 +308,12 @@ function startRoomConnections(
 
   // 1. WebRTC P2P data channel + signaling
   jamWebRtc.init(
-    roomCode,
     userId,
     isHost,
     (msg: unknown) => {
       if (msg && typeof msg === 'object') {
         applyRemoteSnapshot(msg as ServerRoomSnapshot, set, get);
       }
-    },
-    (signal: WebRtcSignalPayload) => {
-      postJamOp('webrtc-signal', roomCode, { userId, signal });
     },
     (status) => {
       if (status === 'connected') {
@@ -337,6 +332,9 @@ function startRoomConnections(
         jamSyncEngine.setTransport('server-sse');
         set({ transportMode: 'server-sse' });
       }
+    },
+    (signal: WebRtcSignalPayload) => {
+      postJamOp('webrtc-signal', roomCode, { userId, signal });
     }
   );
 
@@ -504,7 +502,7 @@ export const useJamStore = create<JamStore>((set, get) => ({
       members: data?.members || [{ id: state.userId, name: cleanName, lastSeen: Date.now(), isHost: true }]
     });
 
-    startRoomConnections(code, true, state.userId, cleanName, set, get);
+    startRoomConnections(code, true, state.userId, set, get);
     return code;
   },
 
@@ -543,7 +541,7 @@ export const useJamStore = create<JamStore>((set, get) => ({
 
     set({ isJoining: false, isConnected: true });
     applyRemoteSnapshot(data, set, get);
-    startRoomConnections(normalized, false, state.userId, cleanName, set, get);
+    startRoomConnections(normalized, false, state.userId, set, get);
   },
 
   leaveRoom: () => {

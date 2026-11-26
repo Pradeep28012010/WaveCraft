@@ -7,6 +7,7 @@ export interface JamAudioAnchor {
   anchorHostEpochMs: number;
   playbackSpeed: number;
   sequence: number;
+  rendezvousAt?: number | null;
 }
 
 export interface JamSyncTelemetry {
@@ -78,6 +79,12 @@ class JamSyncEngine {
 
   getActiveAnchor(): JamAudioAnchor | null {
     return this.activeAnchor;
+  }
+
+  clearRendezvous(): void {
+    if (this.activeAnchor) {
+      this.activeAnchor.rendezvousAt = null;
+    }
   }
 
   getExpectedPositionSec(anchor: JamAudioAnchor | null = this.activeAnchor): number {
