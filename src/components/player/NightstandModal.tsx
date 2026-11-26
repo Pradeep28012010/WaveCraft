@@ -45,7 +45,7 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
     sleepEndAtTrack,
     startSleepTimer,
     stopSleepTimer,
-    setEndAtTrack,
+    setSleepEndAtTrack,
     ambientVolumes,
     setAmbientVolume
   } = useStudioStore();
@@ -267,7 +267,7 @@ export const NightstandModal = memo(({ isOpen, onClose }: NightstandModalProps) 
                     type="button"
                     onClick={() => {
                       triggerAndroidHaptic('light');
-                      setEndAtTrack(true);
+                      setSleepEndAtTrack(true);
                     }}
                     className="px-2.5 py-1 rounded-full text-xs font-semibold text-white/75 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                   >
