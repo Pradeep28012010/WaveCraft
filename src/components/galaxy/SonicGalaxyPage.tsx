@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useLibraryStore } from '../../stores/libraryStore';
 import { playTrackWithSmartQueue } from '../../services/recommendationEngine';
@@ -87,7 +87,7 @@ export default function SonicGalaxyPage() {
 
   const [predictedTracks, setPredictedTracks] = useState<Track[]>([]);
   const [wormholeTracks, setWormholeTracks] = useState<Track[] | null>(null);
-  const [activeWormholeLabel, setActiveWormholeLabel] = useState('ðŸŒŒ My Taste Universe');
+  const [activeWormholeLabel, setActiveWormholeLabel] = useState('🌌 My Taste Universe');
   const [warpQuery, setWarpQuery] = useState('');
   const [isWarping, setIsWarping] = useState(false);
 
@@ -199,7 +199,7 @@ export default function SonicGalaxyPage() {
 
     if (!query.trim()) {
       setWormholeTracks(null);
-      setActiveWormholeLabel('ðŸŒŒ My Taste Universe');
+      setActiveWormholeLabel('🌌 My Taste Universe');
       warpTimerRef.current = setTimeout(() => {
         if (reqId === warpRequestIdRef.current) {
           setIsWarping(false);
@@ -208,7 +208,7 @@ export default function SonicGalaxyPage() {
       return;
     }
 
-    setActiveWormholeLabel(label || `ðŸš€ ${query}`);
+    setActiveWormholeLabel(label || `🚀 ${query}`);
     try {
       const results = await searchTracks(query.trim());
       if (reqId !== warpRequestIdRef.current) return;
@@ -349,15 +349,15 @@ export default function SonicGalaxyPage() {
 
       let reason = '';
       if (isLiked) {
-        reason = `Saved in Liked Songs â€¢ ${sonicSimilarityPct}% 4D Cosine DNA resonance`;
+        reason = `Saved in Liked Songs • ${sonicSimilarityPct}% 4D Cosine DNA resonance`;
       } else if (isRecent) {
-        reason = `In Recent Rotation â€¢ ${sonicSimilarityPct}% Sonic DNA alignment`;
+        reason = `In Recent Rotation • ${sonicSimilarityPct}% Sonic DNA alignment`;
       } else if (artistPlayCount >= 2) {
-        reason = `Artist appears ${artistPlayCount}Ã— in library â€¢ ${sonicSimilarityPct}% DNA match`;
+        reason = `Artist appears ${artistPlayCount}× in library • ${sonicSimilarityPct}% DNA match`;
       } else if (artistPlayCount === 1) {
-        reason = `Familiar artist â€¢ ${vibeSynergyPct}% ${cluster.shortName} sector synergy`;
+        reason = `Familiar artist • ${vibeSynergyPct}% ${cluster.shortName} sector synergy`;
       } else {
-        reason = `Discovery Star â€¢ ${sonicSimilarityPct}% Cosine DNA match to your taste`;
+        reason = `Discovery Star • ${sonicSimilarityPct}% Cosine DNA match to your taste`;
       }
 
       const h = hashString(track.id + track.title);
@@ -1169,7 +1169,7 @@ export default function SonicGalaxyPage() {
           ctx.fillStyle = `${cluster.secondary}55`;
           ctx.font = '700 9px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(`âœ¦ ${cluster.name.toUpperCase()}`, proj.sx, proj.sy - nebulaR * 0.65);
+          ctx.fillText(`✦ ${cluster.name.toUpperCase()}`, proj.sx, proj.sy - nebulaR * 0.65);
         });
       }
 
@@ -1447,14 +1447,14 @@ export default function SonicGalaxyPage() {
         ) {
           const shortTitle =
             node.track.title.length > 20
-              ? node.track.title.slice(0, 18) + 'â€¦'
+              ? node.track.title.slice(0, 18) + '…'
               : node.track.title;
 
           ctx.font =
             activeMix > 0.3 || isPlayingNow
               ? '800 11px Inter, sans-serif'
               : '600 10px Inter, sans-serif';
-          const labelText = `${shortTitle} â€¢ ${node.affinityScore}%`;
+          const labelText = `${shortTitle} • ${node.affinityScore}%`;
           const textWidth = ctx.measureText(labelText).width;
           const pillW = textWidth + 20;
           const pillH = 22;
@@ -1681,7 +1681,7 @@ export default function SonicGalaxyPage() {
           track={selectedStar.track}
           initialQuote={
             selectedStar.matchBreakdown?.reason ||
-            `Cosmic taste match in the ${selectedStar.clusterName} sector ✨`
+            `Cosmic taste match in the ${selectedStar.clusterName} sector ?`
           }
           sectorName={selectedStar.clusterName}
           matchScore={selectedStar.affinityScore}
