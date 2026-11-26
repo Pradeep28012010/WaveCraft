@@ -11,7 +11,6 @@ import QueuePanel from './QueuePanel';
 import LyricsView from '../lyrics/LyricsView';
 import Visualizer, { type VisualizerStyle } from '../visualizer/Visualizer';
 import WaveCardModal from './WaveCardModal';
-import { getTrackHarmonics } from '../../utils/audioHarmonics';
 import { toggleChorusPreview, isChorusPreviewActive } from '../../services/chorusPreview';
 import { DEFAULT_THUMBNAIL } from '../../utils/constants';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
@@ -120,12 +119,6 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
     currentTrack?.id || ''
   );
   const setNightstandOpen = useStudioStore((s) => s.setNightstandOpen);
-
-  const trackHarmonics = useMemo(() => {
-    if (!currentTrack) return null;
-    return getTrackHarmonics(currentTrack.id, currentTrack.title, currentTrack.bpm);
-  }, [currentTrack?.id, currentTrack?.title, currentTrack?.bpm]);
-
 
   const showVisualizer = useSettingsStore((s) => s.showVisualizer);
   const visualizerStyle = useSettingsStore((s) => s.visualizerStyle);
@@ -1211,26 +1204,9 @@ function NowPlayingContent({ onClose }: { onClose: () => void }) {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-1 min-w-0">
-                        <p className="text-sm sm:text-base text-white/60 font-medium truncate">
-                          {currentTrack.artist}
-                        </p>
-                        {trackHarmonics && (
-                          <div
-                            onClick={() => {
-                              triggerAndroidHaptic('light');
-                              useStudioStore.getState().setSmartDJOpen(true);
-                            }}
-                            title={`Smart DJ Harmonic Profile: ${trackHarmonics.bpm} BPM • Camelot ${trackHarmonics.camelotKey} (${trackHarmonics.musicalKey}) • ${trackHarmonics.energy} — Click to open Smart DJ Console`}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/[0.06] border border-white/10 text-white/80 shadow-sm whitespace-nowrap cursor-pointer hover:bg-white/15 hover:border-[var(--color-accent)]/40 active:scale-95 transition-all flex-shrink-0"
-                          >
-                            <span className="text-amber-400 text-[10px]">⚡</span>
-                            <span className="font-mono">{trackHarmonics.bpm} BPM</span>
-                            <span className="text-white/30">•</span>
-                            <span className="text-[var(--color-accent)] font-mono">{trackHarmonics.camelotKey}</span>
-                          </div>
-                        )}
-                      </div>
+                      <p className="text-sm sm:text-base text-white/60 font-medium truncate mt-1">
+                        {currentTrack.artist}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
