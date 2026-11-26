@@ -819,10 +819,11 @@ export default function HomePage() {
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1 w-full min-w-0">
           {/* Category Filter Pills */}
           <div
-            className="py-0.5 max-w-full flex items-center"
+            className="overflow-x-auto overflow-y-hidden no-scrollbar py-0.5 max-w-full flex items-center"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
             <div
-              className="inline-flex items-center gap-1.5 p-1.5 rounded-3xl sm:rounded-full liquid-glass border-0 flex-wrap relative shadow-sm max-w-full"
+              className="inline-flex items-center gap-1 p-1 rounded-full liquid-glass border-0 flex-nowrap relative shadow-sm"
             >
               {FILTER_CHIPS.map((chip) => {
                 const isSelected = activeFilter === chip.id;
@@ -833,7 +834,7 @@ export default function HomePage() {
                       triggerAndroidHaptic('light');
                       setActiveFilter(chip.id);
                     }}
-                    className="relative px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 justify-center cursor-pointer flex-shrink-0 select-none"
+                    className="relative px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 justify-center cursor-pointer flex-shrink-0 select-none"
                   >
                     {isSelected && (
                       <motion.div
