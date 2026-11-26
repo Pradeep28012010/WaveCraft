@@ -118,7 +118,6 @@ const FluidLiquidMeshCanvas = memo(({
     let smoothBass = 0;
     let smoothMid = 0;
     let lastNow = performance.now();
-    let lastRenderTime = performance.now();
 
     let hasDrawnIdleFrame = false;
     const render = (now: number = performance.now()) => {
@@ -137,7 +136,6 @@ const FluidLiquidMeshCanvas = memo(({
       }
       const dt = Math.min(2.5, Math.max(0.1, (now - lastNow) / 16.667));
       lastNow = now;
-      lastRenderTime = now;
       time += 0.016 * dt;
 
       let hasLive = false;

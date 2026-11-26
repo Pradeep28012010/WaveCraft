@@ -223,6 +223,7 @@ export interface YTApi {
   Player: new (
     element: HTMLElement | string,
     options: {
+      host?: string;
       height?: string | number;
       width?: string | number;
       videoId?: string;
