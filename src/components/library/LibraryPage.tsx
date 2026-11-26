@@ -160,16 +160,32 @@ export default function LibraryPage() {
 
   return (
     <div className="pb-48 sm:pb-32 pt-2 text-white min-h-screen">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      {/* Editorial Liquid Glass Header */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 mb-7 sm:mb-9">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Your Library</h1>
-          <p className="text-xs text-white/50 mt-1">
-            All your liked songs, folders, smart tags, offline vault, and live auto-syncing mixes
+          <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50 mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+            <span>Your Collection</span>
+            <span className="text-white/25">•</span>
+            <span>{playlists.length} {playlists.length === 1 ? 'Mix' : 'Mixes'}</span>
+            {folders.length > 0 && (
+              <>
+                <span className="text-white/25">•</span>
+                <span>{folders.length} {folders.length === 1 ? 'Folder' : 'Folders'}</span>
+              </>
+            )}
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-black tracking-[-0.03em] leading-tight text-white">
+            Your Library
+          </h1>
+          <p className="text-xs sm:text-sm text-white/55 mt-1.5 font-medium">
+            Liked songs, smart shelves, offline vault, and live auto-syncing mixes
           </p>
         </div>
+
+        {/* Action Pills Bar */}
         <div
-          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3.5 -my-1 px-1.5 sm:pb-0 sm:flex-wrap"
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 -my-1 px-0.5 sm:pb-0 lg:flex-wrap lg:justify-end"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {livePlaylistsCount > 0 && (
@@ -194,10 +210,11 @@ export default function LibraryPage() {
           <button
             type="button"
             onClick={() => exportFullLibraryJSON(playlists, likedSongs)}
-            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-white/80 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0"
+            className="px-3.5 py-2 rounded-full text-xs font-bold glass-button text-white/80 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0"
             title="Export full library backup (playlists & liked songs) to JSON"
           >
-            <span>📦 Backup</span>
+            <span>📦</span>
+            <span>Backup</span>
           </button>
           <GlassButton size="sm" onClick={() => openImportModal('url')} className="flex-shrink-0">
             ↓ Import
@@ -205,9 +222,10 @@ export default function LibraryPage() {
           <button
             type="button"
             onClick={handleOpenCreateFolder}
-            className="px-3.5 py-2 rounded-full text-xs font-extrabold glass-button text-indigo-300 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-0 flex-shrink-0"
+            className="px-3.5 py-2 rounded-full text-xs font-bold glass-button text-indigo-300 hover:text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-0 flex-shrink-0"
           >
-            <span>📁 + Folder</span>
+            <span>📁</span>
+            <span>+ Folder</span>
           </button>
           <GlassButton variant="primary" size="sm" onClick={() => setIsCreateModalOpen(true)} className="flex-shrink-0">
             + New Playlist
@@ -215,63 +233,84 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* Quick Access Row - Mobile 3-Column Glass Deck */}
-      <div className="grid grid-cols-3 gap-2.5 sm:gap-4 md:gap-5 mb-6 sm:mb-8">
-        <Link to="/liked" className="group">
+      {/* Quick Access Liquid Glass Deck */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-5 mb-7 sm:mb-9">
+        <Link to="/liked" className="group block">
           <GlassCard
             variant="liquid"
             padding="sm"
             hover
-            className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 h-full overflow-hidden p-3 sm:p-4"
+            className="relative flex items-center gap-4 h-full overflow-hidden p-4 rounded-3xl ring-1 ring-white/10 hover:ring-rose-400/35 transition-all"
           >
-            <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-rose-500 via-pink-600 to-purple-700 flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
-              <svg className="w-5 h-5 sm:w-8 sm:h-8 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
+            <div
+              className="pointer-events-none absolute -right-8 -top-8 w-28 h-28 rounded-full blur-2xl opacity-25 group-hover:opacity-45 transition-opacity"
+              style={{ background: 'radial-gradient(circle, #f43f5e, transparent 70%)' }}
+            />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-600 to-purple-700 flex items-center justify-center flex-shrink-0 shadow-lg shadow-rose-500/25 group-hover:scale-105 transition-transform">
+              <svg className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
               </svg>
             </div>
-            <div className="min-w-0 flex-1 w-full">
-              <h2 className="text-xs sm:text-lg font-extrabold mb-0.5 truncate text-white">Liked</h2>
-              <p className="text-[10px] sm:text-xs text-white/60 truncate">
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-black uppercase tracking-widest text-rose-300/80 mb-0.5">
+                Favorites
+              </div>
+              <h2 className="text-base sm:text-lg font-black truncate text-white">Liked Songs</h2>
+              <p className="text-xs text-white/60 truncate mt-0.5 font-medium">
                 {likedSongs.length} {likedSongs.length === 1 ? 'track' : 'tracks'}
               </p>
             </div>
           </GlassCard>
         </Link>
 
-        <Link to="/recent" className="group">
+        <Link to="/recent" className="group block">
           <GlassCard
             variant="liquid"
             padding="sm"
             hover
-            className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 h-full overflow-hidden p-3 sm:p-4"
+            className="relative flex items-center gap-4 h-full overflow-hidden p-4 rounded-3xl ring-1 ring-white/10 hover:ring-cyan-400/35 transition-all"
           >
-            <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-600 flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
-              <svg className="w-5 h-5 sm:w-8 sm:h-8 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <div
+              className="pointer-events-none absolute -right-8 -top-8 w-28 h-28 rounded-full blur-2xl opacity-25 group-hover:opacity-45 transition-opacity"
+              style={{ background: 'radial-gradient(circle, #38bdf8, transparent 70%)' }}
+            />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform">
+              <svg className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <div className="min-w-0 flex-1 w-full">
-              <h2 className="text-xs sm:text-lg font-extrabold mb-0.5 truncate text-white">Recent</h2>
-              <p className="text-[10px] sm:text-xs text-white/60 truncate">
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-black uppercase tracking-widest text-cyan-300/80 mb-0.5">
+                History
+              </div>
+              <h2 className="text-base sm:text-lg font-black truncate text-white">Recently Played</h2>
+              <p className="text-xs text-white/60 truncate mt-0.5 font-medium">
                 {recentlyPlayed.length} {recentlyPlayed.length === 1 ? 'track' : 'tracks'}
               </p>
             </div>
           </GlassCard>
         </Link>
 
-        <Link to="/downloads" className="group">
+        <Link to="/downloads" className="group block">
           <GlassCard
             variant="liquid"
             padding="sm"
             hover
-            className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 h-full overflow-hidden p-3 sm:p-4 border-0  transition-colors"
+            className="relative flex items-center gap-4 h-full overflow-hidden p-4 rounded-3xl ring-1 ring-white/10 hover:ring-emerald-400/35 transition-all"
           >
-            <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
-              <span className="text-lg sm:text-2xl">⚡</span>
+            <div
+              className="pointer-events-none absolute -right-8 -top-8 w-28 h-28 rounded-full blur-2xl opacity-25 group-hover:opacity-45 transition-opacity"
+              style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }}
+            />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+              <span className="text-2xl sm:text-3xl">⚡</span>
             </div>
-            <div className="min-w-0 flex-1 w-full">
-              <h2 className="text-xs sm:text-lg font-extrabold mb-0.5 truncate text-white">Offline Vault</h2>
-              <p className="text-[10px] sm:text-xs text-white/60 truncate">
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-black uppercase tracking-widest text-emerald-300/80 mb-0.5">
+                Local Cache
+              </div>
+              <h2 className="text-base sm:text-lg font-black truncate text-white">Offline Vault</h2>
+              <p className="text-xs text-white/60 truncate mt-0.5 font-medium">
                 {offlineTracks.length} {offlineTracks.length === 1 ? 'track' : 'tracks'} • 320k
               </p>
             </div>
@@ -281,17 +320,19 @@ export default function LibraryPage() {
 
       {/* Toast Notification Banner */}
       {savedBanner && (
-        <div className="mb-6 p-3 rounded-2xl bg-emerald-500/20 border-0 text-emerald-300 text-xs font-bold flex items-center justify-between">
+        <div className="mb-6 p-3.5 rounded-2xl liquid-glass bg-emerald-500/15 ring-1 ring-emerald-400/30 text-emerald-200 text-xs font-bold flex items-center justify-between">
           <span>✨ {savedBanner}</span>
-          <button onClick={() => setSavedBanner('')} className="text-white/60 hover:text-white cursor-pointer">✕</button>
+          <button onClick={() => setSavedBanner('')} className="text-white/60 hover:text-white cursor-pointer">
+            ✕
+          </button>
         </div>
       )}
 
       {/* Smart Tag Filter Ribbon */}
       {allTags.length > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-xs font-bold uppercase tracking-widest text-white/50 flex items-center gap-1.5">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-white/50 flex items-center gap-1.5">
               <span>🏷️</span> Smart Mood Tags
             </span>
             {selectedTagFilter !== 'all' && (
@@ -300,12 +341,12 @@ export default function LibraryPage() {
                 onClick={() => setSelectedTagFilter('all')}
                 className="text-xs text-indigo-300 hover:text-white cursor-pointer font-bold"
               >
-                Clear filter (Show All)
+                Clear filter
               </button>
             )}
           </div>
           <div
-            className="flex items-center gap-2 overflow-x-auto py-4 -my-2 px-2 scrollbar-none no-scrollbar relative"
+            className="flex items-center gap-2 overflow-x-auto py-3 -my-1 px-1 scrollbar-none no-scrollbar relative"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             <button
@@ -314,7 +355,7 @@ export default function LibraryPage() {
                 triggerAndroidHaptic('light');
                 setSelectedTagFilter('all');
               }}
-              className="relative px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer whitespace-nowrap flex items-center gap-1.5 select-none"
+              className="relative px-3.5 py-1.5 rounded-full text-xs font-bold cursor-pointer whitespace-nowrap flex items-center gap-1.5 select-none"
             >
               {selectedTagFilter === 'all' && (
                 <motion.div
@@ -323,9 +364,11 @@ export default function LibraryPage() {
                   className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                 />
               )}
-              <span className={`relative z-10 transition-colors duration-150 ${
-                selectedTagFilter === 'all' ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/70 hover:text-white'
-              }`}>
+              <span
+                className={`relative z-10 transition-colors duration-150 ${
+                  selectedTagFilter === 'all' ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/70 hover:text-white'
+                }`}
+              >
                 All Mixes
               </span>
               <span className="relative z-10 px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
@@ -342,7 +385,7 @@ export default function LibraryPage() {
                     triggerAndroidHaptic('light');
                     setSelectedTagFilter(selectedTagFilter === tag ? 'all' : tag);
                   }}
-                  className="relative px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer whitespace-nowrap flex items-center gap-1.5 select-none"
+                  className="relative px-3.5 py-1.5 rounded-full text-xs font-bold cursor-pointer whitespace-nowrap flex items-center gap-1.5 select-none"
                 >
                   {isSelected && (
                     <motion.div
@@ -351,9 +394,11 @@ export default function LibraryPage() {
                       className="absolute inset-0 rounded-full liquid-sliding-pill -z-0 pointer-events-none"
                     />
                   )}
-                  <span className={`relative z-10 transition-colors duration-150 ${
-                    isSelected ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/80 hover:text-white'
-                  }`}>
+                  <span
+                    className={`relative z-10 transition-colors duration-150 ${
+                      isSelected ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]' : 'text-white/80 hover:text-white'
+                    }`}
+                  >
                     #{tag}
                   </span>
                   <span className="relative z-10 px-1.5 py-0.2 rounded-full bg-white/15 text-[10px] text-white/80">
@@ -367,7 +412,7 @@ export default function LibraryPage() {
       )}
 
       {/* Library View Toolbar: Search Filter, Sort, View Toggle */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 p-2 sm:p-2.5 rounded-2xl liquid-glass border-0">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-8 p-2.5 sm:p-3 rounded-2xl liquid-glass ring-1 ring-white/10">
         {/* Search within Library */}
         <div className="relative flex-1 max-w-md">
           <svg
@@ -397,7 +442,6 @@ export default function LibraryPage() {
 
         {/* Right side: Sort + View Mode Segmented Switcher */}
         <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
-          {/* Sort Selector */}
           <GlassSelect
             size="sm"
             prefix="Sort:"
@@ -411,7 +455,6 @@ export default function LibraryPage() {
             ]}
           />
 
-          {/* View Mode Segmented Pill */}
           <div className="inline-flex items-center p-0.5 rounded-xl bg-white/[0.06] border border-white/[0.08] relative">
             <button
               type="button"
@@ -429,9 +472,13 @@ export default function LibraryPage() {
                   className="absolute inset-0 rounded-lg liquid-sliding-pill-neutral -z-0 pointer-events-none"
                 />
               )}
-              <svg className={`relative z-10 w-4 h-4 transition-colors duration-150 ${
-                viewMode === 'grid' ? 'text-white' : 'text-white/50 hover:text-white'
-              }`} viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                className={`relative z-10 w-4 h-4 transition-colors duration-150 ${
+                  viewMode === 'grid' ? 'text-white' : 'text-white/50 hover:text-white'
+                }`}
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <rect x="3" y="3" width="7" height="7" rx="1.5" />
                 <rect x="14" y="3" width="7" height="7" rx="1.5" />
                 <rect x="3" y="14" width="7" height="7" rx="1.5" />
@@ -454,9 +501,16 @@ export default function LibraryPage() {
                   className="absolute inset-0 rounded-lg liquid-sliding-pill-neutral -z-0 pointer-events-none"
                 />
               )}
-              <svg className={`relative z-10 w-4 h-4 transition-colors duration-150 ${
-                viewMode === 'list' ? 'text-white' : 'text-white/50 hover:text-white'
-              }`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <svg
+                className={`relative z-10 w-4 h-4 transition-colors duration-150 ${
+                  viewMode === 'list' ? 'text-white' : 'text-white/50 hover:text-white'
+                }`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              >
                 <line x1="4" y1="6" x2="20" y2="6" />
                 <line x1="4" y1="12" x2="20" y2="12" />
                 <line x1="4" y1="18" x2="20" y2="18" />
@@ -466,20 +520,20 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* Smart Dynamic Playlists Shelf (When no tag filter or relevant) */}
+      {/* Smart Dynamic Playlists Shelf */}
       {selectedTagFilter === 'all' && smartPlaylists.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/[0.08] border-0 text-[10px] font-extrabold uppercase tracking-widest text-rose-300 mb-1">
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/[0.08] text-[10px] font-extrabold uppercase tracking-widest text-rose-300 mb-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
                 INTELLIGENT AUTO-CURATION
               </div>
-              <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <h2 className="text-2xl font-black tracking-tight text-white">
                 Smart Playlists
               </h2>
             </div>
-            <span className="text-xs text-white/50 hidden sm:block">
+            <span className="text-xs text-white/50 hidden sm:block font-medium">
               Auto-generated from your listening stream & history
             </span>
           </div>
@@ -490,7 +544,7 @@ export default function LibraryPage() {
                 key={smart.id}
                 variant="liquid"
                 padding="md"
-                className="relative overflow-hidden flex flex-col justify-between group transition-all border-0 hover:scale-[1.01]"
+                className="relative overflow-hidden flex flex-col justify-between group transition-all rounded-3xl ring-1 ring-white/10 hover:ring-white/25 hover:scale-[1.01]"
               >
                 <div
                   onClick={() => {
@@ -501,20 +555,21 @@ export default function LibraryPage() {
                   title={`Open ${smart.name}`}
                 >
                   <div
-                    className={`w-full h-28 rounded-2xl bg-gradient-to-br ${smart.gradient} p-3.5 flex flex-col justify-between shadow-lg relative overflow-hidden group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.5)] transition-all`}
+                    className={`w-full h-28 rounded-2xl bg-gradient-to-br ${smart.gradient} p-3.5 flex flex-col justify-between shadow-lg relative overflow-hidden group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.55)] transition-all`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded-full bg-black/45 border-0 text-[9px] font-black uppercase tracking-wider text-white">
+                    <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
+                    <div className="flex items-center justify-between relative z-10">
+                      <span className="px-2 py-0.5 rounded-full bg-black/45 backdrop-blur-md text-[9px] font-black uppercase tracking-wider text-white">
                         {smart.badge}
                       </span>
                       <span className="text-xl drop-shadow">{smart.icon}</span>
                     </div>
 
-                    <div>
+                    <div className="relative z-10">
                       <h3 className="text-base font-black text-white drop-shadow-md truncate group-hover:underline">
                         {smart.name}
                       </h3>
-                      <p className="text-[10px] text-white/80 font-medium truncate drop-shadow">
+                      <p className="text-[10px] text-white/85 font-medium truncate drop-shadow">
                         {smart.tagline}
                       </p>
                     </div>
@@ -523,12 +578,12 @@ export default function LibraryPage() {
                   <p className="text-xs text-white/60 mt-3 line-clamp-2 leading-relaxed">
                     {smart.description}
                   </p>
-                  <span className="text-[11px] font-bold text-white/45 block mt-1">
-                    {smart.tracks.length} {smart.tracks.length === 1 ? 'track' : 'tracks'} • Click to inspect
+                  <span className="text-[11px] font-bold text-white/45 block mt-1.5">
+                    {smart.tracks.length} {smart.tracks.length === 1 ? 'track' : 'tracks'}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 mt-4 pt-3 border-0">
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-white/[0.08]">
                   <GlassButton
                     variant="primary"
                     size="sm"
@@ -552,7 +607,7 @@ export default function LibraryPage() {
                   <button
                     type="button"
                     onClick={() => handleSaveSmartPlaylist(smart)}
-                    className="px-3 py-2 rounded-full glass-button text-xs font-bold text-white/75 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+                    className="px-3 py-2 rounded-full glass-button text-xs font-bold text-white/80 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
                     title="Clone into your custom playlists"
                   >
                     + Save
@@ -568,16 +623,16 @@ export default function LibraryPage() {
       {pinnedPlaylists.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
               <span>📌</span> Pinned Playlists
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border-0">
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">
                 {pinnedPlaylists.length}
               </span>
             </h2>
-            <span className="text-xs text-white/50">Your quick-access favorites</span>
+            <span className="text-xs text-white/50">Quick-access favorites</span>
           </div>
 
-          <div className={viewMode === 'grid' ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5" : "flex flex-col gap-2"}>
+          <div className={viewMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5' : 'flex flex-col gap-2'}>
             {pinnedPlaylists.map((playlist) => (
               <PlaylistCard
                 key={`pinned-${playlist.id}`}
@@ -600,18 +655,16 @@ export default function LibraryPage() {
         const isCollapsed = Boolean(folder.isCollapsed);
         const folderColor = folder.color || '#6366f1';
 
-        // When tag filter is active, skip empty folders
         if (selectedTagFilter !== 'all' && folderPlaylists.length === 0) {
           return null;
         }
 
         return (
           <div key={folder.id} className="mb-10">
-            {/* Folder Header Shelf */}
             <div
-              className="p-3.5 sm:p-4 rounded-2xl border-0 transition-all flex items-center justify-between mb-4 backdrop-blur-md"
+              className="p-3.5 sm:p-4 rounded-2xl liquid-glass ring-1 ring-white/10 transition-all flex items-center justify-between mb-4"
               style={{
-                background: `linear-gradient(90deg, ${folderColor}18, rgba(255, 255, 255, 0.02))`
+                background: `linear-gradient(90deg, ${folderColor}20, rgba(255, 255, 255, 0.02))`
               }}
             >
               <div
@@ -625,10 +678,10 @@ export default function LibraryPage() {
                   {isCollapsed ? '▶' : '▼'}
                 </button>
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
                   style={{
                     backgroundColor: `${folderColor}35`,
-                    boxShadow: `0 0 10px ${folderColor}40`
+                    boxShadow: `0 0 14px ${folderColor}40`
                   }}
                 >
                   {folder.icon || '📁'}
@@ -639,7 +692,7 @@ export default function LibraryPage() {
                       {folder.name}
                     </h2>
                     <span
-                      className="px-2 py-0.5 rounded-full text-[11px] font-bold border-0 flex-shrink-0"
+                      className="px-2.5 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0"
                       style={{
                         backgroundColor: `${folderColor}25`,
                         color: folderColor
@@ -686,15 +739,14 @@ export default function LibraryPage() {
               </div>
             </div>
 
-            {/* Folder Playlists Grid */}
             {!isCollapsed && (
               <>
                 {folderPlaylists.length === 0 ? (
-                  <div className="p-8 rounded-2xl border-0 bg-white/[0.03] text-center text-white/40 text-xs">
+                  <div className="p-8 rounded-2xl liquid-glass bg-white/[0.03] text-center text-white/45 text-xs">
                     No playlists in this folder yet. Click &quot;+ New Playlist&quot; or edit an existing playlist to assign it here.
                   </div>
                 ) : (
-                  <div className={viewMode === 'grid' ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5" : "flex flex-col gap-2"}>
+                  <div className={viewMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5' : 'flex flex-col gap-2'}>
                     {folderPlaylists.map((playlist) => (
                       <PlaylistCard
                         key={playlist.id}
@@ -719,7 +771,7 @@ export default function LibraryPage() {
       {/* General / Unorganized Playlists Shelf */}
       <div className="mb-10">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-2xl font-bold tracking-tight">
+          <h2 className="text-2xl font-black tracking-tight">
             {folders.length > 0 ? 'General Playlists' : 'Playlists'}
           </h2>
           {livePlaylistsCount > 0 && (
@@ -741,9 +793,9 @@ export default function LibraryPage() {
                 variant="liquid"
                 padding="md"
                 hover
-                className="h-full flex flex-col items-center justify-center border-0 min-h-[230px]"
+                className="h-full flex flex-col items-center justify-center rounded-3xl ring-1 ring-white/10 hover:ring-white/25 min-h-[230px]"
               >
-                <div className="w-14 h-14 rounded-full glass-button flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
+                <div className="w-14 h-14 rounded-2xl glass-button flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
                   </svg>
@@ -762,13 +814,13 @@ export default function LibraryPage() {
                 variant="liquid"
                 padding="md"
                 hover
-                className="h-full flex flex-col items-center justify-center border-0 min-h-[230px] relative overflow-hidden"
+                className="h-full flex flex-col items-center justify-center rounded-3xl ring-1 ring-emerald-400/20 hover:ring-emerald-400/40 min-h-[230px] relative overflow-hidden"
               >
-                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-500/20 border-0 text-[9px] font-extrabold text-emerald-300 flex items-center gap-1 whitespace-nowrap">
+                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-500/20 text-[9px] font-extrabold text-emerald-300 flex items-center gap-1 whitespace-nowrap">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   AUTO-SYNC
                 </span>
-                <div className="w-14 h-14 rounded-full glass-button-emerald flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
+                <div className="w-14 h-14 rounded-2xl glass-button-emerald flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
                   <svg className="w-6 h-6 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
@@ -789,9 +841,9 @@ export default function LibraryPage() {
                 variant="liquid"
                 padding="md"
                 hover
-                className="h-full flex flex-col items-center justify-center border-0 min-h-[230px]"
+                className="h-full flex flex-col items-center justify-center rounded-3xl ring-1 ring-cyan-400/20 hover:ring-cyan-400/40 min-h-[230px]"
               >
-                <div className="w-14 h-14 rounded-full glass-button-cyan flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
+                <div className="w-14 h-14 rounded-2xl glass-button-cyan flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
@@ -821,7 +873,7 @@ export default function LibraryPage() {
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="p-3 rounded-2xl liquid-glass hover:bg-white/10 text-left flex items-center gap-3 cursor-pointer transition-all border-0"
+                className="p-3 rounded-2xl liquid-glass ring-1 ring-white/10 hover:bg-white/10 text-left flex items-center gap-3 cursor-pointer transition-all"
               >
                 <div className="w-9 h-9 rounded-xl glass-button flex items-center justify-center flex-shrink-0">
                   <span className="text-base font-bold text-white">+</span>
@@ -835,7 +887,7 @@ export default function LibraryPage() {
               <button
                 type="button"
                 onClick={() => openImportModal('live')}
-                className="p-3 rounded-2xl liquid-glass hover:bg-white/10 text-left flex items-center gap-3 cursor-pointer transition-all border-0"
+                className="p-3 rounded-2xl liquid-glass ring-1 ring-emerald-400/20 hover:bg-white/10 text-left flex items-center gap-3 cursor-pointer transition-all"
               >
                 <div className="w-9 h-9 rounded-xl glass-button-emerald flex items-center justify-center flex-shrink-0">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -849,7 +901,7 @@ export default function LibraryPage() {
               <button
                 type="button"
                 onClick={() => openImportModal('url')}
-                className="p-3 rounded-2xl liquid-glass hover:bg-white/10 text-left flex items-center gap-3 cursor-pointer transition-all border-0"
+                className="p-3 rounded-2xl liquid-glass ring-1 ring-cyan-400/20 hover:bg-white/10 text-left flex items-center gap-3 cursor-pointer transition-all"
               >
                 <div className="w-9 h-9 rounded-xl glass-button-cyan flex items-center justify-center flex-shrink-0">
                   <span className="text-xs">↓</span>
@@ -863,7 +915,7 @@ export default function LibraryPage() {
 
             {/* List stack */}
             {unorganizedPlaylists.length === 0 ? (
-              <div className="p-8 rounded-2xl border-0 bg-white/[0.03] text-center text-white/40 text-xs">
+              <div className="p-8 rounded-2xl liquid-glass bg-white/[0.03] text-center text-white/45 text-xs">
                 {searchLibraryQuery
                   ? `No playlists match "${searchLibraryQuery}".`
                   : 'No playlists in this section yet.'}
