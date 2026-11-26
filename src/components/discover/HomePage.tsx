@@ -8,7 +8,7 @@ import { useStudioStore, STUDIO_FX_MODES } from '../../stores/studioStore';
 import { getTrending, getCachedTrending, searchTracks } from '../../services/youtube';
 import { getNewReleases, getCachedNewReleases, getAlbumTracks, getAlbumArt, FALLBACK_NEW_RELEASES } from '../../services/itunes';
 import { computeSmartPlaylists, type SmartPlaylistDef } from '../../services/smartPlaylists';
-import { unlockAudioEngine } from '../player/YouTubeEmbed';
+import { unlockAudioEngine } from '../../services/audioEngine';
 import { getSmartRecommendations } from '../../services/recommendationEngine';
 import Skeleton from '../ui/Skeleton';
 import GenreBrowser from '../search/GenreBrowser';

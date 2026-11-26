@@ -11,7 +11,6 @@ import { useContextMenuStore } from '../../stores/contextMenuStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useDevicePreset } from '../../hooks/useDevicePreset';
 import AnimatedBackground from '../ui/AnimatedBackground';
-import YouTubeEmbed from '../player/YouTubeEmbed';
 import { useColorExtract } from '../../hooks/useColorExtract';
 import GlobalDownloadIndicator from '../ui/GlobalDownloadIndicator';
 import { useIsKeyboardOpen } from '../../hooks/useIsKeyboardOpen';
@@ -23,6 +22,7 @@ import { useUpdateStore } from '../../stores/updateStore';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
 const CommandPalette = lazyWithRetry(() => import('./CommandPalette'));
+const YouTubeEmbed = lazyWithRetry(() => import('../player/YouTubeEmbed'));
 const StudioFXModal = lazyWithRetry(() => import('../player/StudioFXModal'));
 const FeedbackModal = lazyWithRetry(() => import('../feedback/FeedbackModal'));
 const UpdateModal = lazyWithRetry(() => import('../updater/UpdateModal'));
@@ -165,8 +165,12 @@ export default function MainLayout() {
       {/* GPU-composited Ambient Background layer */}
       <AnimatedBackground colors={colors} palette={palette} />
 
-      {/* Hidden YouTube & Web Audio DSP Player */}
-      <YouTubeEmbed />
+      {/* Hidden YouTube & Web Audio DSP Player — mounted lazily once a track is loaded */}
+      {hasCurrentTrack && (
+        <Suspense fallback={null}>
+          <YouTubeEmbed />
+        </Suspense>
+      )}
 
       {/* Global Ctrl+K Command Palette, Studio FX & Context Menu */}
       <Suspense fallback={null}>
@@ -208,7 +212,7 @@ export default function MainLayout() {
                 <RouteErrorBoundary resetKey={location.pathname}>
                   <motion.div
                     key={location.pathname}
-                    initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                    initial={false}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                     className="w-full min-w-0"
